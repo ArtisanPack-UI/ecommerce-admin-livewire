@@ -595,7 +595,7 @@ Issues on this repository (issue numbers match the A-numbers: A01 is #1), all la
 | A01 | Package scaffold: composer, provider, config, code style, CI, `SatelliteRegistry` registration, install command | task | — |
 | A02 | Admin shell: routes, page controller, access + persistent middleware, layout resolver (cms-framework / standalone) | feature | — |
 | A03 | Navigation: `AdminNav`, cms-framework menu filter, badges, extension filter | feature | E6 (soft) |
-| A04 | Authorization: policy checks in components, RBAC permission registration, authorization matrix test | feature | E10 (soft) |
+| A04 | Authorization: policy checks in components, RBAC permission registration, authorization matrix test | feature | E10, E13 (soft) |
 | A05 | Display and input helpers: money, percent, status badges, address, pickers | feature | — |
 | A06 | Resource table foundation: search, filters, sort, pagination, selection, bulk-action bar, URL state, export | feature | U1, U4 (soft) |
 | A07 | Config-form renderer + schemas for every core registry key | feature | E11 (soft) |
@@ -623,7 +623,7 @@ Issues on this repository (issue numbers match the A-numbers: A01 is #1), all la
 | A19 | Product-type panel registry + variable product panel (attributes, variant generator, variants table) | feature | E1 |
 | A20 | Digital and grouped/bundled product panels | feature | E1 |
 | A21 | Categories and tags | feature | E1 |
-| A22 | Inventory screen and adjustments | feature | — |
+| A22 | Inventory screen and adjustments | feature | E10 (soft) |
 | A23 | Product CSV import and export | feature | E1 |
 | A24 | Reviews moderation queue | feature | — |
 | A25 | Digital files and license keys | feature | — |
@@ -653,7 +653,7 @@ Issues on this repository (issue numbers match the A-numbers: A01 is #1), all la
 | A34 | Webhook subscriptions, deliveries log, replay, secret rotation | feature | — |
 | A35 | Order statuses (sub-status management) | feature | E5 |
 | A36 | Kanban settings: boards, routing rules, columns, automations | feature | — |
-| A37 | Settings screens + settings-tab registry + satellites list | feature | E7 |
+| A37 | Settings screens + settings-tab registry + satellites list | feature | E7, E10 (soft) |
 
 ### M6 — Reports and dashboard
 
