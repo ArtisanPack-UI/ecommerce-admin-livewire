@@ -713,7 +713,8 @@ class Index extends Component
             $this->failBulk();
         }
 
-        $plan = [];
+        $plan      = [];
+        $projected = [];
 
         foreach ( $csv['rows'] as $row ) {
             $sku       = (string) $row['sku'];
@@ -731,9 +732,16 @@ class Index extends Component
                 default                                           => null,
             };
 
-            // Read only: the dry run must not create stock rows.
-            $onHand = null === $stockable ? null : (int) ( StockLevels::existingItem( $stockable )->quantity_on_hand ?? 0 );
+            // Read only: the dry run must not create stock rows. A SKU listed
+            // again starts from the count earlier rows leave, as the apply
+            // writes the rows in order.
+            $key    = null === $stockable ? null : $stockable->getMorphClass() . ':' . $stockable->getKey();
+            $onHand = null === $key ? null : ( $projected[ $key ] ?? (int) ( StockLevels::existingItem( $stockable )->quantity_on_hand ?? 0 ) );
             $change = null === $error && null !== $onHand ? ( 'set' === $mode ? (int) $quantity - $onHand : (int) $quantity ) : null;
+
+            if ( null !== $key && null !== $change ) {
+                $projected[ $key ] = $onHand + $change;
+            }
 
             $plan[] = [
                 'line'      => (int) $row['__line'],

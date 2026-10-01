@@ -280,3 +280,19 @@ it( 'does not create stock rows during the dry run', function (): void {
 
     expect( (int) InventoryItem::query()->value( 'quantity_on_hand' ) )->toBe( 4 );
 } );
+
+it( 'carries the projected count across repeated SKUs in the dry run', function (): void {
+    $item = inventoryRow( Product::factory()->create( [ 'sku' => 'MUG-1' ] ), 10 );
+
+    $component = Livewire::test( Index::class )
+        ->call( 'openBulkAdjust' )
+        ->set( 'stockCsv', stockCsvUpload( "sku,quantity,mode\nMUG-1,25,set\nMUG-1,3,delta\n" ) )
+        ->set( 'bulkReason', 'Delivery' )
+        ->call( 'dryRunBulkAdjust' );
+
+    expect( array_column( $component->get( 'bulkReport' ), 'result' ) )->toBe( [ 25, 28 ] );
+
+    $component->call( 'applyBulkAdjust', $component->viewData( 'bulkToken' ) );
+
+    expect( $item->refresh()->quantity_on_hand )->toBe( 28 );
+} );

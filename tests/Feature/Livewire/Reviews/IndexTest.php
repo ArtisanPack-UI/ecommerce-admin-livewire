@@ -179,3 +179,18 @@ it( 'refuses the drawer without review.view', function (): void {
         ->call( 'showReview', $review->id )
         ->assertForbidden();
 } );
+
+it( 'forgets a reason typed into a cancelled reject dialog', function (): void {
+    $reviews = ProductReview::factory()->count( 2 )->create();
+
+    Livewire::test( Index::class )
+        ->call( 'startReject', $reviews[0]->id )
+        ->set( 'rejectReason', 'Typed, then cancelled' )
+        ->call( 'closeReject' )
+        ->assertSet( 'rejectReason', '' )
+        ->set( 'selected', $reviews->pluck( 'id' )->map( 'strval' )->all() )
+        ->call( 'runBulkAction', 'reject' )
+        ->assertHasErrors( [ 'rejectReason' => 'required' ] );
+
+    expect( ProductReview::query()->where( 'status', 'rejected' )->count() )->toBe( 0 );
+} );

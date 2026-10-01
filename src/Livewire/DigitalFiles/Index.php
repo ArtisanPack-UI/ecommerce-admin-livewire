@@ -200,7 +200,9 @@ class Index extends Component
                     Rule::exists( ProductVariant::class, 'id' )->where( 'product_id', (int) ( $this->form['product_id'] ?? 0 ) ),
                 ],
                 'form.label'              => [ 'required', 'string', 'max:255' ],
-                'form.version'            => [ 'nullable', 'string', 'max:60' ],
+                // The engine tells buyers whenever a saved version changes, including
+                // to nothing, so a version can be changed but not cleared.
+                'form.version'            => [ null === $file || null === $file->version ? 'nullable' : 'required', 'string', 'max:60' ],
                 'form.is_streaming_only'  => [ 'boolean' ],
                 'form.source'             => [ 'required', Rule::in( [ 'path', 'media' ] ) ],
                 'form.disk'               => [ 'nullable', 'required_if:form.source,path', Rule::in( DigitalDisks::allowed() ) ],
@@ -234,7 +236,7 @@ class Index extends Component
         ];
 
         $service  = app( DigitalFileService::class );
-        $notified = null !== $file && null !== $file->version && $file->version !== $attributes['version'];
+        $notified = null !== $file && null !== $file->version && null !== $attributes['version'] && $file->version !== $attributes['version'];
         $file     = null === $file ? $service->create( $attributes ) : $service->update( $file, $attributes );
 
         $this->editing = false;
@@ -328,7 +330,7 @@ class Index extends Component
                 ->get( [ 'id', 'name', 'sku' ] )
                 ->map( static fn ( ProductVariant $variant ): array => [ 'id' => (int) $variant->id, 'name' => trim( (string) ( $variant->name ?? '' ) . ( filled( $variant->sku ) ? ' (' . $variant->sku . ')' : '' ) ) ?: '#' . $variant->id ] )
                 ->all(),
-            'versionBumped'  => null !== $this->fileId && null !== $this->savedVersion && $version !== $this->savedVersion,
+            'versionBumped'  => null !== $this->fileId && null !== $this->savedVersion && '' !== $version && $version !== $this->savedVersion,
             'diskOptions'    => DigitalDisks::options(),
             'mediaLibrary'   => ProductMedia::libraryInstalled(),
         ] );

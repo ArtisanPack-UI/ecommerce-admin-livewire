@@ -177,3 +177,18 @@ it( 'deletes a file after confirmation', function (): void {
 
     expect( DigitalFile::query()->find( $file->id ) )->toBeNull();
 } );
+
+it( 'does not let a saved version be cleared, which would notify customers', function (): void {
+    Event::fake( [ DigitalProductUpdated::class ] );
+    $file = DigitalFile::factory()->create( [ 'version' => '1.0' ] );
+
+    Livewire::test( Index::class )
+        ->call( 'edit', $file->id )
+        ->set( 'form.version', '' )
+        ->assertDontSeeHtml( 'data-version-warning' )
+        ->call( 'save' )
+        ->assertHasErrors( [ 'form.version' => 'required' ] );
+
+    expect( $file->refresh()->version )->toBe( '1.0' );
+    Event::assertNotDispatched( DigitalProductUpdated::class );
+} );

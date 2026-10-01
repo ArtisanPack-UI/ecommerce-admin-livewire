@@ -415,21 +415,29 @@ class Index extends Component
 
         $name = (string) $category->name;
 
-        $deleted = $this->withActionToken( $token, 'delete', function () use ( $category, $hasChildren ): bool {
-            if ( $hasChildren && 'other' === $this->childrenTarget ) {
-                $service = app( ProductCategoryService::class );
-                $target  = (int) $this->childrenTargetId;
-                $next    = (int) ProductCategory::query()->where( 'parent_id', $target )->max( 'position' ) + 1;
+        try {
+            $deleted = $this->withActionToken( $token, 'delete', function () use ( $category, $hasChildren ): bool {
+                if ( $hasChildren && 'other' === $this->childrenTarget ) {
+                    $service = app( ProductCategoryService::class );
+                    $target  = (int) $this->childrenTargetId;
+                    $next    = (int) ProductCategory::query()->where( 'parent_id', $target )->max( 'position' ) + 1;
 
-                foreach ( ProductCategory::query()->where( 'parent_id', $category->id )->orderBy( 'position' )->orderBy( 'id' )->get() as $child ) {
-                    $service->update( $child, [ 'parent_id' => $target, 'position' => $next++ ] );
+                    foreach ( ProductCategory::query()->where( 'parent_id', $category->id )->orderBy( 'position' )->orderBy( 'id' )->get() as $child ) {
+                        $service->update( $child, [ 'parent_id' => $target, 'position' => $next++ ] );
+                    }
                 }
-            }
 
-            app( ProductCategoryService::class )->delete( $category );
+                app( ProductCategoryService::class )->delete( $category );
 
-            return true;
-        }, $category );
+                return true;
+            }, $category );
+        } catch ( ProductWriteException $exception ) {
+            // The transaction rolled back the child moves and the delete.
+            $this->cancelDelete();
+            $this->toastError( __( 'The category was not deleted.' ), (string) ( $exception->errors[0]['message'] ?? $exception->getMessage() ) );
+
+            return;
+        }
 
         $this->cancelDelete();
 

@@ -228,7 +228,6 @@ class Index extends Component
         app( ReviewService::class )->reject( $review, sanitizeText( $this->rejectReason ), $this->actorId() );
 
         $this->closeReject();
-        $this->rejectReason = '';
         $this->toastSuccess( self::message( 'reject', 1 ) );
         $this->dispatch( 'ecommerce-admin-nav-refresh' );
     }
@@ -242,8 +241,9 @@ class Index extends Component
      */
     public function closeReject(): void
     {
-        $this->rejecting   = false;
-        $this->rejectingId = null;
+        $this->rejecting    = false;
+        $this->rejectingId  = null;
+        $this->rejectReason = '';
     }
 
     /**

@@ -229,3 +229,28 @@ it( 'takes the image from the media library', function (): void {
         ->call( 'clearImage' )
         ->assertSet( 'form.image_media_id', null );
 } );
+
+it( 'reports an engine refusal during delete and keeps everything in place', function (): void {
+    $prints = ProductCategory::factory()->create( [ 'name' => 'Prints' ] );
+    $canvas = ProductCategory::factory()->create( [ 'name' => 'Canvas', 'parent_id' => $prints->id ] );
+    $wall   = ProductCategory::factory()->create( [ 'name' => 'Wall art' ] );
+
+    app()->instance( ArtisanPackUI\Ecommerce\Services\ProductCategoryService::class, new class extends ArtisanPackUI\Ecommerce\Services\ProductCategoryService {
+        public function delete( ProductCategory $category ): void
+        {
+            throw ArtisanPackUI\Ecommerce\Exceptions\ProductWriteException::field( 'id', 'refused', 'Refused by the engine.' );
+        }
+    } );
+
+    $component = Livewire::test( Index::class )->call( 'confirmDelete', $prints->id );
+
+    $component->set( 'childrenTarget', 'other' )
+        ->set( 'childrenTargetId', $wall->id )
+        ->call( 'delete', categoryDeleteToken( $component ) )
+        ->assertOk()
+        ->assertSet( 'confirmingDelete', false );
+
+    expect( sentToasts( $component ) )->toContain( 'Refused by the engine.' )
+        ->and( ProductCategory::query()->find( $prints->id ) )->not->toBeNull()
+        ->and( $canvas->refresh()->parent_id )->toBe( $prints->id );
+} );
