@@ -65,3 +65,59 @@ it( 'also honours the inventory ability itself while it stands in for product.vi
     expect( ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization::allows( makeUser(), 'inventory.viewAny' ) )->toBeTrue()
         ->and( ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization::allows( makeUser(), 'product.viewAny' ) )->toBeFalse();
 } );
+
+it( 'lets satellites add entries through the nav.items filter', function (): void {
+    grantAbilities( [ 'order.viewAny' ] );
+    fakeAdminRoutes( [ 'subscriptions.index' ] );
+
+    addFilter( 'ap.ecommerceAdminLivewire.nav.items', static fn ( array $items ): array => [
+        ...$items,
+        [ 'key' => 'subscriptions', 'section' => 'orders', 'label' => 'Subscriptions', 'icon' => 'o-arrow-path', 'route' => 'artisanpack.ecommerce.admin.subscriptions.index', 'position' => 30, 'permission' => 'order.viewAny' ],
+        [ 'label' => 'Broken entry without a key' ],
+    ] );
+
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'subscriptions' ] );
+
+    removeAllFilters( 'ap.ecommerceAdminLivewire.nav.items' );
+} );
+
+it( 'drops empty sections', function (): void {
+    grantAbilities( [ 'review.viewAny' ] );
+    fakeAdminRoutes( [ 'reviews.index', 'products.index' ] );
+
+    expect( array_keys( AdminNav::grouped( makeUser() ) ) )->toBe( [ 'top', 'orders' ] );
+} );
+
+it( 'merges entries from the engine AdminMenuRegistry when it exists', function (): void {
+    grantAbilities( [ 'customer.viewAny' ] );
+    fakeAdminRoutes( [ 'loyalty.index' ] );
+
+    if ( ! class_exists( AdminNav::MENU_REGISTRY ) ) {
+        eval( 'namespace ArtisanPackUI\Ecommerce\Registries; class AdminMenuRegistry { public array $items = []; public function all(): array { return $this->items; } }' );
+    }
+
+    $registry        = new ( AdminNav::MENU_REGISTRY )();
+    $registry->items = [ [ 'key' => 'loyalty', 'section' => 'customers', 'label' => 'Loyalty', 'icon' => 'o-gift', 'route' => 'artisanpack.ecommerce.admin.loyalty.index', 'position' => 20, 'permission' => 'customer.viewAny' ] ];
+    app()->instance( AdminNav::MENU_REGISTRY, $registry );
+
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toContain( 'loyalty' );
+} );
+
+it( 'drops entries with a malformed permission instead of failing', function (): void {
+    grantAbilities( [ 'order.viewAny' ] );
+    fakeAdminRoutes( [ 'subscriptions.index', 'loyalty.index' ] );
+    Illuminate\Support\Facades\Log::spy();
+
+    addFilter( 'ap.ecommerceAdminLivewire.nav.items', static fn ( array $items ): array => [
+        ...$items,
+        [ 'key' => 'subscriptions', 'section' => 'orders', 'label' => 'Subscriptions', 'route' => 'artisanpack.ecommerce.admin.subscriptions.index', 'permission' => 'ecommerce.order.viewAny' ],
+        [ 'key' => 'loyalty', 'section' => 'customers', 'label' => 'Loyalty', 'route' => 'artisanpack.ecommerce.admin.loyalty.index', 'permission' => 'loyalty.manage.all' ],
+    ] );
+
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'subscriptions' ] )
+        ->and( AdminNav::canAccess( makeUser() ) )->toBeTrue();
+
+    Illuminate\Support\Facades\Log::shouldHaveReceived( 'warning' )->withArgs( static fn ( string $message ): bool => str_contains( $message, '"loyalty"' ) );
+
+    removeAllFilters( 'ap.ecommerceAdminLivewire.nav.items' );
+} );

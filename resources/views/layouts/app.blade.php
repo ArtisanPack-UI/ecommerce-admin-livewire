@@ -60,7 +60,7 @@
 
     <x-artisanpack-main with-nav full-width>
         <x-slot:sidebar drawer="ecommerce-admin-drawer" class="bg-base-100 lg:bg-inherit ecommerce-admin__sidebar">
-            @include( 'ecommerce-admin::partials.nav' )
+            <livewire:artisanpack-ecommerce-admin-navigation />
         </x-slot:sidebar>
 
         <x-slot:content id="ecommerce-admin-content">

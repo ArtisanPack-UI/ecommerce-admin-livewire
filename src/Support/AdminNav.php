@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -55,7 +56,19 @@ final class AdminNav
     public const TOP = 'top';
 
     /**
-     * The navigation sections, in order.
+     * The engine registry satellites add nav entries to.
+     *
+     * @since 1.0.0
+     *
+     * @var string
+     */
+    public const MENU_REGISTRY = 'ArtisanPackUI\\Ecommerce\\Registries\\AdminMenuRegistry';
+
+    /**
+     * The navigation sections.
+     *
+     * Satellites add sections through the `ap.ecommerceAdminLivewire.nav.sections`
+     * filter. An entry whose section is unknown sits in the top section.
      *
      * @since 1.0.0
      *
@@ -63,7 +76,7 @@ final class AdminNav
      */
     public static function sections(): array
     {
-        return [
+        return (array) applyFilters( 'ap.ecommerceAdminLivewire.nav.sections', [
             self::TOP       => [ 'label' => null, 'position' => 0 ],
             'orders'        => [ 'label' => __( 'Orders' ), 'position' => 10 ],
             'catalog'       => [ 'label' => __( 'Catalog' ), 'position' => 20 ],
@@ -71,11 +84,16 @@ final class AdminNav
             'marketing'     => [ 'label' => __( 'Marketing' ), 'position' => 40 ],
             'reports'       => [ 'label' => __( 'Reports' ), 'position' => 50 ],
             'configuration' => [ 'label' => __( 'Configuration' ), 'position' => 60 ],
-        ];
+        ] );
     }
 
     /**
      * Every navigation entry, sorted by section and position.
+     *
+     * Core entries are merged with those satellites add to the engine's
+     * `AdminMenuRegistry` (when the engine ships it), then passed through the
+     * `ap.ecommerceAdminLivewire.nav.items` filter. A later entry replaces an
+     * earlier one with the same `key`.
      *
      * @since 1.0.0
      *
@@ -84,7 +102,25 @@ final class AdminNav
     public static function items(): array
     {
         $sections = self::sections();
-        $items    = array_map( self::normalize( ... ), self::coreItems() );
+        $items    = [];
+
+        $raw = (array) applyFilters( 'ap.ecommerceAdminLivewire.nav.items', [ ...self::coreItems(), ...self::registryItems() ] );
+
+        foreach ( $raw as $item ) {
+            if ( ! is_array( $item ) || ! isset( $item['key'], $item['label'], $item['route'] ) ) {
+                continue;
+            }
+
+            $item['permission'] = self::permission( $item['permission'] ?? null, (string) $item['key'] );
+
+            if ( false === $item['permission'] ) {
+                continue;
+            }
+
+            $items[ (string) $item['key'] ] = self::normalize( $item );
+        }
+
+        $items = array_values( $items );
 
         usort( $items, static fn ( array $a, array $b ): int => [
             $sections[ $a['section'] ]['position'] ?? PHP_INT_MAX,
@@ -256,6 +292,65 @@ final class AdminNav
     }
 
     /**
+     * Entries satellites registered with the engine's `AdminMenuRegistry`.
+     *
+     * The registry is planned for engine 1.0 (engine issue #144); until it
+     * exists the `ap.ecommerceAdminLivewire.nav.items` filter does the same job.
+     *
+     * @since 1.0.0
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function registryItems(): array
+    {
+        if ( ! class_exists( self::MENU_REGISTRY ) || ! app()->bound( self::MENU_REGISTRY ) ) {
+            return [];
+        }
+
+        $registry = app( self::MENU_REGISTRY );
+
+        if ( ! method_exists( $registry, 'all' ) ) {
+            return [];
+        }
+
+        return array_values( array_map(
+            static fn ( mixed $item ): array => is_object( $item ) && method_exists( $item, 'toArray' ) ? $item->toArray() : (array) $item,
+            (array) $registry->all(),
+        ) );
+    }
+
+    /**
+     * Validates an entry's permission.
+     *
+     * Accepts `{resource}.{action}` and the Gate ability spelling
+     * `ecommerce.{resource}.{action}`. Anything else is logged and the entry
+     * dropped, so one malformed satellite entry cannot break the admin.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed   $permission  The raw permission.
+     * @param  string  $key         The entry key, for the log message.
+     *
+     * @return false|string|null The ability, null for none, or false to drop the entry.
+     */
+    private static function permission( mixed $permission, string $key ): string|false|null
+    {
+        if ( null === $permission || '' === $permission ) {
+            return null;
+        }
+
+        $ability = is_string( $permission ) ? preg_replace( '/^ecommerce\./', '', $permission ) : null;
+
+        if ( is_string( $ability ) && 1 === preg_match( '/^[A-Za-z][A-Za-z0-9]*\.[A-Za-z][A-Za-z0-9-]*$/', $ability ) ) {
+            return $ability;
+        }
+
+        Log::warning( sprintf( 'Ecommerce admin nav entry "%s" was skipped: its permission must be "{resource}.{action}".', $key ) );
+
+        return false;
+    }
+
+    /**
      * Fills defaults.
      *
      * @since 1.0.0
@@ -274,7 +369,7 @@ final class AdminNav
             'parameters' => (array) ( $item['parameters'] ?? [] ),
             'position'   => (int) ( $item['position'] ?? 100 ),
             'permission' => isset( $item['permission'] ) && '' !== $item['permission'] ? (string) $item['permission'] : null,
-            'section'    => (string) ( $item['section'] ?? self::TOP ),
+            'section'    => isset( $item['section'] ) && array_key_exists( (string) $item['section'], self::sections() ) ? (string) $item['section'] : self::TOP,
             'badge'      => isset( $item['badge'] ) ? (string) $item['badge'] : null,
         ];
     }
