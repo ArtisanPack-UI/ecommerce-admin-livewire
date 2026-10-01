@@ -1,5 +1,9 @@
 <?php
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
+use Tests\Fixtures\User;
+
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -11,4 +15,61 @@
 */
 
 pest()->extend( Tests\TestCase::class )
+    ->use( RefreshDatabase::class )
     ->in( 'Feature' );
+
+/*
+|--------------------------------------------------------------------------
+| Functions
+|--------------------------------------------------------------------------
+*/
+
+if ( ! function_exists( 'makeUser' ) ) {
+    /**
+     * Creates a host-app user.
+     *
+     * @param  array<string, mixed>  $attributes  Attribute overrides.
+     */
+    function makeUser( array $attributes = [] ): User
+    {
+        static $sequence = 0;
+        $sequence++;
+
+        return User::query()->create( $attributes + [
+            'name'     => 'User ' . $sequence,
+            'email'    => 'user' . $sequence . '-' . uniqid() . '@example.test',
+            'password' => 'secret',
+        ] );
+    }
+}
+
+if ( ! function_exists( 'grantAbilities' ) ) {
+    /**
+     * Defines `ecommerce.{ability}` gates that allow every user.
+     *
+     * Undefined abilities stay denied (the engine's default), as long as the
+     * umbrella `ecommerce.admin` gate is not defined.
+     *
+     * @param  array<int, string>  $abilities  `{resource}.{action}` abilities.
+     */
+    function grantAbilities( array $abilities ): void
+    {
+        foreach ( $abilities as $ability ) {
+            Gate::define( 'ecommerce.' . $ability, static fn (): bool => true );
+        }
+    }
+}
+
+if ( ! function_exists( 'grantAdmin' ) ) {
+    /**
+     * Defines the umbrella `ecommerce.admin` gate for the given users only.
+     *
+     * @param  User  ...$users  The users to grant full access.
+     */
+    function grantAdmin( User ...$users ): void
+    {
+        $ids = array_map( static fn ( User $user ): int => (int) $user->getKey(), $users );
+
+        Gate::define( 'ecommerce.admin', static fn ( $user ): bool => in_array( (int) $user->getKey(), $ids, true ) );
+    }
+}

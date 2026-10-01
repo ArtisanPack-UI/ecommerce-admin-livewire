@@ -17,7 +17,14 @@ namespace ArtisanPackUI\EcommerceAdminLivewire;
 
 use ArtisanPackUI\Ecommerce\Registries\SatelliteRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
+use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
+use Illuminate\Contracts\View\View as ViewContract;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 /**
  * Bootstraps the Livewire admin satellite.
@@ -61,6 +68,17 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     public const VIEW_NAMESPACE = 'ecommerce-admin';
 
     /**
+     * The package's Livewire components, keyed by component name.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, class-string>
+     */
+    public const LIVEWIRE_COMPONENTS = [
+        'artisanpack-ecommerce-admin-dashboard' => Dashboard::class,
+    ];
+
+    /**
      * Registers the package configuration.
      *
      * @since 1.0.0
@@ -92,6 +110,9 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $this->registerViews();
         $this->registerTranslations();
         $this->registerCommands();
+        $this->registerLayoutResolver();
+        $this->registerLivewireComponents();
+        $this->registerRoutes();
     }
 
     /**
@@ -206,5 +227,78 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $this->commands( [
             InstallCommand::class,
         ] );
+    }
+
+    /**
+     * Shares the layout every page view extends.
+     *
+     * Pages extend `$ecommerceAdminLayout`: cms-framework's admin layout when
+     * it is installed, else the package's standalone layout. Under the CMS
+     * layout, `$ecommerceAdminPushesAssets` tells the page to push the
+     * Livewire assets onto the layout's stacks.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    protected function registerLayoutResolver(): void
+    {
+        View::composer( self::VIEW_NAMESPACE . '::pages.*', static function ( ViewContract $view ): void {
+            $usesCms = CmsFramework::isInstalled();
+
+            $view->with( [
+                'ecommerceAdminLayout'       => $usesCms ? CmsFramework::LAYOUT : self::VIEW_NAMESPACE . '::layouts.app',
+                'ecommerceAdminPushesAssets' => $usesCms,
+            ] );
+        } );
+    }
+
+    /**
+     * Registers the Livewire components and the persistent access middleware.
+     *
+     * The route middleware only guards the initial page load. Registering it
+     * as persistent makes Livewire re-run it on every update request from an
+     * admin page.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    protected function registerLivewireComponents(): void
+    {
+        if ( ! class_exists( Livewire::class ) ) {
+            return;
+        }
+
+        foreach ( self::LIVEWIRE_COMPONENTS as $name => $class ) {
+            Livewire::component( $name, $class );
+        }
+
+        Livewire::addPersistentMiddleware( [ EnsureAdminAccess::class ] );
+    }
+
+    /**
+     * Registers the admin routes and the access middleware alias.
+     *
+     * Skipped when the routes are cached (the cache already holds them) or
+     * when `admin.routes_enabled` is false.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    protected function registerRoutes(): void
+    {
+        Route::aliasMiddleware( EnsureAdminAccess::ALIAS, EnsureAdminAccess::class );
+
+        if ( $this->app->routesAreCached() ) {
+            return;
+        }
+
+        if ( ! (bool) config( 'artisanpack.ecommerce-admin-livewire.admin.routes_enabled', true ) ) {
+            return;
+        }
+
+        $this->loadRoutesFrom( __DIR__ . '/../routes/admin.php' );
     }
 }
