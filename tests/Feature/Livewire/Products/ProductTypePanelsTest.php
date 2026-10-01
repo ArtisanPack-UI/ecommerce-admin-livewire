@@ -368,3 +368,16 @@ it( 'leaves another product\'s variants alone when their ids are sent', function
         ->and( $foreign->product_id )->toBe( $other->id )
         ->and( $product->variants()->pluck( 'sku' )->all() )->toBe( [ 'TEE-1' ] );
 } );
+
+it( 'reports an unresolvable panel alias as such, keeping the original error', function (): void {
+    $registry = app( ProductTypePanelRegistry::class );
+    $registry->register( 'ghost', 'no-such-livewire-component' );
+
+    try {
+        $registry->panelClass( 'ghost' );
+        $this->fail( 'Expected an exception.' );
+    } catch ( InvalidArgumentException $exception ) {
+        expect( $exception->getMessage() )->toBe( 'The "ghost" product-type panel "no-such-livewire-component" could not be resolved.' )
+            ->and( $exception->getPrevious() )->not->toBeNull();
+    }
+} );

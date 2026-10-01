@@ -167,10 +167,10 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      */
     public const PRODUCT_TYPE_PANELS = [
         'simple'   => null,
-        'variable' => 'artisanpack-ecommerce-admin-product-variable-panel',
-        'digital'  => 'artisanpack-ecommerce-admin-product-digital-panel',
-        'grouped'  => 'artisanpack-ecommerce-admin-product-children-panel',
-        'bundled'  => 'artisanpack-ecommerce-admin-product-children-panel',
+        'variable' => Products\Panels\VariablePanel::class,
+        'digital'  => Products\Panels\DigitalPanel::class,
+        'grouped'  => Products\Panels\ChildrenPanel::class,
+        'bundled'  => Products\Panels\ChildrenPanel::class,
     ];
 
     /**

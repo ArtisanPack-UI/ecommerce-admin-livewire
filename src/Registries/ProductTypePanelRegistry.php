@@ -132,7 +132,7 @@ final class ProductTypePanelRegistry
      *
      * @param  string  $typeKey  Product type key.
      *
-     * @throws InvalidArgumentException When the registered component isn't a ProductTypePanel.
+     * @throws InvalidArgumentException When the component can't be resolved or isn't a ProductTypePanel.
      *
      * @return class-string<ProductTypePanel>|null
      */
@@ -148,9 +148,17 @@ final class ProductTypePanelRegistry
             return $this->classes[ $typeKey ];
         }
 
-        $class = class_exists( $component ) ? $component : $this->resolveAlias( $component );
+        try {
+            $class = class_exists( $component ) ? $component : $this->resolveAlias( $component );
+        } catch ( Throwable $exception ) {
+            throw new InvalidArgumentException(
+                sprintf( 'The "%s" product-type panel "%s" could not be resolved.', $typeKey, $component ),
+                0,
+                $exception,
+            );
+        }
 
-        if ( null === $class || ! is_subclass_of( $class, ProductTypePanel::class ) ) {
+        if ( ! is_subclass_of( $class, ProductTypePanel::class ) ) {
             throw new InvalidArgumentException( sprintf( 'The "%s" product-type panel must extend %s.', $typeKey, ProductTypePanel::class ) );
         }
 
@@ -170,20 +178,16 @@ final class ProductTypePanelRegistry
     }
 
     /**
-     * The class behind a Livewire alias.
+     * The class behind a Livewire alias (throws when Livewire can't resolve it).
      *
      * @since 1.0.0
      *
      * @param  string  $alias  Livewire component name.
      *
-     * @return string|null
+     * @return string
      */
-    private function resolveAlias( string $alias ): ?string
+    private function resolveAlias( string $alias ): string
     {
-        try {
-            return Livewire::new( $alias )::class;
-        } catch ( Throwable ) {
-            return null;
-        }
+        return Livewire::new( $alias )::class;
     }
 }
