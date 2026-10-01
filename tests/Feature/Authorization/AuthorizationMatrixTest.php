@@ -71,6 +71,51 @@ const MATRIX = [
             'removeFromBoard' => [ 'args' => [ 1 ], 'ability' => 'kanbanCard.move' ],
         ],
     ],
+    'artisanpack-ecommerce-admin-order-status' => [
+        'mount'   => [ 'params' => [ 'order' => '@order' ], 'ability' => 'order.view' ],
+        'actions' => [
+            'changeStatus'    => [ 'args' => [], 'ability' => 'order.update' ],
+            'changeSubstatus' => [ 'args' => [], 'ability' => 'order.update' ],
+            'cancelOrder'     => [ 'args' => [ 'token' ], 'ability' => 'order.cancel' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-order-refunds' => [
+        'mount'   => [ 'params' => [ 'order' => '@order' ], 'ability' => 'order.view' ],
+        'actions' => [
+            'startRefund' => [ 'args' => [], 'ability' => 'order.refund' ],
+            'refund'      => [ 'args' => [ 'token' ], 'ability' => 'order.refund' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-order-fulfillment' => [
+        'mount'   => [ 'params' => [ 'order' => '@order' ], 'ability' => 'order.view' ],
+        'actions' => [
+            'startShipment'  => [ 'args' => [], 'ability' => 'order.update' ],
+            'createShipment' => [ 'args' => [ 'token' ], 'ability' => 'order.update' ],
+            'editTracking'   => [ 'args' => [ 1 ], 'ability' => 'order.update' ],
+            'updateTracking' => [ 'args' => [], 'ability' => 'order.update' ],
+            'buyLabel'       => [ 'args' => [ 1, 'token' ], 'ability' => 'order.update' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-order-edits' => [
+        'mount'   => [ 'params' => [ 'order' => '@order' ], 'ability' => 'order.view' ],
+        'actions' => [
+            'startEdit'        => [ 'args' => [], 'ability' => 'order.update' ],
+            'addItem'          => [ 'args' => [], 'ability' => 'order.update' ],
+            'removeNewItem'    => [ 'args' => [ 0 ], 'ability' => 'order.update' ],
+            'previewEdit'      => [ 'args' => [], 'ability' => 'order.update' ],
+            'applyEdit'        => [ 'args' => [ 'token' ], 'ability' => 'order.update' ],
+            'rollbackEdit'     => [ 'args' => [ 1, 'token' ], 'ability' => 'order.update' ],
+            // The page re-authorizes order.view on every request; the picker source then needs product.viewAny.
+            'searchPicker'     => [ 'args' => [ 'a', 'product', 'addProductId' ], 'ability' => 'product.viewAny' ],
+            'optionsForPicker' => [ 'args' => [ 'product', 'addProductId' ], 'ability' => 'product.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-timeline' => [
+        'mount'   => [ 'params' => [ 'subject' => '@order-model' ], 'ability' => 'order.view' ],
+        'actions' => [
+            'loadMore' => [ 'args' => [], 'ability' => 'order.view' ],
+        ],
+    ],
 
     // The WithPickers concern, which screens mix in.
     'matrix-pickers' => [
@@ -101,7 +146,7 @@ $GLOBALS['matrixFixtureComponents'] = [
 
 /**
  * Resolves mount parameters: `@order` becomes the id of an order created
- * for the test.
+ * for the test, and `@order-model` that order itself.
  *
  * @param  array<string, mixed>  $params
  *
@@ -112,6 +157,10 @@ function matrixParams( array $params ): array
     return array_map( static function ( mixed $value ): mixed {
         if ( '@order' === $value ) {
             return $GLOBALS['matrixOrderId'] ??= ArtisanPackUI\Ecommerce\Models\Order::factory()->create()->id;
+        }
+
+        if ( '@order-model' === $value ) {
+            return ArtisanPackUI\Ecommerce\Models\Order::query()->findOrFail( $GLOBALS['matrixOrderId'] ??= ArtisanPackUI\Ecommerce\Models\Order::factory()->create()->id );
         }
 
         return $value;

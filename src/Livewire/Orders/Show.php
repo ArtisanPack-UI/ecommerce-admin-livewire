@@ -76,6 +76,15 @@ class Show extends Component
     public int|string|null $boardToAdd = null;
 
     /**
+     * Re-render when a panel changes the order.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, string>
+     */
+    protected $listeners = [ OrderPanelRegistry::ORDER_UPDATED_EVENT => '$refresh' ];
+
+    /**
      * The order, loaded once per request.
      *
      * @since 1.0.0

@@ -159,9 +159,15 @@
                     @livewire( $panel['component'], [ 'order' => $order ], key( 'order-panel-' . $panel['key'] ) )
                 </div>
             @endforeach
+
+            {{-- Timeline --}}
+            @livewire( 'artisanpack-ecommerce-admin-timeline', [ 'subject' => $order ], key( 'order-timeline' ) )
         </div>
 
         <div class="flex flex-col gap-4">
+            {{-- Status --}}
+            @livewire( 'artisanpack-ecommerce-admin-order-status', [ 'order' => $order ], key( 'order-status' ) )
+
             {{-- Customer --}}
             <x-artisanpack-card :title="__( 'Customer' )" shadow>
                 <p class="font-semibold">
