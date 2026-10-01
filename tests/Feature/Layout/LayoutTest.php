@@ -35,7 +35,9 @@ it( 'renders inside the cms-framework layout when it is installed', function ():
         ->assertSee( '<title>Dashboard &middot; CMS</title>', false )
         ->assertDontSee( 'ecommerce-admin__sidebar', false );
 
-    // The CMS layout ships no Livewire assets, so the page pushes them onto its stacks.
+    // The CMS layout ships no Livewire assets or toasts, so the page pushes them onto its stacks.
+    expect( $response->getContent() )->toContain( 'window.toast' );
+
     expect( substr_count( $response->getContent(), 'livewire.js' ) + substr_count( $response->getContent(), 'livewire.min.js' ) )
         ->toBe( 1 );
 } );

@@ -36,6 +36,9 @@ final class Authorization
      * Abilities the engine does not define yet, mapped to the one that
      * stands in for them until it does (spec §6, engine issue #148).
      *
+     * Either grants access: the stand-in, or the ability itself (through a
+     * host gate, the umbrella gate, or the engine's ability filter).
+     *
      * @since 1.0.0
      *
      * @var array<string, string>
@@ -58,9 +61,14 @@ final class Authorization
      */
     public static function allows( ?Authenticatable $user, string $ability, mixed $subject = null ): bool
     {
-        [ $resource, $action ] = self::split( self::INTERIM_ABILITIES[ $ability ] ?? $ability );
+        [ $resource, $action ] = self::split( $ability );
 
-        return app( EcommerceAuthorizer::class )->allows( $user, $resource, $action, $subject );
+        if ( app( EcommerceAuthorizer::class )->allows( $user, $resource, $action, $subject ) ) {
+            return true;
+        }
+
+        return isset( self::INTERIM_ABILITIES[ $ability ] )
+            && self::allows( $user, self::INTERIM_ABILITIES[ $ability ], $subject );
     }
 
     /**

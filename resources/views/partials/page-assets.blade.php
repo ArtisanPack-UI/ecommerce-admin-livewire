@@ -1,8 +1,8 @@
 {{--
-    Pushes the Livewire assets onto the layout stacks.
+    Pushes the Livewire assets and the toast container onto the layout stacks.
 
-    cms-framework's admin layout ships no Livewire assets, so under it each page
-    pushes them; the standalone layout includes them itself.
+    cms-framework's admin layout ships neither, so under it each page pushes
+    them; the standalone layout includes them itself.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -15,6 +15,7 @@
     @endpush
 
     @push( 'scripts' )
+        <x-artisanpack-toast />
         @livewireScripts
     @endpush
 @endif

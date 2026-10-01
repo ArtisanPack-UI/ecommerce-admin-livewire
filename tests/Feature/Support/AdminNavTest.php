@@ -58,3 +58,10 @@ it( 'maps inventory onto product.viewAny until the engine ships inventory abilit
 
     expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toContain( 'inventory' );
 } );
+
+it( 'also honours the inventory ability itself while it stands in for product.viewAny', function (): void {
+    grantAbilities( [ 'inventory.viewAny' ] );
+
+    expect( ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization::allows( makeUser(), 'inventory.viewAny' ) )->toBeTrue()
+        ->and( ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization::allows( makeUser(), 'product.viewAny' ) )->toBeFalse();
+} );
