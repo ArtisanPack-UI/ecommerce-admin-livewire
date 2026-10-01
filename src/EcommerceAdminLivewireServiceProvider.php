@@ -23,6 +23,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\ThrottleAdminMutations;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Timeline;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CustomerPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\ProductPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\VariantPickerSource;
@@ -119,10 +120,30 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * @var array<string, class-string>
      */
     public const LIVEWIRE_COMPONENTS = [
-        'artisanpack-ecommerce-admin-dashboard'    => Dashboard::class,
-        'artisanpack-ecommerce-admin-navigation'   => Navigation::class,
-        'artisanpack-ecommerce-admin-orders-index' => Orders\Index::class,
-        'artisanpack-ecommerce-admin-orders-show'  => Orders\Show::class,
+        'artisanpack-ecommerce-admin-dashboard'         => Dashboard::class,
+        'artisanpack-ecommerce-admin-navigation'        => Navigation::class,
+        'artisanpack-ecommerce-admin-orders-index'      => Orders\Index::class,
+        'artisanpack-ecommerce-admin-orders-show'       => Orders\Show::class,
+        'artisanpack-ecommerce-admin-order-status'      => Orders\StatusPanel::class,
+        'artisanpack-ecommerce-admin-order-refunds'     => Orders\RefundsPanel::class,
+        'artisanpack-ecommerce-admin-order-fulfillment' => Orders\FulfillmentPanel::class,
+        'artisanpack-ecommerce-admin-order-edits'       => Orders\EditPanel::class,
+        'artisanpack-ecommerce-admin-timeline'          => Timeline::class,
+    ];
+
+    /**
+     * The built-in order detail panels, as `key => [ component, column, position ]`.
+     * Satellites register theirs after these (default position 100) and may
+     * unregister or replace one by key.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, array{0: string, 1: string, 2: int}>
+     */
+    public const ORDER_PANELS = [
+        'fulfillment' => [ 'artisanpack-ecommerce-admin-order-fulfillment', 'main', 10 ],
+        'refunds'     => [ 'artisanpack-ecommerce-admin-order-refunds', 'main', 20 ],
+        'edits'       => [ 'artisanpack-ecommerce-admin-order-edits', 'main', 30 ],
     ];
 
     /**
@@ -157,7 +178,15 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             return $registry;
         } );
 
-        $this->app->singleton( OrderPanelRegistry::class );
+        $this->app->singleton( OrderPanelRegistry::class, static function (): OrderPanelRegistry {
+            $registry = new OrderPanelRegistry();
+
+            foreach ( self::ORDER_PANELS as $key => [ $component, $column, $position ] ) {
+                $registry->register( $key, $component, $column, $position );
+            }
+
+            return $registry;
+        } );
     }
 
     /**

@@ -44,6 +44,18 @@ class OrderPanelRegistry
     public const COLUMNS = [ 'main', 'side' ];
 
     /**
+     * The browser event a panel dispatches after it changes the order. The
+     * order page and every panel listening for it re-render, so a panel
+     * that shows order state should listen too:
+     * `protected $listeners = [ OrderPanelRegistry::ORDER_UPDATED_EVENT => '$refresh' ];`
+     *
+     * @since 1.0.0
+     *
+     * @var string
+     */
+    public const ORDER_UPDATED_EVENT = 'ecommerce-admin-order-updated';
+
+    /**
      * The registered panels, keyed by panel key.
      *
      * @since 1.0.0
