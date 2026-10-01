@@ -19,7 +19,9 @@ use ArtisanPackUI\Ecommerce\Registries\SatelliteRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
@@ -75,7 +77,8 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * @var array<string, class-string>
      */
     public const LIVEWIRE_COMPONENTS = [
-        'artisanpack-ecommerce-admin-dashboard' => Dashboard::class,
+        'artisanpack-ecommerce-admin-dashboard'  => Dashboard::class,
+        'artisanpack-ecommerce-admin-navigation' => Navigation::class,
     ];
 
     /**
@@ -113,6 +116,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $this->registerLayoutResolver();
         $this->registerLivewireComponents();
         $this->registerRoutes();
+        CmsMenu::subscribe();
     }
 
     /**

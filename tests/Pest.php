@@ -73,3 +73,21 @@ if ( ! function_exists( 'grantAdmin' ) ) {
         Gate::define( 'ecommerce.admin', static fn ( $user ): bool => in_array( (int) $user->getKey(), $ids, true ) );
     }
 }
+
+if ( ! function_exists( 'fakeAdminRoutes' ) ) {
+    /**
+     * Registers stand-in routes for admin screens that have not shipped, so
+     * their nav entries become visible.
+     *
+     * @param  array<int, string>  $names  Route names relative to `artisanpack.ecommerce.admin.`.
+     */
+    function fakeAdminRoutes( array $names ): void
+    {
+        foreach ( $names as $name ) {
+            Illuminate\Support\Facades\Route::get( 'fake-admin/' . str_replace( '.', '/', $name ) . '/{report?}', static fn (): string => $name )
+                ->name( 'artisanpack.ecommerce.admin.' . $name );
+        }
+
+        Illuminate\Support\Facades\Route::getRoutes()->refreshNameLookups();
+    }
+}
