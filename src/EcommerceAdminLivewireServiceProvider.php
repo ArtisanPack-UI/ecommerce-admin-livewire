@@ -19,14 +19,19 @@ use ArtisanPackUI\Ecommerce\Registries\SatelliteRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\SyncPermissionsCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
+use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\ThrottleAdminMutations;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CustomerPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\ProductPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\VariantPickerSource;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\ConfigFormRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\ConfigSchemas;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\RbacPermissions;
 use ArtisanPackUI\EcommerceAdminLivewire\View\Components;
 use Illuminate\Contracts\View\View as ViewContract;
@@ -90,13 +95,17 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     public const BLADE_COMPONENTS = [
         'address'              => Components\Address::class,
         'address-form'         => Components\AddressForm::class,
+        'bulk-action-bar'      => Components\BulkActionBar::class,
         'category-picker'      => Components\CategoryPicker::class,
+        'config-form'          => Components\ConfigForm::class,
         'customer-picker'      => Components\CustomerPicker::class,
+        'empty-state'          => Components\EmptyState::class,
         'money'                => Components\Money::class,
         'money-input'          => Components\MoneyInput::class,
         'percent-input'        => Components\PercentInput::class,
         'product-picker'       => Components\ProductPicker::class,
         'product-type-warning' => Components\ProductTypeWarning::class,
+        'resource-table'       => Components\ResourceTable::class,
         'status-badge'         => Components\StatusBadge::class,
         'tag-picker'           => Components\TagPicker::class,
         'variant-picker'       => Components\VariantPicker::class,
@@ -110,12 +119,14 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * @var array<string, class-string>
      */
     public const LIVEWIRE_COMPONENTS = [
-        'artisanpack-ecommerce-admin-dashboard'  => Dashboard::class,
-        'artisanpack-ecommerce-admin-navigation' => Navigation::class,
+        'artisanpack-ecommerce-admin-dashboard'    => Dashboard::class,
+        'artisanpack-ecommerce-admin-navigation'   => Navigation::class,
+        'artisanpack-ecommerce-admin-orders-index' => Orders\Index::class,
+        'artisanpack-ecommerce-admin-orders-show'  => Orders\Show::class,
     ];
 
     /**
-     * Registers the package configuration and the picker source registry.
+     * Registers the package configuration and the extension registries.
      *
      * @since 1.0.0
      *
@@ -137,6 +148,16 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
             return $registry;
         } );
+
+        $this->app->singleton( ConfigFormRegistry::class, static function (): ConfigFormRegistry {
+            $registry = new ConfigFormRegistry();
+
+            ConfigSchemas::register( $registry );
+
+            return $registry;
+        } );
+
+        $this->app->singleton( OrderPanelRegistry::class );
     }
 
     /**
@@ -304,11 +325,11 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     }
 
     /**
-     * Registers the Livewire components and the persistent access middleware.
+     * Registers the Livewire components and the persistent middleware.
      *
-     * The route middleware only guards the initial page load. Registering it
-     * as persistent makes Livewire re-run it on every update request from an
-     * admin page.
+     * The route middleware only guards the initial page load. Registering the
+     * access check and the `ecommerce.admin.mutate` limiter as persistent
+     * makes Livewire re-run them on every update request from an admin page.
      *
      * @since 1.0.0
      *
@@ -324,7 +345,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             Livewire::component( $name, $class );
         }
 
-        Livewire::addPersistentMiddleware( [ EnsureAdminAccess::class ] );
+        Livewire::addPersistentMiddleware( [ EnsureAdminAccess::class, ThrottleAdminMutations::class ] );
     }
 
     /**
@@ -340,6 +361,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     protected function registerRoutes(): void
     {
         Route::aliasMiddleware( EnsureAdminAccess::ALIAS, EnsureAdminAccess::class );
+        Route::aliasMiddleware( ThrottleAdminMutations::ALIAS, ThrottleAdminMutations::class );
 
         if ( $this->app->routesAreCached() ) {
             return;

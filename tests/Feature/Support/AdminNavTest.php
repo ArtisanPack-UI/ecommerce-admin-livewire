@@ -41,14 +41,14 @@ it( 'grants access when any entry permission is held', function (): void {
 } );
 
 it( 'hides entries whose screen has not shipped yet', function (): void {
-    grantAbilities( [ 'order.viewAny' ] );
+    grantAbilities( [ 'review.viewAny' ] );
 
     expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard' ] );
 
-    Route::get( 'fake-orders', static fn (): string => 'orders' )->name( 'artisanpack.ecommerce.admin.orders.index' );
+    Route::get( 'fake-reviews', static fn (): string => 'reviews' )->name( 'artisanpack.ecommerce.admin.reviews.index' );
     Route::getRoutes()->refreshNameLookups();
 
-    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'orders' ] );
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'reviews' ] );
 } );
 
 it( 'maps inventory onto product.viewAny until the engine ships inventory abilities', function (): void {
@@ -76,7 +76,7 @@ it( 'lets satellites add entries through the nav.items filter', function (): voi
         [ 'label' => 'Broken entry without a key' ],
     ] );
 
-    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'subscriptions' ] );
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'orders', 'subscriptions' ] );
 
     removeAllFilters( 'ap.ecommerceAdminLivewire.nav.items' );
 } );
@@ -114,7 +114,7 @@ it( 'drops entries with a malformed permission instead of failing', function ():
         [ 'key' => 'loyalty', 'section' => 'customers', 'label' => 'Loyalty', 'route' => 'artisanpack.ecommerce.admin.loyalty.index', 'permission' => 'loyalty.manage.all' ],
     ] );
 
-    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'subscriptions' ] )
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'orders', 'subscriptions' ] )
         ->and( AdminNav::canAccess( makeUser() ) )->toBeTrue();
 
     Illuminate\Support\Facades\Log::shouldHaveReceived( 'warning' )->withArgs( static fn ( string $message ): bool => str_contains( $message, '"loyalty"' ) );

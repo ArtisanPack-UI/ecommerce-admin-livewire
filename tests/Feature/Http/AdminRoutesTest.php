@@ -4,6 +4,7 @@ declare( strict_types=1 );
 
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Controllers\AdminScreenController;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
+use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\ThrottleAdminMutations;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Livewire\Mechanisms\PersistentMiddleware\PersistentMiddleware;
@@ -13,7 +14,7 @@ it( 'registers the dashboard under the prefix, name prefix, and middleware', fun
 
     expect( $route )->not->toBeNull()
         ->and( $route->uri() )->toBe( 'ecommerce-admin' )
-        ->and( $route->gatherMiddleware() )->toBe( [ 'web', 'auth', EnsureAdminAccess::ALIAS ] )
+        ->and( $route->gatherMiddleware() )->toBe( [ 'web', 'auth', EnsureAdminAccess::ALIAS, ThrottleAdminMutations::ALIAS ] )
         ->and( $route->getActionName() )->toBe( AdminScreenController::class . '@dashboard' );
 } );
 
@@ -40,7 +41,7 @@ it( 'follows the configured route prefix and middleware', function (): void {
 
     expect( $route )->not->toBeNull()
         ->and( $route->getName() )->toBe( 'artisanpack.ecommerce.admin.dashboard' )
-        ->and( $route->gatherMiddleware() )->toBe( [ 'web', 'auth', 'verified', EnsureAdminAccess::ALIAS ] );
+        ->and( $route->gatherMiddleware() )->toBe( [ 'web', 'auth', 'verified', EnsureAdminAccess::ALIAS, ThrottleAdminMutations::ALIAS ] );
 } );
 
 it( 'rejects guests', function (): void {
