@@ -123,13 +123,17 @@ class Timeline extends Component
     public int $limit = self::PAGE_SIZE;
 
     /**
-     * Re-render when an order panel changes the order.
+     * Re-render when an order panel changes the order or a note is added
+     * or deleted.
      *
      * @since 1.0.0
      *
      * @var array<string, string>
      */
-    protected $listeners = [ 'ecommerce-admin-order-updated' => '$refresh' ];
+    protected $listeners = [
+        'ecommerce-admin-order-updated' => '$refresh',
+        Notes::NOTES_CHANGED_EVENT      => '$refresh',
+    ];
 
     /**
      * The subject, loaded once per request.

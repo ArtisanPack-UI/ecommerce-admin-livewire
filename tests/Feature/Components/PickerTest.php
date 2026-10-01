@@ -4,10 +4,11 @@ declare( strict_types=1 );
 
 use ArtisanPackUI\Ecommerce\Models\Customer;
 use ArtisanPackUI\Ecommerce\Models\Product;
+use ArtisanPackUI\Ecommerce\Models\ProductCategory;
+use ArtisanPackUI\Ecommerce\Models\ProductTag;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\VariantPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ViewErrorBag;
 use Livewire\Livewire;
 use Tests\Fixtures\Livewire\HelperForm;
@@ -116,14 +117,19 @@ it( 'returns no options to a user who may not search the source', function (): v
         ->assertReturned( [] );
 } );
 
-it( 'shows a notice for category and tag pickers until the engine stores them', function (): void {
-    expect( app( PickerSourceRegistry::class )->has( 'category' ) )->toBeFalse();
+it( 'searches categories and tags now that the engine stores them', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
 
-    expect( Blade::render( '<x-artisanpack-ec-category-picker model="categoryIds" label="Categories" />' ) )
-        ->toContain( 'Picking categories becomes available once the store engine manages categories.' );
+    $parent = ProductCategory::factory()->create( [ 'name' => 'Prints' ] );
+    $child  = ProductCategory::factory()->create( [ 'name' => 'Posters', 'parent_id' => $parent->id ] );
+    $tag    = ProductTag::factory()->create( [ 'name' => 'Sale' ] );
 
-    expect( Blade::render( '<x-artisanpack-ec-tag-picker model="tagIds" label="Tags" />' ) )
-        ->toContain( 'Picking tags becomes available once the store engine manages tags.' );
+    expect( app( PickerSourceRegistry::class )->get( 'category' )->search( 'post', 10 ) )
+        ->toBe( [ [ 'id' => $child->id, 'name' => 'Posters', 'description' => 'In Prints' ] ] )
+        ->and( app( PickerSourceRegistry::class )->get( 'tag' )->find( [ $tag->id ] ) )
+        ->toBe( [ [ 'id' => $tag->id, 'name' => 'Sale', 'description' => null ] ] )
+        ->and( ( new ArtisanPackUI\EcommerceAdminLivewire\View\Components\CategoryPicker( model: 'categoryIds' ) )->available() )->toBeTrue()
+        ->and( ( new ArtisanPackUI\EcommerceAdminLivewire\View\Components\TagPicker( model: 'tagIds' ) )->available() )->toBeTrue();
 } );
 
 it( 'rejects a picker model that is not a property path', function (): void {

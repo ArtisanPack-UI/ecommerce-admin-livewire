@@ -30,4 +30,8 @@ Route::prefix( trim( (string) config( 'artisanpack.ecommerce-admin-livewire.admi
 
         Route::get( 'orders', [ AdminScreenController::class, 'ordersIndex' ] )->name( 'orders.index' );
         Route::get( 'orders/{order}', [ AdminScreenController::class, 'ordersShow' ] )->whereNumber( 'order' )->name( 'orders.show' );
+
+        Route::get( 'products', [ AdminScreenController::class, 'productsIndex' ] )->name( 'products.index' );
+        Route::get( 'products/create', [ AdminScreenController::class, 'productsCreate' ] )->name( 'products.create' );
+        Route::get( 'products/{product}/edit', [ AdminScreenController::class, 'productsEdit' ] )->whereNumber( 'product' )->name( 'products.edit' );
     } );
