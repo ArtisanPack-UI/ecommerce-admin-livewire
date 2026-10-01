@@ -70,4 +70,42 @@ class AdminScreenController extends Controller
     {
         return view( 'ecommerce-admin::pages.orders.show', [ 'order' => (int) $order ] );
     }
+
+    /**
+     * The products index.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function productsIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.products.index' );
+    }
+
+    /**
+     * The new-product form.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function productsCreate(): View
+    {
+        return view( 'ecommerce-admin::pages.products.form', [ 'product' => null ] );
+    }
+
+    /**
+     * The edit-product form. The component loads and authorizes the product.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $product  The product id.
+     *
+     * @return View
+     */
+    public function productsEdit( string $product ): View
+    {
+        return view( 'ecommerce-admin::pages.products.form', [ 'product' => (int) $product ] );
+    }
 }

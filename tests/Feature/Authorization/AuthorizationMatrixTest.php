@@ -117,6 +117,93 @@ const MATRIX = [
         ],
     ],
 
+    'artisanpack-ecommerce-admin-notes' => [
+        'mount'   => [ 'params' => [ 'subject' => '@order-model' ], 'ability' => 'order.view' ],
+        'actions' => [
+            'addNote'    => [ 'args' => [], 'ability' => 'order.update' ],
+            // Deleting needs authorship or order.update on an existing note; a missing note only needs the view check.
+            'deleteNote' => [ 'args' => [ 1 ], 'ability' => 'order.view' ],
+        ],
+    ],
+
+    'artisanpack-ecommerce-admin-products-index' => [
+        'mount'   => [ 'params' => [], 'ability' => 'product.viewAny' ],
+        'actions' => [
+            'sort'                         => [ 'args' => [ 'name' ], 'ability' => 'product.viewAny' ],
+            'resetFilters'                 => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'selectAllMatchingRows'        => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'clearSelection'               => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'runBulkAction'                => [ 'args' => [ 'export' ], 'ability' => 'product.viewAny' ],
+            'confirmBulkAction'            => [ 'args' => [ 'token' ], 'ability' => 'product.viewAny' ],
+            'cancelBulkAction'             => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'exportCsv'                    => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'getTableExportData'           => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'getPage'                      => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'previousPage'                 => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'nextPage'                     => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'product.viewAny' ],
+            'resetPage'                    => [ 'args' => [], 'ability' => 'product.viewAny' ],
+            'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'product.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-products-form' => [
+        'mount'   => [ 'params' => [], 'ability' => 'product.create' ],
+        'actions' => [
+            'addScheduledPrice'  => [ 'args' => [], 'ability' => 'product.create' ],
+            'removePrice'        => [ 'args' => [ 0 ], 'ability' => 'product.create' ],
+            'addGalleryUrl'      => [ 'args' => [], 'ability' => 'product.create' ],
+            'removeGalleryImage' => [ 'args' => [ 0 ], 'ability' => 'product.create' ],
+            'moveGalleryImage'   => [ 'args' => [ 0, 1 ], 'ability' => 'product.create' ],
+            'clearFeaturedImage' => [ 'args' => [], 'ability' => 'product.create' ],
+            'mediaSelected'      => [ 'args' => [ [], 'other' ], 'ability' => 'product.create' ],
+            'save'               => [ 'args' => [], 'ability' => 'product.create' ],
+            // The form re-authorizes product.create on every request; the picker source then needs product.viewAny.
+            'searchPicker'       => [ 'args' => [ 'a', 'category', 'categoryIds' ], 'ability' => 'product.viewAny' ],
+            'optionsForPicker'   => [ 'args' => [ 'category', 'categoryIds' ], 'ability' => 'product.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-product-variable-panel' => [
+        'mount'   => [ 'params' => [ 'productId' => null ], 'ability' => 'product.create' ],
+        'actions' => [
+            'addAttribute'      => [ 'args' => [], 'ability' => 'product.create' ],
+            'removeAttribute'   => [ 'args' => [ 0 ], 'ability' => 'product.create' ],
+            'moveAttribute'     => [ 'args' => [ 0, 1 ], 'ability' => 'product.create' ],
+            'addValue'          => [ 'args' => [ 0 ], 'ability' => 'product.create' ],
+            'removeValue'       => [ 'args' => [ 0, 0 ], 'ability' => 'product.create' ],
+            'moveValue'         => [ 'args' => [ 0, 0, 1 ], 'ability' => 'product.create' ],
+            'generateVariants'  => [ 'args' => [], 'ability' => 'product.create' ],
+            'confirmGenerate'   => [ 'args' => [], 'ability' => 'product.create' ],
+            'cancelGenerate'    => [ 'args' => [], 'ability' => 'product.create' ],
+            'addVariant'        => [ 'args' => [], 'ability' => 'product.create' ],
+            'removeVariant'     => [ 'args' => [ 0 ], 'ability' => 'product.create' ],
+            'moveVariant'       => [ 'args' => [ 0, 1 ], 'ability' => 'product.create' ],
+            'mediaSelected'     => [ 'args' => [ [], 'other' ], 'ability' => 'product.create' ],
+            'productSaved'      => [ 'args' => [], 'ability' => 'product.create' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-product-digital-panel' => [
+        'mount'   => [ 'params' => [ 'productId' => null ], 'ability' => 'product.create' ],
+        'actions' => [
+            'addFile'       => [ 'args' => [], 'ability' => 'product.create' ],
+            'removeFile'    => [ 'args' => [ 0 ], 'ability' => 'product.create' ],
+            'mediaSelected' => [ 'args' => [ [], 'other' ], 'ability' => 'product.create' ],
+            'productSaved'  => [ 'args' => [], 'ability' => 'product.create' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-product-children-panel' => [
+        'mount'   => [ 'params' => [ 'productId' => null ], 'ability' => 'product.create' ],
+        'actions' => [
+            'addChild'         => [ 'args' => [], 'ability' => 'product.create' ],
+            'removeChild'      => [ 'args' => [ 0 ], 'ability' => 'product.create' ],
+            'moveChild'        => [ 'args' => [ 0, 1 ], 'ability' => 'product.create' ],
+            'productSaved'     => [ 'args' => [], 'ability' => 'product.create' ],
+            // The panel re-authorizes product.create on every request; the picker source then needs product.viewAny.
+            'searchPicker'     => [ 'args' => [ 'a', 'product', 'state.children.0.product_id' ], 'ability' => 'product.viewAny' ],
+            'optionsForPicker' => [ 'args' => [ 'product', 'state.children.0.product_id' ], 'ability' => 'product.viewAny' ],
+        ],
+    ],
+
     // The WithPickers concern, which screens mix in.
     'matrix-pickers' => [
         'mount'   => [ 'params' => [], 'ability' => null ],
@@ -279,6 +366,7 @@ it( 'registers every Livewire component class under src/Livewire', function (): 
         ->map( static fn ( SplFileInfo $file ): string => (string) $file->getRealPath() )
         ->filter( static fn ( string $path ): bool => str_ends_with( $path, '.php' ) && ! str_contains( $path, DIRECTORY_SEPARATOR . 'Concerns' . DIRECTORY_SEPARATOR ) )
         ->map( static fn ( string $path ): string => 'ArtisanPackUI\\EcommerceAdminLivewire\\Livewire\\' . str_replace( [ $root . DIRECTORY_SEPARATOR, '.php', DIRECTORY_SEPARATOR ], [ '', '', '\\' ], $path ) )
+        ->reject( static fn ( string $class ): bool => ( new ReflectionClass( $class ) )->isAbstract() )
         ->sort()
         ->values()
         ->all();

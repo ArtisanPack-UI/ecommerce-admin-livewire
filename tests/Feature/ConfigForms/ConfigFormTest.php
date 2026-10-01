@@ -52,7 +52,7 @@ it( 'renders each field type with a library input', function ( string $type, str
     'select'      => [ 'select', 'Slow' ],
     'multiselect' => [ 'multiselect', 'Point of sale' ],
     'product'     => [ 'product', 'searchPicker' ],
-    'category'    => [ 'category', 'role="status"' ],
+    'category'    => [ 'category', 'searchPicker' ],
     'tag'         => [ 'tag', 'Labels' ],
     'date'        => [ 'date', 'type="date"' ],
     'daterange'   => [ 'daterange', 'wire:model="config.window.end"' ],

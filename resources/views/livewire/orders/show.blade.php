@@ -160,6 +160,9 @@
                 </div>
             @endforeach
 
+            {{-- Notes --}}
+            @livewire( 'artisanpack-ecommerce-admin-notes', [ 'subject' => $order ], key( 'order-notes' ) )
+
             {{-- Timeline --}}
             @livewire( 'artisanpack-ecommerce-admin-timeline', [ 'subject' => $order ], key( 'order-timeline' ) )
         </div>

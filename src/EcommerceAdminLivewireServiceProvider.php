@@ -22,14 +22,19 @@ use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\ThrottleAdminMutations;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notes;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Timeline;
+use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CategoryPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CustomerPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\ProductPickerSource;
+use ArtisanPackUI\EcommerceAdminLivewire\Pickers\TagPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\VariantPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\ConfigFormRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\ProductTypePanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ConfigSchemas;
@@ -120,15 +125,21 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * @var array<string, class-string>
      */
     public const LIVEWIRE_COMPONENTS = [
-        'artisanpack-ecommerce-admin-dashboard'         => Dashboard::class,
-        'artisanpack-ecommerce-admin-navigation'        => Navigation::class,
-        'artisanpack-ecommerce-admin-orders-index'      => Orders\Index::class,
-        'artisanpack-ecommerce-admin-orders-show'       => Orders\Show::class,
-        'artisanpack-ecommerce-admin-order-status'      => Orders\StatusPanel::class,
-        'artisanpack-ecommerce-admin-order-refunds'     => Orders\RefundsPanel::class,
-        'artisanpack-ecommerce-admin-order-fulfillment' => Orders\FulfillmentPanel::class,
-        'artisanpack-ecommerce-admin-order-edits'       => Orders\EditPanel::class,
-        'artisanpack-ecommerce-admin-timeline'          => Timeline::class,
+        'artisanpack-ecommerce-admin-dashboard'              => Dashboard::class,
+        'artisanpack-ecommerce-admin-navigation'             => Navigation::class,
+        'artisanpack-ecommerce-admin-orders-index'           => Orders\Index::class,
+        'artisanpack-ecommerce-admin-orders-show'            => Orders\Show::class,
+        'artisanpack-ecommerce-admin-order-status'           => Orders\StatusPanel::class,
+        'artisanpack-ecommerce-admin-order-refunds'          => Orders\RefundsPanel::class,
+        'artisanpack-ecommerce-admin-order-fulfillment'      => Orders\FulfillmentPanel::class,
+        'artisanpack-ecommerce-admin-order-edits'            => Orders\EditPanel::class,
+        'artisanpack-ecommerce-admin-timeline'               => Timeline::class,
+        'artisanpack-ecommerce-admin-notes'                  => Notes::class,
+        'artisanpack-ecommerce-admin-products-index'         => Products\Index::class,
+        'artisanpack-ecommerce-admin-products-form'          => Products\Form::class,
+        'artisanpack-ecommerce-admin-product-variable-panel' => Products\Panels\VariablePanel::class,
+        'artisanpack-ecommerce-admin-product-digital-panel'  => Products\Panels\DigitalPanel::class,
+        'artisanpack-ecommerce-admin-product-children-panel' => Products\Panels\ChildrenPanel::class,
     ];
 
     /**
@@ -144,6 +155,22 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         'fulfillment' => [ 'artisanpack-ecommerce-admin-order-fulfillment', 'main', 10 ],
         'refunds'     => [ 'artisanpack-ecommerce-admin-order-refunds', 'main', 20 ],
         'edits'       => [ 'artisanpack-ecommerce-admin-order-edits', 'main', 30 ],
+    ];
+
+    /**
+     * Core product-type panels (spec §7.2): type key => Livewire component,
+     * or null when the type needs no panel.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, string|null>
+     */
+    public const PRODUCT_TYPE_PANELS = [
+        'simple'   => null,
+        'variable' => Products\Panels\VariablePanel::class,
+        'digital'  => Products\Panels\DigitalPanel::class,
+        'grouped'  => Products\Panels\ChildrenPanel::class,
+        'bundled'  => Products\Panels\ChildrenPanel::class,
     ];
 
     /**
@@ -166,6 +193,8 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             $registry->register( 'product', new ProductPickerSource() );
             $registry->register( 'variant', new VariantPickerSource() );
             $registry->register( 'customer', new CustomerPickerSource() );
+            $registry->register( 'category', new CategoryPickerSource() );
+            $registry->register( 'tag', new TagPickerSource() );
 
             return $registry;
         } );
@@ -174,6 +203,16 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             $registry = new ConfigFormRegistry();
 
             ConfigSchemas::register( $registry );
+
+            return $registry;
+        } );
+
+        $this->app->singleton( ProductTypePanelRegistry::class, static function (): ProductTypePanelRegistry {
+            $registry = new ProductTypePanelRegistry();
+
+            foreach ( self::PRODUCT_TYPE_PANELS as $type => $component ) {
+                $registry->register( $type, $component );
+            }
 
             return $registry;
         } );
