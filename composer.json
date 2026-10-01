@@ -1,0 +1,94 @@
+{
+  "name": "artisanpack-ui/ecommerce-admin-livewire",
+  "description": "Livewire admin for the ArtisanPack UI ecommerce engine.",
+  "type": "library",
+  "license": "GPL-3.0-or-later",
+  "version": "1.0.0",
+  "keywords": [
+    "laravel",
+    "livewire",
+    "ecommerce",
+    "admin",
+    "artisanpack-ui"
+  ],
+  "autoload": {
+    "psr-4": {
+      "ArtisanPackUI\\EcommerceAdminLivewire\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Jacob Martella",
+      "email": "me@jacobmartella.com"
+    }
+  ],
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../ecommerce",
+      "options": {
+        "symlink": true
+      }
+    }
+  ],
+  "require": {
+    "php": "^8.3",
+    "illuminate/support": "^12.0|^13.0",
+    "livewire/livewire": "^3.6|^4.0",
+    "artisanpack-ui/ecommerce": "^1.0",
+    "artisanpack-ui/livewire-ui-components": "^2.1",
+    "artisanpack-ui/core": "^1.0",
+    "artisanpack-ui/hooks": "^1.2",
+    "artisanpack-ui/security": "^1.0|^2.0"
+  },
+  "require-dev": {
+    "pestphp/pest": "^4.0",
+    "pestphp/pest-plugin-laravel": "^4.0",
+    "pestphp/pest-plugin-livewire": "^4.0",
+    "pestphp/pest-plugin-browser": "^4.0",
+    "artisanpack-ui/code-style": "^1.1",
+    "artisanpack-ui/code-style-pint": "^1.1",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "laravel/pint": "^1.26",
+    "orchestra/testbench": "^10.2|^11.0",
+    "friendsofphp/php-cs-fixer": "^3.75"
+  },
+  "suggest": {
+    "artisanpack-ui/cms-framework": "Renders the admin inside the CMS admin layout, joins the CMS menu, and registers engine abilities as RBAC permissions.",
+    "artisanpack-ui/media-library": "Pick product, variant, and category images through the media modal.",
+    "artisanpack-ui/icons": "Icon pickers for categories and order sub-statuses.",
+    "artisanpack-ui/accessibility": "Contrast warnings for sub-status and kanban column colours.",
+    "artisanpack-ui/ecommerce-kanban-livewire": "Adds \"Open board\" links from order detail and kanban settings.",
+    "phpoffice/phpspreadsheet": "XLSX table export.",
+    "barryvdh/laravel-dompdf": "PDF table export."
+  },
+  "scripts": {
+    "lint": [
+      "./vendor/bin/php-cs-fixer fix --dry-run --diff",
+      "./vendor/bin/phpcs"
+    ],
+    "fix": "./vendor/bin/php-cs-fixer fix",
+    "cs": "./vendor/bin/phpcs",
+    "cs:fix": "./vendor/bin/phpcbf",
+    "test": "./vendor/bin/pest"
+  },
+  "config": {
+    "sort-packages": false,
+    "allow-plugins": {
+      "pestphp/pest-plugin": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "ArtisanPackUI\\EcommerceAdminLivewire\\EcommerceAdminLivewireServiceProvider"
+      ]
+    }
+  }
+}

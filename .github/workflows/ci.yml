@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# The engine (artisanpack-ui/ecommerce) is not on Packagist until 1.0 is
+# tagged. composer.json resolves it from a `../ecommerce` path repository, so
+# every job clones the engine's release branch next to this checkout first.
+env:
+  ENGINE_REF: release/1.0
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: Lint
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Clone the engine
+        run: git clone --depth 1 --branch "$ENGINE_REF" https://github.com/ArtisanPack-UI/ecommerce.git ../ecommerce
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, intl
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-lint-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-lint-composer-
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist
+
+      - name: Run composer lint
+        run: composer lint
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    name: Test (PHP ${{ matrix.php }}, Laravel ${{ matrix.laravel }}, Livewire ${{ matrix.livewire }})
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+        laravel: ['12', '13']
+        livewire: ['3', '4']
+        include:
+          - laravel: '12'
+            testbench: '^10.2'
+          - laravel: '13'
+            testbench: '^11.0'
+          - livewire: '3'
+            livewire-constraint: '^3.6'
+          - livewire: '4'
+            livewire-constraint: '^4.0'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Clone the engine
+        run: git clone --depth 1 --branch "$ENGINE_REF" https://github.com/ArtisanPack-UI/ecommerce.git ../ecommerce
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, intl
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel }}-lw${{ matrix.livewire }}-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel }}-lw${{ matrix.livewire }}-composer-
+
+      - name: Install dependencies
+        env:
+          LARAVEL: ${{ matrix.laravel }}
+          TESTBENCH: ${{ matrix.testbench }}
+          LIVEWIRE: ${{ matrix.livewire-constraint }}
+        run: |
+          composer require "illuminate/support:^${LARAVEL}.0" "livewire/livewire:${LIVEWIRE}" --no-interaction --no-update
+          composer require "orchestra/testbench:${TESTBENCH}" --dev --no-interaction --no-update
+          composer update --no-interaction --prefer-dist --with-all-dependencies
+
+      - name: Run tests
+        env:
+          XDEBUG_MODE: off
+        run: vendor/bin/pest --exclude-group=browser --no-coverage
+
+  pci-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: PCI Column Lint
+
+    # This package ships no migrations. The job guards against drift if one
+    # is ever added.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Clone the engine
+        run: git clone --depth 1 --branch "$ENGINE_REF" https://github.com/ArtisanPack-UI/ecommerce.git ../ecommerce
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, intl
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-lint-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-lint-composer-
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist
+
+      - name: Run PCI column lint
+        run: vendor/bin/testbench ecommerce:lint:pci-columns --path="$GITHUB_WORKSPACE/database/migrations"
