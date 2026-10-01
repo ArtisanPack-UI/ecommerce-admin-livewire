@@ -53,6 +53,15 @@ it( 'injects the visible entries into the cms-framework menu', function (): void
         ->and( $menu['ecommerce-catalog']['items']['ecommerce-products'] )->not->toHaveKey( 'permission' );
 } );
 
+it( 'places the store sections by order rather than at the end', function (): void {
+    $menu = CmsMenu::injectInto( [
+        'dashboard' => [ 'label' => 'Dashboard', 'order' => 1 ],
+        'settings'  => [ 'label' => 'Settings', 'order' => 99 ],
+    ] );
+
+    expect( array_keys( $menu ) )->toBe( [ 'dashboard', 'ecommerce-dashboard', 'ecommerce-orders', 'ecommerce-catalog', 'settings' ] );
+} );
+
 it( 'lets an entry the host already has win', function (): void {
     $menu = CmsMenu::injectInto( [ 'ecommerce-dashboard' => [ 'label' => 'Shop' ] ] );
 

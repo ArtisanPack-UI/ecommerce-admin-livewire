@@ -87,7 +87,8 @@ final class CmsMenu
     }
 
     /**
-     * Merges the signed-in user's admin entries into a cms-framework menu.
+     * Merges the signed-in user's admin entries into a cms-framework menu,
+     * then re-sorts it by `order`.
      *
      * @since 1.0.0
      *
@@ -100,6 +101,9 @@ final class CmsMenu
         foreach ( self::entries() as $slug => $entry ) {
             $menu[ $slug ] = array_merge( $entry, $menu[ $slug ] ?? [] );
         }
+
+        // cms-framework sorts before it applies this filter and not after.
+        uasort( $menu, static fn ( mixed $a, mixed $b ): int => ( is_array( $a ) ? ( $a['order'] ?? 99 ) : 99 ) <=> ( is_array( $b ) ? ( $b['order'] ?? 99 ) : 99 ) );
 
         return $menu;
     }
