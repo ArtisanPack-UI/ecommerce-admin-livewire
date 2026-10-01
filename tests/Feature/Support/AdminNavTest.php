@@ -41,14 +41,14 @@ it( 'grants access when any entry permission is held', function (): void {
 } );
 
 it( 'hides entries whose screen has not shipped yet', function (): void {
-    grantAbilities( [ 'review.viewAny' ] );
+    grantAbilities( [ 'customer.viewAny' ] );
 
     expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard' ] );
 
-    Route::get( 'fake-reviews', static fn (): string => 'reviews' )->name( 'artisanpack.ecommerce.admin.reviews.index' );
+    Route::get( 'fake-customers', static fn (): string => 'customers' )->name( 'artisanpack.ecommerce.admin.customers.index' );
     Route::getRoutes()->refreshNameLookups();
 
-    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'reviews' ] );
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'customers' ] );
 } );
 
 it( 'maps inventory onto product.viewAny until the engine ships inventory abilities', function (): void {

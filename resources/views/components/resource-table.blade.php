@@ -70,7 +70,7 @@
                     @foreach ( $columns as $column )
                         <td @class( [ $column['class'] ] )>
                             @if ( null !== $column['view'] )
-                                @include( $column['view'], [ 'row' => $row, 'column' => $column ] )
+                                @include( $column['view'], [ 'row' => $row, 'column' => $column, 'context' => $context ] )
                             @else
                                 {{ $cellText( $row, $column ) }}
                             @endif

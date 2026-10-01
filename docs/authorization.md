@@ -57,10 +57,11 @@ adds access, so an `ecommerce.admin` gate keeps working alongside RBAC.
 | Orders | `orders.index`, `orders.show` | `order.viewAny`, `order.view` | `order.update`, `order.edit-fulfilled`, `order.cancel`, `order.refund`, `refund.view`, `refund.create` |
 | Reviews | `reviews.index` | `review.viewAny` | `review.view`, `review.moderate`, `review.delete` |
 | Products | `products.index`, `products.create`, `products.edit` | `product.viewAny` | `product.view`, `product.create`, `product.update`, `product.delete` |
+| Product import | `products.import` | `product.create` | Each row needs `product.create` (new) or `product.update` (existing) |
 | Categories, tags | `categories.index`, `tags.index` | `product.viewAny` | `product.create`, `product.update`, `product.delete` |
 | Inventory | `inventory.index` | `inventory.viewAny`¹ | `inventory.adjust`¹ |
 | Digital files | `digital-files.index` | `digitalFile.viewAny` | `digitalFile.create`, `digitalFile.update`, `digitalFile.delete` |
-| License keys | `license-keys.index` | `licenseKey.view` | `licenseKey.revoke` |
+| License keys | `license-keys.index` | `licenseKey.view` or `licenseKey.revoke`³ | `licenseKey.revoke` |
 | Customers | `customers.index`, `customers.show` | `customer.viewAny`, `customer.view` | `customer.update`, `customer.delete` |
 | Promotions | `promotions.index`, `promotions.create`, `promotions.edit` | `promotion.viewAny` | `promotion.*`, `coupon.*` |
 | Reports | `reports.show` | `report.view`² | — |
@@ -78,5 +79,8 @@ adds access, so an `ecommerce.admin` gate keeps working alongside RBAC.
 ² The engine does not define these abilities yet (engine issue #148). Until it does, they resolve through the umbrella
 `ecommerce.admin` gate and the `ap.ecommerce.abilities.*` filter. A host may also define the Gate ability directly,
 e.g. `ecommerce.report.view`.
+
+³ A user with only `licenseKey.revoke` can open the screen, but sees each key masked to its last group and cannot
+search by key. Keys are shown in full only with `licenseKey.view`.
 
 Screens appear in the navigation only once they have shipped.

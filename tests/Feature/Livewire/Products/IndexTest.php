@@ -312,3 +312,65 @@ it( 'translates its strings', function (): void {
 
     Livewire::test( Index::class )->assertSee( 'Productos' )->assertSee( 'Todavía no hay productos' );
 } );
+
+it( 'exports the catalog with one row per product or variant and a price pair per currency', function (): void {
+    config()->set( 'artisanpack.ecommerce.currency.rates.USD', [ 'EUR' => 92_000_000 ] );
+    $mug = Product::factory()->create( [ 'name' => 'Blue Mug', 'sku' => 'MUG-1', 'status' => 'active' ] );
+    ProductPrice::factory()->forPriceable( $mug )->create( [ 'currency' => 'USD', 'price_amount' => 1250, 'compare_at_amount' => 1500 ] );
+    ProductPrice::factory()->forPriceable( $mug )->create( [ 'currency' => 'EUR', 'price_amount' => 1100 ] );
+    stockFor( $mug, 7 );
+    $tee     = Product::factory()->variable()->create( [ 'name' => 'Tee', 'sku' => 'TEE' ] );
+    $variant = ProductVariant::factory()->create( [ 'product_id' => $tee->id, 'sku' => 'TEE-S', 'name' => 'Small' ] );
+    priceFor( $variant, 2000 );
+    Product::factory()->create( [ 'name' => '=HYPERLINK("x")', 'status' => 'draft' ] );
+
+    $component = Livewire::test( Index::class )
+        ->set( 'filters.status', 'active' )
+        ->call( 'exportCatalog' )
+        ->assertFileDownloaded();
+
+    $rows    = productsCsv( $component );
+    $headers = $rows[0];
+    $byName  = static fn ( string $column, array $row ): string => $row[ array_search( $column, $headers, true ) ];
+
+    expect( $headers )->toContain( 'price_USD', 'compare_at_price_USD', 'price_EUR', 'compare_at_price_EUR', 'variant_sku' )
+        ->and( count( $rows ) )->toBe( 4 );
+
+    $mugRow = collect( $rows )->first( static fn ( array $row ): bool => 'MUG-1' === $byName( 'sku', $row ) );
+
+    expect( $byName( 'price_USD', $mugRow ) )->toBe( '12.50' )
+        ->and( $byName( 'compare_at_price_USD', $mugRow ) )->toBe( '15.00' )
+        ->and( $byName( 'price_EUR', $mugRow ) )->toBe( '11.00' )
+        ->and( $byName( 'quantity_on_hand', $mugRow ) )->toBe( '7' );
+
+    $variantRow = collect( $rows )->first( static fn ( array $row ): bool => 'TEE-S' === $byName( 'variant_sku', $row ) );
+
+    expect( $byName( 'sku', $variantRow ) )->toBe( 'TEE' )
+        ->and( $byName( 'variant_name', $variantRow ) )->toBe( 'Small' )
+        ->and( $byName( 'price_USD', $variantRow ) )->toBe( '20.00' );
+
+    expect( collect( $rows )->contains( static fn ( array $row ): bool => str_contains( implode( ',', $row ), 'HYPERLINK' ) ) )->toBeFalse();
+} );
+
+it( 'exports the selected products as catalog CSV, escaping formulas', function (): void {
+    $risky = Product::factory()->create( [ 'name' => '=HYPERLINK("x")' ] );
+    Product::factory()->create( [ 'name' => 'Not selected' ] );
+
+    $component = Livewire::test( Index::class )
+        ->set( 'selected', [ (string) $risky->id ] )
+        ->call( 'runBulkAction', 'export-catalog' )
+        ->assertFileDownloaded();
+
+    $rows = productsCsv( $component );
+
+    expect( $rows )->toHaveCount( 2 )
+        ->and( $rows[1][ array_search( 'name', $rows[0], true ) ] )->toBe( "'=HYPERLINK(\"x\")" );
+} );
+
+it( 'links to the import screen for users who may create products', function (): void {
+    Livewire::test( Index::class )->assertSee( 'Import' )->assertSeeHtml( 'products/import' );
+
+    Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+
+    Livewire::test( Index::class )->assertDontSeeHtml( 'products/import' );
+} );

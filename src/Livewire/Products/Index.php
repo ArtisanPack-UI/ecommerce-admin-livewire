@@ -26,12 +26,17 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithResourceTable;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ProductsQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\Csv;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductCsv;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The products table (spec §7.2): image, name, SKU, type, status, base
@@ -40,7 +45,8 @@ use Livewire\Component;
  * type, category, tag, and stock state.
  *
  * Bulk actions publish, archive, delete, add or remove a category or tag,
- * and export. Writes go through the engine's `ProductService`, and products
+ * and export. "Export catalog" writes the product CSV format the import
+ * screen reads back (one row per product or variant, prices per currency). Writes go through the engine's `ProductService`, and products
  * whose type is missing are flagged in the type column and skipped by the
  * bulk edits (they are read-only, plan §16.6).
  *
@@ -97,9 +103,25 @@ class Index extends Component
 
         return view( 'ecommerce-admin::livewire.products.index', $data + [
             'canCreate'           => $this->canEcommerce( 'create', Product::class ),
+            'importRoute'         => AdminNav::ROUTE_PREFIX . 'products.import',
             'bulkCategoryOptions' => $data['tableSelectionCount'] > 0 ? self::categoryOptions() : [],
             'bulkTagOptions'      => $data['tableSelectionCount'] > 0 ? self::tagOptions() : [],
         ] );
+    }
+
+    /**
+     * Exports every product matching the search and filters in the product
+     * CSV format (`docs/product-csv.md`), which the import reads back.
+     *
+     * @since 1.0.0
+     *
+     * @return StreamedResponse
+     */
+    public function exportCatalog(): StreamedResponse
+    {
+        $this->authorizeTable();
+
+        return $this->catalogDownload( $this->filteredQuery() );
     }
 
     /**
@@ -146,6 +168,46 @@ class Index extends Component
             'active'   => __( 'Active' ),
             'archived' => __( 'Archived' ),
         ];
+    }
+
+    /**
+     * Streams products in the product CSV format, one row per product or
+     * variant, capped at `tables.export_max_rows` rows.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder<Product>  $products  Products to export.
+     *
+     * @return StreamedResponse
+     */
+    protected function catalogDownload( Builder $products ): StreamedResponse
+    {
+        $limit = max( 1, (int) config( 'artisanpack.ecommerce-admin-livewire.tables.export_max_rows', 10_000 ) );
+        $rows  = [];
+        $cut   = false;
+
+        foreach ( ProductCsv::exportRows( $products ) as $row ) {
+            if ( count( $rows ) > $limit ) {
+                $cut = true;
+
+                break;
+            }
+
+            $rows[] = $row;
+        }
+
+        if ( $cut ) {
+            $this->toastWarning(
+                __( 'The export was cut short.' ),
+                trans_choice( 'Only the first :count row was exported.|Only the first :count rows were exported.', $limit, [ 'count' => $limit ] ),
+            );
+        }
+
+        $csv = Csv::build( (array) array_shift( $rows ), $rows );
+
+        return response()->streamDownload( static function () use ( $csv ): void {
+            echo $csv;
+        }, 'products-catalog-' . Carbon::now()->format( 'Y-m-d-His' ) . '.csv', [ 'Content-Type' => 'text/csv; charset=UTF-8' ] );
     }
 
     /**
@@ -547,6 +609,12 @@ class Index extends Component
                 'ability' => 'product.delete',
                 'confirm' => __( 'Delete the selected products? Their variants, prices, and stock go with them. Past orders keep their copy of each product.' ),
                 'handler' => fn ( Builder $selection ): ?string => $this->deleteSelection( $selection ),
+            ],
+            [
+                'key'     => 'export-catalog',
+                'label'   => __( 'Export catalog CSV' ),
+                'icon'    => 'o-document-arrow-down',
+                'handler' => fn ( Builder $selection ): StreamedResponse => $this->catalogDownload( $selection ),
             ],
             $this->exportBulkAction(),
         ];
