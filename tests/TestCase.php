@@ -8,6 +8,7 @@ use ArtisanPack\LivewireUiComponents\LivewireUiComponentsServiceProvider;
 use ArtisanPackUI\Core\CoreServiceProvider;
 use ArtisanPackUI\Ecommerce\Providers\EcommerceServiceProvider;
 use ArtisanPackUI\EcommerceAdminLivewire\EcommerceAdminLivewireServiceProvider;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use ArtisanPackUI\Hooks\Providers\HooksServiceProvider;
 use ArtisanPackUI\Security\SecurityServiceProvider;
 use BladeUI\Heroicons\BladeHeroiconsServiceProvider;
@@ -27,6 +28,16 @@ use Rebing\GraphQL\GraphQLServiceProvider;
  */
 abstract class TestCase extends BaseTestCase
 {
+    /**
+     * Resets static state between tests.
+     */
+    protected function tearDown(): void
+    {
+        CmsFramework::fake( null );
+
+        parent::tearDown();
+    }
+
     /**
      * Gets package providers.
      *
@@ -52,6 +63,14 @@ abstract class TestCase extends BaseTestCase
             LivewireUiComponentsServiceProvider::class,
             EcommerceAdminLivewireServiceProvider::class,
         ];
+    }
+
+    /**
+     * Loads the fixture `users` table migration.
+     */
+    protected function defineDatabaseMigrations(): void
+    {
+        $this->loadMigrationsFrom( __DIR__ . '/Fixtures/migrations' );
     }
 
     /**
