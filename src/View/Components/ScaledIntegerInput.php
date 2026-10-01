@@ -22,8 +22,10 @@ use Illuminate\View\Component;
  * The visible field holds the decimal text; the `wire:model` property holds
  * the integer. Alpine converts between them by moving digits in strings (the
  * same algorithm as {@see \ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits}),
- * so no value passes through a float. Input with too many decimals is not
- * sent and the field is marked invalid.
+ * so no value passes through a float. Input that cannot be converted (e.g.
+ * too many decimals) marks the field invalid and clears the bound value, so
+ * the server's validation rejects the submit rather than saving the
+ * previous amount.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire

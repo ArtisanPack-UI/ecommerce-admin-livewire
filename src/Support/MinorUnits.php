@@ -31,8 +31,9 @@ use Throwable;
  *
  * - When both appear, the last one is the decimal separator.
  * - When one appears and splits the number into valid thousands groups
- *   (`1,234`, `1.234.567`), it groups thousands, unless it appears once and
- *   the scale is 3 or more (`1.234` KWD is one dinar and 234 fils).
+ *   (`1,234`, `1.234.567`; never a leading `0`), it groups thousands, unless
+ *   it appears once and the scale is 3 or more (`1.234` KWD is one dinar and
+ *   234 fils).
  * - Otherwise a single occurrence is the decimal separator, and several are
  *   invalid.
  *
@@ -215,7 +216,7 @@ final class MinorUnits
 
         $groups      = explode( $separator, $text );
         $occurrences = count( $groups ) - 1;
-        $isGrouping  = strlen( $groups[0] ) >= 1 && strlen( $groups[0] ) <= 3;
+        $isGrouping  = strlen( $groups[0] ) >= 1 && strlen( $groups[0] ) <= 3 && '0' !== $groups[0][0];
 
         foreach ( array_slice( $groups, 1 ) as $group ) {
             $isGrouping = $isGrouping && 3 === strlen( $group );

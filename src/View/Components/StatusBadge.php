@@ -113,6 +113,6 @@ class StatusBadge extends Component
      */
     private static function isHex( mixed $color ): bool
     {
-        return is_string( $color ) && 1 === preg_match( '/^#[0-9a-fA-F]{6}$/', $color );
+        return is_string( $color ) && 1 === preg_match( '/^#[0-9a-fA-F]{6}$/D', $color );
     }
 }

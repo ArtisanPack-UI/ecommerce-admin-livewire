@@ -16,6 +16,7 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\PickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
+use Livewire\Attributes\Locked;
 
 /**
  * Server search for the `<x-artisanpack-ec-*-picker>` components.
@@ -41,10 +42,14 @@ trait WithPickers
     /**
      * The most recent search results per picker, keyed `{type}:{field}`.
      *
+     * Locked: only `searchPicker()` writes it, so a client cannot inject
+     * options (or labels for selected chips).
+     *
      * @since 1.0.0
      *
      * @var array<string, array<int, array<string, mixed>>>
      */
+    #[Locked]
     public array $pickerOptions = [];
 
     /**

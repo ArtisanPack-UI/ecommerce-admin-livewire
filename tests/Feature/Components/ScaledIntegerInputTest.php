@@ -70,6 +70,8 @@ it( 'converts in the browser exactly like MinorUnits', function (): void {
         [ 2, '1.234.5', false, null ],
         [ 2, '12.345', '1234500', '12345.00' ],
         [ 2, '12.3456', false, null ],
+        [ 2, '0.500', false, null ],
+        [ 2, '0,50', '50', '0.50' ],
         [ 2, '1,234.56', '123456', '1234.56' ],
         [ 2, '1.234,56', '123456', '1234.56' ],
         [ 2, '19.99', '1999', '19.99' ],
@@ -95,6 +97,12 @@ it( 'converts in the browser exactly like MinorUnits', function (): void {
             percent.scale = 7;
             percent.trimZeros = true;
             results.push( [ percent.parse( '8.375' ), percent.format( '83750000' ) ] );
+            const invalid = make();
+            invalid.scale   = 2;
+            invalid.value   = 1000;
+            invalid.display = '10.5555';
+            invalid.commit();
+            results.push( [ invalid.value, invalid.display, invalid.invalid ] );
             process.stdout.write( JSON.stringify( results ) );
             JS,
         $object,
@@ -107,6 +115,7 @@ it( 'converts in the browser exactly like MinorUnits', function (): void {
 
     $expected   = array_map( static fn ( array $case ): array => [ $case[2], $case[3] ], $cases );
     $expected[] = [ '83750000', '8.375' ];
+    $expected[] = [ null, '10.5555', true ];
 
     expect( json_decode( $result->output(), true ) )->toBe( $expected );
 } );

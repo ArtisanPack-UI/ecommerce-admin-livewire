@@ -15,6 +15,9 @@
         init() {
             this.display = this.format( this.value );
             this.$watch( 'value', ( value ) => {
+                if ( this.invalid && null === this.normalize( value ) ) {
+                    return;
+                }
                 if ( this.parse( this.display ) !== this.normalize( value ) ) {
                     this.display  = this.format( value );
                     this.invalid  = false;
@@ -60,7 +63,7 @@
                 const candidate   = -1 !== lastDot ? '.' : ',';
                 const groups      = text.split( candidate );
                 const occurrences = groups.length - 1;
-                const isGrouping  = groups[0].length >= 1 && groups[0].length <= 3
+                const isGrouping  = groups[0].length >= 1 && groups[0].length <= 3 && ! groups[0].startsWith( '0' )
                     && groups.slice( 1 ).every( ( group ) => 3 === group.length );
                 if ( ! ( isGrouping && ( occurrences > 1 || this.scale < 3 ) ) ) {
                     if ( 1 !== occurrences ) {
@@ -89,7 +92,10 @@
         commit() {
             const parsed = this.parse( this.display );
             if ( false === parsed ) {
+                // Clear the bound value so a submit fails server validation
+                // instead of silently saving the previous amount.
                 this.invalid = true;
+                this.value   = null;
                 return;
             }
             this.invalid = false;

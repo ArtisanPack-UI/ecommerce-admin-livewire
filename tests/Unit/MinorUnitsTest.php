@@ -47,6 +47,7 @@ it( 'converts major units to minor units without floats', function ( string $maj
     'blank'                    => [ '  ', 'USD', null ],
     'leading zeros'            => [ '007.10', 'USD', 710 ],
     'USD ambiguous thousands'  => [ '12.345', 'USD', 1234500 ],
+    'USD leading zero comma'   => [ '0,50', 'USD', 50 ],
     'JPY dotted thousands'     => [ '1.234.567', 'JPY', 1234567 ],
     'KWD grouped twice'        => [ '1,234,567', 'KWD', 1234567000 ],
 ] );
@@ -55,7 +56,9 @@ it( 'rejects input it cannot convert exactly', function ( string $major, string 
     MinorUnits::toMinor( $major, $currency );
 } )->with( [
     'too many decimals for JPY' => [ '12.5', 'JPY' ],
-    'too many decimals for USD' => [ '1.234.5', 'USD' ],
+    'mixed-up separators'       => [ '1.234.5', 'USD' ],
+    'leading zero, not $500'    => [ '0.500', 'USD' ],
+    'leading zero comma'        => [ '0,500', 'USD' ],
     'four decimals for USD'     => [ '12.3456', 'USD' ],
     'four decimals for KWD'     => [ '1.2345', 'KWD' ],
     'letters'                   => [ '12a', 'USD' ],
@@ -67,6 +70,19 @@ it( 'rejects input it cannot convert exactly', function ( string $major, string 
 it( 'converts percent to rate_ubps the same way TaxRateMath does', function ( string $percent ): void {
     expect( MinorUnits::fromDecimal( $percent, MinorUnits::PERCENT_SCALE ) )->toBe( TaxRateMath::fromPercent( $percent ) );
 } )->with( [ '8.375', '0', '20', '7.25', '0.0000001', '100' ] );
+
+it( 'matches TaxRateMath in both directions across the rate range', function (): void {
+    mt_srand( 20261001 );
+
+    for ( $i = 0; $i < 500; $i++ ) {
+        $ubps    = mt_rand( 0, TaxRateMath::UNITS_PER_WHOLE );
+        $percent = MinorUnits::toDecimal( $ubps, MinorUnits::PERCENT_SCALE, trimZeros: true );
+
+        expect( $percent )->toBe( TaxRateMath::toPercent( $ubps ) )
+            ->and( MinorUnits::fromDecimal( $percent, MinorUnits::PERCENT_SCALE ) )->toBe( TaxRateMath::fromPercent( $percent ) )
+            ->and( TaxRateMath::fromPercent( $percent ) )->toBe( $ubps );
+    }
+} );
 
 it( 'stores 8.375 percent as 83750000 ubps', function (): void {
     expect( MinorUnits::fromDecimal( '8.375', MinorUnits::PERCENT_SCALE ) )->toBe( 83_750_000 )
