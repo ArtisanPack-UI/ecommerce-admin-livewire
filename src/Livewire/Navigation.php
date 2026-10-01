@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire;
 
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\NavBadges;
 use Illuminate\Contracts\View\View;
@@ -34,6 +35,8 @@ use Livewire\Component;
  */
 class Navigation extends Component
 {
+    use AuthorizesEcommerce;
+
     /**
      * The key of the entry for the current page.
      *
@@ -56,7 +59,7 @@ class Navigation extends Component
      */
     public function mount(): void
     {
-        abort_unless( AdminNav::canAccess( auth()->user() ), 403 );
+        $this->authorizeAdminAccess();
 
         foreach ( AdminNav::items() as $item ) {
             if ( AdminNav::isActive( $item ) ) {
@@ -77,6 +80,8 @@ class Navigation extends Component
     #[On( 'ecommerce-admin-nav-refresh' )]
     public function refreshBadges(): void
     {
+        $this->authorizeAdminAccess();
+
         NavBadges::flush();
     }
 

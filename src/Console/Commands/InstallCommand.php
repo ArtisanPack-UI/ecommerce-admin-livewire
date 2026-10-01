@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Console\Commands;
 
+use ArtisanPackUI\EcommerceAdminLivewire\Support\RbacPermissions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Gate;
 
@@ -97,9 +98,9 @@ class InstallCommand extends Command
     /**
      * Warns when nothing grants access to the admin.
      *
-     * The engine denies every ability by default. A host grants access either
-     * with the umbrella `ecommerce.admin` gate or, with cms-framework, through
-     * RBAC permissions.
+     * The engine denies every ability by default. A host grants access with
+     * the umbrella `ecommerce.admin` gate or, with cms-framework, through RBAC
+     * permissions, which this step registers.
      *
      * @since 1.0.0
      *
@@ -107,15 +108,20 @@ class InstallCommand extends Command
      */
     protected function checkAuthorization(): void
     {
-        if ( Gate::has( 'ecommerce.admin' ) ) {
-            $this->components->info( __( 'The ecommerce.admin gate is defined.' ) );
+        $granted = false;
 
-            return;
+        if ( RbacPermissions::available() ) {
+            $this->call( 'ecommerce-admin:sync-permissions' );
+            $this->components->info( __( 'Assign the shop-manager role, or individual ecommerce permissions, to your staff.' ) );
+            $granted = true;
         }
 
-        if ( function_exists( 'ap_register_permission' ) ) {
-            $this->components->info( __( 'cms-framework is installed: grant the ecommerce permissions to your staff roles.' ) );
+        if ( Gate::has( 'ecommerce.admin' ) ) {
+            $this->components->info( __( 'The ecommerce.admin gate is defined.' ) );
+            $granted = true;
+        }
 
+        if ( $granted ) {
             return;
         }
 

@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire;
 
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
@@ -30,6 +31,8 @@ use Livewire\Component;
  */
 class Dashboard extends Component
 {
+    use AuthorizesEcommerce;
+
     /**
      * Authorizes the screen.
      *
@@ -39,7 +42,7 @@ class Dashboard extends Component
      */
     public function mount(): void
     {
-        abort_unless( AdminNav::canAccess( auth()->user() ), 403 );
+        $this->authorizeAdminAccess();
     }
 
     /**

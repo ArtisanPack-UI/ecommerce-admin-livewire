@@ -17,12 +17,18 @@ namespace ArtisanPackUI\EcommerceAdminLivewire;
 
 use ArtisanPackUI\Ecommerce\Registries\SatelliteRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
+use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\SyncPermissionsCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\RbacPermissions;
+use ArtisanPackUI\EcommerceAdminLivewire\View\Components\ProductTypeWarning;
 use Illuminate\Contracts\View\View as ViewContract;
+use Illuminate\Database\Events\MigrationsEnded;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -70,6 +76,18 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     public const VIEW_NAMESPACE = 'ecommerce-admin';
 
     /**
+     * The composed Blade components, keyed by their name after the
+     * `artisanpack-ec-` prefix.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, class-string>
+     */
+    public const BLADE_COMPONENTS = [
+        'product-type-warning' => ProductTypeWarning::class,
+    ];
+
+    /**
      * The package's Livewire components, keyed by component name.
      *
      * @since 1.0.0
@@ -113,6 +131,8 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $this->registerViews();
         $this->registerTranslations();
         $this->registerCommands();
+        $this->registerBladeComponents();
+        $this->registerRbac();
         $this->registerLayoutResolver();
         $this->registerLivewireComponents();
         $this->registerRoutes();
@@ -230,6 +250,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
         $this->commands( [
             InstallCommand::class,
+            SyncPermissionsCommand::class,
         ] );
     }
 
@@ -304,5 +325,45 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         }
 
         $this->loadRoutesFrom( __DIR__ . '/../routes/admin.php' );
+    }
+
+    /**
+     * Registers the `<x-artisanpack-ec-…>` Blade components.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    protected function registerBladeComponents(): void
+    {
+        foreach ( self::BLADE_COMPONENTS as $name => $class ) {
+            Blade::component( 'artisanpack-ec-' . $name, $class );
+        }
+    }
+
+    /**
+     * Wires the engine abilities to cms-framework RBAC when it is installed.
+     *
+     * Permissions are granted through the engine's ability filters on every
+     * request; they are created after each `migrate` run (and by
+     * `ecommerce-admin:install` / `ecommerce-admin:sync-permissions`).
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    protected function registerRbac(): void
+    {
+        if ( ! RbacPermissions::available() ) {
+            return;
+        }
+
+        RbacPermissions::grantThroughPermissions();
+
+        Event::listen( MigrationsEnded::class, static function ( MigrationsEnded $event ): void {
+            if ( 'up' === $event->method ) {
+                RbacPermissions::register();
+            }
+        } );
     }
 }
