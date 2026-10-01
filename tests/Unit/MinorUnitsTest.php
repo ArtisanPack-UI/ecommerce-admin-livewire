@@ -89,3 +89,16 @@ it( 'stores 8.375 percent as 83750000 ubps', function (): void {
         ->and( MinorUnits::toDecimal( 83_750_000, MinorUnits::PERCENT_SCALE, trimZeros: true ) )->toBe( TaxRateMath::toPercent( 83_750_000 ) )
         ->and( 10 ** MinorUnits::PERCENT_SCALE )->toBe( TaxRateMath::UNITS_PER_WHOLE / 100 );
 } );
+
+it( 'converts with an order snapshot rate, across subunits, rounding half away from zero', function ( int $minor, string $from, string $to, int $rateE8, int $expected ): void {
+    expect( MinorUnits::convertWithRateE8( $minor, $from, $to, $rateE8 ) )->toBe( $expected );
+} )->with( [
+    'EUR to USD'           => [ 10000, 'EUR', 'USD', 108_000_000, 10800 ],
+    'same rate'            => [ 12345, 'USD', 'USD', 100_000_000, 12345 ],
+    'JPY to USD'           => [ 1500, 'JPY', 'USD', 670_000, 1005 ],
+    'USD to JPY'           => [ 1000, 'USD', 'JPY', 14_925_000_000, 1493 ],
+    'USD to KWD'           => [ 1000, 'USD', 'KWD', 30_700_000, 3070 ],
+    'rounds half up'       => [ 1, 'EUR', 'USD', 150_000_000, 2 ],
+    'rounds down'          => [ 1, 'EUR', 'USD', 140_000_000, 1 ],
+    'negative rounds away' => [ -1, 'EUR', 'USD', 150_000_000, -2 ],
+] );

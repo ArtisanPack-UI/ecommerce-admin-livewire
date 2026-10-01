@@ -171,6 +171,35 @@ final class MinorUnits
     }
 
     /**
+     * Converts an amount with an order's snapshot rate (`fx_rate_to_base_e8`:
+     * one major unit of `$from` in major units of `$to`, times 10^8).
+     *
+     * Handles currencies with different subunits (JPY → USD) and rounds
+     * half away from zero. Integer and bcmath arithmetic only.
+     *
+     * @since 1.0.0
+     *
+     * @param  int     $minor   The amount in `$from` minor units.
+     * @param  string  $from    The amount's currency.
+     * @param  string  $to      The target currency.
+     * @param  int     $rateE8  The rate times 10^8.
+     *
+     * @return int The amount in `$to` minor units.
+     */
+    public static function convertWithRateE8( int $minor, string $from, string $to, int $rateE8 ): int
+    {
+        $shift = self::subunit( $to ) - self::subunit( $from );
+        $value = bcdiv( bcmul( (string) $minor, (string) $rateE8, 0 ), '100000000', 12 );
+        $value = $shift >= 0
+            ? bcmul( $value, bcpow( '10', (string) $shift, 0 ), 12 )
+            : bcdiv( $value, bcpow( '10', (string) -$shift, 0 ), 12 );
+
+        $half = str_starts_with( $value, '-' ) ? '-0.5' : '0.5';
+
+        return (int) bcadd( $value, $half, 0 );
+    }
+
+    /**
      * Parses a major-unit amount into minor units, e.g. "10.5" USD → 1050.
      *
      * @since 1.0.0

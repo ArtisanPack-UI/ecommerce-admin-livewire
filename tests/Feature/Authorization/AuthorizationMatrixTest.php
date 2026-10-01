@@ -43,6 +43,35 @@ const MATRIX = [
         ],
     ],
 
+    'artisanpack-ecommerce-admin-orders-index' => [
+        'mount'   => [ 'params' => [], 'ability' => 'order.viewAny' ],
+        'actions' => [
+            'sort'                         => [ 'args' => [ 'placed' ], 'ability' => 'order.viewAny' ],
+            'resetFilters'                 => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'selectAllMatchingRows'        => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'clearSelection'               => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'runBulkAction'                => [ 'args' => [ 'export' ], 'ability' => 'order.viewAny' ],
+            'confirmBulkAction'            => [ 'args' => [ 'token' ], 'ability' => 'order.viewAny' ],
+            'cancelBulkAction'             => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'exportCsv'                    => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'getTableExportData'           => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'getPage'                      => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'previousPage'                 => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'nextPage'                     => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'order.viewAny' ],
+            'resetPage'                    => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'order.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-orders-show' => [
+        'mount'   => [ 'params' => [ 'order' => '@order' ], 'ability' => 'order.view' ],
+        'actions' => [
+            'addToBoard'      => [ 'args' => [], 'ability' => 'kanbanCard.move' ],
+            'removeFromBoard' => [ 'args' => [ 1 ], 'ability' => 'kanbanCard.move' ],
+        ],
+    ],
+
     // The WithPickers concern, which screens mix in.
     'matrix-pickers' => [
         'mount'   => [ 'params' => [], 'ability' => null ],
@@ -51,14 +80,43 @@ const MATRIX = [
             'optionsForPicker' => [ 'args' => [ 'customer', 'customerId' ], 'ability' => 'customer.viewAny', 'denied' => 'empty' ],
         ],
     ],
+
+    // The WithConfigForms concern, which config forms mix in.
+    'matrix-config-forms' => [
+        'mount'   => [ 'params' => [], 'ability' => null ],
+        'actions' => [
+            'addConfigRow'    => [ 'args' => [ 'shipping-method', 'price-based', 'config', 'tiers' ], 'ability' => null ],
+            'removeConfigRow' => [ 'args' => [ 'shipping-method', 'price-based', 'config', 'tiers', 0 ], 'ability' => null ],
+        ],
+    ],
 ];
 
 /**
  * Test fixtures that bring shared concerns into the matrix.
  */
 $GLOBALS['matrixFixtureComponents'] = [
-    'matrix-pickers' => Tests\Fixtures\Livewire\MatrixPickers::class,
+    'matrix-pickers'      => Tests\Fixtures\Livewire\MatrixPickers::class,
+    'matrix-config-forms' => Tests\Fixtures\Livewire\MatrixConfigForms::class,
 ];
+
+/**
+ * Resolves mount parameters: `@order` becomes the id of an order created
+ * for the test.
+ *
+ * @param  array<string, mixed>  $params
+ *
+ * @return array<string, mixed>
+ */
+function matrixParams( array $params ): array
+{
+    return array_map( static function ( mixed $value ): mixed {
+        if ( '@order' === $value ) {
+            return $GLOBALS['matrixOrderId'] ??= ArtisanPackUI\Ecommerce\Models\Order::factory()->create()->id;
+        }
+
+        return $value;
+    }, $params );
+}
 
 /**
  * Livewire lifecycle hooks, which the client cannot call.
@@ -146,6 +204,8 @@ dataset( 'admin actions', static function (): array {
 } );
 
 beforeEach( function (): void {
+    $GLOBALS['matrixOrderId'] = null;
+
     foreach ( matrixComponents() as $name => $class ) {
         Livewire::component( $name, $class );
     }
@@ -196,7 +256,7 @@ it( 'refuses to mount without the screen ability', function ( string $name ): vo
     $mount = MATRIX[ $name ]['mount'];
 
     Livewire::actingAs( null === $mount['ability'] ? makeUser() : matrixIntruder( $mount['ability'] ) )
-        ->test( $name, $mount['params'] )
+        ->test( $name, matrixParams( $mount['params'] ) )
         ->assertForbidden();
 } )->with( 'admin components' );
 
@@ -205,7 +265,7 @@ it( 'mounts with only the screen ability', function ( string $name ): void {
     matrixGrant( [ $mount['ability'] ] );
 
     Livewire::actingAs( makeUser() )
-        ->test( $name, $mount['params'] )
+        ->test( $name, matrixParams( $mount['params'] ) )
         ->assertOk();
 } )->with( 'admin components' );
 
@@ -223,7 +283,7 @@ it( 'refuses the action without its ability', function ( ?string $name, ?string 
     grantAdmin( $admin );
     $intruder = matrixIntruder( $definition['ability'] );
 
-    $component = Livewire::actingAs( $admin )->test( $name, $mount['params'] )->assertOk();
+    $component = Livewire::actingAs( $admin )->test( $name, matrixParams( $mount['params'] ) )->assertOk();
 
     $this->actingAs( $intruder );
 
@@ -250,7 +310,7 @@ it( 'allows the action with only its ability', function ( ?string $name, ?string
     matrixGrant( [ $mount['ability'], $definition['ability'] ] );
 
     Livewire::actingAs( makeUser() )
-        ->test( $name, $mount['params'] )
+        ->test( $name, matrixParams( $mount['params'] ) )
         ->call( $action, ...$definition['args'] )
         ->assertOk();
 } )->with( 'admin actions' );

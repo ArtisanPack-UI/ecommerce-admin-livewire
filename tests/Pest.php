@@ -91,3 +91,16 @@ if ( ! function_exists( 'fakeAdminRoutes' ) ) {
         Illuminate\Support\Facades\Route::getRoutes()->refreshNameLookups();
     }
 }
+
+if ( ! function_exists( 'sentToasts' ) ) {
+    /**
+     * The JavaScript a Livewire test component queued (toasts are sent this
+     * way), flattened to one string for `toContain` checks.
+     *
+     * @param  Livewire\Features\SupportTesting\Testable  $component  The component under test.
+     */
+    function sentToasts( $component ): string
+    {
+        return (string) json_encode( $component->effects['xjs'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+    }
+}

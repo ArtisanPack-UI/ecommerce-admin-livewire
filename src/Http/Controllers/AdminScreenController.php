@@ -41,4 +41,33 @@ class AdminScreenController extends Controller
     {
         return view( 'ecommerce-admin::pages.dashboard' );
     }
+
+    /**
+     * The orders index.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function ordersIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.orders.index' );
+    }
+
+    /**
+     * An order's detail page.
+     *
+     * The id is passed through unresolved: the component loads and
+     * authorizes the order, so the access check answers before the lookup.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $order  The order id.
+     *
+     * @return View
+     */
+    public function ordersShow( string $order ): View
+    {
+        return view( 'ecommerce-admin::pages.orders.show', [ 'order' => (int) $order ] );
+    }
 }

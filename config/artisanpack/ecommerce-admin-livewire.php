@@ -38,11 +38,16 @@ return [
     |--------------------------------------------------------------------------
     | Tables
     |--------------------------------------------------------------------------
+    |
+    | `export_max_rows` caps a single CSV export; the user is told when an
+    | export was cut short.
+    |
     */
 
     'tables' => [
         'per_page'        => 25,
         'per_page_values' => [ 10, 25, 50, 100 ],
+        'export_max_rows' => 10000,
     ],
 
     /*

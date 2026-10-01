@@ -20,10 +20,6 @@
 --}}
 @php
     use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
-    use Illuminate\Support\Facades\Vite;
-
-    $viteEntries = (array) applyFilters( 'ap.ecommerceAdminLivewire.layout.viteEntries', [ 'resources/css/app.css', 'resources/js/app.js' ] );
-    $loadVite    = [] !== $viteEntries && ( Vite::isRunningHot() || is_file( public_path( 'build/manifest.json' ) ) );
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace( '_', '-', app()->getLocale() ) }}">
@@ -32,9 +28,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield( 'title', __( 'Store admin' ) ) &middot; {{ config( 'app.name' ) }}</title>
-    @if ( $loadVite )
-        @vite( $viteEntries )
-    @endif
+    @include( 'ecommerce-admin::partials.vite-assets' )
     @livewireStyles
     @stack( 'styles' )
 </head>
@@ -71,6 +65,7 @@
     <x-artisanpack-toast />
 
     @livewireScripts
+    @include( 'ecommerce-admin::partials.rate-limit-notice' )
     @stack( 'scripts' )
 </body>
 </html>
