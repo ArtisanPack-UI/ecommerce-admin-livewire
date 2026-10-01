@@ -27,7 +27,6 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\InteractsWithOrderPan
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
-use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\UserNames;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -252,7 +251,7 @@ class RefundsPanel extends Component
         $items     = $order->items()->orderBy( 'id' )->get();
         $refunds   = Refund::query()->where( 'order_id', $order->id )->with( 'items' )->orderByDesc( 'id' )->get();
         $gateway   = $this->gateway( $order );
-        $canRefund = Authorization::allows( auth()->user(), 'order.refund', $order );
+        $canRefund = $this->canEcommerce( 'refund', $order );
         $problem   = $this->gatewayProblem( $order, $gateway );
 
         return view( 'ecommerce-admin::livewire.orders.panels.refunds', [

@@ -333,6 +333,14 @@ class EditPanel extends Component
             return;
         }
 
+        // A token outlives the editor; without an open draft the empty
+        // address fields would read as "clear the addresses".
+        if ( ! $this->editing ) {
+            $this->addError( 'edit', __( 'Open the editor before saving changes.' ) );
+
+            return;
+        }
+
         $edit = $this->validatedEdit( $order );
 
         if ( null === $edit ) {
@@ -373,6 +381,14 @@ class EditPanel extends Component
         $order = $this->order();
 
         if ( ! $this->authorizeEdit( $order ) ) {
+            return;
+        }
+
+        // A token outlives the editor; without an open draft the empty
+        // address fields would read as "clear the addresses".
+        if ( ! $this->editing ) {
+            $this->addError( 'edit', __( 'Open the editor before saving changes.' ) );
+
             return;
         }
 
@@ -481,7 +497,7 @@ class EditPanel extends Component
         $edits   = OrderEdit::query()->where( 'order_id', $order->id )->orderByDesc( 'id' )->get();
         $blocked = $this->blockedReason( $order );
         $canEdit = null === $blocked
-            && Authorization::allows( $user, 'order.update', $order )
+            && $this->canEcommerce( 'update', $order )
             && ( ! $this->fulfillmentStarted( $order ) || Authorization::allows( $user, 'order.edit-fulfilled', $order ) );
 
         return view( 'ecommerce-admin::livewire.orders.panels.edit', [

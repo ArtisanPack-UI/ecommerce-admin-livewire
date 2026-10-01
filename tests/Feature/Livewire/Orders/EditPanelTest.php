@@ -306,3 +306,16 @@ it( 'refuses a shipping method that is not registered', function (): void {
 
     $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasErrors( [ 'shippingMethod' ] );
 } );
+
+it( 'refuses to apply with a leftover token once the editor is closed', function (): void {
+    $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->call( 'startEdit' );
+    $token     = editPanelToken( $component, 'applyEdit' );
+
+    $component->set( 'editing', false )
+        ->set( 'reason', 'stale' )
+        ->call( 'applyEdit', $token )
+        ->assertHasErrors( [ 'edit' ] );
+
+    expect( $this->order->fresh()->shipping_address['address1'] )->toBe( '1 Main St' )
+        ->and( OrderEdit::query()->count() )->toBe( 0 );
+} );

@@ -24,7 +24,6 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\InteractsWithOrderPan
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
-use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ShippingMethods;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StatusPresenter;
 use Exception;
@@ -453,7 +452,7 @@ class FulfillmentPanel extends Component
     public function render(): View
     {
         $order      = $this->order()->load( 'items' );
-        $canUpdate  = Authorization::allows( auth()->user(), 'order.update', $order );
+        $canUpdate  = $this->canEcommerce( 'update', $order );
         $shipments  = Shipment::query()->where( 'order_id', $order->id )->with( 'items' )->orderBy( 'id' )->get();
         $remaining  = app( ShipmentService::class )->remainingQuantities( $order );
         $unshipable = $this->unshippableReason( $order );

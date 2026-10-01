@@ -30,7 +30,6 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\InteractsWithOrderPan
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
-use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StatusPresenter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -259,8 +258,8 @@ class StatusPanel extends Component
     {
         $order       = $this->order()->load( [ 'substatus', 'boardAssignments' => static fn ( $query ) => $query->whereNull( 'removed_at' )->with( [ 'board', 'substatus' ] ) ] );
         $user        = auth()->user();
-        $canUpdate   = Authorization::allows( $user, 'order.update', $order );
-        $canCancel   = Authorization::allows( $user, 'order.cancel', $order );
+        $canUpdate   = $this->canEcommerce( 'update', $order );
+        $canCancel   = $this->canEcommerce( 'cancel', $order );
         $assessment  = $canCancel ? app( OrderCancellationService::class )->assess( $order ) : null;
         $substatuses = OrderSubstatus::query()->orderBy( 'system_status' )->orderBy( 'position' )->orderBy( 'id' )->get();
 
@@ -310,10 +309,12 @@ class StatusPanel extends Component
      */
     protected function statusTargets( Order $order ): array
     {
+        $canRefund = $this->canEcommerce( 'refund', $order );
+
         return array_values( array_filter(
             OrderStatusMachine::ALLOWED_TRANSITIONS[ (string) $order->system_status ] ?? [],
             static fn ( string $status ): bool => ! in_array( $status, [ 'cancelled', 'failed' ], true )
-                && ( 'refunded' !== $status || Authorization::allows( auth()->user(), 'order.refund', $order ) ),
+                && ( 'refunded' !== $status || $canRefund ),
         ) );
     }
 
