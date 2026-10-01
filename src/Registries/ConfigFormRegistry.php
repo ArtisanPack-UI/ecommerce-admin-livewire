@@ -44,7 +44,8 @@ use Throwable;
  * A field is `name`, `type`, `label`, and optionally `hint`, `rules` (extra
  * Laravel rules), `options` (`select` / `multiselect`), `default`,
  * `multiple` (`product`, default true), `source` (`product` fields:
- * `product` or `variant`), and `fields` (`repeater` rows). A schema may be a
+ * `product` or `variant`), and `fields` (`repeater` rows). A rule may name a
+ * sibling field as `@name` (`required_without:@amount`). A schema may be a
  * closure, resolved on use, so labels and options follow the current locale.
  *
  * When an engine entry declares its own schema (a `configSchema()` method,
@@ -472,7 +473,7 @@ class ConfigFormRegistry
     {
         $optionIds = array_column( $field['options'], 'id' );
         $presence  = in_array( 'required', $field['rules'], true ) ? [] : [ 'nullable' ];
-        $own       = [ ...$presence, ...$field['rules'] ];
+        $own       = [ ...$presence, ...self::resolveSiblings( $field['rules'], $path ) ];
 
         $rules = match ( $field['type'] ) {
             'text'                  => [ $path => [ ...$own, 'string', 'max:1000' ] ],
@@ -502,6 +503,32 @@ class ConfigFormRegistry
         }
 
         return $rules;
+    }
+
+    /**
+     * Points `@name` in string rules at the sibling field `name`, so a
+     * cross-field rule works wherever the config is bound and in every
+     * repeater row (`required_without:@amount` becomes
+     * `required_without:config.tiers.*.amount`; Laravel matches the `*` to
+     * the same row).
+     *
+     * @since 1.0.0
+     *
+     * @param  array<int, mixed>  $rules  The field's own rules.
+     * @param  string             $path   The field's property path.
+     *
+     * @return array<int, mixed>
+     */
+    private static function resolveSiblings( array $rules, string $path ): array
+    {
+        $parent = substr( $path, 0, (int) strrpos( $path, '.' ) );
+
+        return array_map(
+            static fn ( mixed $rule ): mixed => is_string( $rule )
+                ? (string) preg_replace( '/@([A-Za-z][A-Za-z0-9_]*)/', $parent . '.$1', $rule )
+                : $rule,
+            $rules,
+        );
     }
 
     /**

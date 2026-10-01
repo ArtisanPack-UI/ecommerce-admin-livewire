@@ -158,6 +158,22 @@ it( 'caps repeater rows', function (): void {
     expect( $component->get( 'config.tiers' ) )->toHaveCount( ConfigFormRegistry::MAX_ROWS );
 } );
 
+it( 'requires a percent or an amount in each tiered-discount tier', function (): void {
+    $tiers = static fn ( array $tier ) => Livewire::test( ConfigFormHost::class, [ 'registry' => 'promotion-action', 'entry' => 'tiered-discount' ] )
+        ->call( 'addConfigRow', 'promotion-action', 'tiered-discount', 'config', 'tiers' )
+        ->set( 'config.tiers.0', [ 'min_subtotal' => 5000, ...$tier ] )
+        ->call( 'save' );
+
+    $tiers( [] )->assertHasErrors( [ 'config.tiers.0.percent', 'config.tiers.0.amount' ] );
+    $tiers( [ 'percent' => 10 ] )->assertHasNoErrors()->assertSet( 'saved', [ 'tiers' => [ [ 'min_subtotal' => 5000, 'percent' => 10 ] ] ] );
+    $tiers( [ 'amount' => 500 ] )->assertHasNoErrors()->assertSet( 'saved', [ 'tiers' => [ [ 'min_subtotal' => 5000, 'amount' => 500 ] ] ] );
+} );
+
+it( 'resolves sibling references against wherever the config is bound', function (): void {
+    expect( app( ConfigFormRegistry::class )->rules( 'promotion-action', 'tiered-discount', 'conditions.2.config' )['conditions.2.config.tiers.*.percent'] )
+        ->toContain( 'required_without:conditions.2.config.tiers.*.amount' );
+} );
+
 it( 'shows a money field for a minimum-subtotal condition', function (): void {
     Livewire::test( ConfigFormHost::class, [ 'registry' => 'promotion-condition', 'entry' => 'min-subtotal' ] )
         ->assertSee( 'Minimum subtotal' )

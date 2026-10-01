@@ -135,8 +135,8 @@ final class ConfigSchemas
                 'tiered-discount'     => static fn (): array => [
                     [ 'name' => 'tiers', 'type' => 'repeater', 'label' => __( 'Tiers' ), 'hint' => __( 'The highest tier the subtotal reaches applies. Give each tier a percent or an amount.' ), 'rules' => [ 'required', 'min:1' ], 'fields' => [
                         self::money( 'min_subtotal', __( 'From subtotal' ), true ),
-                        self::percent( 'percent', __( 'Percent off' ) ),
-                        self::money( 'amount', __( 'Amount off' ) ),
+                        [ ...self::percent( 'percent', __( 'Percent off' ) ), 'rules' => [ 'gt:0', 'required_without:@amount' ] ],
+                        [ ...self::money( 'amount', __( 'Amount off' ) ), 'rules' => [ 'required_without:@percent' ] ],
                     ] ],
                 ],
             ],

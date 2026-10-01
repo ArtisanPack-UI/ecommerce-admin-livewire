@@ -204,7 +204,9 @@ trait WithResourceTable
     }
 
     /**
-     * Resets the page and the selection when the result set changes.
+     * Resets the page and the selection when the result set changes, and
+     * dismisses a pending confirmation when the selection changes, so a
+     * confirmation never applies to rows the user was not asked about.
      *
      * @since 1.0.0
      *
@@ -222,8 +224,9 @@ trait WithResourceTable
         }
 
         if ( 'selected' === $root ) {
-            $this->selectAllMatching = false;
-            $this->selected          = $this->normalizedSelection();
+            $this->selectAllMatching    = false;
+            $this->confirmingBulkAction = null;
+            $this->selected             = $this->normalizedSelection();
         }
     }
 
@@ -281,7 +284,8 @@ trait WithResourceTable
     {
         $this->authorizeTable();
 
-        $this->selectAllMatching = true;
+        $this->selectAllMatching    = true;
+        $this->confirmingBulkAction = null;
     }
 
     /**

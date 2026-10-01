@@ -342,6 +342,33 @@ it( 'lets satellites add columns, filters, and bulk actions', function (): void 
         ->and( downloadedCsv( Livewire::test( Index::class )->call( 'exportCsv' ) )[0] )->toContain( 'Subscription' );
 } );
 
+it( 'dismisses a pending confirmation when the selection changes', function (): void {
+    addFilter( 'ap.ecommerceAdminLivewire.table.orders.bulkActions', static fn ( array $actions ): array => [
+        ...$actions,
+        [ 'key' => 'delete', 'label' => 'Delete', 'confirm' => 'Delete the selected orders?', 'handler' => static function ( $selection ): string {
+            $selection->delete();
+
+            return 'Deleted.';
+        } ],
+    ] );
+    [ $first, $second ] = Order::factory()->count( 2 )->create()->all();
+
+    Livewire::test( Index::class )
+        ->set( 'selected', [ (string) $first->id ] )
+        ->call( 'runBulkAction', 'delete' )
+        ->assertSee( 'Delete the selected orders?' )
+        ->call( 'selectAllMatchingRows' )
+        ->assertSet( 'confirmingBulkAction', null )
+        ->assertDontSee( 'Delete the selected orders?' )
+        ->call( 'clearSelection' )
+        ->set( 'selected', [ (string) $first->id ] )
+        ->call( 'runBulkAction', 'delete' )
+        ->set( 'selected', [ (string) $first->id, (string) $second->id ] )
+        ->assertSet( 'confirmingBulkAction', null );
+
+    expect( Order::query()->count() )->toBe( 2 );
+} );
+
 it( 'runs a confirmed bulk action once even when confirm is sent twice', function (): void {
     $counter       = new stdClass();
     $counter->runs = 0;
