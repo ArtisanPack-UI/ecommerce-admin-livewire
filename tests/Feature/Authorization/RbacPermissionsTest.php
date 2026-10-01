@@ -71,6 +71,23 @@ it( 'lets an RBAC permission grant the matching engine ability', function (): vo
     }
 } );
 
+it( 'leaves a subject-specific deny from a host-defined gate alone', function (): void {
+    $user  = makeUser();
+    $own   = Order::factory()->create( [ 'email' => 'mine@example.test' ] );
+    $other = Order::factory()->create( [ 'email' => 'theirs@example.test' ] );
+
+    Gate::define( 'ecommerce.order.view', static fn ( $actor, ?Order $order = null ): bool => null === $order || 'mine@example.test' === $order->email );
+
+    RbacPermissions::grantThroughPermissions();
+
+    expect( Authorization::allows( $user, 'order.view', $own ) )->toBeTrue()
+        ->and( Authorization::allows( $user, 'order.view', $other ) )->toBeFalse();
+
+    foreach ( RbacPermissions::abilities() as $ability ) {
+        removeAllFilters( 'ap.ecommerce.abilities.' . $ability );
+    }
+} );
+
 it( 'never takes access away from the umbrella gate', function (): void {
     $user = makeUser();
     grantAdmin( $user );

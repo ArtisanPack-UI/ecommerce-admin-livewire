@@ -6,6 +6,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\EcommerceAdminLivewireServiceProvider;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
 use Livewire\Attributes\Computed;
+use Livewire\Component;
 use Livewire\Livewire;
 
 /*
@@ -13,70 +14,154 @@ use Livewire\Livewire;
 | Authorization matrix (spec §6, §12)
 |--------------------------------------------------------------------------
 |
-| Walks every admin route and every public action of every Livewire
-| component the package registers, as a signed-in user holding no ecommerce
-| abilities, and asserts each is refused. A new screen or action that forgets
-| to authorize fails here.
+| MATRIX declares, for every Livewire component the package registers, the
+| ability its mount() needs and, for every public action, the ability the
+| action needs and the arguments to call it with. A null ability means
+| "may enter the admin" (at least one visible screen).
 |
-| Components whose mount() needs arguments list them in MATRIX_MOUNT_PARAMS;
-| a component missing from it is mounted with none.
+| The suite then proves each declaration both ways:
+|
+| - a user who can enter the admin but lacks the ability is refused, so an
+|   action that only checks admin access fails here;
+| - a user holding just that ability gets through, so the refusal really
+|   comes from the ability check.
+|
+| A component or action missing from MATRIX fails the suite, so a new screen
+| cannot ship without declaring (and enforcing) its authorization.
 |
 */
 
-const MATRIX_MOUNT_PARAMS = [];
+const MATRIX = [
+    'artisanpack-ecommerce-admin-dashboard' => [
+        'mount'   => [ 'params' => [], 'ability' => null ],
+        'actions' => [],
+    ],
+    'artisanpack-ecommerce-admin-navigation' => [
+        'mount'   => [ 'params' => [], 'ability' => null ],
+        'actions' => [
+            'refreshBadges' => [ 'args' => [], 'ability' => null ],
+        ],
+    ],
+];
 
 /**
- * Lifecycle hooks and render methods Livewire calls itself, which are not
- * client-callable actions.
+ * Livewire lifecycle hooks, which the client cannot call.
  */
-const MATRIX_NON_ACTIONS = '/^(mount|render|boot|booted|hydrate|dehydrate|updating|updated|rendering|rendered|exception|placeholder)/';
+const MATRIX_LIFECYCLE = '/^(render|rendering|rendered|exception|placeholder)$|^(mount|boot|booted|hydrate|dehydrate|updating|updated)([A-Z_].*)?$/';
 
 /**
- * The client-callable actions a component class declares.
+ * The client-callable actions of a component: its public instance methods
+ * that Livewire's base component does not define.
  *
- * @return array<int, ReflectionMethod>
+ * @return array<int, string>
  */
 function matrixActions( string $class ): array
 {
-    $reflection = new ReflectionClass( $class );
+    $base = array_map(
+        static fn ( ReflectionMethod $method ): string => $method->getName(),
+        ( new ReflectionClass( Component::class ) )->getMethods( ReflectionMethod::IS_PUBLIC ),
+    );
 
-    return array_values( array_filter(
-        $reflection->getMethods( ReflectionMethod::IS_PUBLIC ),
+    $actions = array_filter(
+        ( new ReflectionClass( $class ) )->getMethods( ReflectionMethod::IS_PUBLIC ),
         static fn ( ReflectionMethod $method ): bool => ! $method->isStatic()
-            && str_starts_with( $method->getDeclaringClass()->getName(), 'ArtisanPackUI\\EcommerceAdminLivewire\\' )
-            && 1 !== preg_match( MATRIX_NON_ACTIONS, $method->getName() )
+            && ! in_array( $method->getName(), $base, true )
+            && 1 !== preg_match( MATRIX_LIFECYCLE, $method->getName() )
             && [] === $method->getAttributes( Computed::class ),
-    ) );
+    );
+
+    $names = array_map( static fn ( ReflectionMethod $method ): string => $method->getName(), $actions );
+    sort( $names );
+
+    return $names;
 }
 
 /**
- * Placeholder arguments for an action, typed to match its parameters.
- *
- * @return array<int, mixed>
+ * A user who can enter the admin but does not hold `$ability`.
  */
-function matrixArguments( ReflectionMethod $method ): array
+function matrixIntruder( ?string $ability )
 {
-    return array_map( static function ( ReflectionParameter $parameter ): mixed {
-        if ( $parameter->isDefaultValueAvailable() ) {
-            return $parameter->getDefaultValue();
-        }
+    if ( null !== $ability ) {
+        $unrelated = 'kanbanBoard.viewAny' === $ability ? 'review.viewAny' : 'kanbanBoard.viewAny';
 
-        return match ( (string) $parameter->getType() ) {
-            'int', '?int'       => 1,
-            'float', '?float'   => 1.0,
-            'bool', '?bool'     => true,
-            'array', '?array'   => [],
-            default             => $parameter->allowsNull() ? null : 'x',
-        };
-    }, $method->getParameters() );
+        Illuminate\Support\Facades\Gate::define( 'ecommerce.' . $unrelated, static fn (): bool => true );
+    }
+
+    return makeUser();
 }
 
-dataset( 'admin components', static fn (): array => array_combine(
-    array_keys( EcommerceAdminLivewireServiceProvider::LIVEWIRE_COMPONENTS ),
-    array_map( static fn ( string $name ): array => [ $name ], array_keys( EcommerceAdminLivewireServiceProvider::LIVEWIRE_COMPONENTS ) ),
+/**
+ * Grants exactly `$abilities` (null entries mean "may enter the admin").
+ *
+ * @param  array<int, string|null>  $abilities
+ */
+function matrixGrant( array $abilities ): void
+{
+    $abilities = array_values( array_filter( $abilities ) );
+
+    grantAbilities( [] === $abilities ? [ 'review.viewAny' ] : $abilities );
+}
+
+/**
+ * The components under test: the registered ones plus any test fixtures.
+ *
+ * @return array<string, class-string>
+ */
+function matrixComponents(): array
+{
+    return EcommerceAdminLivewireServiceProvider::LIVEWIRE_COMPONENTS + ( $GLOBALS['matrixFixtureComponents'] ?? [] );
+}
+
+dataset( 'admin components', static fn (): array => array_map(
+    static fn ( string $name ): array => [ $name ],
+    array_combine( array_keys( MATRIX ), array_keys( MATRIX ) ),
 ) );
 
-it( 'refuses every admin route', function (): void {
+dataset( 'admin actions', static function (): array {
+    $rows = [];
+
+    foreach ( MATRIX as $name => $definition ) {
+        foreach ( array_keys( $definition['actions'] ) as $action ) {
+            $rows[ $name . '::' . $action ] = [ $name, $action ];
+        }
+    }
+
+    return [] === $rows ? [ 'none' => [ null, null ] ] : $rows;
+} );
+
+beforeEach( function (): void {
+    foreach ( matrixComponents() as $name => $class ) {
+        Livewire::component( $name, $class );
+    }
+} );
+
+it( 'declares every component and every public action', function (): void {
+    expect( array_keys( MATRIX ) )->toEqualCanonicalizing( array_keys( matrixComponents() ) );
+
+    foreach ( matrixComponents() as $name => $class ) {
+        $declared = array_keys( MATRIX[ $name ]['actions'] );
+        sort( $declared );
+
+        expect( $declared )->toBe( matrixActions( $class ), $name . ' has undeclared or stale actions in MATRIX.' );
+    }
+} );
+
+it( 'registers every Livewire component class under src/Livewire', function (): void {
+    $files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( __DIR__ . '/../../../src/Livewire', FilesystemIterator::SKIP_DOTS ) );
+    $root  = realpath( __DIR__ . '/../../../src/Livewire' );
+
+    $classes = collect( iterator_to_array( $files ) )
+        ->map( static fn ( SplFileInfo $file ): string => (string) $file->getRealPath() )
+        ->filter( static fn ( string $path ): bool => str_ends_with( $path, '.php' ) && ! str_contains( $path, DIRECTORY_SEPARATOR . 'Concerns' . DIRECTORY_SEPARATOR ) )
+        ->map( static fn ( string $path ): string => 'ArtisanPackUI\\EcommerceAdminLivewire\\Livewire\\' . str_replace( [ $root . DIRECTORY_SEPARATOR, '.php', DIRECTORY_SEPARATOR ], [ '', '', '\\' ], $path ) )
+        ->sort()
+        ->values()
+        ->all();
+
+    expect( collect( EcommerceAdminLivewireServiceProvider::LIVEWIRE_COMPONENTS )->sort()->values()->all() )->toBe( $classes );
+} );
+
+it( 'refuses every admin route to a user who may not enter the admin', function (): void {
     $routes = collect( Route::getRoutes()->getRoutes() )
         ->filter( static fn ( RoutingRoute $route ): bool => str_starts_with( (string) $route->getName(), 'artisanpack.ecommerce.admin.' ) );
 
@@ -85,45 +170,71 @@ it( 'refuses every admin route', function (): void {
     $user = makeUser();
 
     $routes->each( function ( RoutingRoute $route ) use ( $user ): void {
-        $parameters = array_fill_keys( $route->parameterNames(), '1' );
-
         $this->actingAs( $user )
-            ->call( $route->methods()[0], route( $route->getName(), $parameters ) )
+            ->call( $route->methods()[0], route( $route->getName(), array_fill_keys( $route->parameterNames(), '1' ) ) )
             ->assertForbidden();
     } );
 } );
 
-it( 'refuses to mount the component', function ( string $name ): void {
-    Livewire::actingAs( makeUser() )
-        ->test( $name, MATRIX_MOUNT_PARAMS[ $name ] ?? [] )
+it( 'refuses to mount without the screen ability', function ( string $name ): void {
+    $mount = MATRIX[ $name ]['mount'];
+
+    Livewire::actingAs( null === $mount['ability'] ? makeUser() : matrixIntruder( $mount['ability'] ) )
+        ->test( $name, $mount['params'] )
         ->assertForbidden();
 } )->with( 'admin components' );
 
-it( 'refuses every public action', function ( string $name ): void {
-    $class   = EcommerceAdminLivewireServiceProvider::LIVEWIRE_COMPONENTS[ $name ];
-    $actions = matrixActions( $class );
+it( 'mounts with only the screen ability', function ( string $name ): void {
+    $mount = MATRIX[ $name ]['mount'];
+    matrixGrant( [ $mount['ability'] ] );
+
+    Livewire::actingAs( makeUser() )
+        ->test( $name, $mount['params'] )
+        ->assertOk();
+} )->with( 'admin components' );
+
+it( 'refuses the action without its ability', function ( ?string $name, ?string $action ): void {
+    if ( null === $name ) {
+        expect( true )->toBeTrue();
+
+        return;
+    }
+
+    $mount      = MATRIX[ $name ]['mount'];
+    $definition = MATRIX[ $name ]['actions'][ $action ];
 
     $admin = makeUser();
     grantAdmin( $admin );
-    $intruder = makeUser();
+    $intruder = matrixIntruder( $definition['ability'] );
 
-    foreach ( $actions as $action ) {
-        $component = Livewire::actingAs( $admin )->test( $name, MATRIX_MOUNT_PARAMS[ $name ] ?? [] )->assertOk();
+    $component = Livewire::actingAs( $admin )->test( $name, $mount['params'] )->assertOk();
 
-        $this->actingAs( $intruder );
+    $this->actingAs( $intruder );
 
-        $component->call( $action->getName(), ...matrixArguments( $action ) )->assertForbidden();
+    $component->call( $action, ...$definition['args'] );
+
+    if ( 'empty' === ( $definition['denied'] ?? 'forbidden' ) ) {
+        $component->assertOk()->assertReturned( [] );
+
+        return;
     }
 
-    expect( true )->toBeTrue();
-} )->with( 'admin components' );
+    $component->assertForbidden();
+} )->with( 'admin actions' );
 
-it( 'registers every Livewire component class under src/Livewire', function (): void {
-    $classes = collect( glob( __DIR__ . '/../../../src/Livewire/*.php' ) )
-        ->map( static fn ( string $path ): string => 'ArtisanPackUI\\EcommerceAdminLivewire\\Livewire\\' . basename( $path, '.php' ) )
-        ->sort()
-        ->values()
-        ->all();
+it( 'allows the action with only its ability', function ( ?string $name, ?string $action ): void {
+    if ( null === $name ) {
+        expect( true )->toBeTrue();
 
-    expect( collect( EcommerceAdminLivewireServiceProvider::LIVEWIRE_COMPONENTS )->sort()->values()->all() )->toBe( $classes );
-} );
+        return;
+    }
+
+    $mount      = MATRIX[ $name ]['mount'];
+    $definition = MATRIX[ $name ]['actions'][ $action ];
+    matrixGrant( [ $mount['ability'], $definition['ability'] ] );
+
+    Livewire::actingAs( makeUser() )
+        ->test( $name, $mount['params'] )
+        ->call( $action, ...$definition['args'] )
+        ->assertOk();
+} )->with( 'admin actions' );

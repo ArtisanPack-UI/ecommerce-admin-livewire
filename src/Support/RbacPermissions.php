@@ -26,8 +26,9 @@ use Illuminate\Support\Str;
  *   and sync commands and after migrations, never on every request.
  * - `grantThroughPermissions()` adds an `ap.ecommerce.abilities.*` filter per
  *   ability that allows a user holding the matching permission. The filter
- *   only ever adds access: an `ecommerce.admin` or host-defined gate that
- *   already allows the user is left alone.
+ *   only ever adds access, and it stays out of the way when the host defines
+ *   the `ecommerce.{resource}.{action}` gate itself: that gate already saw the
+ *   subject (e.g. an ownership check on one order), so its answer stands.
  *
  * Engine issue #151 may move this wiring into the engine.
  *
@@ -173,7 +174,7 @@ final class RbacPermissions
             addFilter(
                 sprintf( 'ap.ecommerce.abilities.%s.%s', $resource, $action ),
                 static fn ( mixed $allowed, ?Authenticatable $user = null ): bool => true === $allowed
-                    || ( null !== $user && Gate::forUser( $user )->allows( $slug ) ),
+                    || ( null !== $user && ! Gate::has( $slug ) && Gate::forUser( $user )->allows( $slug ) ),
             );
         }
     }
