@@ -20,11 +20,17 @@ use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\SyncPermissionsCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\ThrottleAdminMutations;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Categories;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\DigitalFiles;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Inventory;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\LicenseKeys;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notes;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reviews;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Tags;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Timeline;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CategoryPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CustomerPickerSource;
@@ -140,6 +146,13 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         'artisanpack-ecommerce-admin-product-variable-panel' => Products\Panels\VariablePanel::class,
         'artisanpack-ecommerce-admin-product-digital-panel'  => Products\Panels\DigitalPanel::class,
         'artisanpack-ecommerce-admin-product-children-panel' => Products\Panels\ChildrenPanel::class,
+        'artisanpack-ecommerce-admin-products-import'        => Products\Import::class,
+        'artisanpack-ecommerce-admin-categories-index'       => Categories\Index::class,
+        'artisanpack-ecommerce-admin-tags-index'             => Tags\Index::class,
+        'artisanpack-ecommerce-admin-inventory-index'        => Inventory\Index::class,
+        'artisanpack-ecommerce-admin-reviews-index'          => Reviews\Index::class,
+        'artisanpack-ecommerce-admin-digital-files-index'    => DigitalFiles\Index::class,
+        'artisanpack-ecommerce-admin-license-keys-index'     => LicenseKeys\Index::class,
     ];
 
     /**

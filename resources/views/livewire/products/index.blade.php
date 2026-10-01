@@ -9,11 +9,15 @@
 @php( $createRoute = \ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav::ROUTE_PREFIX . 'products.create' )
 <div>
     <x-artisanpack-header :title="__( 'Products' )" :level="1" separator>
-        @if ( $canCreate && \Illuminate\Support\Facades\Route::has( $createRoute ) )
-            <x-slot:actions>
+        <x-slot:actions>
+            <x-artisanpack-button variant="outline" icon="o-document-arrow-down" wire:click="exportCatalog" wire:loading.attr="disabled" :label="__( 'Export catalog' )" />
+            @if ( $canCreate && \Illuminate\Support\Facades\Route::has( $importRoute ) )
+                <x-artisanpack-button variant="outline" icon="o-arrow-up-tray" :link="route( $importRoute )" :label="__( 'Import' )" />
+            @endif
+            @if ( $canCreate && \Illuminate\Support\Facades\Route::has( $createRoute ) )
                 <x-artisanpack-button color="primary" icon="o-plus" :link="route( $createRoute )" :label="__( 'New product' )" />
-            </x-slot:actions>
-        @endif
+            @endif
+        </x-slot:actions>
     </x-artisanpack-header>
 
     @include( 'ecommerce-admin::partials.resource-table', [

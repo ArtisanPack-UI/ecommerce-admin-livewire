@@ -31,7 +31,16 @@ Route::prefix( trim( (string) config( 'artisanpack.ecommerce-admin-livewire.admi
         Route::get( 'orders', [ AdminScreenController::class, 'ordersIndex' ] )->name( 'orders.index' );
         Route::get( 'orders/{order}', [ AdminScreenController::class, 'ordersShow' ] )->whereNumber( 'order' )->name( 'orders.show' );
 
+        Route::get( 'reviews', [ AdminScreenController::class, 'reviewsIndex' ] )->name( 'reviews.index' );
+
         Route::get( 'products', [ AdminScreenController::class, 'productsIndex' ] )->name( 'products.index' );
         Route::get( 'products/create', [ AdminScreenController::class, 'productsCreate' ] )->name( 'products.create' );
+        Route::get( 'products/import', [ AdminScreenController::class, 'productsImport' ] )->name( 'products.import' );
         Route::get( 'products/{product}/edit', [ AdminScreenController::class, 'productsEdit' ] )->whereNumber( 'product' )->name( 'products.edit' );
+
+        Route::get( 'categories', [ AdminScreenController::class, 'categoriesIndex' ] )->name( 'categories.index' );
+        Route::get( 'tags', [ AdminScreenController::class, 'tagsIndex' ] )->name( 'tags.index' );
+        Route::get( 'inventory', [ AdminScreenController::class, 'inventoryIndex' ] )->name( 'inventory.index' );
+        Route::get( 'digital-files', [ AdminScreenController::class, 'digitalFilesIndex' ] )->name( 'digital-files.index' );
+        Route::get( 'license-keys', [ AdminScreenController::class, 'licenseKeysIndex' ] )->name( 'license-keys.index' );
     } );

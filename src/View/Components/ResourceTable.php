@@ -53,6 +53,7 @@ class ResourceTable extends Component
      * @param  string                            $direction   `asc` or `desc`.
      * @param  bool                              $selectable  Whether rows can be selected.
      * @param  Closure|null                      $rowLabel    Names a row for its checkbox, e.g. the order number.
+     * @param  array<string, mixed>              $context     Screen state passed to cell views as `$context`.
      */
     public function __construct(
         public array $columns,
@@ -62,6 +63,7 @@ class ResourceTable extends Component
         public string $direction = 'asc',
         public bool $selectable = false,
         public ?Closure $rowLabel = null,
+        public array $context = [],
     ) {
     }
 

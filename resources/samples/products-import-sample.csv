@@ -1,0 +1,6 @@
+type,name,slug,sku,status,short_description,description,categories,tags,weight,weight_unit,is_taxable,track_inventory,quantity_on_hand,allow_backorder,low_stock_threshold,variant_sku,variant_name,price_USD,compare_at_price_USD
+simple,Blue Mug,blue-mug,MUG-BLUE,active,A sturdy stoneware mug.,<p>Holds 350 ml. Dishwasher safe.</p>,kitchen,gift|bestseller,0.4,kg,yes,yes,120,no,10,,,12.50,15.00
+variable,Logo Tee,logo-tee,TEE-LOGO,active,Soft cotton tee.,,apparel,,,,yes,,,,,,,,
+variable,Logo Tee,logo-tee,TEE-LOGO,,,,,,,,,yes,40,no,5,TEE-LOGO-S,Small,20.00,
+variable,Logo Tee,logo-tee,TEE-LOGO,,,,,,,,,yes,25,no,5,TEE-LOGO-L,Large,22.00,
+digital,Pasta Cookbook,pasta-cookbook,BOOK-PASTA,draft,Forty pasta recipes.,,books,,,,no,no,,,,,,9.99,

@@ -49,7 +49,7 @@ it( 'injects the visible entries into the cms-framework menu', function (): void
         ->and( $menu['ecommerce-dashboard']['url'] )->toBe( route( 'artisanpack.ecommerce.admin.dashboard' ) )
         ->and( $menu['ecommerce-orders']['title'] )->toBe( 'Orders' )
         ->and( array_keys( $menu['ecommerce-orders']['items'] ) )->toBe( [ 'ecommerce-orders' ] )
-        ->and( array_keys( $menu['ecommerce-catalog']['items'] ) )->toBe( [ 'ecommerce-products' ] )
+        ->and( array_keys( $menu['ecommerce-catalog']['items'] ) )->toBe( [ 'ecommerce-products', 'ecommerce-categories', 'ecommerce-tags', 'ecommerce-inventory' ] )
         ->and( $menu['ecommerce-catalog']['items']['ecommerce-products'] )->not->toHaveKey( 'permission' );
 } );
 

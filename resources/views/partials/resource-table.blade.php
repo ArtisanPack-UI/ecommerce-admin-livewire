@@ -8,6 +8,7 @@
     - $emptyIcon, $emptyTitle, $emptyDescription — the "nothing yet" state.
     - $bulkControls (optional) — a view rendered inside the bulk-action bar.
     - $rowLabel (optional) — a Closure naming a row for its checkbox.
+    - $cellContext (optional) — screen state passed to cell views as $context.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -166,6 +167,7 @@
             :direction="$tableDirection"
             :selectable="$tableSelectable"
             :row-label="$rowLabel ?? null"
+            :context="$cellContext ?? []"
         />
 
         <x-artisanpack-pagination :rows="$tableRows" hide-per-page :page-info-template="__( 'Showing {from} to {to} of {total} results' )" />

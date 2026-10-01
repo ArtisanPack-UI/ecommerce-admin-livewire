@@ -108,4 +108,88 @@ class AdminScreenController extends Controller
     {
         return view( 'ecommerce-admin::pages.products.form', [ 'product' => (int) $product ] );
     }
+
+    /**
+     * The reviews moderation queue.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function reviewsIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.reviews.index' );
+    }
+
+    /**
+     * The product CSV import.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function productsImport(): View
+    {
+        return view( 'ecommerce-admin::pages.products.import' );
+    }
+
+    /**
+     * The category tree.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function categoriesIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.categories.index' );
+    }
+
+    /**
+     * The tags table.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function tagsIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.tags.index' );
+    }
+
+    /**
+     * The inventory table.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function inventoryIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.inventory.index' );
+    }
+
+    /**
+     * The digital files table.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function digitalFilesIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.digital-files.index' );
+    }
+
+    /**
+     * The license keys table.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function licenseKeysIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.license-keys.index' );
+    }
 }

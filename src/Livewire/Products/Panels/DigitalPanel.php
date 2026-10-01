@@ -17,6 +17,7 @@ use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Services\DigitalFileService;
 use ArtisanPackUI\Ecommerce\Services\ProductService;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
 use Closure;
 use Illuminate\Contracts\View\View;
@@ -296,7 +297,7 @@ class DigitalPanel extends ProductTypePanel
      */
     protected static function allowedDisks(): array
     {
-        return array_values( array_map( 'strval', (array) config( 'artisanpack.ecommerce.digital.allowed_disks', [ 'local' ] ) ) );
+        return DigitalDisks::allowed();
     }
 
     /**
@@ -308,9 +309,7 @@ class DigitalPanel extends ProductTypePanel
      */
     protected static function defaultDisk(): string
     {
-        $disk = (string) config( 'artisanpack.ecommerce.digital.disk', 'local' );
-
-        return in_array( $disk, self::allowedDisks(), true ) ? $disk : ( self::allowedDisks()[0] ?? 'local' );
+        return DigitalDisks::default();
     }
 
     /**
@@ -323,11 +322,7 @@ class DigitalPanel extends ProductTypePanel
      */
     protected static function relativePath(): Closure
     {
-        return static function ( string $attribute, mixed $value, Closure $fail ): void {
-            if ( is_string( $value ) && ( str_contains( $value, '..' ) || str_starts_with( $value, '/' ) || str_contains( $value, "\0" ) ) ) {
-                $fail( __( 'The :attribute must be a relative path inside the disk.' ) );
-            }
-        };
+        return DigitalDisks::relativePath();
     }
 
     /**
