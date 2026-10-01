@@ -30,7 +30,8 @@ use Throwable;
  * `x-artisanpack-table` (livewire-ui-components 2.1) has no caption, no
  * `aria-sort`, and sorts on a mouse-only header click, so this component
  * composes the table from daisyUI markup and library parts instead (spec
- * §11). When the library table gains those, this is the one file to swap.
+ * §11, livewire-ui-components#116). When the library table gains those,
+ * this is the one file to swap.
  *
  * Sortable headers are buttons that call `sort( key )` and carry
  * `aria-sort`; row checkboxes bind to `selected`.
