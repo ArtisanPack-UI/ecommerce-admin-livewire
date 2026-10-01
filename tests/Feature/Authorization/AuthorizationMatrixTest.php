@@ -42,6 +42,22 @@ const MATRIX = [
             'refreshBadges' => [ 'args' => [], 'ability' => null ],
         ],
     ],
+
+    // The WithPickers concern, which screens mix in.
+    'matrix-pickers' => [
+        'mount'   => [ 'params' => [], 'ability' => null ],
+        'actions' => [
+            'searchPicker'     => [ 'args' => [ 'a', 'customer', 'customerId' ], 'ability' => 'customer.viewAny' ],
+            'optionsForPicker' => [ 'args' => [ 'customer', 'customerId' ], 'ability' => 'customer.viewAny', 'denied' => 'empty' ],
+        ],
+    ],
+];
+
+/**
+ * Test fixtures that bring shared concerns into the matrix.
+ */
+$GLOBALS['matrixFixtureComponents'] = [
+    'matrix-pickers' => Tests\Fixtures\Livewire\MatrixPickers::class,
 ];
 
 /**

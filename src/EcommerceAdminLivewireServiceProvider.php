@@ -21,10 +21,14 @@ use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\SyncPermissionsCommand
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
+use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CustomerPickerSource;
+use ArtisanPackUI\EcommerceAdminLivewire\Pickers\ProductPickerSource;
+use ArtisanPackUI\EcommerceAdminLivewire\Pickers\VariantPickerSource;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\RbacPermissions;
-use ArtisanPackUI\EcommerceAdminLivewire\View\Components\ProductTypeWarning;
+use ArtisanPackUI\EcommerceAdminLivewire\View\Components;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Support\Facades\Blade;
@@ -84,7 +88,18 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * @var array<string, class-string>
      */
     public const BLADE_COMPONENTS = [
-        'product-type-warning' => ProductTypeWarning::class,
+        'address'              => Components\Address::class,
+        'address-form'         => Components\AddressForm::class,
+        'category-picker'      => Components\CategoryPicker::class,
+        'customer-picker'      => Components\CustomerPicker::class,
+        'money'                => Components\Money::class,
+        'money-input'          => Components\MoneyInput::class,
+        'percent-input'        => Components\PercentInput::class,
+        'product-picker'       => Components\ProductPicker::class,
+        'product-type-warning' => Components\ProductTypeWarning::class,
+        'status-badge'         => Components\StatusBadge::class,
+        'tag-picker'           => Components\TagPicker::class,
+        'variant-picker'       => Components\VariantPicker::class,
     ];
 
     /**
@@ -100,7 +115,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     ];
 
     /**
-     * Registers the package configuration.
+     * Registers the package configuration and the picker source registry.
      *
      * @since 1.0.0
      *
@@ -112,6 +127,16 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             __DIR__ . '/../config/artisanpack/ecommerce-admin-livewire.php',
             'artisanpack.ecommerce-admin-livewire',
         );
+
+        $this->app->singleton( PickerSourceRegistry::class, static function (): PickerSourceRegistry {
+            $registry = new PickerSourceRegistry();
+
+            $registry->register( 'product', new ProductPickerSource() );
+            $registry->register( 'variant', new VariantPickerSource() );
+            $registry->register( 'customer', new CustomerPickerSource() );
+
+            return $registry;
+        } );
     }
 
     /**
