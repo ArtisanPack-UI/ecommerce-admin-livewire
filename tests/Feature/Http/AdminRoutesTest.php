@@ -88,7 +88,7 @@ function dashboardUpdateRequest( $test, $user ): Closure
 
     return fn () => $test->actingAs( $user )->withHeaders( [ 'X-Livewire' => '1' ] )->postJson(
         app( 'livewire' )->getUpdateUri(),
-        [ 'components' => [ [ 'snapshot' => $snapshot, 'calls' => [ [ 'path' => '', 'method' => '$refresh', 'params' => [] ] ], 'updates' => [] ] ] ],
+        [ 'components' => [ [ 'snapshot' => $snapshot, 'calls' => [], 'updates' => [] ] ] ],
     );
 }
 
