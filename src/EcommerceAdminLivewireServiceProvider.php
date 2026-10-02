@@ -21,6 +21,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\SyncPermissionsCommand
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\ThrottleAdminMutations;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Categories;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Customers;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\DigitalFiles;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Inventory;
@@ -29,6 +30,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notes;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Promotions;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reviews;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Tags;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Timeline;
@@ -38,6 +40,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Pickers\ProductPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\TagPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\VariantPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\ConfigFormRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\CustomerTabRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\ProductTypePanelRegistry;
@@ -118,6 +121,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         'product-picker'       => Components\ProductPicker::class,
         'product-type-warning' => Components\ProductTypeWarning::class,
         'resource-table'       => Components\ResourceTable::class,
+        'rule-builder'         => Components\RuleBuilder::class,
         'status-badge'         => Components\StatusBadge::class,
         'tag-picker'           => Components\TagPicker::class,
         'variant-picker'       => Components\VariantPicker::class,
@@ -153,6 +157,15 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         'artisanpack-ecommerce-admin-reviews-index'          => Reviews\Index::class,
         'artisanpack-ecommerce-admin-digital-files-index'    => DigitalFiles\Index::class,
         'artisanpack-ecommerce-admin-license-keys-index'     => LicenseKeys\Index::class,
+        'artisanpack-ecommerce-admin-customers-index'        => Customers\Index::class,
+        'artisanpack-ecommerce-admin-customers-show'         => Customers\Show::class,
+        'artisanpack-ecommerce-admin-customer-orders'        => Customers\OrdersTab::class,
+        'artisanpack-ecommerce-admin-customer-addresses'     => Customers\AddressesTab::class,
+        'artisanpack-ecommerce-admin-customer-preferences'   => Customers\PreferencesTab::class,
+        'artisanpack-ecommerce-admin-promotions-index'       => Promotions\Index::class,
+        'artisanpack-ecommerce-admin-promotions-form'        => Promotions\Form::class,
+        'artisanpack-ecommerce-admin-promotion-coupons'      => Promotions\CouponsPanel::class,
+        'artisanpack-ecommerce-admin-promotion-usage'        => Promotions\UsagePanel::class,
     ];
 
     /**
@@ -230,6 +243,14 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             return $registry;
         } );
 
+        $this->app->singleton( CustomerTabRegistry::class, static function (): CustomerTabRegistry {
+            $registry = new CustomerTabRegistry();
+
+            self::registerCustomerTabs( $registry );
+
+            return $registry;
+        } );
+
         $this->app->singleton( OrderPanelRegistry::class, static function (): OrderPanelRegistry {
             $registry = new OrderPanelRegistry();
 
@@ -239,6 +260,25 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
             return $registry;
         } );
+    }
+
+    /**
+     * Registers the built-in customer detail tabs (spec §7.4) at positions
+     * 10–50, leaving room for satellites before, between, and after them.
+     *
+     * @since 1.0.0
+     *
+     * @param  CustomerTabRegistry  $registry  The registry.
+     *
+     * @return void
+     */
+    public static function registerCustomerTabs( CustomerTabRegistry $registry ): void
+    {
+        $registry->register( 'orders', static fn (): string => __( 'Orders' ), 'artisanpack-ecommerce-admin-customer-orders', 10, 'customer', 'order.viewAny' );
+        $registry->register( 'addresses', static fn (): string => __( 'Addresses' ), 'artisanpack-ecommerce-admin-customer-addresses', 20 );
+        $registry->register( 'notifications', static fn (): string => __( 'Notification preferences' ), 'artisanpack-ecommerce-admin-customer-preferences', 30 );
+        $registry->register( 'notes', static fn (): string => __( 'Notes' ), 'artisanpack-ecommerce-admin-notes', 40, 'subject' );
+        $registry->register( 'activity', static fn (): string => __( 'Activity' ), 'artisanpack-ecommerce-admin-timeline', 50, 'subject' );
     }
 
     /**

@@ -166,6 +166,24 @@ it( 'reads the activity log for a product', function (): void {
         ->assertSeeInOrder( [ 'Price changed: price amount', 'Product "Linen Shirt" created' ] );
 } );
 
+it( 'describes customer address changes', function (): void {
+    grantAbilities( [ 'customer.view' ] );
+
+    $customer = ArtisanPackUI\Ecommerce\Models\Customer::factory()->create();
+
+    foreach ( [
+        [ 'address.added', [ 'address_id' => 1 ], 1 ],
+        [ 'address.updated', [ 'address_id' => 1, 'fields' => [ 'address1', 'postal_code' ] ], 2 ],
+        [ 'address.deleted', [ 'address_id' => 1 ], 3 ],
+    ] as [ $type, $payload, $minutes ] ) {
+        ActivityLogEntry::factory()->forSubject( $customer )->create( [ 'event_type' => $type, 'payload' => $payload, 'created_at' => Carbon::now()->addMinutes( $minutes ) ] );
+    }
+
+    Livewire::test( Timeline::class, [ 'subject' => $customer ] )
+        ->assertOk()
+        ->assertSeeInOrder( [ 'Address deleted', 'Address changed: address1, postal code', 'Address added' ] );
+} );
+
 it( 'is denied a product without product.view', function (): void {
     Gate::define( 'ecommerce.product.view', static fn (): bool => false );
 

@@ -96,6 +96,32 @@
                                 </fieldset>
                                 @break
 
+                            @case( 'number-range' )
+                                <fieldset class="fieldset">
+                                    <legend class="fieldset-legend">{{ $filter['label'] }}</legend>
+                                    <div class="flex gap-2">
+                                        <x-artisanpack-input
+                                            id="resource-filter-{{ $filter['key'] }}-min"
+                                            type="number"
+                                            min="0"
+                                            step="any"
+                                            inputmode="decimal"
+                                            :label="__( 'Min' )"
+                                            wire:model.live.debounce.500ms="filters.{{ $filter['key'] }}.min"
+                                        />
+                                        <x-artisanpack-input
+                                            id="resource-filter-{{ $filter['key'] }}-max"
+                                            type="number"
+                                            min="0"
+                                            step="any"
+                                            inputmode="decimal"
+                                            :label="__( 'Max' )"
+                                            wire:model.live.debounce.500ms="filters.{{ $filter['key'] }}.max"
+                                        />
+                                    </div>
+                                </fieldset>
+                                @break
+
                             @default
                                 <x-artisanpack-select
                                     id="resource-filter-{{ $filter['key'] }}"

@@ -393,12 +393,16 @@ class Timeline extends Component
             'customer.created'           => [ 'o-user-plus', __( 'Customer created' ) ],
             'customer.updated'           => [ 'o-user', $this->describeChanges( __( 'Customer changed' ), $payload ) ],
             'customer.deleted'           => [ 'o-user-minus', __( 'Customer deleted' ) ],
+            'address.added'              => [ 'o-map-pin', __( 'Address added' ) ],
+            'address.updated'            => [ 'o-map-pin', $this->describeFields( __( 'Address changed' ), $payload ) ],
+            'address.deleted'            => [ 'o-trash', __( 'Address deleted' ) ],
             'promotion.created'          => [ 'o-megaphone', __( 'Promotion ":name" created', [ 'name' => (string) ( $payload['name'] ?? '' ) ] ) ],
             'promotion.updated'          => [ 'o-megaphone', $this->describeChanges( __( 'Promotion changed' ), $payload ) ],
             'promotion.deleted'          => [ 'o-trash', __( 'Promotion ":name" deleted', [ 'name' => (string) ( $payload['name'] ?? '' ) ] ) ],
             'coupon.created'             => [ 'o-ticket', __( 'Coupon :code added', [ 'code' => (string) ( $payload['code'] ?? '' ) ] ) ],
             'coupon.updated'             => [ 'o-ticket', $this->describeChanges( __( 'Coupon :code changed', [ 'code' => (string) ( $payload['code'] ?? '' ) ] ), $payload ) ],
             'coupon.deleted'             => [ 'o-trash', __( 'Coupon :code removed', [ 'code' => (string) ( $payload['code'] ?? '' ) ] ) ],
+            'coupons.generated'          => [ 'o-sparkles', trans_choice( ':count coupon code generated|:count coupon codes generated', (int) ( $payload['count'] ?? 0 ), [ 'count' => (int) ( $payload['count'] ?? 0 ) ] ) ],
             default                      => null,
         };
 
@@ -685,6 +689,26 @@ class Timeline extends Component
         $fields = array_map(
             static fn ( int|string $field ): string => str_replace( '_', ' ', (string) $field ),
             array_keys( (array) ( $payload['changes'] ?? [] ) ),
+        );
+
+        return [] === $fields ? $prefix : __( ':what: :fields', [ 'what' => $prefix, 'fields' => implode( ', ', $fields ) ] );
+    }
+
+    /**
+     * A prefix plus the changed field names from a `fields` list payload.
+     *
+     * @since 1.0.0
+     *
+     * @param  string                $prefix   What changed.
+     * @param  array<string, mixed>  $payload  Payload.
+     *
+     * @return string
+     */
+    protected function describeFields( string $prefix, array $payload ): string
+    {
+        $fields = array_map(
+            static fn ( mixed $field ): string => str_replace( '_', ' ', (string) $field ),
+            array_filter( (array) ( $payload['fields'] ?? [] ), 'is_scalar' ),
         );
 
         return [] === $fields ? $prefix : __( ':what: :fields', [ 'what' => $prefix, 'fields' => implode( ', ', $fields ) ] );
