@@ -43,4 +43,11 @@ Route::prefix( trim( (string) config( 'artisanpack.ecommerce-admin-livewire.admi
         Route::get( 'inventory', [ AdminScreenController::class, 'inventoryIndex' ] )->name( 'inventory.index' );
         Route::get( 'digital-files', [ AdminScreenController::class, 'digitalFilesIndex' ] )->name( 'digital-files.index' );
         Route::get( 'license-keys', [ AdminScreenController::class, 'licenseKeysIndex' ] )->name( 'license-keys.index' );
+
+        Route::get( 'customers', [ AdminScreenController::class, 'customersIndex' ] )->name( 'customers.index' );
+        Route::get( 'customers/{customer}', [ AdminScreenController::class, 'customersShow' ] )->whereNumber( 'customer' )->name( 'customers.show' );
+
+        Route::get( 'promotions', [ AdminScreenController::class, 'promotionsIndex' ] )->name( 'promotions.index' );
+        Route::get( 'promotions/create', [ AdminScreenController::class, 'promotionsCreate' ] )->name( 'promotions.create' );
+        Route::get( 'promotions/{promotion}/edit', [ AdminScreenController::class, 'promotionsEdit' ] )->whereNumber( 'promotion' )->name( 'promotions.edit' );
     } );

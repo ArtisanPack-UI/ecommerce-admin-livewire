@@ -48,9 +48,12 @@ use Throwable;
  * column out of the CSV.
  *
  * Filter definition: `key`, `label`, `type` (`select`, `multiselect`, `text`,
- * `boolean`, `date-range`), `options` (`[ [ 'id' => …, 'name' => … ] ]`), and
- * `apply` (callable( Builder, mixed )) for filters the query class does not
- * handle.
+ * `boolean`, `date-range`, `number-range`), `options`
+ * (`[ [ 'id' => …, 'name' => … ] ]`), and `apply` (callable( Builder, mixed ))
+ * for filters the query class does not handle. A `date-range` value is
+ * `[ 'from' => 'Y-m-d', 'to' => 'Y-m-d' ]`; a `number-range` value is
+ * `[ 'min' => numeric string, 'max' => numeric string ]`. Either end may be
+ * missing.
  *
  * Bulk action definition: `key`, `label`, `icon`, `ability` (a
  * `{resource}.{action}` ability), `confirm` (a message; the action then asks
@@ -635,7 +638,7 @@ trait WithResourceTable
     protected function tableFilterDefinitions(): array
     {
         $filters = (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $this->tableScreen() . '.filters', $this->tableFilters(), $this );
-        $types   = [ 'select', 'multiselect', 'text', 'boolean', 'date-range' ];
+        $types   = [ 'select', 'multiselect', 'text', 'boolean', 'date-range', 'number-range' ];
         $result  = [];
 
         foreach ( $filters as $filter ) {
@@ -1045,8 +1048,34 @@ trait WithResourceTable
                 'from' => self::validDate( is_array( $value ) ? ( $value['from'] ?? null ) : null ),
                 'to'   => self::validDate( is_array( $value ) ? ( $value['to'] ?? null ) : null ),
             ],
+            'number-range'      => [
+                'min' => self::validNumber( is_array( $value ) ? ( $value['min'] ?? null ) : null ),
+                'max' => self::validNumber( is_array( $value ) ? ( $value['max'] ?? null ) : null ),
+            ],
             default             => null,
         };
+    }
+
+    /**
+     * A non-negative decimal number as a string, or null.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed  $value  The raw value.
+     *
+     * @return string|null
+     */
+    private static function validNumber( mixed $value ): ?string
+    {
+        if ( is_int( $value ) || is_float( $value ) ) {
+            $value = (string) $value;
+        }
+
+        if ( ! is_string( $value ) || 1 !== preg_match( '/^\d{1,15}(\.\d{1,4})?$/D', trim( $value ) ) ) {
+            return null;
+        }
+
+        return trim( $value );
     }
 
     /**

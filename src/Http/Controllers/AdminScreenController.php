@@ -192,4 +192,70 @@ class AdminScreenController extends Controller
     {
         return view( 'ecommerce-admin::pages.license-keys.index' );
     }
+
+    /**
+     * The customers index.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function customersIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.customers.index' );
+    }
+
+    /**
+     * A customer's detail page. The component loads and authorizes the
+     * customer.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $customer  The customer id.
+     *
+     * @return View
+     */
+    public function customersShow( string $customer ): View
+    {
+        return view( 'ecommerce-admin::pages.customers.show', [ 'customer' => (int) $customer ] );
+    }
+
+    /**
+     * The promotions index.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function promotionsIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.promotions.index' );
+    }
+
+    /**
+     * The new-promotion form.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function promotionsCreate(): View
+    {
+        return view( 'ecommerce-admin::pages.promotions.form', [ 'promotion' => null ] );
+    }
+
+    /**
+     * The edit-promotion form. The component loads and authorizes the
+     * promotion.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $promotion  The promotion id.
+     *
+     * @return View
+     */
+    public function promotionsEdit( string $promotion ): View
+    {
+        return view( 'ecommerce-admin::pages.promotions.form', [ 'promotion' => (int) $promotion ] );
+    }
 }

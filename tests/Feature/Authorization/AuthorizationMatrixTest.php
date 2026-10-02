@@ -383,6 +383,143 @@ const MATRIX = [
         ],
     ],
 
+    'artisanpack-ecommerce-admin-customers-index' => [
+        'mount'   => [ 'params' => [], 'ability' => 'customer.viewAny' ],
+        'actions' => [
+            'sort'                         => [ 'args' => [ 'spent' ], 'ability' => 'customer.viewAny' ],
+            'resetFilters'                 => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'selectAllMatchingRows'        => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'clearSelection'               => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'runBulkAction'                => [ 'args' => [ 'export' ], 'ability' => 'customer.viewAny' ],
+            'confirmBulkAction'            => [ 'args' => [ 'token' ], 'ability' => 'customer.viewAny' ],
+            'cancelBulkAction'             => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'exportCsv'                    => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'getTableExportData'           => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'getPage'                      => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'previousPage'                 => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'nextPage'                     => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'customer.viewAny' ],
+            'resetPage'                    => [ 'args' => [], 'ability' => 'customer.viewAny' ],
+            'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'customer.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-customers-show' => [
+        'mount'   => [ 'params' => [ 'customer' => '@customer' ], 'ability' => 'customer.view' ],
+        'actions' => [
+            'customerChanged' => [ 'args' => [], 'ability' => 'customer.view' ],
+            'startEdit'       => [ 'args' => [], 'ability' => 'customer.update' ],
+            'cancelEdit'      => [ 'args' => [], 'ability' => 'customer.view' ],
+            'saveDetails'     => [ 'args' => [], 'ability' => 'customer.update' ],
+            'startDelete'     => [ 'args' => [], 'ability' => 'customer.delete' ],
+            'cancelDelete'    => [ 'args' => [], 'ability' => 'customer.view' ],
+            'deleteCustomer'  => [ 'args' => [ 'token' ], 'ability' => 'customer.delete' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-customer-orders' => [
+        'mount'   => [ 'params' => [ 'customer' => '@customer-model' ], 'ability' => 'customer.view' ],
+        'actions' => [
+            'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'customer.view' ],
+            'getPage'                      => [ 'args' => [], 'ability' => 'customer.view' ],
+            'previousPage'                 => [ 'args' => [], 'ability' => 'customer.view' ],
+            'nextPage'                     => [ 'args' => [], 'ability' => 'customer.view' ],
+            'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'customer.view' ],
+            'resetPage'                    => [ 'args' => [], 'ability' => 'customer.view' ],
+            'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'customer.view' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-customer-addresses' => [
+        'mount'   => [ 'params' => [ 'customer' => '@customer-model' ], 'ability' => 'customer.view' ],
+        'actions' => [
+            'startAdd'      => [ 'args' => [], 'ability' => 'customer.update' ],
+            'startEdit'     => [ 'args' => [ 1 ], 'ability' => 'customer.update' ],
+            'cancelForm'    => [ 'args' => [], 'ability' => 'customer.view' ],
+            'saveAddress'   => [ 'args' => [], 'ability' => 'customer.update' ],
+            'makeDefault'   => [ 'args' => [ 1, 'shipping' ], 'ability' => 'customer.update' ],
+            'confirmDelete' => [ 'args' => [ 1 ], 'ability' => 'customer.update' ],
+            'cancelDelete'  => [ 'args' => [], 'ability' => 'customer.view' ],
+            'deleteAddress' => [ 'args' => [ 'token' ], 'ability' => 'customer.update' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-customer-preferences' => [
+        'mount'   => [ 'params' => [ 'customer' => '@customer-model' ], 'ability' => 'customer.view' ],
+        'actions' => [
+            'savePreferences' => [ 'args' => [], 'ability' => 'customer.update' ],
+        ],
+    ],
+
+    'artisanpack-ecommerce-admin-promotions-index' => [
+        'mount'   => [ 'params' => [], 'ability' => 'promotion.viewAny' ],
+        'actions' => [
+            'sort'                         => [ 'args' => [ 'priority' ], 'ability' => 'promotion.viewAny' ],
+            'resetFilters'                 => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'selectAllMatchingRows'        => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'clearSelection'               => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'runBulkAction'                => [ 'args' => [ 'export' ], 'ability' => 'promotion.viewAny' ],
+            'confirmBulkAction'            => [ 'args' => [ 'token' ], 'ability' => 'promotion.viewAny' ],
+            'cancelBulkAction'             => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'exportCsv'                    => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'getTableExportData'           => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'getPage'                      => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'previousPage'                 => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'nextPage'                     => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'promotion.viewAny' ],
+            'resetPage'                    => [ 'args' => [], 'ability' => 'promotion.viewAny' ],
+            'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'promotion.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-promotions-form' => [
+        'mount'   => [ 'params' => [], 'ability' => 'promotion.create' ],
+        'actions' => [
+            'save'             => [ 'args' => [], 'ability' => 'promotion.create' ],
+            'addRule'          => [ 'args' => [ 'actions' ], 'ability' => 'promotion.create' ],
+            'removeRule'       => [ 'args' => [ 'actions', 0 ], 'ability' => 'promotion.create' ],
+            'moveRule'         => [ 'args' => [ 'actions', 0, 1 ], 'ability' => 'promotion.create' ],
+            'reorderRules'     => [ 'args' => [ 'actions', [] ], 'ability' => 'promotion.create' ],
+            'toggleRule'       => [ 'args' => [ 'actions', 'missing' ], 'ability' => 'promotion.create' ],
+            // The form re-authorizes promotion.create on every request; config rows then need admin access, which promotion.viewAny gives.
+            'addConfigRow'     => [ 'args' => [ 'promotion-action', 'tiered-discount', 'ruleRows.actions.0.config', 'tiers' ], 'ability' => 'promotion.viewAny' ],
+            'removeConfigRow'  => [ 'args' => [ 'promotion-action', 'tiered-discount', 'ruleRows.actions.0.config', 'tiers', 0 ], 'ability' => 'promotion.viewAny' ],
+            // The picker source then needs product.viewAny.
+            'searchPicker'     => [ 'args' => [ 'a', 'product', 'ruleRows.actions.0.config.product_ids' ], 'ability' => 'product.viewAny' ],
+            'optionsForPicker' => [ 'args' => [ 'product', 'ruleRows.actions.0.config.product_ids' ], 'ability' => 'product.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-promotion-coupons' => [
+        'mount'   => [ 'params' => [ 'promotion' => '@promotion-model' ], 'ability' => 'promotion.view' ],
+        'actions' => [
+            'addCode'                      => [ 'args' => [], 'ability' => 'coupon.create' ],
+            'startRename'                  => [ 'args' => [ 1 ], 'ability' => 'coupon.update' ],
+            'saveRename'                   => [ 'args' => [], 'ability' => 'coupon.update' ],
+            'cancelRename'                 => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'confirmDelete'                => [ 'args' => [ 1 ], 'ability' => 'coupon.delete' ],
+            'cancelDelete'                 => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'deleteCode'                   => [ 'args' => [ 'token' ], 'ability' => 'coupon.delete' ],
+            'generateCodes'                => [ 'args' => [], 'ability' => 'coupon.create' ],
+            'exportCodes'                  => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'getPage'                      => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'previousPage'                 => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'nextPage'                     => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'promotion.view' ],
+            'resetPage'                    => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'promotion.view' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-promotion-usage' => [
+        'mount'   => [ 'params' => [ 'promotion' => '@promotion-model' ], 'ability' => 'promotion.view' ],
+        'actions' => [
+            'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'getPage'                      => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'previousPage'                 => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'nextPage'                     => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'promotion.view' ],
+            'resetPage'                    => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'promotion.view' ],
+        ],
+    ],
+
     // The WithPickers concern, which screens mix in.
     'matrix-pickers' => [
         'mount'   => [ 'params' => [], 'ability' => null ],
@@ -412,7 +549,9 @@ $GLOBALS['matrixFixtureComponents'] = [
 
 /**
  * Resolves mount parameters: `@order` becomes the id of an order created
- * for the test, and `@order-model` that order itself.
+ * for the test, and `@order-model` that order itself; `@customer` and
+ * `@customer-model` do the same for a customer, and `@promotion-model`
+ * gives a coupon promotion.
  *
  * @param  array<string, mixed>  $params
  *
@@ -423,6 +562,18 @@ function matrixParams( array $params ): array
     return array_map( static function ( mixed $value ): mixed {
         if ( '@order' === $value ) {
             return $GLOBALS['matrixOrderId'] ??= ArtisanPackUI\Ecommerce\Models\Order::factory()->create()->id;
+        }
+
+        if ( '@customer' === $value ) {
+            return $GLOBALS['matrixCustomerId'] ??= ArtisanPackUI\Ecommerce\Models\Customer::factory()->create()->id;
+        }
+
+        if ( '@customer-model' === $value ) {
+            return ArtisanPackUI\Ecommerce\Models\Customer::query()->findOrFail( $GLOBALS['matrixCustomerId'] ??= ArtisanPackUI\Ecommerce\Models\Customer::factory()->create()->id );
+        }
+
+        if ( '@promotion-model' === $value ) {
+            return ArtisanPackUI\Ecommerce\Models\Promotion::query()->findOrFail( $GLOBALS['matrixPromotionId'] ??= ArtisanPackUI\Ecommerce\Models\Promotion::factory()->coupon()->create()->id );
         }
 
         if ( '@order-model' === $value ) {
@@ -519,7 +670,9 @@ dataset( 'admin actions', static function (): array {
 } );
 
 beforeEach( function (): void {
-    $GLOBALS['matrixOrderId'] = null;
+    $GLOBALS['matrixOrderId']     = null;
+    $GLOBALS['matrixCustomerId']  = null;
+    $GLOBALS['matrixPromotionId'] = null;
 
     foreach ( matrixComponents() as $name => $class ) {
         Livewire::component( $name, $class );
