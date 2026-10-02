@@ -263,3 +263,13 @@ it( 're-checks report.view on every update', function (): void {
 
     $component->set( 'compare', true )->assertForbidden();
 } );
+
+it( 'skips the change when a filtered total is not numeric', function (): void {
+    $kpis = ArtisanPackUI\EcommerceAdminLivewire\Support\ReportPresenter::kpis( 'sales', [
+        'totals'   => [ 'net' => 'n/a', 'orders' => 4 ],
+        'previous' => [ 'totals' => [ 'net' => 100, 'orders' => 2 ] ],
+    ] );
+
+    expect( collect( $kpis )->firstWhere( 'key', 'net' )['change'] )->toBeNull()
+        ->and( collect( $kpis )->firstWhere( 'key', 'orders' )['change'] )->toBe( 100.0 );
+} );

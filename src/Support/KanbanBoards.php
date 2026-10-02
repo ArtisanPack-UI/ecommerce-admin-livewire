@@ -127,7 +127,8 @@ final class KanbanBoards
     }
 
     /**
-     * The board that becomes the default when `$board` is deleted.
+     * The board that becomes the default when `$board` is deleted: the
+     * first active one. Null when no other board is switched on.
      *
      * @since 1.0.0
      *
@@ -139,7 +140,26 @@ final class KanbanBoards
     {
         $others = KanbanBoard::query()->whereKeyNot( $board->id )->orderBy( 'position' )->orderBy( 'id' )->get();
 
-        return $others->firstWhere( 'is_active', true ) ?? $others->first();
+        // Only an active board can take over: routing skips switched-off boards.
+        return $others->firstWhere( 'is_active', true );
+    }
+
+    /**
+     * Whether deleting `$board` would leave the store without an active
+     * default: it is the default, other boards exist, and none of them is
+     * switched on.
+     *
+     * @since 1.0.0
+     *
+     * @param  KanbanBoard  $board  The board being deleted.
+     *
+     * @return bool
+     */
+    public static function deleteLeavesNoActiveDefault( KanbanBoard $board ): bool
+    {
+        return (bool) $board->is_default
+            && KanbanBoard::query()->whereKeyNot( $board->id )->exists()
+            && null === self::successor( $board );
     }
 
     /**

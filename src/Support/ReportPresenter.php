@@ -149,7 +149,7 @@ final class ReportPresenter
                 'type'     => $type,
                 'value'    => $value,
                 'previous' => $before,
-                'change'   => is_numeric( $before ) && 0 != $before ? round( ( $value - $before ) / abs( $before ) * 100, 1 ) : null,
+                'change'   => is_numeric( $value ) && is_numeric( $before ) && 0 != $before ? round( ( $value - $before ) / abs( $before ) * 100, 1 ) : null,
             ];
         }
 

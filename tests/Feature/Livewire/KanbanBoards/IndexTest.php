@@ -261,3 +261,31 @@ it( 'refuses to reorder a board the user may not update', function (): void {
 
     Livewire::test( Index::class )->call( 'move', $first->id, 1 )->assertForbidden();
 } );
+
+it( 'refuses to delete the default board while every other board is switched off', function (): void {
+    $main = KanbanBoard::factory()->asDefault()->create( [ 'key' => 'main', 'position' => 0 ] );
+    KanbanBoard::factory()->inactive()->create( [ 'key' => 'off', 'position' => 1 ] );
+
+    $component = Livewire::test( Index::class )
+        ->call( 'confirmDelete', $main->id )
+        ->assertSeeHtml( 'data-delete-blocked' )
+        ->assertDontSeeHtml( 'data-delete-successor' );
+
+    $component->call( 'delete', $component->viewData( 'deleteToken' ) );
+
+    expect( KanbanBoard::query()->whereKey( $main->id )->exists() )->toBeTrue()
+        ->and( defaultBoardKeys() )->toBe( [ 'main' ] )
+        ->and( sentToasts( $component ) )->toContain( 'The default board can' );
+} );
+
+it( 'lets the last board be deleted', function (): void {
+    $only = KanbanBoard::factory()->asDefault()->create();
+
+    $component = Livewire::test( Index::class )
+        ->call( 'confirmDelete', $only->id )
+        ->assertDontSeeHtml( 'data-delete-blocked' );
+
+    $component->call( 'delete', $component->viewData( 'deleteToken' ) );
+
+    expect( KanbanBoard::query()->count() )->toBe( 0 );
+} );

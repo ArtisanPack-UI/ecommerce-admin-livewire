@@ -139,7 +139,11 @@
                         {{ trans_choice( ':count order is on this board right now.|:count orders are on this board right now.', $deletingCards, [ 'count' => $deletingCards ] ) }}
                     </x-artisanpack-alert>
                 @endif
-                @if ( null !== $successor )
+                @if ( $deleteBlocked )
+                    <x-artisanpack-alert color="warning" icon="o-exclamation-triangle" role="status" data-delete-blocked>
+                        {{ __( 'This is the default board and every other board is switched off. Switch on another board first, so it can become the default.' ) }}
+                    </x-artisanpack-alert>
+                @elseif ( null !== $successor )
                     <p data-delete-successor>{{ __( '":name" becomes the default board.', [ 'name' => $successor->name ] ) }}</p>
                 @endif
             </div>
@@ -150,6 +154,7 @@
                     color="error"
                     wire:click="delete( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"
                     wire:loading.attr="disabled"
+                    :disabled="$deleteBlocked"
                     :label="__( 'Delete board' )"
                     data-delete-button
                 />

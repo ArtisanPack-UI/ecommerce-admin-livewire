@@ -378,6 +378,13 @@ class Index extends Component
 
         $this->authorizeEcommerce( 'delete', $board );
 
+        if ( KanbanBoards::deleteLeavesNoActiveDefault( $board ) ) {
+            $this->cancelDelete();
+            $this->toastError( __( 'The default board can\'t be deleted yet.' ), __( 'Switch on another board first, so it can become the default.' ) );
+
+            return;
+        }
+
         $name    = (string) $board->name;
         $deleted = $this->withActionToken( $token, 'delete', static function () use ( $board ): bool {
             $board->delete();
@@ -428,6 +435,7 @@ class Index extends Component
             'deleting'      => $deleting,
             'deletingCards' => null === $deleting ? 0 : (int) ( $cards[ $deleting->id ] ?? 0 ),
             'successor'     => null !== $deleting && $deleting->is_default ? KanbanBoards::successor( $deleting ) : null,
+            'deleteBlocked' => null !== $deleting && KanbanBoards::deleteLeavesNoActiveDefault( $deleting ),
             'deleteToken'   => null === $deleting ? null : $this->actionToken( 'delete', $deleting ),
         ] );
     }
