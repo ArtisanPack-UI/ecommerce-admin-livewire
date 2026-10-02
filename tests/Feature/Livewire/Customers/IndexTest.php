@@ -113,3 +113,30 @@ it( 'exports the filtered customers as CSV', function (): void {
 it( 'shows the empty state', function (): void {
     Livewire::test( Index::class )->assertSee( 'No customers yet' );
 } );
+
+it( 'rounds spend bounds finer than the currency inward instead of failing', function (): void {
+    $low  = Customer::factory()->create( [ 'email' => 'low@example.test', 'total_spent_amount' => 1012 ] );
+    $high = Customer::factory()->create( [ 'email' => 'high@example.test', 'total_spent_amount' => 1013 ] );
+
+    $ids = static fn ( array $filters ): array => ( new CustomersQuery() )->build( '', $filters )->pluck( 'id' )->sort()->values()->all();
+
+    expect( $ids( [ 'spent' => [ 'min' => '10.125' ] ] ) )->toBe( [ $high->id ] )
+        ->and( $ids( [ 'spent' => [ 'max' => '10.129' ] ] ) )->toBe( [ $low->id ] )
+        ->and( $ids( [ 'spent' => [ 'min' => '1.000' ] ] ) )->toBe( [ $low->id, $high->id ] );
+
+    Livewire::test( Index::class )
+        ->set( 'filters.spent.min', '10.125' )
+        ->assertOk()
+        ->assertSee( 'high@example.test' )
+        ->assertDontSee( 'low@example.test' );
+} );
+
+it( 'rounds spend bounds for a currency without minor units', function (): void {
+    config( [ 'artisanpack.ecommerce.base_currency' => 'JPY' ] );
+
+    $ten    = Customer::factory()->create( [ 'total_spent_amount' => 10 ] );
+    $eleven = Customer::factory()->create( [ 'total_spent_amount' => 11 ] );
+
+    expect( ( new CustomersQuery() )->build( '', [ 'spent' => [ 'min' => '10.5' ] ] )->pluck( 'id' )->all() )->toBe( [ $eleven->id ] )
+        ->and( ( new CustomersQuery() )->build( '', [ 'spent' => [ 'max' => '10.5' ] ] )->pluck( 'id' )->all() )->toBe( [ $ten->id ] );
+} );

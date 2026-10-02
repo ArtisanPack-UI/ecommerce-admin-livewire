@@ -22,6 +22,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Csv;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -247,7 +248,13 @@ class CouponsPanel extends Component
             [ 'newCode' => __( 'code' ) ],
         );
 
-        $coupon = Coupon::query()->create( [ 'promotion_id' => $this->promotionId, 'code' => $this->newCode ] );
+        try {
+            $coupon = Coupon::query()->create( [ 'promotion_id' => $this->promotionId, 'code' => $this->newCode ] );
+        } catch ( UniqueConstraintViolationException ) {
+            $this->addError( 'newCode', self::codeMessages()['*.unique'] );
+
+            return;
+        }
 
         $this->newCode = '';
         $this->toastSuccess( __( 'Code :code added.', [ 'code' => $coupon->code ] ) );
@@ -304,7 +311,13 @@ class CouponsPanel extends Component
             [ 'editingCode' => __( 'code' ) ],
         );
 
-        $coupon->fill( [ 'code' => $this->editingCode ] )->save();
+        try {
+            $coupon->fill( [ 'code' => $this->editingCode ] )->save();
+        } catch ( UniqueConstraintViolationException ) {
+            $this->addError( 'editingCode', self::codeMessages()['*.unique'] );
+
+            return;
+        }
 
         $this->cancelRename();
         $this->toastSuccess( __( 'Code renamed to :code.', [ 'code' => $coupon->code ] ) );
@@ -444,16 +457,22 @@ class CouponsPanel extends Component
         $now       = Carbon::now();
         $promotion = $this->promotion();
 
-        DB::transaction( function () use ( $codes, $now, $promotion, $prefix, $length ): void {
-            foreach ( array_chunk( $codes, 500 ) as $chunk ) {
-                Coupon::query()->insert( array_map(
-                    fn ( string $code ): array => [ 'promotion_id' => $this->promotionId, 'code' => $code, 'created_at' => $now, 'updated_at' => $now ],
-                    $chunk,
-                ) );
-            }
+        try {
+            DB::transaction( function () use ( $codes, $now, $promotion, $prefix, $length ): void {
+                foreach ( array_chunk( $codes, 500 ) as $chunk ) {
+                    Coupon::query()->insert( array_map(
+                        fn ( string $code ): array => [ 'promotion_id' => $this->promotionId, 'code' => $code, 'created_at' => $now, 'updated_at' => $now ],
+                        $chunk,
+                    ) );
+                }
 
-            app( ActivityLogService::class )->record( $promotion, 'coupons.generated', [ 'count' => count( $codes ), 'prefix' => $prefix, 'length' => $length ] );
-        } );
+                app( ActivityLogService::class )->record( $promotion, 'coupons.generated', [ 'count' => count( $codes ), 'prefix' => $prefix, 'length' => $length ] );
+            } );
+        } catch ( UniqueConstraintViolationException ) {
+            $this->addError( 'generateCount', __( 'Another code was added with the same text while generating. Nothing was saved; try again.' ) );
+
+            return;
+        }
 
         $this->resetPage( 'codes-page' );
         $this->toastSuccess( trans_choice( ':count code generated.|:count codes generated.', count( $codes ), [ 'count' => count( $codes ) ] ) );

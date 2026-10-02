@@ -358,7 +358,9 @@ class Form extends Component
             }
 
             $this->promotionId     = (int) $saved->id;
-            $this->loadedPromotion = $saved;
+            $this->loadedPromotion = $saved->fresh();
+            $this->readOnly        = ! $this->canEcommerce( 'update', $this->loadedPromotion );
+            $this->fillFromPromotion( $this->loadedPromotion );
 
             return;
         }

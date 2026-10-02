@@ -206,3 +206,19 @@ it( 'refuses writes without the coupon abilities', function (): void {
         ->call( 'confirmDelete', $coupon->id )
         ->assertForbidden();
 } );
+
+it( 'reports a code taken by a concurrent request instead of failing', function (): void {
+    Coupon::creating( static function ( Coupon $coupon ): void {
+        if ( 'RACED' === $coupon->code && ! Coupon::query()->where( 'code', 'RACED' )->exists() ) {
+            Illuminate\Support\Facades\DB::table( 'coupons' )->insert( [ 'promotion_id' => $coupon->promotion_id, 'code' => 'RACED', 'created_at' => now(), 'updated_at' => now() ] );
+        }
+    } );
+
+    Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )
+        ->set( 'newCode', 'raced' )
+        ->call( 'addCode' )
+        ->assertOk()
+        ->assertHasErrors( 'newCode' );
+
+    expect( Coupon::query()->where( 'code', 'RACED' )->count() )->toBe( 1 );
+} );
