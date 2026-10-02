@@ -519,6 +519,163 @@ const MATRIX = [
             'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'promotion.view' ],
         ],
     ],
+    'artisanpack-ecommerce-admin-shipping-index' => [
+        'mount'   => [ 'params' => [], 'ability' => 'shippingZone.viewAny' ],
+        'actions' => [
+            'toggleZone'          => [ 'args' => [ 1 ], 'ability' => 'shippingZone.viewAny' ],
+            'createZone'          => [ 'args' => [], 'ability' => 'shippingZone.create' ],
+            'editZone'            => [ 'args' => [ 1 ], 'ability' => 'shippingZone.update' ],
+            // With no zone open, saving creates one.
+            'saveZone'            => [ 'args' => [], 'ability' => 'shippingZone.create' ],
+            'createMethod'        => [ 'args' => [ 1 ], 'ability' => 'shippingZone.update' ],
+            'editMethod'          => [ 'args' => [ 1 ], 'ability' => 'shippingZone.update' ],
+            'saveMethod'          => [ 'args' => [], 'ability' => 'shippingZone.update' ],
+            'moveMethod'          => [ 'args' => [ 1, 1 ], 'ability' => 'shippingZone.update' ],
+            'confirmDeleteZone'   => [ 'args' => [ 1 ], 'ability' => 'shippingZone.delete' ],
+            'confirmDeleteMethod' => [ 'args' => [ 1 ], 'ability' => 'shippingZone.update' ],
+            'cancelDelete'        => [ 'args' => [], 'ability' => 'shippingZone.viewAny' ],
+            'delete'              => [ 'args' => [ 'token' ], 'ability' => 'shippingZone.delete' ],
+            'addConfigRow'        => [ 'args' => [ 'shipping-method', 'price-based', 'methodForm.config', 'tiers' ], 'ability' => null ],
+            'removeConfigRow'     => [ 'args' => [ 'shipping-method', 'price-based', 'methodForm.config', 'tiers', 0 ], 'ability' => null ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-tax-index' => [
+        'mount'   => [ 'params' => [], 'ability' => 'taxRate.viewAny' ],
+        'actions' => [
+            'sort'                         => [ 'args' => [ 'country' ], 'ability' => 'taxRate.viewAny' ],
+            'resetFilters'                 => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'selectAllMatchingRows'        => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'clearSelection'               => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'runBulkAction'                => [ 'args' => [ 'export' ], 'ability' => 'taxRate.viewAny' ],
+            'confirmBulkAction'            => [ 'args' => [ 'token' ], 'ability' => 'taxRate.viewAny' ],
+            'cancelBulkAction'             => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'exportCsv'                    => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'getTableExportData'           => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'getPage'                      => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'previousPage'                 => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'nextPage'                     => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'taxRate.viewAny' ],
+            'resetPage'                    => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'taxRate.viewAny' ],
+            // Livewire's upload handlers: the screen check on every request covers them.
+            '_startUpload'                 => [ 'args' => [ 'ratesCsv', [ [ 'name' => 'a.csv', 'size' => 10, 'type' => 'text/csv' ] ], false ], 'ability' => 'taxRate.viewAny' ],
+            '_finishUpload'                => [ 'args' => [ 'ratesCsv', [], true ], 'ability' => 'taxRate.viewAny' ],
+            '_uploadErrored'               => [ 'args' => [ 'ratesCsv', null, false ], 'ability' => 'taxRate.viewAny' ],
+            '_removeUpload'                => [ 'args' => [ 'ratesCsv', 'missing.csv' ], 'ability' => 'taxRate.viewAny' ],
+            'createRate'                   => [ 'args' => [], 'ability' => 'taxRate.create' ],
+            'editRate'                     => [ 'args' => [ 1 ], 'ability' => 'taxRate.update' ],
+            // With no rate open, saving checks the create ability and stops.
+            'saveRate'                     => [ 'args' => [], 'ability' => 'taxRate.create' ],
+            'cancelRate'                   => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'confirmDeleteRate'            => [ 'args' => [ 1 ], 'ability' => 'taxRate.delete' ],
+            'createClass'                  => [ 'args' => [], 'ability' => 'taxRate.create' ],
+            'editClass'                    => [ 'args' => [ 1 ], 'ability' => 'taxRate.update' ],
+            'saveClass'                    => [ 'args' => [], 'ability' => 'taxRate.update' ],
+            'cancelClass'                  => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'confirmDeleteClass'           => [ 'args' => [ 1 ], 'ability' => 'taxRate.delete' ],
+            'deleteClass'                  => [ 'args' => [ 'token' ], 'ability' => 'taxRate.delete' ],
+            'cancelDeleteClass'            => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'openImport'                   => [ 'args' => [], 'ability' => 'taxRate.create' ],
+            'checkImport'                  => [ 'args' => [], 'ability' => 'taxRate.create' ],
+            'applyImport'                  => [ 'args' => [ 'token' ], 'ability' => 'taxRate.create' ],
+            'closeImport'                  => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'downloadSample'               => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+            'exportRates'                  => [ 'args' => [], 'ability' => 'taxRate.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-notifications-index' => [
+        'mount'   => [ 'params' => [], 'ability' => 'notificationTemplate.viewAny' ],
+        'actions' => [
+            'resetFilters' => [ 'args' => [], 'ability' => 'notificationTemplate.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-notifications-edit' => [
+        'mount'   => [ 'params' => [ 'template' => '@notification-template' ], 'ability' => 'notificationTemplate.view' ],
+        'actions' => [
+            'save'           => [ 'args' => [], 'ability' => 'notificationTemplate.update' ],
+            'confirmReset'   => [ 'args' => [], 'ability' => 'notificationTemplate.update' ],
+            'cancelReset'    => [ 'args' => [], 'ability' => 'notificationTemplate.view' ],
+            'resetToDefault' => [ 'args' => [], 'ability' => 'notificationTemplate.update' ],
+            'addLocale'      => [ 'args' => [], 'ability' => 'notificationTemplate.update' ],
+            'sendTest'       => [ 'args' => [], 'ability' => 'notificationTemplate.update' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-webhooks-index' => [
+        'mount'   => [ 'params' => [], 'ability' => 'webhookSubscription.viewAny' ],
+        'actions' => [
+            'sort'                         => [ 'args' => [ 'name' ], 'ability' => 'webhookSubscription.viewAny' ],
+            'resetFilters'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'selectAllMatchingRows'        => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'clearSelection'               => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'runBulkAction'                => [ 'args' => [ 'export' ], 'ability' => 'webhookSubscription.viewAny' ],
+            'confirmBulkAction'            => [ 'args' => [ 'token' ], 'ability' => 'webhookSubscription.viewAny' ],
+            'cancelBulkAction'             => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'exportCsv'                    => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'getTableExportData'           => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'getPage'                      => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'previousPage'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'nextPage'                     => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'webhookSubscription.viewAny' ],
+            'resetPage'                    => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.viewAny' ],
+            'create'                       => [ 'args' => [], 'ability' => 'webhookSubscription.create' ],
+            'edit'                         => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
+            // With no subscription open, saving creates one.
+            'save'                         => [ 'args' => [], 'ability' => 'webhookSubscription.create' ],
+            'confirmDelete'                => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.delete' ],
+            'cancelDelete'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'delete'                       => [ 'args' => [ 'token' ], 'ability' => 'webhookSubscription.delete' ],
+            'confirmRotate'                => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
+            'cancelRotate'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'rotateSecret'                 => [ 'args' => [ 'token' ], 'ability' => 'webhookSubscription.update' ],
+            'reEnable'                     => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
+            'dismissSecret'                => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-webhooks-show' => [
+        'mount'   => [ 'params' => [ 'subscription' => '@webhook-subscription' ], 'ability' => 'webhookSubscription.viewAny' ],
+        'actions' => [
+            'sort'                         => [ 'args' => [ 'attempts' ], 'ability' => 'webhookSubscription.viewAny' ],
+            'resetFilters'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'selectAllMatchingRows'        => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'clearSelection'               => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'runBulkAction'                => [ 'args' => [ 'export' ], 'ability' => 'webhookSubscription.viewAny' ],
+            'confirmBulkAction'            => [ 'args' => [ 'token' ], 'ability' => 'webhookSubscription.viewAny' ],
+            'cancelBulkAction'             => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'exportCsv'                    => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'getTableExportData'           => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'getPage'                      => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'previousPage'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'nextPage'                     => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'webhookSubscription.viewAny' ],
+            'resetPage'                    => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.viewAny' ],
+            'openDelivery'                 => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.viewAny' ],
+            'closeDelivery'                => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'replay'                       => [ 'args' => [ 'token' ], 'ability' => 'webhookSubscription.update' ],
+            'confirmRotate'                => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
+            'cancelRotate'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+            'rotateSecret'                 => [ 'args' => [ 'token' ], 'ability' => 'webhookSubscription.update' ],
+            'reEnable'                     => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
+            'dismissSecret'                => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-order-statuses-index' => [
+        'mount'   => [ 'params' => [], 'ability' => 'orderSubstatus.viewAny' ],
+        'actions' => [
+            'create'        => [ 'args' => [ 'processing' ], 'ability' => 'orderSubstatus.create' ],
+            'edit'          => [ 'args' => [ 1 ], 'ability' => 'orderSubstatus.update' ],
+            // With no sub-status open, saving creates one.
+            'save'          => [ 'args' => [], 'ability' => 'orderSubstatus.create' ],
+            'move'          => [ 'args' => [ 1, 1 ], 'ability' => 'orderSubstatus.update' ],
+            'confirmDelete' => [ 'args' => [ 1 ], 'ability' => 'orderSubstatus.delete' ],
+            'cancelDelete'  => [ 'args' => [], 'ability' => 'orderSubstatus.viewAny' ],
+            'delete'        => [ 'args' => [ 'token' ], 'ability' => 'orderSubstatus.delete' ],
+        ],
+    ],
 
     // The WithPickers concern, which screens mix in.
     'matrix-pickers' => [
@@ -574,6 +731,14 @@ function matrixParams( array $params ): array
 
         if ( '@promotion-model' === $value ) {
             return ArtisanPackUI\Ecommerce\Models\Promotion::query()->findOrFail( $GLOBALS['matrixPromotionId'] ??= ArtisanPackUI\Ecommerce\Models\Promotion::factory()->coupon()->create()->id );
+        }
+
+        if ( '@notification-template' === $value ) {
+            return $GLOBALS['matrixNotificationTemplateId'] ??= ArtisanPackUI\Ecommerce\Models\NotificationTemplate::factory()->create()->id;
+        }
+
+        if ( '@webhook-subscription' === $value ) {
+            return $GLOBALS['matrixWebhookSubscriptionId'] ??= ArtisanPackUI\Ecommerce\Models\WebhookSubscription::factory()->create()->id;
         }
 
         if ( '@order-model' === $value ) {
@@ -670,9 +835,11 @@ dataset( 'admin actions', static function (): array {
 } );
 
 beforeEach( function (): void {
-    $GLOBALS['matrixOrderId']     = null;
-    $GLOBALS['matrixCustomerId']  = null;
-    $GLOBALS['matrixPromotionId'] = null;
+    $GLOBALS['matrixOrderId']                = null;
+    $GLOBALS['matrixCustomerId']             = null;
+    $GLOBALS['matrixPromotionId']            = null;
+    $GLOBALS['matrixNotificationTemplateId'] = null;
+    $GLOBALS['matrixWebhookSubscriptionId']  = null;
 
     foreach ( matrixComponents() as $name => $class ) {
         Livewire::component( $name, $class );

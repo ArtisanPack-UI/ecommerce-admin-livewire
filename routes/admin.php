@@ -50,4 +50,15 @@ Route::prefix( trim( (string) config( 'artisanpack.ecommerce-admin-livewire.admi
         Route::get( 'promotions', [ AdminScreenController::class, 'promotionsIndex' ] )->name( 'promotions.index' );
         Route::get( 'promotions/create', [ AdminScreenController::class, 'promotionsCreate' ] )->name( 'promotions.create' );
         Route::get( 'promotions/{promotion}/edit', [ AdminScreenController::class, 'promotionsEdit' ] )->whereNumber( 'promotion' )->name( 'promotions.edit' );
+
+        Route::get( 'shipping', [ AdminScreenController::class, 'shippingIndex' ] )->name( 'shipping.index' );
+        Route::get( 'tax', [ AdminScreenController::class, 'taxIndex' ] )->name( 'tax.index' );
+
+        Route::get( 'notifications', [ AdminScreenController::class, 'notificationsIndex' ] )->name( 'notifications.index' );
+        Route::get( 'notifications/{template}/edit', [ AdminScreenController::class, 'notificationsEdit' ] )->whereNumber( 'template' )->name( 'notifications.edit' );
+
+        Route::get( 'webhooks', [ AdminScreenController::class, 'webhooksIndex' ] )->name( 'webhooks.index' );
+        Route::get( 'webhooks/{subscription}', [ AdminScreenController::class, 'webhooksShow' ] )->whereNumber( 'subscription' )->name( 'webhooks.show' );
+
+        Route::get( 'order-statuses', [ AdminScreenController::class, 'orderStatusesIndex' ] )->name( 'order-statuses.index' );
     } );

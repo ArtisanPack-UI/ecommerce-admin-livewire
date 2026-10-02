@@ -41,14 +41,14 @@ it( 'grants access when any entry permission is held', function (): void {
 } );
 
 it( 'hides entries whose screen has not shipped yet', function (): void {
-    grantAbilities( [ 'shippingZone.viewAny' ] );
+    grantAbilities( [ 'kanbanBoard.viewAny' ] );
 
     expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard' ] );
 
-    Route::get( 'fake-shipping', static fn (): string => 'shipping' )->name( 'artisanpack.ecommerce.admin.shipping.index' );
+    Route::get( 'fake-kanban-boards', static fn (): string => 'kanban-boards' )->name( 'artisanpack.ecommerce.admin.kanban-boards.index' );
     Route::getRoutes()->refreshNameLookups();
 
-    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'shipping' ] );
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'kanban-boards' ] );
 } );
 
 it( 'maps inventory onto product.viewAny until the engine ships inventory abilities', function (): void {
