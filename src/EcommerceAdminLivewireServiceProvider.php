@@ -53,6 +53,8 @@ use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\ProductTypePanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\SettingsTabRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight;
+use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\NullSpotlight;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ConfigSchemas;
@@ -327,6 +329,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $this->registerLayoutResolver();
         $this->registerLivewireComponents();
         $this->registerRoutes();
+        $this->registerSpotlight();
         CmsMenu::subscribe();
     }
 
@@ -517,6 +520,33 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         }
 
         $this->loadRoutesFrom( __DIR__ . '/../routes/admin.php' );
+    }
+
+    /**
+     * Adds the admin's results to livewire-ui-components' spotlight (spec
+     * §8.1) unless the palette is disabled.
+     *
+     * The spotlight route resolves the host's search class before it
+     * applies the results filter, so when the host has none an empty
+     * stand-in is bound in its place.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    protected function registerSpotlight(): void
+    {
+        if ( ! AdminSpotlight::enabled() ) {
+            return;
+        }
+
+        addFilter( AdminSpotlight::COMMANDS_FILTER, [ AdminSpotlight::class, 'appendTo' ] );
+
+        $class = config( 'artisanpack.livewire-ui-components.components.spotlight.class' );
+
+        if ( is_string( $class ) && '' !== $class && ! class_exists( $class ) && ! $this->app->bound( $class ) ) {
+            $this->app->bind( $class, NullSpotlight::class );
+        }
     }
 
     /**

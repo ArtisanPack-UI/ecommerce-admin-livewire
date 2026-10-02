@@ -42,6 +42,7 @@
     >
         @if ( $editing )
             <form wire:submit="save" class="flex flex-col gap-4" data-digital-file-form>
+                @include( 'ecommerce-admin::partials.error-summary' )
                 <x-artisanpack-ec-product-picker
                     id="digital-file-product"
                     model="form.product_id"

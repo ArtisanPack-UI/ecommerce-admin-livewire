@@ -21,11 +21,13 @@ use ArtisanPackUI\Ecommerce\Models\OrderSubstatus;
 use ArtisanPackUI\Ecommerce\Services\OrderStatusMachine;
 use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\ListensForAdminBroadcasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithResourceTable;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\OrdersQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminBroadcasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StatusPresenter;
 use Illuminate\Contracts\View\View;
@@ -33,6 +35,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -42,6 +45,11 @@ use Livewire\Component;
  * Bulk actions: change sub-status (offered only for a sub-status that fits
  * every selected order) and export. There is no bulk refund or cancel.
  *
+ * With real-time updates on (see {@see AdminBroadcasts}), the list
+ * re-renders when the engine broadcasts an order change, so new orders
+ * appear at the top of the default (newest first) sort, and a notice says
+ * how many arrived since the page was opened or the notice was dismissed.
+ *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
  *
@@ -50,6 +58,7 @@ use Livewire\Component;
 class Index extends Component
 {
     use AuthorizesEcommerce;
+    use ListensForAdminBroadcasts;
     use SendsToasts;
     use WithActionToken;
     use WithResourceTable;
@@ -64,6 +73,26 @@ class Index extends Component
     public int|string|null $bulkSubstatusId = null;
 
     /**
+     * The newest order id the user has been told about.
+     *
+     * @since 1.0.0
+     *
+     * @var int
+     */
+    #[Locked]
+    public int $latestOrderId = 0;
+
+    /**
+     * Orders that arrived since the notice was last dismissed.
+     *
+     * @since 1.0.0
+     *
+     * @var int
+     */
+    #[Locked]
+    public int $newOrders = 0;
+
+    /**
      * Authorizes the screen.
      *
      * @since 1.0.0
@@ -73,6 +102,45 @@ class Index extends Component
     public function mount(): void
     {
         $this->authorizeTable();
+
+        $this->latestOrderId = (int) Order::query()->max( 'id' );
+    }
+
+    /**
+     * Re-renders after an order broadcast and counts orders that are new
+     * since the last look. The count comes from the database, not the
+     * broadcast payload.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public function orderBroadcast(): void
+    {
+        $latest = (int) Order::query()->max( 'id' );
+
+        if ( $latest <= $this->latestOrderId ) {
+            return;
+        }
+
+        $arrived              = Order::query()->where( 'id', '>', $this->latestOrderId )->count();
+        $this->latestOrderId  = $latest;
+        $this->newOrders += $arrived;
+
+        $this->liveAnnouncement = trans_choice( ':count new order arrived.|:count new orders arrived.', $arrived, [ 'count' => $arrived ] );
+    }
+
+    /**
+     * Dismisses the new-orders notice.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public function dismissNewOrders(): void
+    {
+        $this->newOrders        = 0;
+        $this->liveAnnouncement = '';
     }
 
     /**
@@ -105,6 +173,21 @@ class Index extends Component
         $name = trim( ( $order->customer?->first_name ?? '' ) . ' ' . ( $order->customer?->last_name ?? '' ) );
 
         return '' === $name ? null : $name;
+    }
+
+    /**
+     * The broadcasts the list refreshes on.
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, string>
+     */
+    protected function adminBroadcasts(): array
+    {
+        return [
+            AdminBroadcasts::ORDER_STATUS_CHANGED => 'orderBroadcast',
+            AdminBroadcasts::PAYMENT_SUCCEEDED    => 'orderBroadcast',
+        ];
     }
 
     /**
@@ -325,6 +408,7 @@ class Index extends Component
             [ 'key' => 'substatus', 'label' => __( 'Sub-status' ), 'type' => 'select', 'options' => self::substatusOptions() ],
             [ 'key' => 'payment_status', 'label' => __( 'Payment' ), 'type' => 'select', 'options' => self::statusOptions( 'payment' ) ],
             [ 'key' => 'fulfillment_status', 'label' => __( 'Fulfillment' ), 'type' => 'select', 'options' => self::statusOptions( 'fulfillment' ) ],
+            [ 'key' => 'awaiting', 'label' => __( 'Awaiting fulfillment' ), 'type' => 'boolean' ],
             [ 'key' => 'placed', 'label' => __( 'Placed' ), 'type' => 'date-range' ],
             [ 'key' => 'currency', 'label' => __( 'Currency' ), 'type' => 'select', 'options' => self::currencyOptions() ],
             [ 'key' => 'board', 'label' => __( 'Board' ), 'type' => 'select', 'options' => self::boardOptions() ],

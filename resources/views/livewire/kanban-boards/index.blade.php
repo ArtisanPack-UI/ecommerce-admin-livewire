@@ -86,7 +86,7 @@
                                     wire:click="makeDefault( {{ $board->id }} )"
                                     :disabled="! $board->is_active"
                                     :label="__( 'Make default' )"
-                                    :aria-label="__( 'Make :name the default board', [ 'name' => $board->name ] )"
+                                    :aria-label="__( 'Make default: :name', [ 'name' => $board->name ] )"
                                 />
                             @endunless
                         @endif
@@ -116,6 +116,7 @@
         class="w-full max-w-lg"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-board-form>
+            @include( 'ecommerce-admin::partials.error-summary' )
             <x-artisanpack-input id="board-name" :label="__( 'Name' )" wire:model.blur="form.name" maxlength="255" required />
             <x-artisanpack-input id="board-key" :label="__( 'Key' )" :hint="__( 'A unique, permanent identifier, like production. Filled from the name until you change it.' )" wire:model.blur="form.key" maxlength="120" required />
             <x-artisanpack-textarea id="board-description" :label="__( 'Description' )" rows="2" wire:model="form.description" />

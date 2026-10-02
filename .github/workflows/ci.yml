@@ -152,3 +152,47 @@ jobs:
 
       - name: Run PCI column lint
         run: vendor/bin/testbench ecommerce:lint:pci-columns --path="$GITHUB_WORKSPACE/database/migrations"
+
+  translation-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: Translation Lint
+
+    # Fails on a bare user-facing string in src/ or resources/ (Blade
+    # included), or a key missing from any of lang/{en,es,fr,de}.json.
+    # `--no-engine` leaves the engine's own sources out of the run.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Clone the engine
+        run: git clone --depth 1 --branch "$ENGINE_REF" https://github.com/ArtisanPack-UI/ecommerce.git ../ecommerce
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, intl
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-lint-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-lint-composer-
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist
+
+      - name: Run translation lint
+        run: >-
+          vendor/bin/testbench ecommerce:lint:translations --no-engine
+          --path="$GITHUB_WORKSPACE/src"
+          --path="$GITHUB_WORKSPACE/resources"
+          --lang="$GITHUB_WORKSPACE/lang"

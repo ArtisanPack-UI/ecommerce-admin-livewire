@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
+use ArtisanPackUI\Ecommerce\Support\TaxLabel;
 use ArtisanPackUI\Ecommerce\Support\TaxRateMath;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
@@ -61,7 +62,7 @@ final class ReportPresenter
             'discounts'           => __( 'Discounts' ),
             'refunds'             => __( 'Refunds' ),
             'net'                 => __( 'Net sales' ),
-            'tax'                 => __( 'Tax' ),
+            'tax'                 => TaxLabel::for(),
             'shipping'            => __( 'Shipping' ),
             'total'               => __( 'Total sales' ),
             'orders'              => __( 'Orders' ),

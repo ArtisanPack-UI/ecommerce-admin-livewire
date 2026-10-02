@@ -32,6 +32,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -98,12 +99,13 @@ class Form extends Component
     public bool $readOnly = false;
 
     /**
-     * The open tab.
+     * The open tab. Kept in the URL (`?tab=coupons`) so links can open a tab.
      *
      * @since 1.0.0
      *
      * @var string
      */
+    #[Url( except: 'details' )]
     public string $tab = 'details';
 
     /**

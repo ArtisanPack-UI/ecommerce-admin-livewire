@@ -319,3 +319,13 @@ it( 'refuses to apply with a leftover token once the editor is closed', function
     expect( $this->order->fresh()->shipping_address['address1'] )->toBe( '1 Main St' )
         ->and( OrderEdit::query()->count() )->toBe( 0 );
 } );
+
+it( 'marks a line for removal with a visible badge, not by fading the row', function (): void {
+    Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startEdit' )
+        ->assertDontSeeHtml( 'data-will-remove' )
+        ->set( "draftItems.{$this->item->id}.remove", true )
+        ->assertSeeHtml( 'data-will-remove' )
+        ->assertSee( 'Will be removed' )
+        ->assertDontSeeHtml( 'opacity-50' );
+} );

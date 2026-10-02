@@ -19,7 +19,7 @@
     <x-artisanpack-button size="sm" variant="ghost" icon="o-no-symbol" wire:click="moderate( {{ $review->id }}, 'spam' )" wire:loading.attr="disabled" :label="__( 'Spam' )" :aria-label="__( 'Mark the review by :author as spam', [ 'author' => $author ] )" />
 @endif
 @if ( 'pending' !== $review->status )
-    <x-artisanpack-button size="sm" variant="ghost" icon="o-arrow-uturn-left" wire:click="moderate( {{ $review->id }}, 'requeue' )" wire:loading.attr="disabled" :label="__( 'Requeue' )" :aria-label="__( 'Move the review by :author back to pending', [ 'author' => $author ] )" />
+    <x-artisanpack-button size="sm" variant="ghost" icon="o-arrow-uturn-left" wire:click="moderate( {{ $review->id }}, 'requeue' )" wire:loading.attr="disabled" :label="__( 'Requeue' )" :aria-label="__( 'Requeue the review by :author for moderation', [ 'author' => $author ] )" />
 @endif
 @if ( $canDelete )
     <x-artisanpack-button size="sm" variant="ghost" icon="o-trash" wire:click="confirmDelete( {{ $review->id }} )" :aria-label="__( 'Delete the review by :author', [ 'author' => $author ] )" />

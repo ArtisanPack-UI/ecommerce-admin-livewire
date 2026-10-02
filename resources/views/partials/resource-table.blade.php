@@ -16,6 +16,9 @@
     @since      1.0.0
 --}}
 <div class="flex flex-col gap-4" data-resource-table-section>
+    {{-- Tells screen-reader users how many rows a search or filter left. --}}
+    @include( 'ecommerce-admin::partials.live-region', [ 'message' => isset( $tableRows ) ? trans_choice( ':count result|:count results', $tableRows->total(), [ 'count' => $tableRows->total() ] ) : '' ] )
+
     <div class="flex flex-col gap-3">
         <div class="flex flex-wrap items-end gap-3">
             <x-artisanpack-input

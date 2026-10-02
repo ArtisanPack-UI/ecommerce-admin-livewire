@@ -296,3 +296,18 @@ it( 'carries the projected count across repeated SKUs in the dry run', function 
 
     expect( $item->refresh()->quantity_on_hand )->toBe( 28 );
 } );
+
+it( 'filters items at or below their threshold, out of stock included', function (): void {
+    inventoryRow( Product::factory()->create( [ 'name' => 'Low Mug' ] ), 2, 5 );
+    inventoryRow( Product::factory()->create( [ 'name' => 'Empty Mug' ] ), 0, 5 );
+    inventoryRow( Product::factory()->create( [ 'name' => 'Full Mug' ] ), 50, 5 );
+    inventoryRow( Product::factory()->create( [ 'name' => 'Loose Mug' ] ), 0, null );
+
+    Livewire::withQueryParams( [ 'filters' => [ 'stock' => 'reorder' ] ] )
+        ->test( Index::class )
+        ->assertSet( 'filters.stock', 'reorder' )
+        ->assertSee( 'Low Mug' )
+        ->assertSee( 'Empty Mug' )
+        ->assertDontSee( 'Full Mug' )
+        ->assertDontSee( 'Loose Mug' );
+} );

@@ -245,3 +245,27 @@ it( 'ignores lines for another order\'s items', function (): void {
 
     expect( Refund::query()->with( 'items' )->sole()->items->pluck( 'order_item_id' )->all() )->toBe( [ $this->item->id ] );
 } );
+
+it( 'opens the refund dialog when the page is opened with ?action=refund', function (): void {
+    Livewire::withQueryParams( [ 'action' => 'refund' ] )
+        ->test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->assertSet( 'refunding', true )
+        ->assertSet( 'mode', 'items' );
+} );
+
+it( 'does not open the refund dialog from the URL without order.refund', function (): void {
+    Illuminate\Support\Facades\Gate::define( 'ecommerce.order.refund', static fn (): bool => false );
+
+    Livewire::withQueryParams( [ 'action' => 'refund' ] )
+        ->test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->assertOk()
+        ->assertSet( 'refunding', false );
+} );
+
+it( 'does not open the refund dialog from the URL when nothing is refundable', function (): void {
+    $this->order->update( [ 'payment_status' => 'refunded', 'total_refunded_amount' => 3_500 ] );
+
+    Livewire::withQueryParams( [ 'action' => 'refund' ] )
+        ->test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->assertSet( 'refunding', false );
+} );

@@ -651,6 +651,7 @@ class Index extends Component
                 'options' => [
                     [ 'id' => 'low', 'name' => __( 'Low stock' ) ],
                     [ 'id' => 'out', 'name' => __( 'Out of stock' ) ],
+                    [ 'id' => 'reorder', 'name' => __( 'At or below threshold' ) ],
                 ],
             ],
             [ 'key' => 'tracked', 'label' => __( 'Tracked' ), 'type' => 'boolean' ],

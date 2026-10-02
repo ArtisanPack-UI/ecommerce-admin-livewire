@@ -300,3 +300,12 @@ it( 'translates its strings', function (): void {
         ->assertSee( 'Artículos' )
         ->assertSee( 'Totales' );
 } );
+
+it( 'labels tax with the engine\'s TaxLabel, so a store override applies', function (): void {
+    config()->set( 'artisanpack.ecommerce.localization.tax_labels', [ 'en' => 'VAT' ] );
+    $order = Order::factory()->create( [ 'tax_amount' => 200 ] );
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertSeeHtml( '<th scope="col" class="text-end">VAT</th>' )
+        ->assertSeeInOrder( [ 'data-order-totals', 'VAT' ] );
+} );

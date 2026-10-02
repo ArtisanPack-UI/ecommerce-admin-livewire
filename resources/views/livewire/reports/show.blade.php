@@ -115,7 +115,9 @@
             @endforeach
         </x-artisanpack-alert>
     @else
-        <div wire:loading.class="opacity-50" class="flex flex-col gap-6" aria-live="polite" aria-busy="false" wire:loading.attr="aria-busy">
+        @include( 'ecommerce-admin::partials.live-region', [ 'message' => null === $result['range'] ? __( ':report updated.', [ 'report' => $label ] ) : __( ':report updated: :from to :to.', [ 'report' => $label, 'from' => $result['range']['from'], 'to' => $result['range']['to'] ] ) ] )
+
+        <div wire:loading.class="opacity-50" class="flex flex-col gap-6" aria-busy="false" wire:loading.attr="aria-busy">
             @if ( ( $result['notices']['converted_orders'] ?? 0 ) > 0 )
                 <x-artisanpack-alert color="info" icon="o-information-circle" role="status" data-converted-orders="{{ $result['notices']['converted_orders'] }}">
                     {{ trans_choice(
@@ -235,7 +237,7 @@
                                     @foreach ( $table['columns'] as $columnIndex => $column )
                                         @php $text = $display( $table['totals'][ $column['key'] ] ?? null, $column['type'] ); @endphp
                                         @if ( 0 === $columnIndex )
-                                            <th scope="row">{{ '—' === $text ? '' : $text }}</th>
+                                            <th scope="row">@if ( '—' === $text )<span class="sr-only">{{ __( 'Totals' ) }}</span>@else{{ $text }}@endif</th>
                                         @else
                                             <td @class( [ 'text-end tabular-nums' => in_array( $column['type'], [ 'int', 'money', 'percent', 'rate' ], true ) ] )>{{ '—' === $text ? '' : $text }}</td>
                                         @endif

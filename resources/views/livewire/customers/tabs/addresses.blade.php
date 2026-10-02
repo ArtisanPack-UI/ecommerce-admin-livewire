@@ -16,6 +16,7 @@
     @if ( $showForm )
         <x-artisanpack-card :title="null === $editingId ? __( 'New address' ) : __( 'Edit address' )" shadow>
             <form wire:submit="saveAddress" class="flex flex-col gap-4" data-address-form>
+                @include( 'ecommerce-admin::partials.error-summary' )
                 <x-artisanpack-input id="address.label" :label="__( 'Label' )" :hint="__( 'Optional, like Home or Office.' )" wire:model="address.label" />
 
                 <x-artisanpack-ec-address-form model="address" />

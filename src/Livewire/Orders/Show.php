@@ -24,9 +24,12 @@ use ArtisanPackUI\Ecommerce\Models\OrderItem;
 use ArtisanPackUI\Ecommerce\Models\PromotionUsage;
 use ArtisanPackUI\Ecommerce\Registries\PaymentGatewayRegistry;
 use ArtisanPackUI\Ecommerce\Services\KanbanRoutingService;
+use ArtisanPackUI\Ecommerce\Support\TaxLabel;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\ListensForAdminBroadcasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminBroadcasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
@@ -54,6 +57,7 @@ use Throwable;
 class Show extends Component
 {
     use AuthorizesEcommerce;
+    use ListensForAdminBroadcasts;
     use SendsToasts;
 
     /**
@@ -76,13 +80,33 @@ class Show extends Component
     public int|string|null $boardToAdd = null;
 
     /**
+     * The order's `updated_at` as of the last time this page reloaded it.
+     *
+     * @since 1.0.0
+     *
+     * @var string
+     */
+    #[Locked]
+    public string $seenVersion = '';
+
+    /**
+     * Whether someone else changed the order since this page reloaded it.
+     *
+     * @since 1.0.0
+     *
+     * @var bool
+     */
+    #[Locked]
+    public bool $changedElsewhere = false;
+
+    /**
      * Re-render when a panel changes the order.
      *
      * @since 1.0.0
      *
      * @var array<string, string>
      */
-    protected $listeners = [ OrderPanelRegistry::ORDER_UPDATED_EVENT => '$refresh' ];
+    protected $listeners = [ OrderPanelRegistry::ORDER_UPDATED_EVENT => 'orderUpdated' ];
 
     /**
      * The order, loaded once per request.
@@ -107,6 +131,61 @@ class Show extends Component
         $this->orderId = (int) $order;
 
         $this->authorizeEcommerce( 'view', $this->order() );
+
+        $this->seenVersion = self::version( $this->order() );
+    }
+
+    /**
+     * A panel on this page changed the order: the panels refresh on the same
+     * event, so the page is current again.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public function orderUpdated(): void
+    {
+        $this->loadedOrder      = null;
+        $this->seenVersion      = self::version( $this->order() );
+        $this->changedElsewhere = false;
+    }
+
+    /**
+     * Flags the page when a broadcast says this order changed and the
+     * stored order is newer than what the page last loaded. The payload
+     * only picks the order; the version comes from the database.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed  $payload  The broadcast payload.
+     *
+     * @return void
+     */
+    public function orderBroadcast( mixed $payload = null ): void
+    {
+        if ( AdminBroadcasts::orderId( $payload ) !== $this->orderId || self::version( $this->order() ) === $this->seenVersion ) {
+            $this->skipRender();
+
+            return;
+        }
+
+        $this->changedElsewhere = true;
+        $this->liveAnnouncement = __( 'This order was changed elsewhere. Reload it to see the latest details.' );
+    }
+
+    /**
+     * Reloads the page's panels after a change made elsewhere.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public function reloadOrder(): void
+    {
+        $this->orderUpdated();
+        $this->liveAnnouncement = __( 'Order reloaded.' );
+
+        $this->dispatch( OrderPanelRegistry::ORDER_UPDATED_EVENT );
     }
 
     /**
@@ -276,6 +355,35 @@ class Show extends Component
     }
 
     /**
+     * The broadcasts the page watches.
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, string>
+     */
+    protected function adminBroadcasts(): array
+    {
+        return [
+            AdminBroadcasts::ORDER_STATUS_CHANGED => 'orderBroadcast',
+            AdminBroadcasts::PAYMENT_SUCCEEDED    => 'orderBroadcast',
+        ];
+    }
+
+    /**
+     * A version stamp for an order: its `updated_at`, to the microsecond.
+     *
+     * @since 1.0.0
+     *
+     * @param  Order  $order  The order.
+     *
+     * @return string
+     */
+    protected static function version( Order $order ): string
+    {
+        return (string) $order->updated_at?->format( 'Y-m-d H:i:s.u' );
+    }
+
+    /**
      * The order with everything the page shows.
      *
      * @since 1.0.0
@@ -374,7 +482,7 @@ class Show extends Component
         }
 
         if ( [] === $lines ) {
-            $lines[] = [ 'label' => __( 'Tax' ), 'amount' => (int) $order->tax_amount ];
+            $lines[] = [ 'label' => TaxLabel::for(), 'amount' => (int) $order->tax_amount ];
         }
 
         return array_values( array_filter(

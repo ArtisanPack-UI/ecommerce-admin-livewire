@@ -40,7 +40,7 @@
                                 <span class="text-sm text-error" role="alert">{{ $message }}</span>
                             @enderror
                             @if ( $mediaLibrary && ! $readOnly )
-                                <x-artisanpack-button variant="outline" size="sm" icon="o-paper-clip" x-on:click="Livewire.dispatch( 'open-media-modal', { context: @js( DigitalPanel::MEDIA_CONTEXT . $i ) } )" :label="__( 'Choose file' )" :aria-label="__( 'Choose the file for :file', [ 'file' => $fileLabel ] )" />
+                                <x-artisanpack-button variant="outline" size="sm" icon="o-paper-clip" x-on:click="Livewire.dispatch( 'open-media-modal', { context: @js( DigitalPanel::MEDIA_CONTEXT . $i ) } )" :label="__( 'Choose file' )" :aria-label="__( 'Choose file for :file', [ 'file' => $fileLabel ] )" />
                             @endif
                         @else
                             <x-artisanpack-select id="digital-{{ $i }}-disk" :label="__( 'Disk' )" :options="$diskOptions" wire:model="state.files.{{ $i }}.disk" :disabled="$readOnly" />
