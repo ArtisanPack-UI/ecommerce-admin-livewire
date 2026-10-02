@@ -34,7 +34,11 @@ use Livewire\Livewire;
 const MATRIX = [
     'artisanpack-ecommerce-admin-dashboard' => [
         'mount'   => [ 'params' => [], 'ability' => null ],
-        'actions' => [],
+        'actions' => [
+            'orderBroadcast'  => [ 'args' => [], 'ability' => null ],
+            'stockBroadcast'  => [ 'args' => [], 'ability' => null ],
+            'reviewBroadcast' => [ 'args' => [], 'ability' => null ],
+        ],
     ],
     'artisanpack-ecommerce-admin-navigation' => [
         'mount'   => [ 'params' => [], 'ability' => null ],
@@ -62,6 +66,8 @@ const MATRIX = [
             'gotoPage'                     => [ 'args' => [ 2 ], 'ability' => 'order.viewAny' ],
             'resetPage'                    => [ 'args' => [], 'ability' => 'order.viewAny' ],
             'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'order.viewAny' ],
+            'orderBroadcast'               => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'dismissNewOrders'             => [ 'args' => [], 'ability' => 'order.viewAny' ],
         ],
     ],
     'artisanpack-ecommerce-admin-orders-show' => [
@@ -69,6 +75,9 @@ const MATRIX = [
         'actions' => [
             'addToBoard'      => [ 'args' => [], 'ability' => 'kanbanCard.move' ],
             'removeFromBoard' => [ 'args' => [ 1 ], 'ability' => 'kanbanCard.move' ],
+            'orderUpdated'    => [ 'args' => [], 'ability' => 'order.view' ],
+            'orderBroadcast'  => [ 'args' => [], 'ability' => 'order.view' ],
+            'reloadOrder'     => [ 'args' => [], 'ability' => 'order.view' ],
         ],
     ],
     'artisanpack-ecommerce-admin-order-status' => [

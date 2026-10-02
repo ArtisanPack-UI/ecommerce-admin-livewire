@@ -33,6 +33,7 @@
         class="w-full max-w-lg"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-webhook-form>
+            @include( 'ecommerce-admin::partials.error-summary' )
             <x-artisanpack-input id="webhook-name" :label="__( 'Name' )" wire:model="form.name" required />
             <x-artisanpack-input
                 id="webhook-url"

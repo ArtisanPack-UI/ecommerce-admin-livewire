@@ -23,6 +23,7 @@ use ArtisanPackUI\Ecommerce\Models\Shipment;
 use ArtisanPackUI\Ecommerce\Services\OrderEditService;
 use ArtisanPackUI\Ecommerce\Services\ProductPriceResolver;
 use ArtisanPackUI\Ecommerce\Support\MoneyFormatter;
+use ArtisanPackUI\Ecommerce\Support\TaxLabel;
 use ArtisanPackUI\Ecommerce\ValueObjects\OrderEditResult;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\InteractsWithOrderPanel;
@@ -584,7 +585,7 @@ class EditPanel extends Component
         $before = (array) data_get( $diff, 'totals.before', [] );
         $after  = (array) data_get( $diff, 'totals.after', [] );
 
-        foreach ( [ 'subtotal_amount' => __( 'Subtotal' ), 'discount_amount' => __( 'Discount' ), 'shipping_amount' => __( 'Shipping' ), 'tax_amount' => __( 'Tax' ), 'total_amount' => __( 'Total' ) ] as $key => $label ) {
+        foreach ( [ 'subtotal_amount' => __( 'Subtotal' ), 'discount_amount' => __( 'Discount' ), 'shipping_amount' => __( 'Shipping' ), 'tax_amount' => TaxLabel::for(), 'total_amount' => __( 'Total' ) ] as $key => $label ) {
             if ( array_key_exists( $key, $before ) && (int) $before[ $key ] !== (int) ( $after[ $key ] ?? 0 ) ) {
                 $lines[] = __( ':label: :before → :after', [ 'label' => $label, 'before' => $money( $before[ $key ] ), 'after' => $money( $after[ $key ] ?? 0 ) ] );
             }

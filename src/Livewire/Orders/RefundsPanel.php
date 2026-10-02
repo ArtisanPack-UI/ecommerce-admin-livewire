@@ -57,7 +57,9 @@ use Throwable;
 class RefundsPanel extends Component
 {
     use AuthorizesEcommerce;
-    use InteractsWithOrderPanel;
+    use InteractsWithOrderPanel {
+        mount as mountOrderPanel;
+    }
     use SendsToasts;
     use WithActionToken;
 
@@ -123,6 +125,32 @@ class RefundsPanel extends Component
      * @var array<string, string>
      */
     protected $listeners = [ OrderPanelRegistry::ORDER_UPDATED_EVENT => '$refresh' ];
+
+    /**
+     * Loads the panel, and opens the refund dialog when the page was opened
+     * with `?action=refund` (the command palette's "Refund order #…") and a
+     * refund can be issued.
+     *
+     * @since 1.0.0
+     *
+     * @param  int|Order|string  $order  The order or its id.
+     *
+     * @return void
+     */
+    public function mount( Order|int|string $order ): void
+    {
+        $this->mountOrderPanel( $order );
+
+        if ( 'refund' !== request()->query( 'action' ) ) {
+            return;
+        }
+
+        $model = $this->order();
+
+        if ( $this->canEcommerce( 'refund', $model ) && null === $this->gatewayProblem( $model, $this->gateway( $model ) ) && $this->refundable( $model ) > 0 ) {
+            $this->startRefund();
+        }
+    }
 
     /**
      * Opens the issue-refund dialog with every line cleared.

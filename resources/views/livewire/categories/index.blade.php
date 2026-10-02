@@ -99,6 +99,7 @@
         class="w-full max-w-lg"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-category-form>
+            @include( 'ecommerce-admin::partials.error-summary' )
             <x-artisanpack-input id="category-name" :label="__( 'Name' )" wire:model="form.name" required />
             <x-artisanpack-input id="category-slug" :label="__( 'Slug' )" :hint="__( 'Leave empty to make one from the name.' )" wire:model="form.slug" />
             <x-artisanpack-select

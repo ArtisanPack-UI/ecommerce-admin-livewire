@@ -10,6 +10,16 @@
         separator
     />
 
+    @include( 'ecommerce-admin::partials.live-region', [ 'message' => $liveAnnouncement ] )
+
+    @if ( $changedElsewhere )
+        <div class="flex flex-wrap items-center gap-3 rounded-box border border-warning/50 bg-warning/10 px-4 py-2 text-sm" data-changed-elsewhere>
+            <x-artisanpack-icon name="o-arrow-path" class="w-5 h-5" aria-hidden="true" />
+            <span>{{ __( 'This order was changed elsewhere. Reload it to see the latest details.' ) }}</span>
+            <x-artisanpack-button size="sm" class="ms-auto" icon="o-arrow-path" wire:click="reloadOrder" wire:loading.attr="disabled" :label="__( 'Reload order' )" />
+        </div>
+    @endif
+
     <div class="flex flex-wrap gap-2" aria-label="{{ __( 'Order status' ) }}" role="group">
         <x-artisanpack-ec-status-badge type="system" :value="$order->system_status" />
         @if ( null !== $order->substatus )
@@ -33,7 +43,7 @@
                                 <th scope="col" class="text-end">{{ __( 'Qty' ) }}</th>
                                 <th scope="col" class="text-end">{{ __( 'Unit price' ) }}</th>
                                 <th scope="col" class="text-end">{{ __( 'Discount' ) }}</th>
-                                <th scope="col" class="text-end">{{ __( 'Tax' ) }}</th>
+                                <th scope="col" class="text-end">{{ \ArtisanPackUI\Ecommerce\Support\TaxLabel::for() }}</th>
                                 <th scope="col" class="text-end">{{ __( 'Total' ) }}</th>
                                 <th scope="col">{{ __( 'Fulfillment' ) }}</th>
                             </tr>
@@ -160,8 +170,10 @@
                 </div>
             @endforeach
 
-            {{-- Notes --}}
-            @livewire( 'artisanpack-ecommerce-admin-notes', [ 'subject' => $order ], key( 'order-notes' ) )
+            {{-- Notes (the command palette's "Add note to #…" jumps here) --}}
+            <div id="order-notes" tabindex="-1" class="focus:outline-none">
+                @livewire( 'artisanpack-ecommerce-admin-notes', [ 'subject' => $order ], key( 'order-notes' ) )
+            </div>
 
             {{-- Timeline --}}
             @livewire( 'artisanpack-ecommerce-admin-timeline', [ 'subject' => $order ], key( 'order-timeline' ) )

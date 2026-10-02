@@ -177,6 +177,7 @@
         class="w-full max-w-lg"
     >
         <form wire:submit="saveZone" class="flex flex-col gap-4" data-zone-form>
+            @include( 'ecommerce-admin::partials.error-summary' )
             <x-artisanpack-input id="zone-name" :label="__( 'Name' )" wire:model="zoneForm.name" required />
             <x-artisanpack-choices-offline
                 id="zone-countries"
@@ -223,6 +224,7 @@
         class="w-full max-w-lg"
     >
         <form wire:submit="saveMethod" class="flex flex-col gap-4" data-method-form>
+            @include( 'ecommerce-admin::partials.error-summary' )
             <x-artisanpack-select
                 id="method-key"
                 :label="__( 'Type' )"

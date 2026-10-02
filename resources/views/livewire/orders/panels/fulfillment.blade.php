@@ -98,7 +98,7 @@
                                             wire:click="buyLabel( {{ (int) $shipment->id }}, {{ Js::from( $labelTokens[ (int) $shipment->id ] ) }} )"
                                             wire:loading.attr="disabled"
                                             :label="__( 'Buy label' )"
-                                            :aria-label="__( 'Buy a label for shipment #:id', [ 'id' => $shipment->id ] )"
+                                            :aria-label="__( 'Buy label for shipment #:id', [ 'id' => $shipment->id ] )"
                                         />
                                     @endif
                                 </div>

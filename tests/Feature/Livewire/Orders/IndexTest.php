@@ -437,3 +437,12 @@ it( 'translates its strings', function (): void {
         ->assertSee( 'Pedidos' )
         ->assertSee( 'Todavía no hay pedidos' );
 } );
+
+it( 'tells screen readers how many results the table holds', function (): void {
+    Order::factory()->count( 3 )->create();
+
+    Livewire::test( Index::class )
+        ->assertSeeHtml( 'data-live-region>3 results</div>' )
+        ->set( 'search', 'nothing-matches-this' )
+        ->assertSeeHtml( 'data-live-region>0 results</div>' );
+} );

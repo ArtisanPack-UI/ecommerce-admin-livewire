@@ -96,8 +96,13 @@
                                 </thead>
                                 <tbody>
                                     @foreach ( $draftItems as $itemId => $draft )
-                                        <tr wire:key="edit-item-{{ $itemId }}" @class( [ 'opacity-50' => $draft['remove'] ?? false ] )>
-                                            <th scope="row" class="font-normal">{{ $itemNames[ (int) $itemId ] ?? __( 'Item #:id', [ 'id' => $itemId ] ) }}</th>
+                                        <tr wire:key="edit-item-{{ $itemId }}" @class( [ 'bg-base-200' => $draft['remove'] ?? false ] )>
+                                            <th scope="row" class="font-normal">
+                                                {{ $itemNames[ (int) $itemId ] ?? __( 'Item #:id', [ 'id' => $itemId ] ) }}
+                                                @if ( $draft['remove'] ?? false )
+                                                    <x-artisanpack-badge :value="__( 'Will be removed' )" class="badge-sm ms-1" color="warning" data-will-remove />
+                                                @endif
+                                            </th>
                                             <td>
                                                 @if ( isset( $variantOptions[ (int) $itemId ] ) )
                                                     <x-artisanpack-select

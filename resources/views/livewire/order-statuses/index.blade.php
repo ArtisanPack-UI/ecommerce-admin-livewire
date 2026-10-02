@@ -23,7 +23,7 @@
                         icon="o-plus"
                         wire:click="create( '{{ $group['status'] }}' )"
                         :label="__( 'Add sub-status' )"
-                        :aria-label="__( 'Add a sub-status to :status', [ 'status' => $group['label'] ] )"
+                        :aria-label="__( 'Add sub-status to :status', [ 'status' => $group['label'] ] )"
                     />
                 @endif
             </div>
@@ -92,6 +92,7 @@
         class="w-full max-w-lg"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-substatus-form>
+            @include( 'ecommerce-admin::partials.error-summary' )
             <p class="text-sm">{{ __( 'Order status: :status', [ 'status' => $formStatusLabel ] ) }}</p>
 
             <x-artisanpack-input id="substatus-label" :label="__( 'Label' )" wire:model="form.label" maxlength="120" required />

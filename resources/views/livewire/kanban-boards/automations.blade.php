@@ -67,6 +67,7 @@
         class="w-full max-w-2xl"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-automation-form>
+            @include( 'ecommerce-admin::partials.error-summary' )
             <div class="grid gap-4 md:grid-cols-2">
                 <x-artisanpack-select
                     id="automation-from"

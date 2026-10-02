@@ -87,6 +87,7 @@
 
     <div class="grid gap-6 lg:grid-cols-3">
         <form wire:submit="save" class="flex flex-col gap-4 lg:col-span-2" data-template-form>
+            @include( 'ecommerce-admin::partials.error-summary' )
             @if ( $hasSubject )
                 <x-artisanpack-input
                     id="notification-subject"
@@ -174,8 +175,11 @@
                 @endif
             </section>
 
-            <section aria-labelledby="notification-preview-title" aria-live="polite" data-preview>
+            <section aria-labelledby="notification-preview-title" data-preview>
                 <h2 id="notification-preview-title" class="mb-2 font-semibold">{{ __( 'Preview' ) }}</h2>
+
+                {{-- Announce the outcome, not the whole preview, on every keystroke. --}}
+                @include( 'ecommerce-admin::partials.live-region', [ 'message' => [] === $previewErrors ? __( 'Preview updated.' ) : trans_choice( 'The template has :count error.|The template has :count errors.', count( $previewErrors ), [ 'count' => count( $previewErrors ) ] ) ] )
 
                 @if ( [] !== $previewErrors )
                     <x-artisanpack-alert

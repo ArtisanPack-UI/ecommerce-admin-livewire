@@ -170,6 +170,26 @@ abstract class ResourceQuery
     }
 
     /**
+     * Adds an `OR column contains term` clause: case-insensitive, with the
+     * term's `%`, `_`, and `\` matched literally on every driver.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder  $query   The query (usually a nested where group).
+     * @param  string   $column  The column, qualified when the query joins.
+     * @param  string   $term    The raw term.
+     *
+     * @return void
+     */
+    public static function orWhereContains( Builder $query, string $column, string $term ): void
+    {
+        $pattern = '%' . str_replace( [ '\\', '%', '_' ], [ '\\\\', '\\%', '\\_' ], mb_strtolower( $term ) ) . '%';
+        $wrapped = $query->getQuery()->getGrammar()->wrap( $column );
+
+        $query->orWhereRaw( 'LOWER(' . $wrapped . ') LIKE ? ESCAPE ?', [ $pattern, '\\' ] );
+    }
+
+    /**
      * The query with its eager loads and scoping, before search and filters.
      *
      * @since 1.0.0
@@ -252,25 +272,5 @@ abstract class ResourceQuery
         }
 
         return Carbon::createFromFormat( '!Y-m-d', $value );
-    }
-
-    /**
-     * Adds an `OR column contains term` clause: case-insensitive, with the
-     * term's `%`, `_`, and `\` matched literally on every driver.
-     *
-     * @since 1.0.0
-     *
-     * @param  Builder  $query   The query (usually a nested where group).
-     * @param  string   $column  The column, qualified when the query joins.
-     * @param  string   $term    The raw term.
-     *
-     * @return void
-     */
-    protected static function orWhereContains( Builder $query, string $column, string $term ): void
-    {
-        $pattern = '%' . str_replace( [ '\\', '%', '_' ], [ '\\\\', '\\%', '\\_' ], mb_strtolower( $term ) ) . '%';
-        $wrapped = $query->getQuery()->getGrammar()->wrap( $column );
-
-        $query->orWhereRaw( 'LOWER(' . $wrapped . ') LIKE ? ESCAPE ?', [ $pattern, '\\' ] );
     }
 }

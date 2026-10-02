@@ -39,15 +39,25 @@
 
     <x-artisanpack-nav sticky full-width class="ecommerce-admin__topbar">
         <x-slot:brand>
-            <label for="ecommerce-admin-drawer" class="lg:hidden me-3 cursor-pointer" aria-label="{{ __( 'Open navigation' ) }}">
+            {{-- A real, focusable button: the drawer's own toggle is a hidden checkbox. --}}
+            <button
+                type="button"
+                class="lg:hidden me-3 btn btn-ghost btn-sm btn-square"
+                aria-label="{{ __( 'Open navigation' ) }}"
+                aria-controls="ecommerce-admin-drawer"
+                x-data
+                x-on:click="document.getElementById( 'ecommerce-admin-drawer' )?.click()"
+                data-nav-toggle
+            >
                 <x-artisanpack-icon name="o-bars-3" aria-hidden="true" />
-            </label>
+            </button>
             <a href="{{ route( AdminNav::ROUTE_PREFIX . 'dashboard' ) }}" class="font-bold">
                 {{ __( 'Store admin' ) }}
             </a>
         </x-slot:brand>
 
         <x-slot:actions>
+            @include( 'ecommerce-admin::partials.spotlight-button' )
             <x-artisanpack-theme-toggle aria-label="{{ __( 'Toggle dark mode' ) }}" />
         </x-slot:actions>
     </x-artisanpack-nav>
@@ -63,6 +73,8 @@
     </x-artisanpack-main>
 
     <x-artisanpack-toast />
+
+    @include( 'ecommerce-admin::partials.spotlight' )
 
     @livewireScripts
     @include( 'ecommerce-admin::partials.rate-limit-notice' )

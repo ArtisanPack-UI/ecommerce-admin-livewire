@@ -126,3 +126,13 @@ it( 'applies extra filters passed with withFilters', function (): void {
 
     expect( $numbers )->toBe( [ 'META0001' ] );
 } );
+
+it( 'filters orders awaiting fulfillment the way the dashboard counts them', function (): void {
+    Order::factory()->create( [ 'order_number' => 'WAIT0001', 'system_status' => 'processing', 'fulfillment_status' => 'unfulfilled' ] );
+    Order::factory()->create( [ 'order_number' => 'WAIT0002', 'system_status' => 'processing', 'fulfillment_status' => 'partial' ] );
+    Order::factory()->create( [ 'order_number' => 'SENT0001', 'system_status' => 'processing', 'fulfillment_status' => 'fulfilled' ] );
+    Order::factory()->create( [ 'order_number' => 'HOLD0001', 'system_status' => 'on-hold', 'fulfillment_status' => 'unfulfilled' ] );
+
+    expect( orderNumbers( '', [ 'awaiting' => '1' ], 'number', 'asc' ) )->toBe( [ 'WAIT0001', 'WAIT0002' ] )
+        ->and( orderNumbers( '', [ 'awaiting' => '0' ], 'number', 'asc' ) )->toBe( [ 'HOLD0001', 'SENT0001' ] );
+} );

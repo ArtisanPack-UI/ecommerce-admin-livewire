@@ -82,6 +82,7 @@
 
         @default
             <form wire:submit="save" class="flex max-w-3xl flex-col gap-6" novalidate>
+                @include( 'ecommerce-admin::partials.error-summary' )
                 <fieldset class="flex flex-col gap-4" @disabled( ! $canUpdate )>
                     <legend class="sr-only">{{ $tab['label'] }}</legend>
 
@@ -210,7 +211,7 @@
                                             size="xs"
                                             wire:click="resetToDefault( @js( $definition->key ) )"
                                             :label="__( 'Reset to default' )"
-                                            :aria-label="__( 'Reset :setting to its default', [ 'setting' => $definition->label ] )"
+                                            :aria-label="__( 'Reset to default: :setting', [ 'setting' => $definition->label ] )"
                                         />
                                     @endif
                                 </div>

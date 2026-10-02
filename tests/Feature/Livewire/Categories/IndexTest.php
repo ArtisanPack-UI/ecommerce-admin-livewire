@@ -107,7 +107,9 @@ it( 'validates the form', function (): void {
         ->set( 'form.name', '' )
         ->set( 'form.parent_id', 999 )
         ->call( 'save' )
-        ->assertHasErrors( [ 'form.name' => 'required', 'form.parent_id' => 'exists' ] );
+        ->assertHasErrors( [ 'form.name' => 'required', 'form.parent_id' => 'exists' ] )
+        ->assertSeeHtml( 'data-error-summary' )
+        ->assertSee( 'Not saved. Fix the 2 highlighted fields.' );
 } );
 
 it( 'reports a taken slug from the engine', function (): void {

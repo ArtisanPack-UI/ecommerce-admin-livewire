@@ -122,5 +122,5 @@
         {{ $attributes->whereDoesntStartWith( 'wire:model' )->except( [ 'class' ] ) }}
     />
 
-    <p x-show="invalid" x-cloak class="mt-1 text-sm text-error" role="alert">{{ $invalidMessage() }}</p>
+    <p class="mt-1 text-sm text-error empty:hidden" role="alert" x-text="invalid ? @js( $invalidMessage() ) : ''"></p>
 </div>

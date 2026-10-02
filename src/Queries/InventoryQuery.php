@@ -29,7 +29,9 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * Search matches the product name and SKU, and the variant name and SKU.
  *
  * - `stock` — `low` (tracked, something available, at or below the
- *   threshold) or `out` (tracked, nothing available);
+ *   threshold), `out` (tracked, nothing available), or `reorder` (tracked
+ *   and at or below the threshold, out of stock included — the engine's
+ *   low-stock definition, which the dashboard and nav badge count);
  * - `tracked` — `1` for tracked rows only, `0` for untracked rows only.
  *
  * @package    ArtisanPack_UI
@@ -46,7 +48,7 @@ class InventoryQuery extends ResourceQuery
      *
      * @var array<int, string>
      */
-    public const STOCK_STATES = [ 'low', 'out' ];
+    public const STOCK_STATES = [ 'low', 'out', 'reorder' ];
 
     /**
      * @since 1.0.0
@@ -137,6 +139,9 @@ class InventoryQuery extends ResourceQuery
                         ->whereNotNull( 'inventory_items.low_stock_threshold' )
                         ->whereRaw( $available . ' > 0' )
                         ->whereRaw( $available . ' <= inventory_items.low_stock_threshold' ),
+                    'reorder' => $query->where( 'inventory_items.track_inventory', true )
+                        ->whereNotNull( 'inventory_items.low_stock_threshold' )
+                        ->whereRaw( 'inventory_items.quantity_on_hand <= inventory_items.low_stock_threshold + inventory_items.quantity_reserved' ),
                     default => null,
                 };
             },

@@ -35,6 +35,7 @@
         @php $adjustTitle = __( 'Adjust stock of :item', [ 'item' => StockLevels::label( $adjustingItem ) ] ); @endphp
         <x-artisanpack-modal wire:model="adjusting" :title="$adjustTitle" separator>
             <form wire:submit="adjust( {{ \Illuminate\Support\Js::from( $adjustToken ) }} )" id="inventory-adjust-form" class="flex flex-col gap-4" data-adjust-form>
+                @include( 'ecommerce-admin::partials.error-summary' )
                 <p class="text-sm">
                     {{ __( 'On hand: :on_hand. Reserved: :reserved. Available: :available.', [
                         'on_hand'   => $adjustingItem->quantity_on_hand,

@@ -46,7 +46,7 @@
                     x-on:click="navigator.clipboard?.writeText( $refs.secret.value ).then( () => copied = true )"
                     :label="__( 'Copy secret' )"
                 />
-                <span x-show="copied" x-cloak class="ms-2 text-sm" role="status">{{ __( 'Copied.' ) }}</span>
+                <span class="ms-2 text-sm" role="status" x-text="copied ? @js( __( 'Copied.' ) ) : ''"></span>
             </div>
         </div>
 

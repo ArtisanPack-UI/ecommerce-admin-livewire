@@ -79,6 +79,7 @@
         class="w-full max-w-lg"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-column-form>
+            @include( 'ecommerce-admin::partials.error-summary' )
             <x-artisanpack-select
                 id="column-substatus"
                 :label="__( 'Sub-status' )"

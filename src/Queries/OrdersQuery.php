@@ -26,6 +26,10 @@ use Illuminate\Database\Eloquent\Builder;
  * Search matches the order number (a leading `#` is ignored), the email,
  * and the customer's name (every word must match the first or last name).
  *
+ * The `awaiting` filter (`1` / `0`) matches the engine's "awaiting
+ * fulfillment" definition: a `processing` order that is unfulfilled or
+ * partly fulfilled.
+ *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
  *
@@ -126,6 +130,9 @@ class OrdersQuery extends ResourceQuery
             'payment_status'     => static fn ( Builder $query, mixed $value ) => $query->where( 'orders.payment_status', (string) $value ),
             'fulfillment_status' => static fn ( Builder $query, mixed $value ) => $query->where( 'orders.fulfillment_status', (string) $value ),
             'currency'           => static fn ( Builder $query, mixed $value ) => $query->where( 'orders.currency', strtoupper( (string) $value ) ),
+            'awaiting'           => static fn ( Builder $query, mixed $value ) => '1' === (string) $value
+                ? $query->where( 'orders.system_status', 'processing' )->whereIn( 'orders.fulfillment_status', [ 'unfulfilled', 'partial' ] )
+                : $query->where( static fn ( Builder $not ) => $not->where( 'orders.system_status', '!=', 'processing' )->orWhereNotIn( 'orders.fulfillment_status', [ 'unfulfilled', 'partial' ] ) ),
             'board'              => static fn ( Builder $query, mixed $value ) => $query->whereHas(
                 'boardAssignments',
                 static fn ( Builder $assignment ) => $assignment->where( 'board_id', (int) $value )->whereNull( 'removed_at' ),
