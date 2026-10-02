@@ -315,3 +315,15 @@ it( 'reports a failed test send instead of erroring', function (): void {
 
     expect( sentToasts( $component ) )->toContain( 'The test email could not be sent.' );
 } );
+
+it( 'changes the preview announcement on every update so it is read again', function (): void {
+    $template = catalogTemplate();
+
+    $component = Livewire::test( Edit::class, [ 'template' => $template->id ] );
+    $first     = $component->get( 'previewRevision' );
+
+    $component->set( 'subject', 'Another subject' );
+
+    expect( $component->get( 'previewRevision' ) )->toBe( $first + 1 )
+        ->and( substr_count( $component->html(), "\u{200B}" ) )->toBe( ( $first + 1 ) % 2 );
+} );

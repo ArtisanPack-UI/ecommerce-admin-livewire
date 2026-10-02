@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\Log;
 
 /**
  * The widgets the dashboard renders (spec §7.1).
@@ -24,9 +25,10 @@ use Illuminate\Contracts\Auth\Authenticatable;
  * - `view` — a Blade view rendered with `$widget` and `$dashboard` (the
  *   data the core widgets share);
  * - `component` — a Livewire component name, mounted with no parameters;
- * - `permission` — an engine ability (`order.viewAny`); the widget is
- *   hidden when the user lacks it. `null` shows it to everyone who can
- *   open the admin;
+ * - `permission` — an engine ability (`order.viewAny`, an `ecommerce.`
+ *   prefix is allowed); the widget is hidden when the user lacks it, and
+ *   skipped when the value is not `{resource}.{action}`. `null` shows it
+ *   to everyone who can open the admin;
  * - `width` — `full` or `half` (half-width widgets sit side by side on
  *   large screens).
  *
@@ -124,14 +126,18 @@ final class DashboardWidgets
                 continue;
             }
 
-            $permission = $widget['permission'] ?? null;
+            $permission = self::permission( $widget['permission'] ?? null, (string) $widget['key'] );
+
+            if ( false === $permission ) {
+                continue;
+            }
 
             $widgets[ (string) $widget['key'] ] = [
                 'key'        => (string) $widget['key'],
                 'label'      => (string) ( $widget['label'] ?? $widget['key'] ),
                 'view'       => empty( $widget['view'] ) ? null : (string) $widget['view'],
                 'component'  => empty( $widget['view'] ) ? (string) $widget['component'] : null,
-                'permission' => is_string( $permission ) && '' !== $permission ? $permission : null,
+                'permission' => $permission,
                 'position'   => (int) ( $widget['position'] ?? 100 ),
                 'width'      => 'half' === ( $widget['width'] ?? 'full' ) ? 'half' : 'full',
             ];
@@ -162,5 +168,34 @@ final class DashboardWidgets
             [ 'key' => self::LOW_STOCK, 'label' => __( 'Lowest stock' ), 'view' => $views . 'low-stock', 'permission' => 'inventory.viewAny', 'position' => 30, 'width' => 'half' ],
             [ 'key' => self::RECENT_ORDERS, 'label' => __( 'Recent orders' ), 'view' => $views . 'recent-orders', 'permission' => 'order.viewAny', 'position' => 40, 'width' => 'full' ],
         ];
+    }
+
+    /**
+     * A widget's ability without the `ecommerce.` prefix, null for none, or
+     * false (logged) when it is not `{resource}.{action}` — the widget is
+     * then skipped rather than breaking the dashboard.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed   $permission  The raw permission.
+     * @param  string  $key         The widget key, for the log message.
+     *
+     * @return false|string|null
+     */
+    private static function permission( mixed $permission, string $key ): string|false|null
+    {
+        if ( null === $permission || '' === $permission ) {
+            return null;
+        }
+
+        $ability = is_string( $permission ) ? preg_replace( '/^ecommerce\./', '', $permission ) : null;
+
+        if ( is_string( $ability ) && 1 === preg_match( '/^[A-Za-z][A-Za-z0-9]*\.[A-Za-z][A-Za-z0-9-]*$/', $ability ) ) {
+            return $ability;
+        }
+
+        Log::warning( sprintf( 'Ecommerce admin dashboard widget "%s" was skipped: its permission must be "{resource}.{action}".', $key ) );
+
+        return false;
     }
 }

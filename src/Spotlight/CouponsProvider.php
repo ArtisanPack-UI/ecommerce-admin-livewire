@@ -16,13 +16,16 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Spotlight;
 use ArtisanPackUI\Ecommerce\Models\Coupon;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
-use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 
 /**
- * Finds coupons by code and opens the promotion they belong to, for users
- * who can also view promotions.
+ * Finds coupons by code and opens the promotion they belong to. Coupons
+ * have no record-level `view` ability (they are only ever shown inside
+ * their promotion), so a coupon is listed only when the user may view its
+ * promotion; the promotion is eager-loaded for that check.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -58,25 +61,25 @@ class CouponsProvider implements SpotlightProvider
     {
         $route = AdminNav::ROUTE_PREFIX . 'promotions.edit';
 
-        // The result opens the coupon's promotion, so the user must be able to see promotions too.
-        if ( ! Route::has( $route ) || ! Authorization::allows( $user, 'promotion.view' ) ) {
+        if ( ! Route::has( $route ) ) {
             return [];
         }
 
-        $query = Coupon::query()->select( [ 'id', 'promotion_id', 'code' ] );
-
-        $query->where( static fn ( $where ) => ResourceQuery::orWhereContains( $where, 'code', $search ) );
-
-        return $query
+        return Coupon::query()
+            ->select( [ 'id', 'promotion_id', 'code' ] )
+            ->with( 'promotion' )
+            ->where( static fn ( Builder $where ) => ResourceQuery::orWhereContains( $where, 'code', $search ) )
             ->orderBy( 'code' )
             ->limit( $limit )
             ->get()
+            ->filter( static fn ( Coupon $coupon ): bool => null !== $coupon->promotion && Gate::forUser( $user )->allows( 'view', $coupon->promotion ) )
             ->map( static fn ( Coupon $coupon ): array => [
                 'name'        => (string) $coupon->code,
                 'description' => __( 'Coupon' ),
                 'link'        => route( $route, [ 'promotion' => $coupon->promotion_id, 'tab' => 'coupons' ] ),
                 'icon'        => 'o-ticket',
             ] )
+            ->values()
             ->all();
     }
 }

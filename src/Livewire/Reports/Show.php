@@ -172,6 +172,17 @@ class Show extends Component
     public int $limit = 0;
 
     /**
+     * Bumped on every render, so the report's live region is read again when
+     * an option changes but the range does not.
+     *
+     * @since 1.0.0
+     *
+     * @var int
+     */
+    #[Locked]
+    public int $revision = 0;
+
+    /**
      * Authorizes the screen and resolves the report.
      *
      * @since 1.0.0
@@ -291,6 +302,8 @@ class Show extends Component
      */
     public function render(): View
     {
+        $this->revision++;
+
         $registry = app( ReportRegistry::class );
         $ranged   = $registry->get( $this->report )->ranged();
         $result   = $this->run();

@@ -115,7 +115,7 @@
             @endforeach
         </x-artisanpack-alert>
     @else
-        @include( 'ecommerce-admin::partials.live-region', [ 'message' => null === $result['range'] ? __( ':report updated.', [ 'report' => $label ] ) : __( ':report updated: :from to :to.', [ 'report' => $label, 'from' => $result['range']['from'], 'to' => $result['range']['to'] ] ) ] )
+        @include( 'ecommerce-admin::partials.live-region', [ 'message' => null === $result['range'] ? __( ':report updated.', [ 'report' => $label ] ) : __( ':report updated: :from to :to.', [ 'report' => $label, 'from' => $result['range']['from'], 'to' => $result['range']['to'] ] ), 'revision' => $revision ] )
 
         <div wire:loading.class="opacity-50" class="flex flex-col gap-6" aria-busy="false" wire:loading.attr="aria-busy">
             @if ( ( $result['notices']['converted_orders'] ?? 0 ) > 0 )
