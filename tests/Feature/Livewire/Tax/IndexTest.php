@@ -342,3 +342,16 @@ it( 'matches import rows to existing rates whose region is empty or null', funct
         ->assertSet( 'importReport.create', 0 )
         ->assertSee( 'Import 1 rate' );
 } );
+
+it( 'warns an editor without taxRate.create when their rate was deleted', function (): void {
+    Gate::define( 'ecommerce.taxRate.create', static fn (): bool => false );
+    $rate = TaxRate::factory()->create();
+
+    $component = Livewire::test( Index::class )->call( 'editRate', $rate->id );
+
+    $rate->delete();
+
+    $component->call( 'saveRate' )->assertOk()->assertSet( 'editingRateId', null );
+
+    expect( sentToasts( $component ) )->toContain( 'This tax rate was deleted while you were editing it.' );
+} );

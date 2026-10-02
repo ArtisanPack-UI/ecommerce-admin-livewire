@@ -292,14 +292,15 @@ class Index extends Component
         $rate = null === $this->editingRateId ? null : TaxRate::query()->find( $this->editingRateId );
 
         if ( null === $rate ) {
-            $this->authorizeEcommerce( 'create', TaxRate::class );
-
             if ( null !== $this->editingRateId ) {
+                $this->authorizeEcommerceAbility( 'taxRate.update' );
                 $this->cancelRate();
                 $this->toastWarning( __( 'This tax rate was deleted while you were editing it.' ) );
 
                 return;
             }
+
+            $this->authorizeEcommerce( 'create', TaxRate::class );
 
             if ( ! $this->creatingRate ) {
                 return;

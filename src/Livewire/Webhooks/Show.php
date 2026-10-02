@@ -97,7 +97,13 @@ class Show extends Component
     {
         $this->authorizeTable();
 
-        $this->subscriptionId = (int) WebhookSubscription::query()->findOrFail( $subscription )->id;
+        $found = WebhookSubscription::query()->find( $subscription );
+
+        if ( null === $found ) {
+            abort( 404 );
+        }
+
+        $this->subscriptionId = (int) $found->id;
     }
 
     /**

@@ -859,6 +859,10 @@ class Edit extends Component
      */
     protected function template(): NotificationTemplate
     {
-        return $this->loadedTemplate ??= NotificationTemplate::query()->findOrFail( $this->templateId );
+        if ( null === $this->loadedTemplate ) {
+            $this->loadedTemplate = NotificationTemplate::query()->find( $this->templateId ) ?? abort( 404 );
+        }
+
+        return $this->loadedTemplate;
     }
 }

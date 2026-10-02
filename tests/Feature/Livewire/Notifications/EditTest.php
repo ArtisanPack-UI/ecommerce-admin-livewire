@@ -51,6 +51,16 @@ it( 'returns not found for a missing template', function (): void {
     Livewire::test( Edit::class, [ 'template' => 9999 ] )->assertNotFound();
 } );
 
+it( 'returns not found when the template is deleted mid-session', function (): void {
+    $template = NotificationTemplate::factory()->create();
+
+    $component = Livewire::test( Edit::class, [ 'template' => $template->id ] );
+
+    $template->delete();
+
+    $component->call( 'save' )->assertNotFound();
+} );
+
 it( 'updates the preview live and saves', function (): void {
     $template = NotificationTemplate::factory()->create();
 
