@@ -25,6 +25,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Customers;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\DigitalFiles;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Inventory;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\KanbanBoards;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\LicenseKeys;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notes;
@@ -33,7 +34,9 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\OrderStatuses;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Promotions;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reports;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reviews;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Settings;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Shipping;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Tags;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Tax;
@@ -49,6 +52,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Registries\CustomerTabRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\ProductTypePanelRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\SettingsTabRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ConfigSchemas;
@@ -140,44 +144,50 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * @var array<string, class-string>
      */
     public const LIVEWIRE_COMPONENTS = [
-        'artisanpack-ecommerce-admin-dashboard'              => Dashboard::class,
-        'artisanpack-ecommerce-admin-navigation'             => Navigation::class,
-        'artisanpack-ecommerce-admin-orders-index'           => Orders\Index::class,
-        'artisanpack-ecommerce-admin-orders-show'            => Orders\Show::class,
-        'artisanpack-ecommerce-admin-order-status'           => Orders\StatusPanel::class,
-        'artisanpack-ecommerce-admin-order-refunds'          => Orders\RefundsPanel::class,
-        'artisanpack-ecommerce-admin-order-fulfillment'      => Orders\FulfillmentPanel::class,
-        'artisanpack-ecommerce-admin-order-edits'            => Orders\EditPanel::class,
-        'artisanpack-ecommerce-admin-timeline'               => Timeline::class,
-        'artisanpack-ecommerce-admin-notes'                  => Notes::class,
-        'artisanpack-ecommerce-admin-products-index'         => Products\Index::class,
-        'artisanpack-ecommerce-admin-products-form'          => Products\Form::class,
-        'artisanpack-ecommerce-admin-product-variable-panel' => Products\Panels\VariablePanel::class,
-        'artisanpack-ecommerce-admin-product-digital-panel'  => Products\Panels\DigitalPanel::class,
-        'artisanpack-ecommerce-admin-product-children-panel' => Products\Panels\ChildrenPanel::class,
-        'artisanpack-ecommerce-admin-products-import'        => Products\Import::class,
-        'artisanpack-ecommerce-admin-categories-index'       => Categories\Index::class,
-        'artisanpack-ecommerce-admin-tags-index'             => Tags\Index::class,
-        'artisanpack-ecommerce-admin-inventory-index'        => Inventory\Index::class,
-        'artisanpack-ecommerce-admin-reviews-index'          => Reviews\Index::class,
-        'artisanpack-ecommerce-admin-digital-files-index'    => DigitalFiles\Index::class,
-        'artisanpack-ecommerce-admin-license-keys-index'     => LicenseKeys\Index::class,
-        'artisanpack-ecommerce-admin-customers-index'        => Customers\Index::class,
-        'artisanpack-ecommerce-admin-customers-show'         => Customers\Show::class,
-        'artisanpack-ecommerce-admin-customer-orders'        => Customers\OrdersTab::class,
-        'artisanpack-ecommerce-admin-customer-addresses'     => Customers\AddressesTab::class,
-        'artisanpack-ecommerce-admin-customer-preferences'   => Customers\PreferencesTab::class,
-        'artisanpack-ecommerce-admin-promotions-index'       => Promotions\Index::class,
-        'artisanpack-ecommerce-admin-promotions-form'        => Promotions\Form::class,
-        'artisanpack-ecommerce-admin-promotion-coupons'      => Promotions\CouponsPanel::class,
-        'artisanpack-ecommerce-admin-promotion-usage'        => Promotions\UsagePanel::class,
-        'artisanpack-ecommerce-admin-shipping-index'         => Shipping\Index::class,
-        'artisanpack-ecommerce-admin-tax-index'              => Tax\Index::class,
-        'artisanpack-ecommerce-admin-notifications-index'    => Notifications\Index::class,
-        'artisanpack-ecommerce-admin-notifications-edit'     => Notifications\Edit::class,
-        'artisanpack-ecommerce-admin-webhooks-index'         => Webhooks\Index::class,
-        'artisanpack-ecommerce-admin-webhooks-show'          => Webhooks\Show::class,
-        'artisanpack-ecommerce-admin-order-statuses-index'   => OrderStatuses\Index::class,
+        'artisanpack-ecommerce-admin-dashboard'                => Dashboard::class,
+        'artisanpack-ecommerce-admin-navigation'               => Navigation::class,
+        'artisanpack-ecommerce-admin-orders-index'             => Orders\Index::class,
+        'artisanpack-ecommerce-admin-orders-show'              => Orders\Show::class,
+        'artisanpack-ecommerce-admin-order-status'             => Orders\StatusPanel::class,
+        'artisanpack-ecommerce-admin-order-refunds'            => Orders\RefundsPanel::class,
+        'artisanpack-ecommerce-admin-order-fulfillment'        => Orders\FulfillmentPanel::class,
+        'artisanpack-ecommerce-admin-order-edits'              => Orders\EditPanel::class,
+        'artisanpack-ecommerce-admin-timeline'                 => Timeline::class,
+        'artisanpack-ecommerce-admin-notes'                    => Notes::class,
+        'artisanpack-ecommerce-admin-products-index'           => Products\Index::class,
+        'artisanpack-ecommerce-admin-products-form'            => Products\Form::class,
+        'artisanpack-ecommerce-admin-product-variable-panel'   => Products\Panels\VariablePanel::class,
+        'artisanpack-ecommerce-admin-product-digital-panel'    => Products\Panels\DigitalPanel::class,
+        'artisanpack-ecommerce-admin-product-children-panel'   => Products\Panels\ChildrenPanel::class,
+        'artisanpack-ecommerce-admin-products-import'          => Products\Import::class,
+        'artisanpack-ecommerce-admin-categories-index'         => Categories\Index::class,
+        'artisanpack-ecommerce-admin-tags-index'               => Tags\Index::class,
+        'artisanpack-ecommerce-admin-inventory-index'          => Inventory\Index::class,
+        'artisanpack-ecommerce-admin-reviews-index'            => Reviews\Index::class,
+        'artisanpack-ecommerce-admin-digital-files-index'      => DigitalFiles\Index::class,
+        'artisanpack-ecommerce-admin-license-keys-index'       => LicenseKeys\Index::class,
+        'artisanpack-ecommerce-admin-customers-index'          => Customers\Index::class,
+        'artisanpack-ecommerce-admin-customers-show'           => Customers\Show::class,
+        'artisanpack-ecommerce-admin-customer-orders'          => Customers\OrdersTab::class,
+        'artisanpack-ecommerce-admin-customer-addresses'       => Customers\AddressesTab::class,
+        'artisanpack-ecommerce-admin-customer-preferences'     => Customers\PreferencesTab::class,
+        'artisanpack-ecommerce-admin-promotions-index'         => Promotions\Index::class,
+        'artisanpack-ecommerce-admin-promotions-form'          => Promotions\Form::class,
+        'artisanpack-ecommerce-admin-promotion-coupons'        => Promotions\CouponsPanel::class,
+        'artisanpack-ecommerce-admin-promotion-usage'          => Promotions\UsagePanel::class,
+        'artisanpack-ecommerce-admin-shipping-index'           => Shipping\Index::class,
+        'artisanpack-ecommerce-admin-tax-index'                => Tax\Index::class,
+        'artisanpack-ecommerce-admin-notifications-index'      => Notifications\Index::class,
+        'artisanpack-ecommerce-admin-notifications-edit'       => Notifications\Edit::class,
+        'artisanpack-ecommerce-admin-webhooks-index'           => Webhooks\Index::class,
+        'artisanpack-ecommerce-admin-webhooks-show'            => Webhooks\Show::class,
+        'artisanpack-ecommerce-admin-order-statuses-index'     => OrderStatuses\Index::class,
+        'artisanpack-ecommerce-admin-kanban-boards-index'      => KanbanBoards\Index::class,
+        'artisanpack-ecommerce-admin-kanban-boards-edit'       => KanbanBoards\Edit::class,
+        'artisanpack-ecommerce-admin-kanban-board-columns'     => KanbanBoards\Columns::class,
+        'artisanpack-ecommerce-admin-kanban-board-automations' => KanbanBoards\Automations::class,
+        'artisanpack-ecommerce-admin-reports-show'             => Reports\Show::class,
+        'artisanpack-ecommerce-admin-settings'                 => Settings\Show::class,
     ];
 
     /**
@@ -262,6 +272,8 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
             return $registry;
         } );
+
+        $this->app->singleton( SettingsTabRegistry::class, static fn (): SettingsTabRegistry => new SettingsTabRegistry() );
 
         $this->app->singleton( OrderPanelRegistry::class, static function (): OrderPanelRegistry {
             $registry = new OrderPanelRegistry();

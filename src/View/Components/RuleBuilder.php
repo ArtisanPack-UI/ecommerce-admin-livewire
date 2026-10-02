@@ -42,8 +42,9 @@ class RuleBuilder extends Component
      * @since 1.0.0
      *
      * @param  array{lists: array<string, array<string, mixed>>, summary: string, openRule: string|null}  $builder  The builder's view data.
+     * @param  string                                                                                    $prefix   DOM id prefix, so two builders can share a page.
      */
-    public function __construct( public array $builder )
+    public function __construct( public array $builder, public string $prefix = 'rule' )
     {
     }
 

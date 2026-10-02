@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 
 beforeEach( function (): void {
-    grantAbilities( [ 'product.viewAny', 'product.update' ] );
+    grantAbilities( [ 'inventory.viewAny', 'inventory.adjust' ] );
     $this->actingAs( makeUser() );
 } );
 
@@ -59,16 +59,16 @@ it( 'renders one row per stock record with on hand, reserved, and available', fu
 } );
 
 it( 'is denied without inventory.viewAny', function (): void {
-    Gate::define( 'ecommerce.product.viewAny', static fn (): bool => false );
+    Gate::define( 'ecommerce.inventory.viewAny', static fn (): bool => false );
 
     Livewire::test( Index::class )->assertForbidden();
 } );
 
-it( 'allows the engine ability when it exists', function (): void {
-    Gate::define( 'ecommerce.product.viewAny', static fn (): bool => false );
-    grantAbilities( [ 'inventory.viewAny' ] );
+it( 'does not accept product abilities in place of the inventory ones', function (): void {
+    Gate::define( 'ecommerce.inventory.viewAny', static fn (): bool => false );
+    grantAbilities( [ 'product.viewAny', 'product.update' ] );
 
-    Livewire::test( Index::class )->assertOk();
+    Livewire::test( Index::class )->assertForbidden();
 } );
 
 it( 'filters by low stock, out of stock, and tracked only', function (): void {
@@ -157,7 +157,7 @@ it( 'validates the adjustment', function (): void {
 } );
 
 it( 'refuses to adjust without inventory.adjust', function (): void {
-    Gate::define( 'ecommerce.product.update', static fn (): bool => false );
+    Gate::define( 'ecommerce.inventory.adjust', static fn (): bool => false );
     $item = inventoryRow( Product::factory()->create(), 10 );
 
     Livewire::test( Index::class )

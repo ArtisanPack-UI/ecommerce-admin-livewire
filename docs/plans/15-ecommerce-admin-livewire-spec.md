@@ -217,7 +217,7 @@ Abilities used per screen:
 | Screen | Abilities |
 |---|---|
 | Products, categories, tags | `product.{viewAny,view,create,update,delete}` |
-| Inventory | `product.viewAny`, `product.update` (see E10) |
+| Inventory | `inventory.viewAny`, `inventory.adjust` |
 | Reviews | `review.{viewAny,view,moderate,delete}` |
 | Digital files / license keys | `digitalFile.*`, `licenseKey.{view,revoke}` |
 | Orders | `order.{viewAny,view,update,edit-fulfilled,cancel,refund}`, `refund.{view,create}` |
@@ -227,7 +227,9 @@ Abilities used per screen:
 | Notification templates | `notificationTemplate.{viewAny,view,update}` |
 | Webhooks | `webhookSubscription.*` |
 | Kanban settings | `kanbanBoard.*` |
-| Reports, settings, order statuses | none exist yet — E10 |
+| Order statuses | `orderSubstatus.*` |
+| Reports | `report.view` |
+| Settings | `settings.view`, `settings.update` |
 
 ## 7. Screens
 

@@ -50,8 +50,8 @@ use Throwable;
  *   `reason` columns), shows a dry-run report, and applies the valid rows.
  *
  * Abilities: `inventory.viewAny` for the screen and `inventory.adjust` for
- * every change (they stand in for `product.viewAny` / `product.update` until
- * engine issue #148 lands).
+ * every change. They are separate from `product.*`, so staff can count stock
+ * without editing products.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire

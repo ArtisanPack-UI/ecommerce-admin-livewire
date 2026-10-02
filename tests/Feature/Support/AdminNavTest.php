@@ -3,7 +3,6 @@
 declare( strict_types=1 );
 
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
-use Illuminate\Support\Facades\Route;
 
 it( 'defines every section and entry from spec §5.4 in order', function (): void {
     $bySection = collect( AdminNav::items() )
@@ -41,29 +40,28 @@ it( 'grants access when any entry permission is held', function (): void {
 } );
 
 it( 'hides entries whose screen has not shipped yet', function (): void {
-    grantAbilities( [ 'kanbanBoard.viewAny' ] );
+    grantAbilities( [ 'order.viewAny' ] );
 
-    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard' ] );
+    addFilter( 'ap.ecommerceAdminLivewire.nav.items', static fn ( array $items ): array => [
+        ...$items,
+        [ 'key' => 'loyalty', 'section' => 'marketing', 'label' => 'Loyalty', 'route' => 'artisanpack.ecommerce.admin.loyalty.index', 'permission' => 'order.viewAny' ],
+    ] );
 
-    Route::get( 'fake-kanban-boards', static fn (): string => 'kanban-boards' )->name( 'artisanpack.ecommerce.admin.kanban-boards.index' );
-    Route::getRoutes()->refreshNameLookups();
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->not->toContain( 'loyalty' );
 
-    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toBe( [ 'dashboard', 'kanban-boards' ] );
+    fakeAdminRoutes( [ 'loyalty.index' ] );
+
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toContain( 'loyalty' );
 } );
 
-it( 'maps inventory onto product.viewAny until the engine ships inventory abilities', function (): void {
+it( 'shows inventory to holders of inventory.viewAny, not product.viewAny', function (): void {
     grantAbilities( [ 'product.viewAny' ] );
-    Route::get( 'fake-inventory', static fn (): string => 'inventory' )->name( 'artisanpack.ecommerce.admin.inventory.index' );
-    Route::getRoutes()->refreshNameLookups();
 
-    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toContain( 'inventory' );
-} );
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->not->toContain( 'inventory' );
 
-it( 'also honours the inventory ability itself while it stands in for product.viewAny', function (): void {
     grantAbilities( [ 'inventory.viewAny' ] );
 
-    expect( ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization::allows( makeUser(), 'inventory.viewAny' ) )->toBeTrue()
-        ->and( ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization::allows( makeUser(), 'product.viewAny' ) )->toBeFalse();
+    expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toContain( 'inventory' );
 } );
 
 it( 'lets satellites add entries through the nav.items filter', function (): void {
