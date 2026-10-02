@@ -123,7 +123,7 @@ class Index extends Component
             return;
         }
 
-        $arrived              = Order::query()->where( 'id', '>', $this->latestOrderId )->count();
+        $arrived              = Order::query()->where( 'id', '>', $this->latestOrderId )->where( 'id', '<=', $latest )->count();
         $this->latestOrderId  = $latest;
         $this->newOrders += $arrived;
 

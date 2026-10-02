@@ -38,9 +38,13 @@ it( 'has a catalogue entry in every locale for every key in src/ and resources/'
 
 it( 'ships identical key sets in every locale', function (): void {
     $en = array_keys( adminCatalogue( 'en' ) );
+    sort( $en );
 
     foreach ( [ 'es', 'fr', 'de' ] as $locale ) {
-        expect( array_keys( adminCatalogue( $locale ) ) )->toBe( $en, $locale );
+        $keys = array_keys( adminCatalogue( $locale ) );
+        sort( $keys );
+
+        expect( $keys )->toBe( $en, $locale );
     }
 } );
 

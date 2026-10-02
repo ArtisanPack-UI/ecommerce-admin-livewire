@@ -219,3 +219,23 @@ it( 'reports no sales when there were none in the last 30 days', function (): vo
     Livewire::test( Dashboard::class )
         ->assertSee( 'No sales in the last 30 days.' );
 } );
+
+it( 'skips filtered widgets with a malformed permission and accepts the ecommerce. prefix', function (): void {
+    addFilter( DashboardWidgets::FILTER, static function ( array $widgets ): array {
+        $widgets[] = [ 'key' => 'prefixed', 'view' => 'ecommerce-admin::livewire.dashboard.kpis', 'permission' => 'ecommerce.order.viewAny' ];
+        $widgets[] = [ 'key' => 'malformed', 'view' => 'custom.malformed', 'permission' => 'not an ability' ];
+        $widgets[] = [ 'key' => 'array', 'view' => 'custom.array', 'permission' => [ 'order.viewAny' ] ];
+
+        return $widgets;
+    } );
+
+    $widgets = collect( DashboardWidgets::all( null ) )->keyBy( 'key' );
+
+    expect( $widgets->keys()->all() )->not->toContain( 'malformed' )->not->toContain( 'array' )
+        ->and( $widgets['prefixed']['permission'] )->toBe( 'order.viewAny' );
+
+    grantAbilities( [ 'order.viewAny' ] );
+    Order::factory()->create( [ 'placed_at' => now() ] );
+
+    Livewire::test( Dashboard::class )->assertOk();
+} );

@@ -198,6 +198,17 @@ class Edit extends Component
     public ?string $previewSubject = null;
 
     /**
+     * Bumped on every preview render, so the preview's live region is read
+     * again even when its message is unchanged.
+     *
+     * @since 1.0.0
+     *
+     * @var int
+     */
+    #[Locked]
+    public int $previewRevision = 0;
+
+    /**
      * Rendered preview body.
      *
      * @since 1.0.0
@@ -592,6 +603,7 @@ class Edit extends Component
      */
     protected function renderPreview(): void
     {
+        $this->previewRevision++;
         $this->previewErrors = [];
         $this->resetErrorBag( [ 'subject', 'body', 'previewJson' ] );
 

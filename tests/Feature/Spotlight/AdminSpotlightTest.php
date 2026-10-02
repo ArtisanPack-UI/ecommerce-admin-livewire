@@ -127,6 +127,8 @@ it( 'runs one query per provider', function (): void {
         ->filter( static fn ( string $sql ): bool => 1 === preg_match( '/from "(orders|products|customers|promotions|coupons)"/', $sql ) );
     DB::disableQueryLog();
 
+    // One query per provider. (Coupons eager-load their promotions only when
+    // a coupon matches; none does here.)
     expect( $queries )->toHaveCount( 5 );
 } );
 
@@ -308,4 +310,13 @@ it( 'stops answering a user who searches too often', function (): void {
     Illuminate\Support\Facades\RateLimiter::increment( 'ecommerce-admin-spotlight:' . $this->user->getAuthIdentifier(), 60, AdminSpotlight::SEARCHES_PER_MINUTE );
 
     expect( spotlightResults( 'mug' ) )->toBe( [] );
+} );
+
+it( 'lists a coupon only when the user may view its promotion', function (): void {
+    grantAbilities( [ 'coupon.viewAny', 'coupon.view', 'promotion.viewAny' ] );
+    Gate::define( 'ecommerce.promotion.view', static fn ( $user, $promotion = null ): bool => 'Hidden sale' !== $promotion?->name );
+    Coupon::query()->create( [ 'promotion_id' => Promotion::factory()->create( [ 'name' => 'Open sale' ] )->id, 'code' => 'OPEN10' ] );
+    Coupon::query()->create( [ 'promotion_id' => Promotion::factory()->create( [ 'name' => 'Hidden sale' ] )->id, 'code' => 'HIDE10' ] );
+
+    expect( array_column( spotlightResults( '10' ), 'name' ) )->toBe( [ 'OPEN10' ] );
 } );

@@ -179,7 +179,7 @@
                 <h2 id="notification-preview-title" class="mb-2 font-semibold">{{ __( 'Preview' ) }}</h2>
 
                 {{-- Announce the outcome, not the whole preview, on every keystroke. --}}
-                @include( 'ecommerce-admin::partials.live-region', [ 'message' => [] === $previewErrors ? __( 'Preview updated.' ) : trans_choice( 'The template has :count error.|The template has :count errors.', count( $previewErrors ), [ 'count' => count( $previewErrors ) ] ) ] )
+                @include( 'ecommerce-admin::partials.live-region', [ 'message' => [] === $previewErrors ? __( 'Preview updated.' ) : trans_choice( 'The template has :count error.|The template has :count errors.', count( $previewErrors ), [ 'count' => count( $previewErrors ) ] ), 'revision' => $previewRevision ] )
 
                 @if ( [] !== $previewErrors )
                     <x-artisanpack-alert
