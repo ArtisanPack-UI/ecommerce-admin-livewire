@@ -61,4 +61,9 @@ Route::prefix( trim( (string) config( 'artisanpack.ecommerce-admin-livewire.admi
         Route::get( 'webhooks/{subscription}', [ AdminScreenController::class, 'webhooksShow' ] )->whereNumber( 'subscription' )->name( 'webhooks.show' );
 
         Route::get( 'order-statuses', [ AdminScreenController::class, 'orderStatusesIndex' ] )->name( 'order-statuses.index' );
+
+        Route::get( 'kanban-boards', [ AdminScreenController::class, 'kanbanBoardsIndex' ] )->name( 'kanban-boards.index' );
+        Route::get( 'kanban-boards/{board}/edit', [ AdminScreenController::class, 'kanbanBoardsEdit' ] )->whereNumber( 'board' )->name( 'kanban-boards.edit' );
+        Route::get( 'reports/{report}', [ AdminScreenController::class, 'reportsShow' ] )->where( 'report', '[a-z0-9_-]+' )->name( 'reports.show' );
+        Route::get( 'settings/{group}', [ AdminScreenController::class, 'settingsShow' ] )->where( 'group', '[a-z0-9_-]+' )->name( 'settings.show' );
     } );

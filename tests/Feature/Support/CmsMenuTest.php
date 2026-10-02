@@ -7,7 +7,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 
 beforeEach( function (): void {
     fakeAdminRoutes( [ 'orders.index', 'reviews.index', 'products.index' ] );
-    grantAbilities( [ 'order.viewAny', 'product.viewAny' ] );
+    grantAbilities( [ 'order.viewAny', 'product.viewAny', 'inventory.viewAny' ] );
     $this->actingAs( makeUser() );
 } );
 
@@ -73,6 +73,7 @@ it( 'injects nothing for a user without access', function (): void {
     $this->actingAs( makeUser() );
     Illuminate\Support\Facades\Gate::define( 'ecommerce.order.viewAny', static fn (): bool => false );
     Illuminate\Support\Facades\Gate::define( 'ecommerce.product.viewAny', static fn (): bool => false );
+    Illuminate\Support\Facades\Gate::define( 'ecommerce.inventory.viewAny', static fn (): bool => false );
 
     expect( CmsMenu::injectInto( [] ) )->toBe( [] );
 } );

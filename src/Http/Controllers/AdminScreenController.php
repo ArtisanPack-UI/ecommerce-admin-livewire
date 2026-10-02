@@ -348,4 +348,61 @@ class AdminScreenController extends Controller
     {
         return view( 'ecommerce-admin::pages.order-statuses.index' );
     }
+
+    /**
+     * The kanban boards list.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function kanbanBoardsIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.kanban-boards.index' );
+    }
+
+    /**
+     * A kanban board's settings: details, routing rules, columns, and
+     * automations. The component loads and authorizes the board.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $board  The board id.
+     *
+     * @return View
+     */
+    public function kanbanBoardsEdit( string $board ): View
+    {
+        return view( 'ecommerce-admin::pages.kanban-boards.edit', [ 'board' => (int) $board ] );
+    }
+
+    /**
+     * A report. The component authorizes `report.view` and 404s an unknown
+     * report.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $report  The report key.
+     *
+     * @return View
+     */
+    public function reportsShow( string $report ): View
+    {
+        return view( 'ecommerce-admin::pages.reports.show', [ 'report' => $report ] );
+    }
+
+    /**
+     * A settings tab. The component authorizes `settings.view` and 404s an
+     * unknown tab.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $group  The settings group or tab key.
+     *
+     * @return View
+     */
+    public function settingsShow( string $group ): View
+    {
+        return view( 'ecommerce-admin::pages.settings.show', [ 'group' => $group ] );
+    }
 }

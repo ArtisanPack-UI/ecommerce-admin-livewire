@@ -308,6 +308,11 @@ trait WithRuleBuilder
         foreach ( $this->ruleBuilderLists() as $list => $definition ) {
             $keys = self::ruleTypeKeys( $definition['registry'] );
 
+            // addRule() stops at the cap, but rows can also arrive through
+            // wire:model, so the cap is enforced here too.
+            $rules[ 'ruleRows.' . $list ]             = [ 'array', 'max:' . static::maxRules() ];
+            $messages[ 'ruleRows.' . $list . '.max' ] = __( 'A list can have at most :count rows.', [ 'count' => static::maxRules() ] );
+
             foreach ( array_values( $this->ruleRows[ $list ] ?? [] ) as $index => $row ) {
                 $prefix = 'ruleRows.' . $list . '.' . $index;
 

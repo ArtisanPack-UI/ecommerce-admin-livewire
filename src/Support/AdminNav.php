@@ -274,7 +274,7 @@ final class AdminNav
 
             [ 'key' => 'promotions', 'section' => 'marketing', 'label' => __( 'Promotions' ), 'icon' => 'o-megaphone', 'route' => 'promotions.index', 'position' => 10, 'permission' => 'promotion.viewAny' ],
 
-            [ 'key' => 'reports', 'section' => 'reports', 'label' => __( 'Reports' ), 'icon' => 'o-chart-bar', 'route' => 'reports.show', 'parameters' => [ 'report' => 'sales-over-time' ], 'position' => 10, 'permission' => 'report.view' ],
+            [ 'key' => 'reports', 'section' => 'reports', 'label' => __( 'Reports' ), 'icon' => 'o-chart-bar', 'route' => 'reports.show', 'parameters' => [ 'report' => 'sales' ], 'position' => 10, 'permission' => 'report.view' ],
 
             [ 'key' => 'shipping', 'section' => 'configuration', 'label' => __( 'Shipping' ), 'icon' => 'o-truck', 'route' => 'shipping.index', 'position' => 10, 'permission' => 'shippingZone.viewAny' ],
             [ 'key' => 'tax', 'section' => 'configuration', 'label' => __( 'Tax' ), 'icon' => 'o-receipt-percent', 'route' => 'tax.index', 'position' => 20, 'permission' => 'taxRate.viewAny' ],

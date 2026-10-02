@@ -677,6 +677,95 @@ const MATRIX = [
         ],
     ],
 
+    'artisanpack-ecommerce-admin-kanban-boards-index' => [
+        'mount'   => [ 'params' => [], 'ability' => 'kanbanBoard.viewAny' ],
+        'actions' => [
+            'create'        => [ 'args' => [], 'ability' => 'kanbanBoard.create' ],
+            // With the drawer closed, saving does nothing past the check.
+            'save'          => [ 'args' => [], 'ability' => 'kanbanBoard.create' ],
+            'makeDefault'   => [ 'args' => [ 1 ], 'ability' => 'kanbanBoard.update' ],
+            'move'          => [ 'args' => [ 1, 1 ], 'ability' => 'kanbanBoard.update' ],
+            'confirmDelete' => [ 'args' => [ 1 ], 'ability' => 'kanbanBoard.delete' ],
+            'cancelDelete'  => [ 'args' => [], 'ability' => 'kanbanBoard.viewAny' ],
+            'delete'        => [ 'args' => [ 'token' ], 'ability' => 'kanbanBoard.delete' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-kanban-boards-edit' => [
+        'mount'   => [ 'params' => [ 'board' => '@kanban-board' ], 'ability' => 'kanbanBoard.view' ],
+        'actions' => [
+            'save'                => [ 'args' => [], 'ability' => 'kanbanBoard.update' ],
+            'replaceComplexRules' => [ 'args' => [], 'ability' => 'kanbanBoard.update' ],
+            'addRule'             => [ 'args' => [ 'conditions' ], 'ability' => 'kanbanBoard.update' ],
+            'removeRule'          => [ 'args' => [ 'conditions', 0 ], 'ability' => 'kanbanBoard.update' ],
+            'moveRule'            => [ 'args' => [ 'conditions', 0, 1 ], 'ability' => 'kanbanBoard.update' ],
+            'reorderRules'        => [ 'args' => [ 'conditions', [] ], 'ability' => 'kanbanBoard.update' ],
+            'toggleRule'          => [ 'args' => [ 'conditions', 'missing' ], 'ability' => 'kanbanBoard.update' ],
+            // The screen re-authorizes kanbanBoard.view on every request; config rows then need admin access, which kanbanBoard.viewAny gives.
+            'addConfigRow'     => [ 'args' => [ 'promotion-condition', 'min-subtotal', 'ruleRows.conditions.0.config', 'tiers' ], 'ability' => 'kanbanBoard.viewAny' ],
+            'removeConfigRow'  => [ 'args' => [ 'promotion-condition', 'min-subtotal', 'ruleRows.conditions.0.config', 'tiers', 0 ], 'ability' => 'kanbanBoard.viewAny' ],
+            // The picker source then needs product.viewAny.
+            'searchPicker'     => [ 'args' => [ 'a', 'product', 'ruleRows.conditions.0.config.product_ids' ], 'ability' => 'product.viewAny' ],
+            'optionsForPicker' => [ 'args' => [ 'product', 'ruleRows.conditions.0.config.product_ids' ], 'ability' => 'product.viewAny' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-kanban-board-columns' => [
+        'mount'   => [ 'params' => [ 'board' => '@kanban-board-model' ], 'ability' => 'kanbanBoard.view' ],
+        'actions' => [
+            'create'        => [ 'args' => [], 'ability' => 'kanbanBoard.update' ],
+            'edit'          => [ 'args' => [ 1 ], 'ability' => 'kanbanBoard.update' ],
+            'addWidget'     => [ 'args' => [], 'ability' => 'kanbanBoard.update' ],
+            'removeWidget'  => [ 'args' => [ 0 ], 'ability' => 'kanbanBoard.update' ],
+            'moveWidget'    => [ 'args' => [ 0, 1 ], 'ability' => 'kanbanBoard.update' ],
+            'save'          => [ 'args' => [], 'ability' => 'kanbanBoard.update' ],
+            'move'          => [ 'args' => [ 1, 1 ], 'ability' => 'kanbanBoard.update' ],
+            'confirmDelete' => [ 'args' => [ 1 ], 'ability' => 'kanbanBoard.update' ],
+            'cancelDelete'  => [ 'args' => [], 'ability' => 'kanbanBoard.view' ],
+            'delete'        => [ 'args' => [ 'token' ], 'ability' => 'kanbanBoard.update' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-kanban-board-automations' => [
+        'mount'   => [ 'params' => [ 'board' => '@kanban-board-model' ], 'ability' => 'kanbanBoard.view' ],
+        'actions' => [
+            'refreshColumns'           => [ 'args' => [], 'ability' => 'kanbanBoard.view' ],
+            'create'                   => [ 'args' => [], 'ability' => 'kanbanBoard.update' ],
+            'edit'                     => [ 'args' => [ 1 ], 'ability' => 'kanbanBoard.update' ],
+            'replaceComplexConditions' => [ 'args' => [], 'ability' => 'kanbanBoard.update' ],
+            'save'                     => [ 'args' => [], 'ability' => 'kanbanBoard.update' ],
+            'toggleActive'             => [ 'args' => [ 1 ], 'ability' => 'kanbanBoard.update' ],
+            'confirmDelete'            => [ 'args' => [ 1 ], 'ability' => 'kanbanBoard.update' ],
+            'cancelDelete'             => [ 'args' => [], 'ability' => 'kanbanBoard.view' ],
+            'delete'                   => [ 'args' => [ 'token' ], 'ability' => 'kanbanBoard.update' ],
+            'addRule'                  => [ 'args' => [ 'conditions' ], 'ability' => 'kanbanBoard.update' ],
+            'removeRule'               => [ 'args' => [ 'conditions', 0 ], 'ability' => 'kanbanBoard.update' ],
+            'moveRule'                 => [ 'args' => [ 'conditions', 0, 1 ], 'ability' => 'kanbanBoard.update' ],
+            'reorderRules'             => [ 'args' => [ 'conditions', [] ], 'ability' => 'kanbanBoard.update' ],
+            'toggleRule'               => [ 'args' => [ 'conditions', 'missing' ], 'ability' => 'kanbanBoard.update' ],
+            // The screen re-authorizes kanbanBoard.view on every request; config rows then need admin access, which kanbanBoard.viewAny gives.
+            'addConfigRow'     => [ 'args' => [ 'kanban-trigger', 'send-email', 'form.trigger_config', 'tiers' ], 'ability' => 'kanbanBoard.viewAny' ],
+            'removeConfigRow'  => [ 'args' => [ 'kanban-trigger', 'send-email', 'form.trigger_config', 'tiers', 0 ], 'ability' => 'kanbanBoard.viewAny' ],
+            // The picker source then needs product.viewAny.
+            'searchPicker'     => [ 'args' => [ 'a', 'product', 'ruleRows.conditions.0.config.product_ids' ], 'ability' => 'product.viewAny' ],
+            'optionsForPicker' => [ 'args' => [ 'product', 'ruleRows.conditions.0.config.product_ids' ], 'ability' => 'product.viewAny' ],
+        ],
+    ],
+
+    'artisanpack-ecommerce-admin-reports-show' => [
+        'mount'   => [ 'params' => [ 'report' => 'sales' ], 'ability' => 'report.view' ],
+        'actions' => [
+            'export' => [ 'args' => [], 'ability' => 'report.view' ],
+        ],
+    ],
+    'artisanpack-ecommerce-admin-settings' => [
+        'mount'   => [ 'params' => [ 'group' => 'tax' ], 'ability' => 'settings.view' ],
+        'actions' => [
+            'save'                      => [ 'args' => [], 'ability' => 'settings.update' ],
+            'confirmBaseCurrencyChange' => [ 'args' => [], 'ability' => 'settings.update' ],
+            'resetToDefault'            => [ 'args' => [ 'tax.prices_include_tax' ], 'ability' => 'settings.update' ],
+            'addMapRow'                 => [ 'args' => [ 'localization.tax_labels' ], 'ability' => 'settings.update' ],
+            'removeMapRow'              => [ 'args' => [ 'localization.tax_labels', 0 ], 'ability' => 'settings.update' ],
+        ],
+    ],
+
     // The WithPickers concern, which screens mix in.
     'matrix-pickers' => [
         'mount'   => [ 'params' => [], 'ability' => null ],
@@ -739,6 +828,14 @@ function matrixParams( array $params ): array
 
         if ( '@webhook-subscription' === $value ) {
             return $GLOBALS['matrixWebhookSubscriptionId'] ??= ArtisanPackUI\Ecommerce\Models\WebhookSubscription::factory()->create()->id;
+        }
+
+        if ( '@kanban-board' === $value ) {
+            return $GLOBALS['matrixKanbanBoardId'] ??= ArtisanPackUI\Ecommerce\Models\KanbanBoard::factory()->create()->id;
+        }
+
+        if ( '@kanban-board-model' === $value ) {
+            return ArtisanPackUI\Ecommerce\Models\KanbanBoard::query()->findOrFail( $GLOBALS['matrixKanbanBoardId'] ??= ArtisanPackUI\Ecommerce\Models\KanbanBoard::factory()->create()->id );
         }
 
         if ( '@order-model' === $value ) {
@@ -840,6 +937,7 @@ beforeEach( function (): void {
     $GLOBALS['matrixPromotionId']            = null;
     $GLOBALS['matrixNotificationTemplateId'] = null;
     $GLOBALS['matrixWebhookSubscriptionId']  = null;
+    $GLOBALS['matrixKanbanBoardId']          = null;
 
     foreach ( matrixComponents() as $name => $class ) {
         Livewire::component( $name, $class );

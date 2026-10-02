@@ -45,7 +45,7 @@ it( 'shows a reviewer-only user just reviews', function (): void {
 } );
 
 it( 'shows the badge counts with an accessible description', function (): void {
-    grantAbilities( [ 'order.viewAny', 'review.viewAny', 'product.viewAny' ] );
+    grantAbilities( [ 'order.viewAny', 'review.viewAny', 'inventory.viewAny' ] );
 
     InventoryItem::factory()->count( 7 )->create( [ 'quantity_on_hand' => 2, 'low_stock_threshold' => 5 ] );
     InventoryItem::factory()->create( [ 'quantity_on_hand' => 20, 'low_stock_threshold' => 5 ] );

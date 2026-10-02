@@ -13,20 +13,20 @@
     </div>
 
     @foreach ( $builder['lists'] as $list )
-        <section class="flex flex-col gap-3" aria-labelledby="rule-list-{{ $list['key'] }}" data-rule-list="{{ $list['key'] }}">
-            <h3 id="rule-list-{{ $list['key'] }}" class="text-lg font-semibold">{{ $list['label'] }}</h3>
+        <section class="flex flex-col gap-3" aria-labelledby="{{ $prefix }}-list-{{ $list['key'] }}" data-rule-list="{{ $list['key'] }}">
+            <h3 id="{{ $prefix }}-list-{{ $list['key'] }}" class="text-lg font-semibold">{{ $list['label'] }}</h3>
 
             @if ( [] === $list['rows'] )
                 <p class="opacity-75">{{ $list['empty'] }}</p>
             @else
-                <p id="rule-list-{{ $list['key'] }}-help" class="text-sm opacity-75">
+                <p id="{{ $prefix }}-list-{{ $list['key'] }}-help" class="text-sm opacity-75">
                     {{ __( 'Drag a row, or use Move up and Move down, to change the order.' ) }}
                 </p>
 
                 <ol
                     class="flex flex-col gap-2"
-                    aria-labelledby="rule-list-{{ $list['key'] }}"
-                    aria-describedby="rule-list-{{ $list['key'] }}-help"
+                    aria-labelledby="{{ $prefix }}-list-{{ $list['key'] }}"
+                    aria-describedby="{{ $prefix }}-list-{{ $list['key'] }}-help"
                     x-data
                     x-drag-context
                     x-on:drag:end="$wire.reorderRules( @js( $list['key'] ), $event.detail.orderedIds )"
@@ -74,7 +74,7 @@
                                             icon="o-adjustments-horizontal"
                                             wire:click="toggleRule( @js( $list['key'] ), @js( $row['id'] ) )"
                                             aria-expanded="{{ $row['open'] ? 'true' : 'false' }}"
-                                            aria-controls="rule-settings-{{ $row['id'] }}"
+                                            aria-controls="{{ $prefix }}-settings-{{ $row['id'] }}"
                                             :label="$row['open'] ? __( 'Close settings' ) : __( 'Settings' )"
                                         />
                                     @endif
@@ -94,7 +94,7 @@
                         </li>
 
                         @if ( $row['open'] && $row['available'] )
-                            <li id="rule-settings-{{ $row['id'] }}" wire:key="rule-settings-{{ $list['key'] }}-{{ $row['id'] }}" class="rounded-box bg-base-200/50 p-3" data-rule-settings="{{ $row['type'] }}">
+                            <li id="{{ $prefix }}-settings-{{ $row['id'] }}" wire:key="rule-settings-{{ $list['key'] }}-{{ $row['id'] }}" class="rounded-box bg-base-200/50 p-3" data-rule-settings="{{ $row['type'] }}">
                                 <x-artisanpack-ec-config-form :registry="$list['registry']" :entry="$row['type']" :model="'ruleRows.' . $list['key'] . '.' . $row['index'] . '.config'" />
                             </li>
                         @endif
@@ -105,7 +105,7 @@
             @if ( ! $list['full'] )
                 <div class="flex flex-wrap items-end gap-2">
                     <x-artisanpack-select
-                        id="rule-add-{{ $list['key'] }}"
+                        id="{{ $prefix }}-add-{{ $list['key'] }}"
                         :label="$list['add']"
                         :options="$list['options']"
                         :placeholder="__( 'Choose…' )"

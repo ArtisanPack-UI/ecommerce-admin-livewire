@@ -61,10 +61,10 @@ adds access, so an `ecommerce.admin` gate keeps working alongside RBAC.
 | Categories, tags | `categories.index`, `tags.index` | `product.viewAny` | `product.create`, `product.update`, `product.delete` |
 | Inventory | `inventory.index` | `inventory.viewAny`¹ | `inventory.adjust`¹ |
 | Digital files | `digital-files.index` | `digitalFile.viewAny` | `digitalFile.create`, `digitalFile.update`, `digitalFile.delete` |
-| License keys | `license-keys.index` | `licenseKey.view` or `licenseKey.revoke`³ | `licenseKey.revoke` |
+| License keys | `license-keys.index` | `licenseKey.view` or `licenseKey.revoke`² | `licenseKey.revoke` |
 | Customers | `customers.index`, `customers.show` | `customer.viewAny`, `customer.view` | `customer.update`, `customer.delete` |
 | Promotions | `promotions.index`, `promotions.create`, `promotions.edit` | `promotion.viewAny` | `promotion.*`, `coupon.*` |
-| Reports | `reports.show` | `report.view`² | — |
+| Reports | `reports.show` | `report.view` | — |
 | Shipping | `shipping.index` | `shippingZone.viewAny` | `shippingZone.create`, `shippingZone.update`, `shippingZone.delete` |
 | Tax | `tax.index` | `taxRate.viewAny` | `taxRate.create`, `taxRate.update`, `taxRate.delete` |
 | Tax rate import | `tax.index` | `taxRate.create` | Rows that update an existing rate also need `taxRate.update` |
@@ -72,16 +72,12 @@ adds access, so an `ecommerce.admin` gate keeps working alongside RBAC.
 | Webhooks | `webhooks.index`, `webhooks.show` | `webhookSubscription.viewAny` | `webhookSubscription.create`, `webhookSubscription.update`, `webhookSubscription.delete` |
 | Order statuses | `order-statuses.index` | `orderSubstatus.viewAny` | `orderSubstatus.create`, `orderSubstatus.update`, `orderSubstatus.delete` |
 | Kanban boards | `kanban-boards.index`, `kanban-boards.edit` | `kanbanBoard.viewAny` | `kanbanBoard.*` |
-| Settings | `settings.show` | `settings.view`² | `settings.update` |
+| Settings | `settings.show` | `settings.view` | `settings.update` |
 
-¹ Until the engine ships the inventory abilities (engine issue #148), `inventory.viewAny` checks `product.viewAny` and
-`inventory.adjust` checks `product.update`.
+¹ Inventory has its own abilities, separate from `product.*`, so staff can count and adjust stock without editing
+products. `product.viewAny` / `product.update` do not grant them.
 
-² The engine does not define these abilities yet (engine issue #148). Until it does, they resolve through the umbrella
-`ecommerce.admin` gate and the `ap.ecommerce.abilities.*` filter. A host may also define the Gate ability directly,
-e.g. `ecommerce.report.view`.
-
-³ A user with only `licenseKey.revoke` can open the screen, but sees each key masked to its last group and cannot
+² A user with only `licenseKey.revoke` can open the screen, but sees each key masked to its last group and cannot
 search by key. Keys are shown in full only with `licenseKey.view`.
 
 Screens appear in the navigation only once they have shipped.
