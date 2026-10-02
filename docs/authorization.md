@@ -67,9 +67,10 @@ adds access, so an `ecommerce.admin` gate keeps working alongside RBAC.
 | Reports | `reports.show` | `report.view`² | — |
 | Shipping | `shipping.index` | `shippingZone.viewAny` | `shippingZone.create`, `shippingZone.update`, `shippingZone.delete` |
 | Tax | `tax.index` | `taxRate.viewAny` | `taxRate.create`, `taxRate.update`, `taxRate.delete` |
+| Tax rate import | `tax.index` | `taxRate.create` | Rows that update an existing rate also need `taxRate.update` |
 | Notifications | `notifications.index`, `notifications.edit` | `notificationTemplate.viewAny` | `notificationTemplate.view`, `notificationTemplate.update` |
 | Webhooks | `webhooks.index`, `webhooks.show` | `webhookSubscription.viewAny` | `webhookSubscription.create`, `webhookSubscription.update`, `webhookSubscription.delete` |
-| Order statuses | `order-statuses.index` | `orderSubstatus.viewAny`² | `orderSubstatus.create`, `orderSubstatus.update`, `orderSubstatus.delete` |
+| Order statuses | `order-statuses.index` | `orderSubstatus.viewAny` | `orderSubstatus.create`, `orderSubstatus.update`, `orderSubstatus.delete` |
 | Kanban boards | `kanban-boards.index`, `kanban-boards.edit` | `kanbanBoard.viewAny` | `kanbanBoard.*` |
 | Settings | `settings.show` | `settings.view`² | `settings.update` |
 

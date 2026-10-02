@@ -28,12 +28,17 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Inventory;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\LicenseKeys;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notes;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notifications;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\OrderStatuses;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Promotions;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reviews;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Shipping;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Tags;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Tax;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Timeline;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Webhooks;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CategoryPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CustomerPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\ProductPickerSource;
@@ -166,6 +171,13 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         'artisanpack-ecommerce-admin-promotions-form'        => Promotions\Form::class,
         'artisanpack-ecommerce-admin-promotion-coupons'      => Promotions\CouponsPanel::class,
         'artisanpack-ecommerce-admin-promotion-usage'        => Promotions\UsagePanel::class,
+        'artisanpack-ecommerce-admin-shipping-index'         => Shipping\Index::class,
+        'artisanpack-ecommerce-admin-tax-index'              => Tax\Index::class,
+        'artisanpack-ecommerce-admin-notifications-index'    => Notifications\Index::class,
+        'artisanpack-ecommerce-admin-notifications-edit'     => Notifications\Edit::class,
+        'artisanpack-ecommerce-admin-webhooks-index'         => Webhooks\Index::class,
+        'artisanpack-ecommerce-admin-webhooks-show'          => Webhooks\Show::class,
+        'artisanpack-ecommerce-admin-order-statuses-index'   => OrderStatuses\Index::class,
     ];
 
     /**

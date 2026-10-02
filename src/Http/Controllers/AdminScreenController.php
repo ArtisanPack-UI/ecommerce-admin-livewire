@@ -258,4 +258,94 @@ class AdminScreenController extends Controller
     {
         return view( 'ecommerce-admin::pages.promotions.form', [ 'promotion' => (int) $promotion ] );
     }
+
+    /**
+     * The shipping zones and methods screen.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function shippingIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.shipping.index' );
+    }
+
+    /**
+     * The tax classes and rates screen.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function taxIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.tax.index' );
+    }
+
+    /**
+     * The notification templates list.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function notificationsIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.notifications.index' );
+    }
+
+    /**
+     * The notification template editor. The component loads and authorizes
+     * the template.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $template  The template id.
+     *
+     * @return View
+     */
+    public function notificationsEdit( string $template ): View
+    {
+        return view( 'ecommerce-admin::pages.notifications.edit', [ 'template' => (int) $template ] );
+    }
+
+    /**
+     * The webhook subscriptions list.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function webhooksIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.webhooks.index' );
+    }
+
+    /**
+     * A webhook subscription and its deliveries log. The component loads
+     * and authorizes the subscription.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $subscription  The subscription id.
+     *
+     * @return View
+     */
+    public function webhooksShow( string $subscription ): View
+    {
+        return view( 'ecommerce-admin::pages.webhooks.show', [ 'subscription' => (int) $subscription ] );
+    }
+
+    /**
+     * The order sub-statuses screen.
+     *
+     * @since 1.0.0
+     *
+     * @return View
+     */
+    public function orderStatusesIndex(): View
+    {
+        return view( 'ecommerce-admin::pages.order-statuses.index' );
+    }
 }
