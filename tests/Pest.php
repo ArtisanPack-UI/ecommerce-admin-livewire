@@ -19,6 +19,19 @@ pest()->extend( Tests\TestCase::class )
     ->in( 'Feature' );
 
 /*
+| Browser tests (Pest 4 browser plugin) run the admin in a real browser
+| against a seeded demo store, with the asset bundle built by `npm run
+| build:browser`. CI runs them in their own job; the unit / feature job
+| excludes the `browser` group.
+*/
+pest()->extend( Tests\BrowserTestCase::class )
+    ->use( RefreshDatabase::class )
+    ->group( 'browser' )
+    ->in( 'Browser' );
+
+pest()->browser()->timeout( 10_000 );
+
+/*
 |--------------------------------------------------------------------------
 | Functions
 |--------------------------------------------------------------------------

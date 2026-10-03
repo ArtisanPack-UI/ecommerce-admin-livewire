@@ -90,7 +90,7 @@
                             {{ empty( $form['media_id'] ) ? __( 'No file chosen yet.' ) : __( 'Media library file #:id', [ 'id' => $form['media_id'] ] ) }}
                         </span>
                         @if ( $mediaLibrary )
-                            <x-artisanpack-button variant="outline" size="sm" icon="o-paper-clip" x-on:click="Livewire.dispatch( 'open-media-modal', { context: @js( Index::MEDIA_CONTEXT ) } )" :label="__( 'Choose file' )" />
+                            <x-artisanpack-button variant="outline" size="sm" icon="o-paper-clip" x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Index::MEDIA_CONTEXT ) }} } )" :label="__( 'Choose file' )" />
                         @else
                             <x-artisanpack-input id="digital-file-media" type="number" min="1" :label="__( 'Media id' )" wire:model="form.media_id" />
                         @endif

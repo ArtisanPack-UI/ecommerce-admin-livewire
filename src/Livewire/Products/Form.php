@@ -548,7 +548,7 @@ class Form extends Component
     {
         $this->assertWritable();
 
-        $this->gallery[] = [ 'id' => null, 'media_id' => null, 'image_url' => '', 'alt_text' => '' ];
+        $this->gallery[] = [ 'uid' => self::rowUid(), 'id' => null, 'media_id' => null, 'image_url' => '', 'alt_text' => '' ];
     }
 
     /**
@@ -636,6 +636,7 @@ class Form extends Component
 
         foreach ( $items as $item ) {
             $this->gallery[] = [
+                'uid'       => self::rowUid(),
                 'id'        => null,
                 'media_id'  => (int) $item['id'],
                 'image_url' => '',
@@ -779,6 +780,19 @@ class Form extends Component
             'panelState'                                                                                         => 'panel',
             default                                                                                              => 'general',
         };
+    }
+
+    /**
+     * A stable key for a new gallery row, so moving rows keeps their DOM
+     * (and focus) instead of re-creating them.
+     *
+     * @since 1.0.0
+     *
+     * @return string
+     */
+    protected static function rowUid(): string
+    {
+        return 'n' . Str::lower( Str::random( 10 ) );
     }
 
     /**
@@ -1127,7 +1141,8 @@ class Form extends Component
     }
 
     /**
-     * Switches to the first tab with an error and asks the page to focus it.
+     * Switches to the first tab with an error and asks the page to focus the
+     * first invalid field (by its Livewire property path).
      *
      * @since 1.0.0
      *
@@ -1143,7 +1158,7 @@ class Form extends Component
             $this->tab = $tabs[0];
         }
 
-        $this->dispatch( self::INVALID_EVENT, tab: $this->tab );
+        $this->dispatch( self::INVALID_EVENT, tab: $this->tab, field: (string) array_key_first( $errors ) );
     }
 
     /**
@@ -1268,6 +1283,7 @@ class Form extends Component
         $this->featuredMediaId   = $product->featured_image_media_id;
         $this->featuredImageUrl  = (string) ( $product->meta['featured_image_url'] ?? '' );
         $this->gallery           = $product->images()->get()->map( static fn ( ProductImage $image ): array => [
+            'uid'       => 'i' . $image->id,
             'id'        => (int) $image->id,
             'media_id'  => $image->media_id,
             'image_url' => (string) ( $image->image_url ?? '' ),

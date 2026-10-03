@@ -33,6 +33,7 @@
             :icon="$action['icon']"
             :label="$action['label']"
             wire:click="runBulkAction( {{ \Illuminate\Support\Js::from( $action['key'] ) }} )"
+            data-focus-key="bulk-{{ $action['key'] }}"
             wire:loading.attr="disabled"
             wire:key="bulk-action-{{ $action['key'] }}"
         />

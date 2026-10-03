@@ -19,7 +19,7 @@
     @else
         <ol class="flex list-none flex-col gap-3" aria-label="{{ __( 'Products included, in order' ) }}">
             @foreach ( $children as $i => $child )
-                <li wire:key="child-{{ $i }}-{{ $child['product_id'] ?? 'new' }}" class="grid gap-3 rounded-box border border-base-300 p-3 md:grid-cols-[2fr_1fr_8rem_auto] md:items-end" data-child-row="{{ $i }}">
+                <li wire:key="child-{{ $child['uid'] ?? $i }}" class="grid gap-3 rounded-box border border-base-300 p-3 md:grid-cols-[2fr_1fr_8rem_auto] md:items-end" data-child-row="{{ $i }}">
                     <x-artisanpack-ec-product-picker
                         :id="'child-' . $i . '-product'"
                         :model="'state.children.' . $i . '.product_id'"
@@ -45,8 +45,8 @@
                     <x-artisanpack-input id="child-{{ $i }}-quantity" type="number" min="1" step="1" :label="__( 'Quantity' )" wire:model="state.children.{{ $i }}.quantity" :disabled="$readOnly" />
                     @unless ( $readOnly )
                         <div class="flex gap-1">
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="moveChild( {{ $i }}, -1 )" :disabled="$loop->first" :aria-label="__( 'Move product :number up', [ 'number' => $i + 1 ] )" />
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="moveChild( {{ $i }}, 1 )" :disabled="$loop->last" :aria-label="__( 'Move product :number down', [ 'number' => $i + 1 ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="moveChild( {{ $i }}, -1 )" data-reorder="up" data-reorder-list="children" data-reorder-key="child-{{ $child['uid'] ?? $i }}" data-reorder-item="{{ __( 'Product :number', [ 'number' => $i + 1 ] ) }}" :disabled="$loop->first" :aria-label="__( 'Move product :number up', [ 'number' => $i + 1 ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="moveChild( {{ $i }}, 1 )" data-reorder="down" data-reorder-list="children" data-reorder-key="child-{{ $child['uid'] ?? $i }}" data-reorder-item="{{ __( 'Product :number', [ 'number' => $i + 1 ] ) }}" :disabled="$loop->last" :aria-label="__( 'Move product :number down', [ 'number' => $i + 1 ] )" />
                             <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="removeChild( {{ $i }} )" :aria-label="__( 'Remove product :number', [ 'number' => $i + 1 ] )" />
                         </div>
                     @endunless

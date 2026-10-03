@@ -155,7 +155,7 @@
                                                         variant="ghost"
                                                         size="sm"
                                                         icon="o-trash"
-                                                        wire:click="removeMapRow( @js( $definition->key ), {{ (int) $index }} )"
+                                                        wire:click="removeMapRow( {{ \Illuminate\Support\Js::from( $definition->key ) }}, {{ (int) $index }} )"
                                                         :label="__( 'Remove' )"
                                                         :aria-label="__( 'Remove :field row :number', [ 'field' => $definition->label, 'number' => $index + 1 ] )"
                                                     />
@@ -165,7 +165,7 @@
 
                                         @if ( $canUpdate )
                                             <div class="mt-2">
-                                                <x-artisanpack-button size="sm" variant="outline" icon="o-plus" wire:click="addMapRow( @js( $definition->key ) )" :label="__( 'Add row' )" />
+                                                <x-artisanpack-button size="sm" variant="outline" icon="o-plus" wire:click="addMapRow( {{ \Illuminate\Support\Js::from( $definition->key ) }} )" :label="__( 'Add row' )" />
                                             </div>
                                         @endif
                                     </fieldset>
@@ -209,7 +209,7 @@
                                         <x-artisanpack-button
                                             variant="link"
                                             size="xs"
-                                            wire:click="resetToDefault( @js( $definition->key ) )"
+                                            wire:click="resetToDefault( {{ \Illuminate\Support\Js::from( $definition->key ) }} )"
                                             :label="__( 'Reset to default' )"
                                             :aria-label="__( 'Reset to default: :setting', [ 'setting' => $definition->label ] )"
                                         />

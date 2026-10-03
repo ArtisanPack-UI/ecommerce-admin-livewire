@@ -20,6 +20,7 @@ use ArtisanPackUI\Ecommerce\Services\ProductService;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithPickers;
 use Closure;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -77,6 +78,7 @@ class ChildrenPanel extends ProductTypePanel
                 ->orderBy( 'id' )
                 ->get()
                 ->map( static fn ( ProductChild $child ): array => [
+                    'uid'        => 'c' . $child->id,
                     'product_id' => (int) $child->child_product_id,
                     'variant_id' => null === $child->child_variant_id ? '' : (string) $child->child_variant_id,
                     'quantity'   => (int) $child->quantity,
@@ -145,7 +147,7 @@ class ChildrenPanel extends ProductTypePanel
     {
         $this->assertWritable();
 
-        $this->state['children'][] = [ 'product_id' => null, 'variant_id' => '', 'quantity' => 1 ];
+        $this->state['children'][] = [ 'uid' => 'n' . Str::lower( Str::random( 10 ) ), 'product_id' => null, 'variant_id' => '', 'quantity' => 1 ];
     }
 
     /**

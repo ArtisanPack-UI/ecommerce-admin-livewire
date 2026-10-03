@@ -37,6 +37,7 @@
         {{ __( 'Skip to content' ) }}
     </a>
 
+    <header>
     <x-artisanpack-nav sticky full-width class="ecommerce-admin__topbar">
         <x-slot:brand>
             {{-- A real, focusable button: the drawer's own toggle is a hidden checkbox. --}}
@@ -61,6 +62,7 @@
             <x-artisanpack-theme-toggle aria-label="{{ __( 'Toggle dark mode' ) }}" />
         </x-slot:actions>
     </x-artisanpack-nav>
+    </header>
 
     <x-artisanpack-main with-nav full-width>
         <x-slot:sidebar drawer="ecommerce-admin-drawer" class="bg-base-100 lg:bg-inherit ecommerce-admin__sidebar">
@@ -77,6 +79,7 @@
     @include( 'ecommerce-admin::partials.spotlight' )
 
     @livewireScripts
+    @include( 'ecommerce-admin::partials.accessibility' )
     @include( 'ecommerce-admin::partials.rate-limit-notice' )
     @stack( 'scripts' )
 </body>

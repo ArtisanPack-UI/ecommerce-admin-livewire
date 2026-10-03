@@ -23,9 +23,10 @@ use Illuminate\Support\Facades\Route;
 
 /**
  * Finds coupons by code and opens the promotion they belong to. Coupons
- * have no record-level `view` ability (they are only ever shown inside
- * their promotion), so a coupon is listed only when the user may view its
- * promotion; the promotion is eager-loaded for that check.
+ * have no view abilities of their own — the admin only shows them inside
+ * their promotion — so the provider needs `promotion.viewAny`, and a coupon
+ * is listed only when the user may view its promotion (eager-loaded for
+ * that check).
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -43,7 +44,7 @@ class CouponsProvider implements SpotlightProvider
      */
     public function ability(): ?string
     {
-        return 'coupon.viewAny';
+        return 'promotion.viewAny';
     }
 
     /**

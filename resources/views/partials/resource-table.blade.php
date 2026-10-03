@@ -166,11 +166,12 @@
                     variant="error"
                     size="sm"
                     data-confirm
+                    data-focus-return="bulk-{{ $tableConfirming['key'] }}"
                     wire:click="confirmBulkAction( {{ \Illuminate\Support\Js::from( $tableConfirmToken ) }} )"
                     wire:loading.attr="disabled"
                     :label="__( 'Confirm' )"
                 />
-                <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelBulkAction" :label="__( 'Cancel' )" />
+                <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelBulkAction" data-focus-return="bulk-{{ $tableConfirming['key'] }}" :label="__( 'Cancel' )" />
             </div>
         </div>
     @endif

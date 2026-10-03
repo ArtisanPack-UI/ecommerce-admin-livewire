@@ -117,7 +117,7 @@
             @if ( $downloads->isNotEmpty() || $licenseKeys->isNotEmpty() )
                 <x-artisanpack-card :title="__( 'Digital' )" shadow>
                     @if ( $downloads->isNotEmpty() )
-                        <h3 class="font-semibold mb-2">{{ __( 'Downloads' ) }}</h3>
+                        <h2 class="font-semibold mb-2">{{ __( 'Downloads' ) }}</h2>
                         <ul class="flex flex-col gap-2 mb-4">
                             @foreach ( $downloads as $download )
                                 <li wire:key="order-download-{{ $download->id }}" class="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -142,7 +142,7 @@
                     @endif
 
                     @if ( $licenseKeys->isNotEmpty() )
-                        <h3 class="font-semibold mb-2">{{ __( 'License keys' ) }}</h3>
+                        <h2 class="font-semibold mb-2">{{ __( 'License keys' ) }}</h2>
                         <ul class="flex flex-col gap-2">
                             @foreach ( $licenseKeys as $licenseKey )
                                 <li wire:key="order-license-{{ $licenseKey->id }}" class="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -204,9 +204,9 @@
 
             {{-- Addresses --}}
             <x-artisanpack-card :title="__( 'Addresses' )" shadow>
-                <h3 class="font-semibold">{{ __( 'Shipping' ) }}</h3>
+                <h2 class="font-semibold">{{ __( 'Shipping' ) }}</h2>
                 <x-artisanpack-ec-address :address="$order->shipping_address" class="mb-3" />
-                <h3 class="font-semibold">{{ __( 'Billing' ) }}</h3>
+                <h2 class="font-semibold">{{ __( 'Billing' ) }}</h2>
                 <x-artisanpack-ec-address :address="$order->billing_address" />
             </x-artisanpack-card>
 

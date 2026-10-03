@@ -26,6 +26,7 @@
         @include( 'ecommerce-admin::partials.spotlight' )
         <x-artisanpack-toast />
         @livewireScripts
+        @include( 'ecommerce-admin::partials.accessibility' )
         @include( 'ecommerce-admin::partials.rate-limit-notice' )
     @endpush
 @endif

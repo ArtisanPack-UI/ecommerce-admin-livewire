@@ -18,7 +18,7 @@
 <div
     x-data="{
         dirty: false,
-        message: @js( __( 'You have unsaved changes. Leave without saving?' ) ),
+        message: {{ \Illuminate\Support\Js::from( __( 'You have unsaved changes. Leave without saving?' ) ) }},
         warnBeforeUnload( event ) {
             if ( this.dirty ) {
                 event.preventDefault();
@@ -30,11 +30,17 @@
                 event.preventDefault();
             }
         },
-        focusError() {
-            this.$nextTick( () => {
-                const field = this.$root.querySelector( '[aria-invalid=true], .\\!input-error, .input-error, .select-error, .textarea-error' );
-                field?.focus();
-            } );
+        focusError( field ) {
+            // After the tab switch renders, focus the control bound to the
+            // first invalid property (the component library marks errors on
+            // the wrapper, not the control, so they can't be found by state).
+            setTimeout( () => {
+                const control = Array.from( this.$root.querySelectorAll( 'input, select, textarea' ) ).find(
+                    ( el ) => null !== el.offsetParent && Array.from( el.attributes ).some( ( attribute ) => attribute.name.startsWith( 'wire:model' ) && attribute.value === field ),
+                );
+
+                control?.focus();
+            }, 50 );
         },
     }"
     x-on:input="dirty = true"
@@ -42,7 +48,7 @@
     x-on:beforeunload.window="warnBeforeUnload( $event )"
     x-on:livewire:navigate.document="confirmNavigate( $event )"
     x-on:{{ Form::SAVED_EVENT }}.window="dirty = false"
-    x-on:{{ Form::INVALID_EVENT }}.window="dirty = true; focusError()"
+    x-on:{{ Form::INVALID_EVENT }}.window="dirty = true; focusError( $event.detail.field )"
     data-product-form
 >
     <x-artisanpack-header
@@ -258,7 +264,7 @@
                                     variant="outline"
                                     size="sm"
                                     icon="o-photo"
-                                    x-on:click="Livewire.dispatch( 'open-media-modal', { context: @js( Form::MEDIA_FEATURED ) } )"
+                                    x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Form::MEDIA_FEATURED ) }} } )"
                                     :label="null === $featuredMediaId ? __( 'Choose image' ) : __( 'Replace image' )"
                                 />
                             @endunless
@@ -277,7 +283,7 @@
                     @else
                         <ol class="mb-3 flex list-none flex-col gap-3" aria-label="{{ __( 'Gallery images, in order' ) }}">
                             @foreach ( $gallery as $index => $image )
-                                <li wire:key="gallery-{{ $index }}-{{ $image['id'] ?? $image['media_id'] ?? 'new' }}" class="flex flex-wrap items-end gap-3 rounded-box border border-base-300 p-3" data-gallery-row="{{ $index }}">
+                                <li wire:key="gallery-{{ $image['uid'] ?? $index }}" class="flex flex-wrap items-end gap-3 rounded-box border border-base-300 p-3" data-gallery-row="{{ $index }}">
                                     @if ( null !== ( $galleryPreviews[ $index ] ?? null ) )
                                         <img src="{{ $galleryPreviews[ $index ] }}" alt="{{ $image['alt_text'] ?: $name }}" class="size-16 rounded object-cover" />
                                     @endif
@@ -287,8 +293,8 @@
                                     <x-artisanpack-input id="gallery-{{ $index }}-alt" class="min-w-64" :label="__( 'Alt text' )" :hint="__( 'Describe the image for people who can\'t see it.' )" wire:model="gallery.{{ $index }}.alt_text" />
                                     @unless ( $readOnly )
                                         <div class="flex gap-1">
-                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="moveGalleryImage( {{ $index }}, -1 )" :disabled="$loop->first" :aria-label="__( 'Move image :number up', [ 'number' => $index + 1 ] )" />
-                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="moveGalleryImage( {{ $index }}, 1 )" :disabled="$loop->last" :aria-label="__( 'Move image :number down', [ 'number' => $index + 1 ] )" />
+                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="moveGalleryImage( {{ $index }}, -1 )" data-reorder="up" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ '' !== ( $image['alt_text'] ?? '' ) ? $image['alt_text'] : __( 'Image :number', [ 'number' => $index + 1 ] ) }}" :disabled="$loop->first" :aria-label="__( 'Move image :number up', [ 'number' => $index + 1 ] )" />
+                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="moveGalleryImage( {{ $index }}, 1 )" data-reorder="down" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ '' !== ( $image['alt_text'] ?? '' ) ? $image['alt_text'] : __( 'Image :number', [ 'number' => $index + 1 ] ) }}" :disabled="$loop->last" :aria-label="__( 'Move image :number down', [ 'number' => $index + 1 ] )" />
                                             <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="removeGalleryImage( {{ $index }} )" :aria-label="__( 'Remove image :number', [ 'number' => $index + 1 ] )" />
                                         </div>
                                     @endunless
@@ -303,7 +309,7 @@
                                 variant="outline"
                                 size="sm"
                                 icon="o-plus"
-                                x-on:click="Livewire.dispatch( 'open-media-modal', { context: @js( Form::MEDIA_GALLERY ) } )"
+                                x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Form::MEDIA_GALLERY ) }} } )"
                                 :label="__( 'Add images' )"
                             />
                         @else

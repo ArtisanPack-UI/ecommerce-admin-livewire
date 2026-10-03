@@ -1,6 +1,7 @@
 {{--
     Opens the command palette, for pointer users and anyone who does not
-    know the shortcut.
+    know the shortcut. The click stops here: if it reached the document, the
+    palette's own click-outside handler would close it straight away.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -16,7 +17,7 @@
         :tooltip-bottom="__( 'Search and run commands (:shortcut)', [ 'shortcut' => $ecommerceAdminShortcut ] )"
         aria-keyshortcuts="{{ $ecommerceAdminShortcut }}"
         x-data
-        x-on:click="$dispatch( 'mary-search-open' )"
+        x-on:click.stop="$dispatch( 'mary-search-open' )"
         data-spotlight-open
     />
 @endif

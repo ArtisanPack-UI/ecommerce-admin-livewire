@@ -15,7 +15,8 @@
     </div>
 
     <figure class="mt-4 flex flex-col gap-2" data-sales-sparkline>
-        <div aria-hidden="true">
+        {{-- `inert` keeps the chart's own focusable parts out of the tab order too. --}}
+        <div aria-hidden="true" inert>
             <x-artisanpack-sparkline
                 id="dashboard-sales-sparkline"
                 :data="$sales['values']"

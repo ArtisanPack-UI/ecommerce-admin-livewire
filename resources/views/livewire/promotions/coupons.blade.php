@@ -102,7 +102,7 @@
                                         <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="startRename( {{ $coupon->id }} )" :aria-label="__( 'Rename :code', [ 'code' => $coupon->code ] )" />
                                     @endif
                                     @if ( $canDelete )
-                                        <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $coupon->id }} )" :aria-label="__( 'Delete :code', [ 'code' => $coupon->code ] )" />
+                                        <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $coupon->id }} )" data-focus-key="coupon-delete-{{ $coupon->id }}" :aria-label="__( 'Delete :code', [ 'code' => $coupon->code ] )" />
                                     @endif
                                 </div>
                                 @if ( $deletingId === (int) $coupon->id )
@@ -110,7 +110,7 @@
                                         <p id="coupon-delete-{{ $coupon->id }}" class="mb-2">{{ __( 'Delete :code? It stops working at checkout right away.', [ 'code' => $coupon->code ] ) }}</p>
                                         <div class="flex gap-2">
                                             <x-artisanpack-button color="error" size="sm" data-confirm wire:click="deleteCode( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )" wire:loading.attr="disabled" :label="__( 'Delete code' )" />
-                                            <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelDelete" :label="__( 'Cancel' )" />
+                                            <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelDelete" data-focus-return="coupon-delete-{{ $coupon->id }}" :label="__( 'Cancel' )" />
                                         </div>
                                     </div>
                                 @endif
