@@ -65,7 +65,7 @@
                             @unless ( $savedAddress->is_default_billing )
                                 <x-artisanpack-button variant="ghost" size="sm" wire:click="makeDefault( {{ $savedAddress->id }}, 'billing' )" wire:loading.attr="disabled" :label="__( 'Use for billing' )" />
                             @endunless
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $savedAddress->id }} )" :label="__( 'Delete' )" />
+                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $savedAddress->id }} )" data-focus-key="address-delete-{{ $savedAddress->id }}" :label="__( 'Delete' )" />
                         </div>
                     @endif
 
@@ -81,7 +81,7 @@
                                     wire:loading.attr="disabled"
                                     :label="__( 'Delete address' )"
                                 />
-                                <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelDelete" :label="__( 'Cancel' )" />
+                                <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelDelete" data-focus-return="address-delete-{{ $savedAddress->id }}" :label="__( 'Cancel' )" />
                             </div>
                         </div>
                     @endif

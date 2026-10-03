@@ -112,7 +112,7 @@ jobs:
       - name: Run tests
         env:
           XDEBUG_MODE: off
-        run: vendor/bin/pest --exclude-group=browser --no-coverage
+        run: vendor/bin/pest --testsuite=Unit,Feature --no-coverage
 
   pci-lint:
     runs-on: ubuntu-latest
@@ -196,3 +196,71 @@ jobs:
           --path="$GITHUB_WORKSPACE/src"
           --path="$GITHUB_WORKSPACE/resources"
           --lang="$GITHUB_WORKSPACE/lang"
+
+  browser:
+    runs-on: ubuntu-latest
+    # A browser step that never resolves can wait indefinitely, so cap it.
+    timeout-minutes: 20
+    name: Browser (Livewire ${{ matrix.livewire }})
+
+    strategy:
+      fail-fast: false
+      matrix:
+        livewire: ['3', '4']
+        include:
+          - livewire: '3'
+            livewire-constraint: '^3.6'
+          - livewire: '4'
+            livewire-constraint: '^4.0'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Clone the engine
+        run: git clone --depth 1 --branch "$ENGINE_REF" https://github.com/ArtisanPack-UI/ecommerce.git ../ecommerce
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, intl, sockets
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-browser-lw${{ matrix.livewire }}-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-browser-lw${{ matrix.livewire }}-composer-
+
+      - name: Install PHP dependencies
+        env:
+          LIVEWIRE: ${{ matrix.livewire-constraint }}
+        run: |
+          composer require "livewire/livewire:${LIVEWIRE}" --no-interaction --no-update
+          composer update --no-interaction --prefer-dist --with-all-dependencies
+
+      - name: Install npm dependencies and Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Build the browser asset bundle
+        run: npm run build:browser
+
+      - name: Run browser tests
+        env:
+          XDEBUG_MODE: off
+        run: vendor/bin/pest --group=browser --no-coverage

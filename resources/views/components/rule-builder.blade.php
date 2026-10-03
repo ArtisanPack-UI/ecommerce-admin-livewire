@@ -29,7 +29,7 @@
                     aria-describedby="{{ $prefix }}-list-{{ $list['key'] }}-help"
                     x-data
                     x-drag-context
-                    x-on:drag:end="$wire.reorderRules( @js( $list['key'] ), $event.detail.orderedIds )"
+                    x-on:drag:end="$wire.reorderRules( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, $event.detail.orderedIds )"
                 >
                     @foreach ( $list['rows'] as $row )
                         @php
@@ -37,7 +37,7 @@
                         @endphp
                         <li
                             wire:key="rule-{{ $list['key'] }}-{{ $row['id'] }}"
-                            x-drag-item="@js( $row['id'] )"
+                            x-drag-item="{{ \Illuminate\Support\Js::from( $row['id'] ) }}"
                             @class( [ 'rounded-box border p-3', 'border-error' => $rowError, 'border-base-content/10' => ! $rowError ] )
                             aria-label="{{ __( ':position. :label', [ 'position' => $row['index'] + 1, 'label' => $row['label'] ] ) }}"
                             data-rule-row="{{ $row['type'] }}"
@@ -55,7 +55,7 @@
                                         variant="ghost"
                                         size="xs"
                                         icon="o-arrow-up"
-                                        wire:click="moveRule( @js( $list['key'] ), {{ $row['index'] }}, -1 )"
+                                        wire:click="moveRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }}, -1 )" data-reorder="up" data-reorder-list="rules-{{ $list['key'] }}" data-reorder-key="rule-{{ $row['id'] }}" data-reorder-item="{{ $row['label'] }}"
                                         :disabled="0 === $row['index']"
                                         :aria-label="__( 'Move :label up', [ 'label' => $row['label'] ] )"
                                     />
@@ -63,7 +63,7 @@
                                         variant="ghost"
                                         size="xs"
                                         icon="o-arrow-down"
-                                        wire:click="moveRule( @js( $list['key'] ), {{ $row['index'] }}, 1 )"
+                                        wire:click="moveRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }}, 1 )" data-reorder="down" data-reorder-list="rules-{{ $list['key'] }}" data-reorder-key="rule-{{ $row['id'] }}" data-reorder-item="{{ $row['label'] }}"
                                         :disabled="$row['index'] === count( $list['rows'] ) - 1"
                                         :aria-label="__( 'Move :label down', [ 'label' => $row['label'] ] )"
                                     />
@@ -72,7 +72,7 @@
                                             variant="ghost"
                                             size="xs"
                                             icon="o-adjustments-horizontal"
-                                            wire:click="toggleRule( @js( $list['key'] ), @js( $row['id'] ) )"
+                                            wire:click="toggleRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ \Illuminate\Support\Js::from( $row['id'] ) }} )"
                                             aria-expanded="{{ $row['open'] ? 'true' : 'false' }}"
                                             aria-controls="{{ $prefix }}-settings-{{ $row['id'] }}"
                                             :label="$row['open'] ? __( 'Close settings' ) : __( 'Settings' )"
@@ -82,7 +82,7 @@
                                         variant="ghost"
                                         size="xs"
                                         icon="o-trash"
-                                        wire:click="removeRule( @js( $list['key'] ), {{ $row['index'] }} )"
+                                        wire:click="removeRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }} )"
                                         :aria-label="__( 'Remove :label', [ 'label' => $row['label'] ] )"
                                     />
                                 </div>
@@ -91,13 +91,14 @@
                             @error( 'ruleRows.' . $list['key'] . '.' . $row['index'] . '.type' )
                                 <p class="mt-2 text-sm text-error" role="alert">{{ $message }}</p>
                             @enderror
-                        </li>
 
-                        @if ( $row['open'] && $row['available'] )
-                            <li id="{{ $prefix }}-settings-{{ $row['id'] }}" wire:key="rule-settings-{{ $list['key'] }}-{{ $row['id'] }}" class="rounded-box bg-base-200/50 p-3" data-rule-settings="{{ $row['type'] }}">
-                                <x-artisanpack-ec-config-form :registry="$list['registry']" :entry="$row['type']" :model="'ruleRows.' . $list['key'] . '.' . $row['index'] . '.config'" />
-                            </li>
-                        @endif
+                            {{-- Inside the rule's own item, so a list of N rules reads as N items. --}}
+                            @if ( $row['open'] && $row['available'] )
+                                <div id="{{ $prefix }}-settings-{{ $row['id'] }}" wire:key="rule-settings-{{ $list['key'] }}-{{ $row['id'] }}" class="mt-3 rounded-box bg-base-200/50 p-3" data-rule-settings="{{ $row['type'] }}">
+                                    <x-artisanpack-ec-config-form :registry="$list['registry']" :entry="$row['type']" :model="'ruleRows.' . $list['key'] . '.' . $row['index'] . '.config'" />
+                                </div>
+                            @endif
+                        </li>
                     @endforeach
                 </ol>
             @endif
@@ -112,7 +113,7 @@
                         placeholder-value=""
                         wire:model="ruleToAdd.{{ $list['key'] }}"
                     />
-                    <x-artisanpack-button icon="o-plus" wire:click="addRule( @js( $list['key'] ) )" wire:loading.attr="disabled" :label="__( 'Add' )" />
+                    <x-artisanpack-button icon="o-plus" wire:click="addRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }} )" wire:loading.attr="disabled" :label="__( 'Add' )" />
                 </div>
             @endif
         </section>

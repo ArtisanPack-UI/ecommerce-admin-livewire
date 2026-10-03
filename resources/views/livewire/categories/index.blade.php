@@ -61,7 +61,7 @@
                                 variant="ghost"
                                 size="sm"
                                 icon="o-arrow-up"
-                                wire:click="move( {{ $category->id }}, -1 )"
+                                wire:click="move( {{ $category->id }}, -1 )" data-reorder="up" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
                                 :disabled="$row['first']"
                                 :aria-label="__( 'Move :name up', [ 'name' => $category->name ] )"
                             />
@@ -69,7 +69,7 @@
                                 variant="ghost"
                                 size="sm"
                                 icon="o-arrow-down"
-                                wire:click="move( {{ $category->id }}, 1 )"
+                                wire:click="move( {{ $category->id }}, 1 )" data-reorder="down" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
                                 :disabled="$row['last']"
                                 :aria-label="__( 'Move :name down', [ 'name' => $category->name ] )"
                             />
@@ -128,7 +128,7 @@
                             variant="outline"
                             size="sm"
                             icon="o-photo"
-                            x-on:click="Livewire.dispatch( 'open-media-modal', { context: @js( Index::MEDIA_CONTEXT ) } )"
+                            x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Index::MEDIA_CONTEXT ) }} } )"
                             :label="empty( $form['image_media_id'] ) ? __( 'Choose image' ) : __( 'Replace image' )"
                         />
                     @else

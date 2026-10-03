@@ -15,7 +15,7 @@ On the products screen:
 - With rows selected, the **Export catalog** bulk action exports just those products.
 
 A product with variants is written as one product row followed by one row per variant. Exports stop at
-`tables.export_max_rows` rows.
+`tables.export_max_rows` rows (see [Configuration](Installation-Configuration)).
 
 ## Import
 
@@ -38,7 +38,7 @@ A product with variants is written as one product row followed by one row per va
 - The failed rows can be downloaded as CSV.
 - The uploaded file is deleted when the import completes or is discarded.
 - The screen needs `product.create`. Each row also needs `product.create` (new products) or `product.update` (existing
-  ones) for the user who started the import.
+  ones) for the user who started the import. See [Authorization](Authorization).
 
 ### How rows are matched
 
@@ -85,5 +85,5 @@ defaults (`simple` type, `draft` status).
 ## Sample file
 
 **Download a sample file** on the import screen, or copy
-[`resources/samples/products-import-sample.csv`](../resources/samples/products-import-sample.csv). It creates a simple
+[`resources/samples/products-import-sample.csv`](../../resources/samples/products-import-sample.csv). It creates a simple
 product, a variable product with two variants, and a digital product.

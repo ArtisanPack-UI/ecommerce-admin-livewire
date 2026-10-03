@@ -25,7 +25,7 @@
                 <x-artisanpack-button icon="o-pencil" wire:click="startEdit" :label="__( 'Edit' )" data-edit-customer />
             @endif
             @if ( $canDelete && ! $confirmingDelete )
-                <x-artisanpack-button variant="outline" color="error" icon="o-trash" wire:click="startDelete" :label="__( 'Delete' )" data-delete-customer />
+                <x-artisanpack-button variant="outline" color="error" icon="o-trash" wire:click="startDelete" :label="__( 'Delete' )" data-delete-customer data-focus-key="customer-delete" />
             @endif
         </x-slot:actions>
     </x-artisanpack-header>
@@ -130,7 +130,7 @@
                     wire:model="deleteConfirmation"
                 />
                 <x-artisanpack-button type="submit" color="error" wire:loading.attr="disabled" spinner="deleteCustomer" :label="__( 'Delete customer' )" />
-                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" :label="__( 'Cancel' )" />
+                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" data-focus-return="customer-delete" :label="__( 'Cancel' )" />
             </form>
         </div>
     @endif

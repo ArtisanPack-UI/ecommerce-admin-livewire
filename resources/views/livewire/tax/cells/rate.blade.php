@@ -16,7 +16,10 @@
 @if ( $editing )
     @switch ( $column['key'] )
         @case( 'class' )
-            <x-artisanpack-select :id="$id" class="select-sm" :label="__( 'Tax class' )" :options="$context['classOptions']" wire:model="rateForm.tax_class_key" />
+            {{-- The first field of the row takes focus when editing starts. --}}
+            <div x-data x-init="$nextTick( () => $el.querySelector( 'select, input' )?.focus() )">
+                <x-artisanpack-select :id="$id" class="select-sm" :label="__( 'Tax class' )" :options="$context['classOptions']" wire:model="rateForm.tax_class_key" />
+            </div>
             @break
 
         @case( 'country' )
@@ -57,8 +60,8 @@
 
         @case( 'actions' )
             <div class="flex justify-end gap-1" data-editing-rate="{{ $row->getKey() }}">
-                <x-artisanpack-button size="sm" color="primary" wire:click="saveRate" wire:loading.attr="disabled" :label="__( 'Save' )" />
-                <x-artisanpack-button size="sm" variant="ghost" wire:click="cancelRate" :label="__( 'Cancel' )" />
+                <x-artisanpack-button size="sm" color="primary" wire:click="saveRate" wire:loading.attr="disabled" data-focus-return="tax-rate-{{ $row->getKey() }}" :label="__( 'Save' )" />
+                <x-artisanpack-button size="sm" variant="ghost" wire:click="cancelRate" data-focus-return="tax-rate-{{ $row->getKey() }}" :label="__( 'Cancel' )" />
             </div>
             @break
     @endswitch
@@ -107,7 +110,7 @@
         @case( 'actions' )
             <div class="flex justify-end gap-1">
                 @if ( $context['canUpdate'] )
-                    <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="editRate( {{ $row->getKey() }} )" :aria-label="__( 'Edit :name', [ 'name' => $row->label ] )" />
+                    <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="editRate( {{ $row->getKey() }} )" data-focus-key="tax-rate-{{ $row->getKey() }}" :aria-label="__( 'Edit :name', [ 'name' => $row->label ] )" />
                 @endif
                 @if ( $context['canDelete'] )
                     <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDeleteRate( {{ $row->getKey() }} )" :aria-label="__( 'Delete :name', [ 'name' => $row->label ] )" />

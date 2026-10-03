@@ -103,7 +103,7 @@
                 />
 
                 <section class="rounded-box border border-base-content/10 p-4 md:col-span-2" aria-labelledby="promotion-stacking-title" data-promotion-stacking>
-                    <h3 id="promotion-stacking-title" class="mb-1 font-semibold">{{ __( 'Stacking and priority' ) }}</h3>
+                    <h2 id="promotion-stacking-title" class="mb-1 font-semibold">{{ __( 'Stacking and priority' ) }}</h2>
                     <p class="mb-3 text-sm opacity-75">
                         {{ __( 'When several promotions qualify, they apply in priority order, lowest number first, each to whatever the earlier ones left. An exclusive promotion applies only if nothing has applied before it, and once it applies, nothing after it does. So give an exclusive promotion a low number to make it win, or a high one to use it only when nothing else qualifies.' ) }}
                     </p>

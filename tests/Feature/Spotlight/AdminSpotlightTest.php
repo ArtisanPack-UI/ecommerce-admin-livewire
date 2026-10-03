@@ -293,7 +293,7 @@ it( 'mounts the palette and its button under the cms-framework layout', function
 } );
 
 it( 'drops records the user may not view, and coupons without promotion access', function (): void {
-    grantAbilities( [ 'product.viewAny', 'coupon.viewAny', 'coupon.view' ] );
+    grantAbilities( [ 'product.viewAny' ] );
     Gate::define( 'ecommerce.product.view', static fn ( $user, $product = null ): bool => 'Secret Mug' !== $product?->name );
     Product::factory()->create( [ 'name' => 'Open Mug' ] );
     Product::factory()->create( [ 'name' => 'Secret Mug' ] );
@@ -313,7 +313,7 @@ it( 'stops answering a user who searches too often', function (): void {
 } );
 
 it( 'lists a coupon only when the user may view its promotion', function (): void {
-    grantAbilities( [ 'coupon.viewAny', 'coupon.view', 'promotion.viewAny' ] );
+    grantAbilities( [ 'promotion.viewAny' ] );
     Gate::define( 'ecommerce.promotion.view', static fn ( $user, $promotion = null ): bool => 'Hidden sale' !== $promotion?->name );
     Coupon::query()->create( [ 'promotion_id' => Promotion::factory()->create( [ 'name' => 'Open sale' ] )->id, 'code' => 'OPEN10' ] );
     Coupon::query()->create( [ 'promotion_id' => Promotion::factory()->create( [ 'name' => 'Hidden sale' ] )->id, 'code' => 'HIDE10' ] );

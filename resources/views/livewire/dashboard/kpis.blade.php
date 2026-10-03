@@ -8,7 +8,7 @@
 --}}
 <h2 id="dashboard-widget-{{ $widget['key'] }}" class="sr-only">{{ $widget['label'] }}</h2>
 
-<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" data-kpis>
+<ul class="grid grid-cols-[repeat(auto-fit,minmax(min(19rem,100%),1fr))] gap-4" data-kpis>
     @foreach ( $dashboard['kpis'] as $kpi )
         <li wire:key="dashboard-kpi-{{ $kpi['key'] }}" data-kpi="{{ $kpi['key'] }}" class="relative">
             <x-artisanpack-stat

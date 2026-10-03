@@ -34,8 +34,8 @@
                         <x-artisanpack-toggle id="attribute-{{ $a }}-variation" :label="__( 'Used for variations' )" wire:model.live="state.attributes.{{ $a }}.is_variation" :disabled="$readOnly" />
                         @unless ( $readOnly )
                             <div class="flex gap-1">
-                                <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="moveAttribute( {{ $a }}, -1 )" :disabled="$loop->first" :aria-label="__( 'Move attribute :number up', [ 'number' => $a + 1 ] )" />
-                                <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="moveAttribute( {{ $a }}, 1 )" :disabled="$loop->last" :aria-label="__( 'Move attribute :number down', [ 'number' => $a + 1 ] )" />
+                                <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="moveAttribute( {{ $a }}, -1 )" data-reorder="up" data-reorder-list="attributes" data-reorder-key="attribute-{{ $attribute['uid'] }}" data-reorder-item="{{ '' !== $attribute['label'] ? $attribute['label'] : __( 'Attribute :number', [ 'number' => $a + 1 ] ) }}" :disabled="$loop->first" :aria-label="__( 'Move attribute :number up', [ 'number' => $a + 1 ] )" />
+                                <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="moveAttribute( {{ $a }}, 1 )" data-reorder="down" data-reorder-list="attributes" data-reorder-key="attribute-{{ $attribute['uid'] }}" data-reorder-item="{{ '' !== $attribute['label'] ? $attribute['label'] : __( 'Attribute :number', [ 'number' => $a + 1 ] ) }}" :disabled="$loop->last" :aria-label="__( 'Move attribute :number down', [ 'number' => $a + 1 ] )" />
                                 <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="removeAttribute( {{ $a }} )" :aria-label="__( 'Remove attribute :number', [ 'number' => $a + 1 ] )" />
                             </div>
                         @endunless
@@ -53,8 +53,8 @@
                                     @endif
                                     @unless ( $readOnly )
                                         <div class="mb-1 flex gap-1">
-                                            <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-up" wire:click="moveValue( {{ $a }}, {{ $v }}, -1 )" :disabled="$loop->first" :aria-label="__( 'Move :value up', [ 'value' => $value['label'] ?: __( 'value' ) ] )" />
-                                            <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-down" wire:click="moveValue( {{ $a }}, {{ $v }}, 1 )" :disabled="$loop->last" :aria-label="__( 'Move :value down', [ 'value' => $value['label'] ?: __( 'value' ) ] )" />
+                                            <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-up" wire:click="moveValue( {{ $a }}, {{ $v }}, -1 )" data-reorder="up" data-reorder-list="values-{{ $attribute['uid'] }}" data-reorder-key="value-{{ $value['uid'] }}" data-reorder-item="{{ $value['label'] ?: __( 'value' ) }}" :disabled="$loop->first" :aria-label="__( 'Move :value up', [ 'value' => $value['label'] ?: __( 'value' ) ] )" />
+                                            <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-down" wire:click="moveValue( {{ $a }}, {{ $v }}, 1 )" data-reorder="down" data-reorder-list="values-{{ $attribute['uid'] }}" data-reorder-key="value-{{ $value['uid'] }}" data-reorder-item="{{ $value['label'] ?: __( 'value' ) }}" :disabled="$loop->last" :aria-label="__( 'Move :value down', [ 'value' => $value['label'] ?: __( 'value' ) ] )" />
                                             <x-artisanpack-button variant="ghost" size="xs" icon="o-x-mark" wire:click="removeValue( {{ $a }}, {{ $v }} )" :aria-label="__( 'Remove :value', [ 'value' => $value['label'] ?: __( 'value' ) ] )" />
                                         </div>
                                     @endunless
@@ -87,12 +87,12 @@
                 <div role="alertdialog" aria-labelledby="variable-generate-confirm" class="rounded-box border border-warning bg-base-100 p-3" x-init="$nextTick( () => $el.querySelector( 'button' )?.focus() )" data-generate-confirm>
                     <p id="variable-generate-confirm" class="mb-2">{{ trans_choice( 'This adds :count variant. Continue?|This adds :count variants. Continue?', $pendingGenerate, [ 'count' => $pendingGenerate ] ) }}</p>
                     <div class="flex gap-2">
-                        <x-artisanpack-button color="primary" size="sm" wire:click="confirmGenerate" wire:loading.attr="disabled" :label="__( 'Generate :count variants', [ 'count' => $pendingGenerate ] )" />
-                        <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelGenerate" :label="__( 'Cancel' )" />
+                        <x-artisanpack-button color="primary" size="sm" wire:click="confirmGenerate" data-focus-return="generate-variants" wire:loading.attr="disabled" :label="__( 'Generate :count variants', [ 'count' => $pendingGenerate ] )" />
+                        <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelGenerate" data-focus-return="generate-variants" :label="__( 'Cancel' )" />
                     </div>
                 </div>
             @else
-                <x-artisanpack-button size="sm" icon="o-sparkles" wire:click="generateVariants" wire:loading.attr="disabled" :label="__( 'Generate variants' )" />
+                <x-artisanpack-button size="sm" icon="o-sparkles" wire:click="generateVariants" data-focus-key="generate-variants" wire:loading.attr="disabled" :label="__( 'Generate variants' )" />
             @endif
         </section>
     @endunless
@@ -158,7 +158,7 @@
                                     @endif
                                     @if ( $mediaLibrary )
                                         @unless ( $readOnly )
-                                            <x-artisanpack-button variant="ghost" size="xs" icon="o-photo" x-on:click="Livewire.dispatch( 'open-media-modal', { context: @js( VariablePanel::MEDIA_CONTEXT . $i ) } )" :label="__( 'Choose image' )" :aria-label="__( 'Choose image for :variant', [ 'variant' => $variantLabel ] )" />
+                                            <x-artisanpack-button variant="ghost" size="xs" icon="o-photo" x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( VariablePanel::MEDIA_CONTEXT . $i ) }} } )" :label="__( 'Choose image' )" :aria-label="__( 'Choose image for :variant', [ 'variant' => $variantLabel ] )" />
                                         @endunless
                                     @else
                                         <x-artisanpack-input id="variant-{{ $i }}-image" type="url" class="input-sm" :label="__( 'Image URL for :variant', [ 'variant' => $variantLabel ] )" wire:model.blur="state.variants.{{ $i }}.image_url" :disabled="$readOnly" />
@@ -167,8 +167,8 @@
                                 <td>
                                     @unless ( $readOnly )
                                         <div class="flex gap-1">
-                                            <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-up" wire:click="moveVariant( {{ $i }}, -1 )" :disabled="$loop->first" :aria-label="__( 'Move :variant up', [ 'variant' => $variantLabel ] )" />
-                                            <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-down" wire:click="moveVariant( {{ $i }}, 1 )" :disabled="$loop->last" :aria-label="__( 'Move :variant down', [ 'variant' => $variantLabel ] )" />
+                                            <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-up" wire:click="moveVariant( {{ $i }}, -1 )" data-reorder="up" data-reorder-list="variants" data-reorder-index="{{ $i }}" data-reorder-item="{{ $variantLabel }}" :disabled="$loop->first" :aria-label="__( 'Move :variant up', [ 'variant' => $variantLabel ] )" />
+                                            <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-down" wire:click="moveVariant( {{ $i }}, 1 )" data-reorder="down" data-reorder-list="variants" data-reorder-index="{{ $i }}" data-reorder-item="{{ $variantLabel }}" :disabled="$loop->last" :aria-label="__( 'Move :variant down', [ 'variant' => $variantLabel ] )" />
                                             <x-artisanpack-button variant="ghost" size="xs" icon="o-trash" wire:click="removeVariant( {{ $i }} )" :aria-label="__( 'Delete :variant', [ 'variant' => $variantLabel ] )" />
                                         </div>
                                     @endunless

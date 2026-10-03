@@ -58,8 +58,8 @@
 
                     @if ( $canUpdate )
                         <div class="flex items-center gap-1">
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="move( {{ $column->id }}, -1 )" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $label ] )" />
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="move( {{ $column->id }}, 1 )" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $label ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="move( {{ $column->id }}, -1 )" data-reorder="up" data-reorder-list="columns" data-reorder-key="column-{{ $column->id }}" data-reorder-item="{{ $label }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $label ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="move( {{ $column->id }}, 1 )" data-reorder="down" data-reorder-list="columns" data-reorder-key="column-{{ $column->id }}" data-reorder-item="{{ $label }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $label ] )" />
                             <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="edit( {{ $column->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $label ] )" />
                             <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $column->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $label ] )" />
                         </div>
@@ -138,8 +138,8 @@
                                 @error( 'form.card_widgets.' . $index )
                                     <span class="text-sm text-error">{{ $message }}</span>
                                 @enderror
-                                <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-up" wire:click="moveWidget( {{ $index }}, -1 )" :disabled="0 === $index" :aria-label="__( 'Move :label up', [ 'label' => $widgetLabel ] )" />
-                                <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-down" wire:click="moveWidget( {{ $index }}, 1 )" :disabled="$loop->last" :aria-label="__( 'Move :label down', [ 'label' => $widgetLabel ] )" />
+                                <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-up" wire:click="moveWidget( {{ $index }}, -1 )" data-reorder="up" data-reorder-list="widgets" data-reorder-index="{{ $index }}" data-reorder-item="{{ $widgetLabel }}" :disabled="0 === $index" :aria-label="__( 'Move :label up', [ 'label' => $widgetLabel ] )" />
+                                <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-down" wire:click="moveWidget( {{ $index }}, 1 )" data-reorder="down" data-reorder-list="widgets" data-reorder-index="{{ $index }}" data-reorder-item="{{ $widgetLabel }}" :disabled="$loop->last" :aria-label="__( 'Move :label down', [ 'label' => $widgetLabel ] )" />
                                 <x-artisanpack-button variant="ghost" size="xs" icon="o-x-mark" wire:click="removeWidget( {{ $index }} )" :aria-label="__( 'Remove :label', [ 'label' => $widgetLabel ] )" />
                             </li>
                         @endforeach

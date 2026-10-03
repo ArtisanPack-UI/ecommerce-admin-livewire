@@ -19,7 +19,7 @@
                             type="checkbox"
                             class="checkbox checkbox-sm"
                             aria-label="{{ __( 'Select every row on this page' ) }}"
-                            x-data="{ keys: @js( $pageKeys() ) }"
+                            x-data="{ keys: {{ \Illuminate\Support\Js::from( $pageKeys() ) }} }"
                             x-bind:checked="keys.length > 0 && keys.every( ( key ) => $wire.selected.map( String ).includes( key ) )"
                             x-on:change="$wire.set( 'selected', $event.target.checked
                                 ? [ ...new Set( [ ...$wire.selected.map( String ), ...keys ] ) ]
@@ -39,7 +39,7 @@
                             <button
                                 type="button"
                                 class="inline-flex items-center gap-1 font-semibold hover:underline focus-visible:underline"
-                                wire:click="sort( @js( $column['key'] ) )"
+                                wire:click="sort( {{ \Illuminate\Support\Js::from( $column['key'] ) }} )"
                             >
                                 {{ $column['label'] }}
                                 <x-artisanpack-icon :name="$sortIcon( $column )" class="w-3 h-3" aria-hidden="true" />

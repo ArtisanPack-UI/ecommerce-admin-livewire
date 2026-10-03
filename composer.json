@@ -76,7 +76,11 @@
     "fix": "./vendor/bin/php-cs-fixer fix",
     "cs": "./vendor/bin/phpcs",
     "cs:fix": "./vendor/bin/phpcbf",
-    "test": "./vendor/bin/pest"
+    "test": "./vendor/bin/pest --testsuite=Unit,Feature",
+    "test:browser": [
+      "npm run build:browser",
+      "./vendor/bin/pest --group=browser"
+    ]
   },
   "config": {
     "sort-packages": false,
