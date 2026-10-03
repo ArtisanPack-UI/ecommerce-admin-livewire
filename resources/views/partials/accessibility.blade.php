@@ -89,29 +89,28 @@
             }
         };
 
-        // A click that never reaches the server must not steer focus on some
-        // later, unrelated update (a real-time refresh, say).
-        const PENDING_TTL = 3000;
-
-        const settle = () => {
-            const current = pending;
-
-            pending = null;
-
-            if ( ! current || Date.now() - current.at > PENDING_TTL ) {
+        // Handles the action once its own component's update has landed.
+        const settle = ( action ) => {
+            if ( pending !== action ) {
                 return;
             }
 
-            if ( 'move' === current.type ) {
-                settleMove( current );
+            pending = null;
+
+            if ( 'move' === action.type ) {
+                settleMove( action );
 
                 return;
             }
 
             if ( focusLost() ) {
-                document.querySelector( attribute( 'data-focus-key', current.key ) )?.focus();
+                document.querySelector( attribute( 'data-focus-key', action.key ) )?.focus();
             }
         };
+
+        // The Livewire component a click belongs to, so only that component's
+        // update settles it (not a real-time refresh elsewhere on the page).
+        const componentOf = ( element ) => element.closest( '[wire\\:id]' )?.getAttribute( 'wire:id' ) ?? null;
 
         document.addEventListener( 'click', ( event ) => {
             const move = event.target.closest( '[data-reorder]' );
@@ -124,7 +123,7 @@
                     key: move.dataset.reorderKey ?? null,
                     index: move.dataset.reorderIndex ?? 0,
                     item: move.dataset.reorderItem ?? '',
-                    at: Date.now(),
+                    component: componentOf( move ),
                 };
 
                 return;
@@ -133,12 +132,23 @@
             const back = event.target.closest( '[data-focus-return]' );
 
             if ( back ) {
-                pending = { type: 'return', key: back.dataset.focusReturn, at: Date.now() };
+                pending = { type: 'return', key: back.dataset.focusReturn, component: componentOf( back ) };
             }
         }, true );
 
-        const listen = () => window.Livewire.hook( 'commit', ( { succeed } ) => {
-            succeed( () => requestAnimationFrame( () => requestAnimationFrame( settle ) ) );
+        const listen = () => window.Livewire.hook( 'commit', ( { component, succeed, fail } ) => {
+            const action = pending;
+
+            if ( ! action || action.component !== component.id ) {
+                return;
+            }
+
+            succeed( () => requestAnimationFrame( () => requestAnimationFrame( () => settle( action ) ) ) );
+            fail( () => {
+                if ( pending === action ) {
+                    pending = null;
+                }
+            } );
         } );
 
         if ( window.Livewire ) {

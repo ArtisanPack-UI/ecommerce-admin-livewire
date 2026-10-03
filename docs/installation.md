@@ -27,7 +27,7 @@ The service provider is auto-discovered. The package has no migrations: it reads
 php artisan ecommerce-admin:install
 ```
 
-It publishes the config, prints the front-end steps, registers RBAC permissions when `cms-framework` is installed, and warns when no `ecommerce.admin` gate is defined. Pass `--force` to overwrite a config you published before. See [Artisan Commands](Advanced-Artisan-Commands).
+It publishes the config, prints the front-end steps, registers RBAC permissions when `cms-framework` is installed, and warns when it finds neither `cms-framework` RBAC support nor an `ecommerce.admin` gate (it does not check which users can actually get in). Pass `--force` to overwrite a config you published before. See [Artisan Commands](Advanced-Artisan-Commands).
 
 ## Publishing
 

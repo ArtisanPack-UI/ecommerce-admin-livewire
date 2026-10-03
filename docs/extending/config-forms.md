@@ -41,7 +41,7 @@ public function keys(): array
 | `type` | Yes | One of the types below |
 | `label` | Yes | Visible label |
 | `hint` | No | Help text under the field |
-| `rules` | No | Extra Laravel rules (array or `|` string). Fields are optional unless the rules include `required`. A rule may name a sibling field as `@name`, e.g. `required_without:@amount`. |
+| `rules` | No | Extra Laravel rules (an array or a pipe-delimited string). Fields are optional unless the rules include `required`. A rule may name a sibling field as `@name`, e.g. `required_without:@amount`. |
 | `options` | No | For `select` and `multiselect`: `[ value => label ]` or `[ [ 'id' => …, 'name' => … ] ]` |
 | `default` | No | Starting value for a new entry |
 | `multiple` | No | For `product`: pick many (default `true`) or one |

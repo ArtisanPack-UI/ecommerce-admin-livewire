@@ -14,7 +14,7 @@ middleware. It enforces the engine's abilities itself:
 - **Each action.** Every action authorizes again before it runs, because a Livewire action can be called directly with a
   forged request.
 
-A denial always ends in a 403. The default is deny: with no gate defined, every screen answers 403.
+A denial always ends in a 403. The default is deny: a screen answers 403 unless a Gate ability, an assigned `cms-framework` permission, or an ability filter grants access.
 
 ## How an ability is decided
 

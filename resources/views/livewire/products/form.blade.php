@@ -34,9 +34,13 @@
             // After the tab switch renders, focus the control bound to the
             // first invalid property (the component library marks errors on
             // the wrapper, not the control, so they can't be found by state).
+            // The type panel is its own component: its errors arrive as
+            // `panelState.*` but its fields bind `state.*`.
+            const paths = [ field, String( field ?? '' ).replace( /^panelState\./, 'state.' ) ];
+
             setTimeout( () => {
                 const control = Array.from( this.$root.querySelectorAll( 'input, select, textarea' ) ).find(
-                    ( el ) => null !== el.offsetParent && Array.from( el.attributes ).some( ( attribute ) => attribute.name.startsWith( 'wire:model' ) && attribute.value === field ),
+                    ( el ) => null !== el.offsetParent && Array.from( el.attributes ).some( ( attribute ) => attribute.name.startsWith( 'wire:model' ) && paths.includes( attribute.value ) ),
                 );
 
                 control?.focus();

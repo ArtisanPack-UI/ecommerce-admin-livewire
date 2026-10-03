@@ -18,7 +18,7 @@ The service provider is auto-discovered. The install command:
 - publishes `config/artisanpack/ecommerce-admin-livewire.php`;
 - prints the Tailwind `@source` lines and the npm package the admin needs;
 - registers RBAC permissions when `cms-framework` is installed;
-- warns when nothing grants access to the admin.
+- warns when it finds neither RBAC support nor an `ecommerce.admin` gate (it does not check role assignments).
 
 ## 2. Set up the front end
 
