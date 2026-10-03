@@ -112,7 +112,7 @@ jobs:
       - name: Run tests
         env:
           XDEBUG_MODE: off
-        run: vendor/bin/pest --exclude-group=browser --no-coverage
+        run: vendor/bin/pest --testsuite=Unit,Feature --no-coverage
 
   pci-lint:
     runs-on: ubuntu-latest

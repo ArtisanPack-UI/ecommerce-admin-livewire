@@ -17,7 +17,7 @@ composer test:browser
 
 `composer test:browser` runs the build again before the tests, so after the first run it is the only command you need.
 
-`composer test` runs everything else and excludes the `browser` group. CI runs the browser suite in its own job, on Livewire 3 and 4.
+`composer test` runs only the Unit and Feature suites (`--testsuite=Unit,Feature`); loading the Browser suite would start Playwright. CI runs the browser suite in its own job, on Livewire 3 and 4.
 
 ## How the harness works
 
