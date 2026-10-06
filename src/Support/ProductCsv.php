@@ -827,7 +827,7 @@ final class ProductCsv
         $map         = [];
 
         $items = InventoryItem::query()
-            ->whereNull( 'warehouse_id' )
+            ->where( 'warehouse_id', InventoryItem::DEFAULT_WAREHOUSE )
             ->where( static function ( Builder $owner ) use ( $productType, $productIds, $variantType, $variantIds ): void {
                 $owner->where( static fn ( Builder $own ) => $own->where( 'stockable_type', $productType )->whereIn( 'stockable_id', $productIds ) )
                     ->orWhere( static fn ( Builder $own ) => $own->where( 'stockable_type', $variantType )->whereIn( 'stockable_id', [] === $variantIds ? [ 0 ] : $variantIds ) );

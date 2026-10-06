@@ -1251,7 +1251,7 @@ class Form extends Component
         $stock = InventoryItem::query()
             ->where( 'stockable_type', $product->getMorphClass() )
             ->where( 'stockable_id', $product->id )
-            ->whereNull( 'warehouse_id' )
+            ->where( 'warehouse_id', InventoryItem::DEFAULT_WAREHOUSE )
             ->first();
 
         $this->type              = (string) $product->type;

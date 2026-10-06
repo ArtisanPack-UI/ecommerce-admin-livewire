@@ -138,7 +138,7 @@ class VariablePanel extends ProductTypePanel
         $stock = InventoryItem::query()
             ->where( 'stockable_type', ( new ProductVariant() )->getMorphClass() )
             ->whereIn( 'stockable_id', $variants->pluck( 'id' ) )
-            ->whereNull( 'warehouse_id' )
+            ->where( 'warehouse_id', InventoryItem::DEFAULT_WAREHOUSE )
             ->get()
             ->keyBy( 'stockable_id' );
 
