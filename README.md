@@ -121,4 +121,4 @@ composer test:browser   # browser suite; see docs/advanced/browser-tests.md
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+The MIT License. See [LICENSE](LICENSE) for details.

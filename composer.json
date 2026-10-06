@@ -2,7 +2,7 @@
   "name": "artisanpack-ui/ecommerce-admin-livewire",
   "description": "Livewire admin for the ArtisanPack UI ecommerce engine.",
   "type": "library",
-  "license": "GPL-3.0-or-later",
+  "license": "MIT",
   "keywords": [
     "laravel",
     "livewire",

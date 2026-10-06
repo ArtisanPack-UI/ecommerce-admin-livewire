@@ -100,4 +100,4 @@ For support, please open an issue on the [GitHub repository](https://github.com/
 
 ## License
 
-This package is open-source software licensed under the GPL-3.0-or-later license.
+This package is open-source software licensed under the MIT license.
