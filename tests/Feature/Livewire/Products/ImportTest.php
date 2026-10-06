@@ -246,7 +246,7 @@ it( 'applies once per token', function (): void {
 
     $component->call( 'apply', $token )
         ->assertSeeHtml( 'data-import-progress="queued"' )
-        ->assertSeeHtml( 'wire:poll.2s' );
+        ->assertSeeHtml( 'wire:poll.5s' );
 
     Queue::assertPushed( RunProductImport::class, 1 );
 
