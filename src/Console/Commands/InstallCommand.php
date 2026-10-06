@@ -111,7 +111,7 @@ class InstallCommand extends Command
         $granted = false;
 
         if ( RbacPermissions::available() ) {
-            $this->call( 'ecommerce-admin:sync-permissions' );
+            $this->call( 'ecommerce:sync-permissions' );
             $this->components->info( __( 'Assign the shop-manager role, or individual ecommerce permissions, to your staff.' ) );
             $granted = true;
         }

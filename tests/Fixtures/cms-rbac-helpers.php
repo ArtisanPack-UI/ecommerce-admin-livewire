@@ -7,11 +7,12 @@
 declare( strict_types=1 );
 
 if ( ! function_exists( 'ap_register_permission' ) ) {
-    $GLOBALS['fakeRbac'] = [ 'roles' => [], 'permissions' => [], 'grants' => [] ];
+    $GLOBALS['fakeRbac'] = [ 'roles' => [], 'roleCalls' => [], 'permissions' => [], 'grants' => [] ];
 
     function ap_register_role( string $slug, string $name ): string
     {
         $GLOBALS['fakeRbac']['roles'][ $slug ] = $name;
+        $GLOBALS['fakeRbac']['roleCalls'][]    = $slug;
 
         return $slug;
     }

@@ -58,12 +58,9 @@ use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\NullSpotlight;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ConfigSchemas;
-use ArtisanPackUI\EcommerceAdminLivewire\Support\RbacPermissions;
 use ArtisanPackUI\EcommerceAdminLivewire\View\Components;
 use Illuminate\Contracts\View\View as ViewContract;
-use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -325,7 +322,6 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $this->registerTranslations();
         $this->registerCommands();
         $this->registerBladeComponents();
-        $this->registerRbac();
         $this->registerLayoutResolver();
         $this->registerLivewireComponents();
         $this->registerRoutes();
@@ -561,31 +557,5 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         foreach ( self::BLADE_COMPONENTS as $name => $class ) {
             Blade::component( 'artisanpack-ec-' . $name, $class );
         }
-    }
-
-    /**
-     * Wires the engine abilities to cms-framework RBAC when it is installed.
-     *
-     * Permissions are granted through the engine's ability filters on every
-     * request; they are created after each `migrate` run (and by
-     * `ecommerce-admin:install` / `ecommerce-admin:sync-permissions`).
-     *
-     * @since 1.0.0
-     *
-     * @return void
-     */
-    protected function registerRbac(): void
-    {
-        if ( ! RbacPermissions::available() ) {
-            return;
-        }
-
-        RbacPermissions::grantThroughPermissions();
-
-        Event::listen( MigrationsEnded::class, static function ( MigrationsEnded $event ): void {
-            if ( 'up' === $event->method ) {
-                RbacPermissions::register();
-            }
-        } );
     }
 }

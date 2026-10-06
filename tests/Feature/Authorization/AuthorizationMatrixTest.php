@@ -343,6 +343,8 @@ const MATRIX = [
             'resetFilters'                 => [ 'args' => [], 'ability' => 'digitalFile.viewAny' ],
             'selectAllMatchingRows'        => [ 'args' => [], 'ability' => 'digitalFile.viewAny' ],
             'clearSelection'               => [ 'args' => [], 'ability' => 'digitalFile.viewAny' ],
+            'archiveKept'                  => [ 'args' => [], 'ability' => 'digitalFile.update' ],
+            'dismissKept'                  => [ 'args' => [], 'ability' => 'digitalFile.viewAny' ],
             'runBulkAction'                => [ 'args' => [ 'export' ], 'ability' => 'digitalFile.viewAny' ],
             'confirmBulkAction'            => [ 'args' => [ 'token' ], 'ability' => 'digitalFile.viewAny' ],
             'cancelBulkAction'             => [ 'args' => [], 'ability' => 'digitalFile.viewAny' ],

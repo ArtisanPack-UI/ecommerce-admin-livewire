@@ -319,6 +319,8 @@ class Index extends Component
      */
     public function dismissKept(): void
     {
+        $this->authorizeTable();
+
         $this->keptIds = [];
     }
 
