@@ -49,13 +49,19 @@ abstract class TestCase extends BaseTestCase
      */
     protected function getPackageProviders( $app ): array
     {
+        // rebing/graphql-laravel is optional in the engine, so it's only
+        // registered when it is installed.
+        $graphQl = class_exists( GraphQLServiceProvider::class )
+            ? [ GraphQLServiceProvider::class ]
+            : [];
+
         return [
             CoreServiceProvider::class,
             HooksServiceProvider::class,
             SecurityServiceProvider::class,
             SanctumServiceProvider::class,
             ScoutServiceProvider::class,
-            GraphQLServiceProvider::class,
+            ...$graphQl,
             EcommerceServiceProvider::class,
             LivewireServiceProvider::class,
             BladeIconsServiceProvider::class,

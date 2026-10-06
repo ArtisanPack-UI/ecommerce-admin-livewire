@@ -2,6 +2,7 @@
 
 declare( strict_types=1 );
 
+use ArtisanPackUI\Ecommerce\Registries\AdminMenuRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 
 it( 'defines every section and entry from spec §5.4 in order', function (): void {
@@ -90,13 +91,14 @@ it( 'merges entries from the engine AdminMenuRegistry when it exists', function 
     grantAbilities( [ 'customer.viewAny' ] );
     fakeAdminRoutes( [ 'loyalty.index' ] );
 
-    if ( ! class_exists( AdminNav::MENU_REGISTRY ) ) {
-        eval( 'namespace ArtisanPackUI\Ecommerce\Registries; class AdminMenuRegistry { public array $items = []; public function all(): array { return $this->items; } }' );
-    }
-
-    $registry        = new ( AdminNav::MENU_REGISTRY )();
-    $registry->items = [ [ 'key' => 'loyalty', 'section' => 'customers', 'label' => 'Loyalty', 'icon' => 'o-gift', 'route' => 'artisanpack.ecommerce.admin.loyalty.index', 'position' => 20, 'permission' => 'customer.viewAny' ] ];
-    app()->instance( AdminNav::MENU_REGISTRY, $registry );
+    app( AdminMenuRegistry::class )->register( 'loyalty', [
+        'section'    => 'customers',
+        'label'      => 'Loyalty',
+        'icon'       => 'o-gift',
+        'route'      => 'artisanpack.ecommerce.admin.loyalty.index',
+        'position'   => 20,
+        'permission' => 'customer.viewAny',
+    ] );
 
     expect( collect( AdminNav::visibleItems( makeUser() ) )->pluck( 'key' )->all() )->toContain( 'loyalty' );
 } );
