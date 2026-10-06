@@ -379,3 +379,13 @@ it( 'links to the import screen for users who may create or update products', fu
 
     Livewire::test( Index::class )->assertDontSeeHtml( 'products/import' );
 } );
+
+it( 'caps a crafted selection instead of loading it whole', function (): void {
+    $component = Livewire::test( Index::class )->set( 'selected', range( 1, 70_000 ) );
+
+    expect( $component->get( 'selected' ) )->toHaveCount( 100 * 50 );
+
+    config()->set( 'artisanpack.ecommerce-admin-livewire.tables.max_selection', 10 );
+
+    expect( Livewire::test( Index::class )->set( 'selected', range( 1, 500 ) )->get( 'selected' ) )->toHaveCount( 10 );
+} );

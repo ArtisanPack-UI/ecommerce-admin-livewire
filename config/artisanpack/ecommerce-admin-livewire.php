@@ -44,7 +44,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | `export_max_rows` caps a single CSV export; the user is told when an
-    | export was cut short.
+    | export was cut short. `max_selection` caps how many rows can be ticked
+    | one by one (0: the largest page size times 50); bigger sets use
+    | "select all matching".
     |
     */
 
@@ -52,6 +54,7 @@ return [
         'per_page'        => 25,
         'per_page_values' => [ 10, 25, 50, 100 ],
         'export_max_rows' => 10000,
+        'max_selection'   => 0,
     ],
 
     /*
