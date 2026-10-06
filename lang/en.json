@@ -1486,6 +1486,7 @@
     "The category was not deleted.": "The category was not deleted.",
     "The change is recorded in the activity log.": "The change is recorded in the activity log.",
     "The column was not deleted.": "The column was not deleted.",
+    "The compare-at price must be higher than the price.": "The compare-at price must be higher than the price.",
     "The count cannot be negative.": "The count cannot be negative.",
     "The country must be a two-letter country code.": "The country must be a two-letter country code.",
     "The customer has paid. Cancelling does not refund: :amount is still owed and must be refunded separately.": "The customer has paid. Cancelling does not refund: :amount is still owed and must be refunded separately.",

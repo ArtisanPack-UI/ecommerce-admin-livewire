@@ -1486,6 +1486,7 @@
     "The category was not deleted.": "La catégorie n’a pas été supprimée.",
     "The change is recorded in the activity log.": "La modification est enregistrée dans le journal d’activité.",
     "The column was not deleted.": "La colonne n’a pas été supprimée.",
+    "The compare-at price must be higher than the price.": "Le prix barré doit être supérieur au prix.",
     "The count cannot be negative.": "La quantité ne peut pas être négative.",
     "The country must be a two-letter country code.": "Le pays doit être un code pays à deux lettres.",
     "The customer has paid. Cancelling does not refund: :amount is still owed and must be refunded separately.": "Le client a payé. L’annulation ne rembourse pas : :amount reste dû et doit être remboursé séparément.",

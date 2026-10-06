@@ -186,6 +186,33 @@ it( 'validates every tab and switches to the first one with an error', function 
     'bad image URL'       => [ [ 'featuredImageUrl' => 'javascript:alert(1)' ], 'featuredImageUrl', 'media' ],
 ] );
 
+it( 'requires the compare-at price to be higher than the price', function ( ?int $compareAt, bool $valid ): void {
+    $component = Livewire::test( Form::class )
+        ->set( 'name', 'Shirt' )
+        ->set( 'prices.0.price_amount', 1_000 )
+        ->set( 'prices.0.compare_at_amount', $compareAt )
+        ->call( 'save' );
+
+    if ( $valid ) {
+        $component->assertHasNoErrors();
+
+        expect( Product::query()->count() )->toBe( 1 );
+
+        return;
+    }
+
+    $component->assertHasErrors( 'prices.0.compare_at_amount' )
+        ->assertSee( 'The compare-at price must be higher than the price.' )
+        ->assertSet( 'tab', 'pricing' );
+
+    expect( Product::query()->count() )->toBe( 0 );
+} )->with( [
+    'lower'  => [ 900, false ],
+    'equal'  => [ 1_000, false ],
+    'higher' => [ 1_200, true ],
+    'empty'  => [ null, true ],
+] );
+
 it( 'puts engine refusals on the matching field', function (): void {
     existingProduct();
 

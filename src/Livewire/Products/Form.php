@@ -985,7 +985,11 @@ class Form extends Component
                     }
                 }
             } );
-        } )->validate( array_merge( $this->rules( $product ), $this->scheduledPriceRules() ), [], $this->validationAttributes() );
+        } )->validate(
+            array_merge( $this->rules( $product ), $this->scheduledPriceRules(), $this->compareAtRules() ),
+            [ 'prices.*.compare_at_amount.gt' => __( 'The compare-at price must be higher than the price.' ) ],
+            $this->validationAttributes(),
+        );
     }
 
     /**
@@ -1157,6 +1161,29 @@ class Form extends Component
      *
      * @return array<string, mixed>
      */
+    /**
+     * A compare-at price must be above the row's price (rows without a
+     * price are skipped).
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function compareAtRules(): array
+    {
+        $rules = [];
+
+        foreach ( $this->prices as $index => $row ) {
+            if ( ! is_numeric( $row['price_amount'] ?? null ) || ! is_numeric( $row['compare_at_amount'] ?? null ) ) {
+                continue;
+            }
+
+            $rules[ "prices.{$index}.compare_at_amount" ] = [ 'nullable', 'integer', 'min:0', 'max:999999999999999', "gt:prices.{$index}.price_amount" ];
+        }
+
+        return $rules;
+    }
+
     protected function scheduledPriceRules(): array
     {
         $rules = [];
