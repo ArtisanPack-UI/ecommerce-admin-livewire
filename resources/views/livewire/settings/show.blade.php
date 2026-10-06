@@ -8,8 +8,9 @@
 --}}
 @php
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Settings\Show;
+    use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 @endphp
-<div class="flex flex-col gap-6">
+<div class="flex flex-col gap-6" x-data="{ {!! UnsavedChanges::members() !!} }" {!! UnsavedChanges::attributes() !!}>
     <x-artisanpack-header :title="__( 'Settings' )" :subtitle="$tab['description']" :level="1" separator />
 
     <nav aria-label="{{ __( 'Settings sections' ) }}">

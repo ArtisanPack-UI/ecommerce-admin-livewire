@@ -12,24 +12,13 @@
 @php
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products\Form;
     use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
+    use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 
     $tabLabel = static fn ( string $key, string $label ): string => in_array( $key, $errorTabs, true ) ? __( ':tab (has errors)', [ 'tab' => $label ] ) : $label;
 @endphp
 <div
     x-data="{
-        dirty: false,
-        message: {{ \Illuminate\Support\Js::from( __( 'You have unsaved changes. Leave without saving?' ) ) }},
-        warnBeforeUnload( event ) {
-            if ( this.dirty ) {
-                event.preventDefault();
-                event.returnValue = '';
-            }
-        },
-        confirmNavigate( event ) {
-            if ( this.dirty && ! window.confirm( this.message ) ) {
-                event.preventDefault();
-            }
-        },
+        {!! UnsavedChanges::members() !!}
         focusError( field ) {
             // After the tab switch renders, focus the control bound to the
             // first invalid property (the component library marks errors on
@@ -47,11 +36,7 @@
             }, 50 );
         },
     }"
-    x-on:input="dirty = true"
-    x-on:change="dirty = true"
-    x-on:beforeunload.window="warnBeforeUnload( $event )"
-    x-on:livewire:navigate.document="confirmNavigate( $event )"
-    x-on:{{ Form::SAVED_EVENT }}.window="dirty = false"
+    {!! UnsavedChanges::attributes( Form::SAVED_EVENT ) !!}
     x-on:{{ Form::INVALID_EVENT }}.window="dirty = true; focusError( $event.detail.field )"
     data-product-form
 >

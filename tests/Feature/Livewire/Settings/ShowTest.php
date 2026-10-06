@@ -8,6 +8,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\EcommerceAdminLivewireServiceProvider;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Settings\Show;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\SettingsTabRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 use Tests\Fixtures\Livewire\LoyaltySettingsTab;
@@ -63,8 +64,10 @@ it( 'saves changed values through the engine repository', function (): void {
     $component = Livewire::test( Show::class, [ 'group' => 'general' ] )
         ->set( 'form.notifications__store_name', 'Acme Outfitters' )
         ->set( 'form.notifications__support_email', 'help@acme.test' )
+        ->assertSeeHtml( 'data-unsaved-changes' )
         ->call( 'save' )
         ->assertHasNoErrors()
+        ->assertDispatched( UnsavedChanges::SAVED_EVENT )
         ->assertSeeHtml( 'data-setting-stored' );
 
     expect( sentToasts( $component ) )->toContain( '2 settings saved.' )

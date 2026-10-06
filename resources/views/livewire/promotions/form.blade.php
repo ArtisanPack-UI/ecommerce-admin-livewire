@@ -8,8 +8,9 @@
 --}}
 @php
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Promotions\Index;
+    use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 @endphp
-<div class="flex flex-col gap-4" data-promotion-form>
+<div class="flex flex-col gap-4" data-promotion-form x-data="{ {!! UnsavedChanges::members() !!} }" {!! UnsavedChanges::attributes() !!}>
     <x-artisanpack-header
         :title="$isCreate ? __( 'New promotion' ) : __( 'Edit :name', [ 'name' => $promotion->name ] )"
         :level="1"

@@ -25,6 +25,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\SettingsTabRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use DateTimeZone;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Locked;
@@ -174,6 +175,8 @@ class Show extends Component
 
         $this->resetErrorBag();
         $this->form = $this->formValues();
+
+        $this->dispatch( UnsavedChanges::SAVED_EVENT );
 
         [] === $changes
             ? $this->toastSuccess( __( 'No changes to save.' ) )

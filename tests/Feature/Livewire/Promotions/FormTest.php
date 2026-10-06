@@ -11,6 +11,7 @@ use ArtisanPackUI\Ecommerce\Models\PromotionAction;
 use ArtisanPackUI\Ecommerce\Models\PromotionCondition;
 use ArtisanPackUI\Ecommerce\Registries\PromotionConditionRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Promotions\Form;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
@@ -77,8 +78,10 @@ describe( 'details', function (): void {
             ->set( 'ruleRows.conditions.0.config.amount', 5000 )
             ->set( 'ruleToAdd.actions', 'percent-off-cart' )->call( 'addRule', 'actions' )
             ->set( 'ruleRows.actions.0.config.percent', '10' )
+            ->assertSeeHtml( 'data-unsaved-changes' )
             ->call( 'save' )
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertDispatched( UnsavedChanges::SAVED_EVENT );
 
         $promotion = Promotion::query()->where( 'key', 'black-friday' )->sole();
 

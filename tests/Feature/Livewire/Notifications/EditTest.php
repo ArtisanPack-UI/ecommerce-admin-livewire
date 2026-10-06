@@ -7,6 +7,7 @@ use ArtisanPackUI\Ecommerce\Models\NotificationTemplate;
 use ArtisanPackUI\Ecommerce\Notifications\NotificationCatalog;
 use ArtisanPackUI\Ecommerce\Services\NotificationTemplateService;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notifications\Edit;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
@@ -69,8 +70,10 @@ it( 'updates the preview live and saves', function (): void {
         ->assertSet( 'previewSubject', 'Thanks, Ada' )
         ->set( 'previewJson', '{"Order": {"number": "X1", "customer": {"name": "Grace"}}}' )
         ->assertSet( 'previewSubject', 'Thanks, Grace' )
+        ->assertSeeHtml( 'data-unsaved-changes' )
         ->call( 'save' )
-        ->assertHasNoErrors();
+        ->assertHasNoErrors()
+        ->assertDispatched( UnsavedChanges::SAVED_EVENT );
 
     $template->refresh();
     expect( $template->subject )->toBe( 'Thanks, {{ Order.customer.name }}' )

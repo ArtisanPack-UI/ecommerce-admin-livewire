@@ -6,8 +6,13 @@
 
     @since      1.0.0
 --}}
+@php
+    use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
+@endphp
 <div
+    {!! UnsavedChanges::attributes() !!}
     x-data="{
+        {!! UnsavedChanges::members() !!}
         target: 'body',
         insert( text ) {
             if ( 'subject' === this.target ) {

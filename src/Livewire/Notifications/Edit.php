@@ -20,6 +20,7 @@ use ArtisanPackUI\Ecommerce\Services\NotificationTemplateService;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
@@ -362,6 +363,7 @@ class Edit extends Component
         }
 
         $this->renderPreview();
+        $this->dispatch( UnsavedChanges::SAVED_EVENT );
         $this->toastSuccess( __( 'Template saved.' ) );
     }
 
@@ -431,6 +433,7 @@ class Edit extends Component
         $this->body    = (string) $template->body;
         $this->resetErrorBag();
         $this->renderPreview();
+        $this->dispatch( UnsavedChanges::SAVED_EVENT );
         $this->toastSuccess( __( 'Template reset to the default copy.' ) );
     }
 

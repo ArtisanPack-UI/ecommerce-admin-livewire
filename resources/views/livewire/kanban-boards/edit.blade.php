@@ -6,7 +6,10 @@
 
     @since      1.0.0
 --}}
-<div class="flex flex-col gap-8" data-kanban-board-form>
+@php
+    use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
+@endphp
+<div class="flex flex-col gap-8" data-kanban-board-form x-data="{ {!! UnsavedChanges::members() !!} }" {!! UnsavedChanges::attributes() !!}>
     <div class="flex flex-col gap-4">
         <x-artisanpack-header :title="__( 'Edit :name', [ 'name' => $board->name ] )" :level="1" separator>
             <x-slot:actions>
