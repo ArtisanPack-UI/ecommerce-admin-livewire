@@ -1,0 +1,24 @@
+# Runs the engine's satellite contract verification on every pull request
+# (docs/satellite-verification.md in artisanpack-ui/ecommerce). On tags the
+# release workflow runs it instead, signs the report, and attaches it to the
+# release.
+#
+# The admin registers no engine contract implementations (it is UI only), so
+# it verifies with --allow-empty.
+name: Verify satellite
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    # Pinned to an engine release tag: never point this at a moving branch.
+    uses: ArtisanPack-UI/ecommerce/.github/workflows/verify-satellite.yml@v1.0.0
+    permissions:
+      contents: read
+    with:
+      php-version: '8.4'
+      extra-args: '--allow-empty'

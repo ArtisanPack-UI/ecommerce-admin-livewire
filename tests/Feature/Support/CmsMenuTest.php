@@ -7,7 +7,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 
 beforeEach( function (): void {
     fakeAdminRoutes( [ 'orders.index', 'reviews.index', 'products.index' ] );
-    grantAbilities( [ 'order.viewAny', 'product.viewAny' ] );
+    grantAbilities( [ 'order.viewAny', 'product.viewAny', 'inventory.viewAny' ] );
     $this->actingAs( makeUser() );
 } );
 
@@ -49,7 +49,7 @@ it( 'injects the visible entries into the cms-framework menu', function (): void
         ->and( $menu['ecommerce-dashboard']['url'] )->toBe( route( 'artisanpack.ecommerce.admin.dashboard' ) )
         ->and( $menu['ecommerce-orders']['title'] )->toBe( 'Orders' )
         ->and( array_keys( $menu['ecommerce-orders']['items'] ) )->toBe( [ 'ecommerce-orders' ] )
-        ->and( array_keys( $menu['ecommerce-catalog']['items'] ) )->toBe( [ 'ecommerce-products' ] )
+        ->and( array_keys( $menu['ecommerce-catalog']['items'] ) )->toBe( [ 'ecommerce-products', 'ecommerce-categories', 'ecommerce-tags', 'ecommerce-inventory' ] )
         ->and( $menu['ecommerce-catalog']['items']['ecommerce-products'] )->not->toHaveKey( 'permission' );
 } );
 
@@ -73,6 +73,7 @@ it( 'injects nothing for a user without access', function (): void {
     $this->actingAs( makeUser() );
     Illuminate\Support\Facades\Gate::define( 'ecommerce.order.viewAny', static fn (): bool => false );
     Illuminate\Support\Facades\Gate::define( 'ecommerce.product.viewAny', static fn (): bool => false );
+    Illuminate\Support\Facades\Gate::define( 'ecommerce.inventory.viewAny', static fn (): bool => false );
 
     expect( CmsMenu::injectInto( [] ) )->toBe( [] );
 } );

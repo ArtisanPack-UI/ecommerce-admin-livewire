@@ -73,7 +73,7 @@ Parent plan §10.2 lists thirteen admin deliverables. Phase 6 adds kanban settin
 | Hook prefix | `ap.ecommerceAdminLivewire.` |
 | Translations | `lang/{en,es,fr,de}.json`, loaded with `loadJsonTranslationsFrom()` |
 | Publish tags | `ecommerce-admin-config`, `ecommerce-admin-views`, `ecommerce-admin-lang` |
-| License | GPL-3.0-or-later (matches the engine) |
+| License | MIT (matches the engine; decided for 1.0.0) |
 
 Naming follows the `bookings` package, the closest sibling with a Livewire admin.
 
@@ -217,7 +217,7 @@ Abilities used per screen:
 | Screen | Abilities |
 |---|---|
 | Products, categories, tags | `product.{viewAny,view,create,update,delete}` |
-| Inventory | `product.viewAny`, `product.update` (see E10) |
+| Inventory | `inventory.viewAny`, `inventory.adjust` |
 | Reviews | `review.{viewAny,view,moderate,delete}` |
 | Digital files / license keys | `digitalFile.*`, `licenseKey.{view,revoke}` |
 | Orders | `order.{viewAny,view,update,edit-fulfilled,cancel,refund}`, `refund.{view,create}` |
@@ -227,7 +227,9 @@ Abilities used per screen:
 | Notification templates | `notificationTemplate.{viewAny,view,update}` |
 | Webhooks | `webhookSubscription.*` |
 | Kanban settings | `kanbanBoard.*` |
-| Reports, settings, order statuses | none exist yet — E10 |
+| Order statuses | `orderSubstatus.*` |
+| Reports | `report.view` |
+| Settings | `settings.view`, `settings.update` |
 
 ## 7. Screens
 

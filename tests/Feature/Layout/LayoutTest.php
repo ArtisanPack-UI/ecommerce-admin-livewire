@@ -65,3 +65,48 @@ it( 'lists the screens the user can open on the dashboard', function (): void {
         ->assertOk()
         ->assertSee( 'Dashboard' );
 } );
+
+it( 'loads the host Vite build in both layouts', function ( bool $cms ): void {
+    CmsFramework::fake( $cms );
+    View::addNamespace( 'cms', __DIR__ . '/../../Fixtures/views/cms' );
+
+    $hot = tempnam( sys_get_temp_dir(), 'vite-hot' );
+    file_put_contents( $hot, 'http://localhost:5173' );
+    Illuminate\Support\Facades\Vite::useHotFile( $hot );
+
+    $html = $this->get( route( 'artisanpack.ecommerce.admin.orders.index' ) )->assertOk()->getContent();
+
+    expect( $html )->toContain( 'http://localhost:5173/resources/css/app.css' );
+
+    unlink( $hot );
+} )->with( [
+    'standalone' => [ false ],
+    'cms'        => [ true ],
+] );
+
+it( 'skips the Vite build when the host filters out every entry', function (): void {
+    CmsFramework::fake( true );
+    View::addNamespace( 'cms', __DIR__ . '/../../Fixtures/views/cms' );
+
+    $hot = tempnam( sys_get_temp_dir(), 'vite-hot' );
+    file_put_contents( $hot, 'http://localhost:5173' );
+    Illuminate\Support\Facades\Vite::useHotFile( $hot );
+    addFilter( 'ap.ecommerceAdminLivewire.layout.viteEntries', static fn (): array => [] );
+
+    expect( $this->get( route( 'artisanpack.ecommerce.admin.orders.index' ) )->assertOk()->getContent() )
+        ->not->toContain( 'localhost:5173' );
+
+    removeAllFilters( 'ap.ecommerceAdminLivewire.layout.viteEntries' );
+    unlink( $hot );
+} );
+
+it( 'puts the CSP nonce on its inline scripts', function (): void {
+    grantAbilities( [ 'order.viewAny' ] );
+    $this->actingAs( makeUser() );
+    Illuminate\Support\Facades\Vite::useCspNonce( 'nonce-abc123' );
+
+    $html = $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk()->getContent();
+
+    expect( substr_count( $html, 'nonce="nonce-abc123"' ) )->toBeGreaterThanOrEqual( 2 )
+        ->and( $html )->toMatch( '/<script data-ecommerce-admin-rate-limit\s+nonce="nonce-abc123"/' );
+} );

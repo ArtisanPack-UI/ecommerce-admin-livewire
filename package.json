@@ -1,0 +1,20 @@
+{
+    "private": true,
+    "type": "module",
+    "description": "Browser test harness for artisanpack-ui/ecommerce-admin-livewire. Not shipped; the package itself has no front-end build.",
+    "scripts": {
+        "build:browser": "vite build",
+        "test:browser": "vite build && vendor/bin/pest --group=browser"
+    },
+    "devDependencies": {
+        "@artisanpack-ui/livewire-drag-and-drop": "^2.0.1",
+        "@tailwindcss/vite": "^4.1.11",
+        "apexcharts": "^5.10.4",
+        "daisyui": "~5.0.48",
+        "flatpickr": "^4.6.13",
+        "laravel-vite-plugin": "^3.2.0",
+        "playwright": "^1.55.0",
+        "tailwindcss": "^4.1.11",
+        "vite": "^8.3.2"
+    }
+}

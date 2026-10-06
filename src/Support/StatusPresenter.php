@@ -107,6 +107,7 @@ final class StatusPresenter
                 'paid'               => [ __( 'Paid' ), 'success' ],
                 'partially_refunded' => [ __( 'Partially refunded' ), 'info' ],
                 'refunded'           => [ __( 'Refunded' ), 'info' ],
+                'voided'             => [ __( 'Voided' ), 'neutral' ],
                 'failed'             => [ __( 'Failed' ), 'error' ],
             ],
             'fulfillment' => [

@@ -33,22 +33,6 @@ use InvalidArgumentException;
 final class Authorization
 {
     /**
-     * Abilities the engine does not define yet, mapped to the one that
-     * stands in for them until it does (spec §6, engine issue #148).
-     *
-     * Either grants access: the stand-in, or the ability itself (through a
-     * host gate, the umbrella gate, or the engine's ability filter).
-     *
-     * @since 1.0.0
-     *
-     * @var array<string, string>
-     */
-    public const INTERIM_ABILITIES = [
-        'inventory.viewAny' => 'product.viewAny',
-        'inventory.adjust'  => 'product.update',
-    ];
-
-    /**
      * Whether the user holds the ability.
      *
      * @since 1.0.0
@@ -63,12 +47,7 @@ final class Authorization
     {
         [ $resource, $action ] = self::split( $ability );
 
-        if ( app( EcommerceAuthorizer::class )->allows( $user, $resource, $action, $subject ) ) {
-            return true;
-        }
-
-        return isset( self::INTERIM_ABILITIES[ $ability ] )
-            && self::allows( $user, self::INTERIM_ABILITIES[ $ability ], $subject );
+        return app( EcommerceAuthorizer::class )->allows( $user, $resource, $action, $subject );
     }
 
     /**

@@ -117,10 +117,11 @@
         x-on:blur="commit()"
         x-on:keydown.enter="commit()"
         x-bind:aria-invalid="invalid ? 'true' : 'false'"
+        x-bind:aria-describedby="invalid ? {{ \Illuminate\Support\Js::from( ( $id ?? $model ) . '-format-error' ) }} : null"
         inputmode="decimal"
         autocomplete="off"
         {{ $attributes->whereDoesntStartWith( 'wire:model' )->except( [ 'class' ] ) }}
     />
 
-    <p x-show="invalid" x-cloak class="mt-1 text-sm text-error" role="alert">{{ $invalidMessage() }}</p>
+    <p id="{{ ( $id ?? $model ) . '-format-error' }}" class="mt-1 text-sm text-error empty:hidden" role="alert" x-text="invalid ? @js( $invalidMessage() ) : ''"></p>
 </div>

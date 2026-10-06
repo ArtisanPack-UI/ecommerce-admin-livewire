@@ -15,6 +15,7 @@ it( 'labels every known status in text, with a hidden type label', function ( st
 } )->with( [
     'system'      => [ 'system', 'processing', 'Processing', 'Order status:' ],
     'payment'     => [ 'payment', 'partially_refunded', 'Partially refunded', 'Payment status:' ],
+    'voided'      => [ 'payment', 'voided', 'Voided', 'Payment status:' ],
     'fulfillment' => [ 'fulfillment', 'partial', 'Partially fulfilled', 'Fulfillment status:' ],
     'review'      => [ 'review', 'spam', 'Spam', 'Review status:' ],
     'shipment'    => [ 'shipment', 'in_transit', 'In transit', 'Shipment status:' ],
@@ -22,9 +23,13 @@ it( 'labels every known status in text, with a hidden type label', function ( st
 
 it( 'covers every system, payment, fulfillment, and review status the engine uses', function (): void {
     expect( array_keys( StatusPresenter::statuses( 'system' ) ) )->toBe( [ 'pending', 'processing', 'complete', 'cancelled', 'refunded', 'failed' ] )
-        ->and( array_keys( StatusPresenter::statuses( 'payment' ) ) )->toBe( [ 'pending', 'paid', 'partially_refunded', 'refunded', 'failed' ] )
+        ->and( array_keys( StatusPresenter::statuses( 'payment' ) ) )->toBe( [ 'pending', 'paid', 'partially_refunded', 'refunded', 'voided', 'failed' ] )
         ->and( array_keys( StatusPresenter::statuses( 'fulfillment' ) ) )->toBe( [ 'unfulfilled', 'partial', 'fulfilled' ] )
         ->and( array_keys( StatusPresenter::statuses( 'review' ) ) )->toBe( ArtisanPackUI\Ecommerce\Models\ProductReview::STATUSES );
+} );
+
+it( 'labels the payment status the engine sets when it voids an order', function (): void {
+    expect( StatusPresenter::statuses( 'payment' ) )->toHaveKey( ArtisanPackUI\Ecommerce\Services\OrderCancellationService::PAYMENT_STATUS_VOIDED );
 } );
 
 it( 'falls back to a readable label for unknown values', function (): void {

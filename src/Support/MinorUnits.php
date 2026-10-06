@@ -121,8 +121,9 @@ final class MinorUnits
             return null;
         }
 
+        // Exactly one leading minus; `--5` stays invalid below.
         $negative = str_starts_with( $text, '-' );
-        $text     = ltrim( $text, '-' );
+        $text     = $negative ? substr( $text, 1 ) : $text;
 
         if ( 1 !== preg_match( '/^[0-9.,]+$/', $text ) || 1 !== preg_match( '/[0-9]/', $text ) ) {
             throw new InvalidArgumentException( sprintf( '"%s" is not a number.', $input ) );
@@ -140,6 +141,10 @@ final class MinorUnits
         }
 
         $whole = str_replace( [ '.', ',' ], '', $whole );
+
+        // An all-zero fraction carries no value: JPY "1000.00" is 1000.
+        // ("0.500" stays too precise for USD rather than guessing.)
+        $fraction = 1 === preg_match( '/^0+$/D', $fraction ) ? '' : $fraction;
 
         if ( 1 === preg_match( '/[.,]/', $fraction ) || strlen( $fraction ) > $scale ) {
             throw new InvalidArgumentException( sprintf( '"%s" has more than %d decimal places.', $input, $scale ) );
@@ -168,6 +173,35 @@ final class MinorUnits
     public static function toMajor( int $minor, string $currency ): string
     {
         return self::toDecimal( $minor, self::subunit( $currency ) );
+    }
+
+    /**
+     * Converts an amount with an order's snapshot rate (`fx_rate_to_base_e8`:
+     * one major unit of `$from` in major units of `$to`, times 10^8).
+     *
+     * Handles currencies with different subunits (JPY → USD) and rounds
+     * half away from zero. Integer and bcmath arithmetic only.
+     *
+     * @since 1.0.0
+     *
+     * @param  int     $minor   The amount in `$from` minor units.
+     * @param  string  $from    The amount's currency.
+     * @param  string  $to      The target currency.
+     * @param  int     $rateE8  The rate times 10^8.
+     *
+     * @return int The amount in `$to` minor units.
+     */
+    public static function convertWithRateE8( int $minor, string $from, string $to, int $rateE8 ): int
+    {
+        $shift = self::subunit( $to ) - self::subunit( $from );
+        $value = bcdiv( bcmul( (string) $minor, (string) $rateE8, 0 ), '100000000', 12 );
+        $value = $shift >= 0
+            ? bcmul( $value, bcpow( '10', (string) $shift, 0 ), 12 )
+            : bcdiv( $value, bcpow( '10', (string) -$shift, 0 ), 12 );
+
+        $half = str_starts_with( $value, '-' ) ? '-0.5' : '0.5';
+
+        return (int) bcadd( $value, $half, 0 );
     }
 
     /**
@@ -205,7 +239,17 @@ final class MinorUnits
         $lastComma = strrpos( $text, ',' );
 
         if ( false !== $lastDot && false !== $lastComma ) {
-            return $lastDot > $lastComma ? '.' : ',';
+            $decimal  = $lastDot > $lastComma ? '.' : ',';
+            $grouping = '.' === $decimal ? ',' : '.';
+            $whole    = substr( $text, 0, (int) strrpos( $text, $decimal ) );
+
+            // With both, everything before the decimal separator must be
+            // thousands groups of the other one: `1,234.50`, not `1,2.34`.
+            if ( 1 !== preg_match( '/^\d{1,3}(' . preg_quote( $grouping, '/' ) . '\d{3})*$/D', $whole ) ) {
+                throw new InvalidArgumentException( sprintf( '"%s" is not a number.', $text ) );
+            }
+
+            return $decimal;
         }
 
         $separator = false !== $lastDot ? '.' : ( false !== $lastComma ? ',' : null );

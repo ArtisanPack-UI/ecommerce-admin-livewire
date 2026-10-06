@@ -17,6 +17,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Pickers\PickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use Livewire\Attributes\Locked;
+use ReflectionProperty;
 
 /**
  * Server search for the `<x-artisanpack-ec-*-picker>` components.
@@ -39,6 +40,15 @@ use Livewire\Attributes\Locked;
  */
 trait WithPickers
 {
+    /**
+     * The most picker result sets kept in the snapshot at once.
+     *
+     * @since 1.0.0
+     *
+     * @var int
+     */
+    public const MAX_PICKER_CACHE = 20;
+
     /**
      * The most recent search results per picker, keyed `{type}:{field}`.
      *
@@ -67,10 +77,24 @@ trait WithPickers
     {
         $source = $this->authorizedPickerSource( $type );
 
-        $this->pickerOptions[ $type . ':' . $field ] = $this->mergePickerOptions(
+        // The field comes from the client: only a path into one of this
+        // component's own public properties gets a cache entry.
+        if ( ! $this->isPickerField( $field ) ) {
+            return;
+        }
+
+        $key = $type . ':' . $field;
+
+        unset( $this->pickerOptions[ $key ] );
+
+        while ( count( $this->pickerOptions ) >= self::MAX_PICKER_CACHE ) {
+            array_shift( $this->pickerOptions );
+        }
+
+        $this->pickerOptions[ $key ] = $this->withoutExcluded( $type, $field, $this->mergePickerOptions(
             $source->find( $this->pickerSelection( $field ) ),
             $source->search( mb_substr( $search, 0, 100 ), self::pickerLimit() ),
-        );
+        ) );
     }
 
     /**
@@ -101,10 +125,26 @@ trait WithPickers
             return $this->pickerOptions[ $type . ':' . $field ];
         }
 
-        return $this->mergePickerOptions(
+        return $this->withoutExcluded( $type, $field, $this->mergePickerOptions(
             $source->find( $this->pickerSelection( $field ) ),
             $source->search( '', self::pickerLimit() ),
-        );
+        ) );
+    }
+
+    /**
+     * Ids a picker must not offer, such as the product being edited in its
+     * own related-products picker. Components override it.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $type   The source key.
+     * @param  string  $field  The property path.
+     *
+     * @return array<int, int|string>
+     */
+    protected function pickerExcludedIds( string $type, string $field ): array
+    {
+        return [];
     }
 
     /**
@@ -114,6 +154,33 @@ trait WithPickers
      *
      * @return int
      */
+    /**
+     * Whether `$field` is a property path into one of this component's public
+     * properties (not the picker cache itself).
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $field  The property path.
+     *
+     * @return bool
+     */
+    protected function isPickerField( string $field ): bool
+    {
+        if ( 1 !== preg_match( '/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)*$/D', $field ) ) {
+            return false;
+        }
+
+        $root = explode( '.', $field, 2 )[0];
+
+        if ( 'pickerOptions' === $root || ! property_exists( $this, $root ) ) {
+            return false;
+        }
+
+        $property = new ReflectionProperty( $this, $root );
+
+        return $property->isPublic() && ! $property->isStatic();
+    }
+
     protected static function pickerLimit(): int
     {
         return 20;
@@ -173,6 +240,28 @@ trait WithPickers
      *
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * The options minus the ids {@see self::pickerExcludedIds()} names.
+     *
+     * @since 1.0.0
+     *
+     * @param  string                            $type     The source key.
+     * @param  string                            $field    The property path.
+     * @param  array<int, array<string, mixed>>  $options  The options.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function withoutExcluded( string $type, string $field, array $options ): array
+    {
+        $excluded = array_map( 'strval', $this->pickerExcludedIds( $type, $field ) );
+
+        if ( [] === $excluded ) {
+            return $options;
+        }
+
+        return array_values( array_filter( $options, static fn ( array $option ): bool => ! in_array( (string) $option['id'], $excluded, true ) ) );
+    }
+
     private function mergePickerOptions( array $selected, array $results ): array
     {
         $merged = [];

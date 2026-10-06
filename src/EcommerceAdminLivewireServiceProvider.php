@@ -17,22 +17,51 @@ namespace ArtisanPackUI\EcommerceAdminLivewire;
 
 use ArtisanPackUI\Ecommerce\Registries\SatelliteRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
+use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\PruneImportsCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\SyncPermissionsCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
+use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\ThrottleAdminMutations;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Categories;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Customers;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Dashboard;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\DigitalFiles;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Inventory;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\KanbanBoards;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\LicenseKeys;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notes;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notifications;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\OrderStatuses;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Promotions;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reports;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reviews;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Settings;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Shipping;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Tags;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Tax;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Timeline;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Webhooks;
+use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CategoryPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\CustomerPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\ProductPickerSource;
+use ArtisanPackUI\EcommerceAdminLivewire\Pickers\TagPickerSource;
 use ArtisanPackUI\EcommerceAdminLivewire\Pickers\VariantPickerSource;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\ConfigFormRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\CustomerTabRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\ProductTypePanelRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\SettingsTabRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight;
+use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\NullSpotlight;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
-use ArtisanPackUI\EcommerceAdminLivewire\Support\RbacPermissions;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\ConfigSchemas;
 use ArtisanPackUI\EcommerceAdminLivewire\View\Components;
 use Illuminate\Contracts\View\View as ViewContract;
-use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -90,13 +119,18 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     public const BLADE_COMPONENTS = [
         'address'              => Components\Address::class,
         'address-form'         => Components\AddressForm::class,
+        'bulk-action-bar'      => Components\BulkActionBar::class,
         'category-picker'      => Components\CategoryPicker::class,
+        'config-form'          => Components\ConfigForm::class,
         'customer-picker'      => Components\CustomerPicker::class,
+        'empty-state'          => Components\EmptyState::class,
         'money'                => Components\Money::class,
         'money-input'          => Components\MoneyInput::class,
         'percent-input'        => Components\PercentInput::class,
         'product-picker'       => Components\ProductPicker::class,
         'product-type-warning' => Components\ProductTypeWarning::class,
+        'resource-table'       => Components\ResourceTable::class,
+        'rule-builder'         => Components\RuleBuilder::class,
         'status-badge'         => Components\StatusBadge::class,
         'tag-picker'           => Components\TagPicker::class,
         'variant-picker'       => Components\VariantPicker::class,
@@ -110,12 +144,85 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * @var array<string, class-string>
      */
     public const LIVEWIRE_COMPONENTS = [
-        'artisanpack-ecommerce-admin-dashboard'  => Dashboard::class,
-        'artisanpack-ecommerce-admin-navigation' => Navigation::class,
+        'artisanpack-ecommerce-admin-dashboard'                => Dashboard::class,
+        'artisanpack-ecommerce-admin-navigation'               => Navigation::class,
+        'artisanpack-ecommerce-admin-orders-index'             => Orders\Index::class,
+        'artisanpack-ecommerce-admin-orders-show'              => Orders\Show::class,
+        'artisanpack-ecommerce-admin-order-status'             => Orders\StatusPanel::class,
+        'artisanpack-ecommerce-admin-order-refunds'            => Orders\RefundsPanel::class,
+        'artisanpack-ecommerce-admin-order-fulfillment'        => Orders\FulfillmentPanel::class,
+        'artisanpack-ecommerce-admin-order-edits'              => Orders\EditPanel::class,
+        'artisanpack-ecommerce-admin-timeline'                 => Timeline::class,
+        'artisanpack-ecommerce-admin-notes'                    => Notes::class,
+        'artisanpack-ecommerce-admin-products-index'           => Products\Index::class,
+        'artisanpack-ecommerce-admin-products-form'            => Products\Form::class,
+        'artisanpack-ecommerce-admin-product-variable-panel'   => Products\Panels\VariablePanel::class,
+        'artisanpack-ecommerce-admin-product-digital-panel'    => Products\Panels\DigitalPanel::class,
+        'artisanpack-ecommerce-admin-product-children-panel'   => Products\Panels\ChildrenPanel::class,
+        'artisanpack-ecommerce-admin-products-import'          => Products\Import::class,
+        'artisanpack-ecommerce-admin-categories-index'         => Categories\Index::class,
+        'artisanpack-ecommerce-admin-tags-index'               => Tags\Index::class,
+        'artisanpack-ecommerce-admin-inventory-index'          => Inventory\Index::class,
+        'artisanpack-ecommerce-admin-reviews-index'            => Reviews\Index::class,
+        'artisanpack-ecommerce-admin-digital-files-index'      => DigitalFiles\Index::class,
+        'artisanpack-ecommerce-admin-license-keys-index'       => LicenseKeys\Index::class,
+        'artisanpack-ecommerce-admin-customers-index'          => Customers\Index::class,
+        'artisanpack-ecommerce-admin-customers-show'           => Customers\Show::class,
+        'artisanpack-ecommerce-admin-customer-orders'          => Customers\OrdersTab::class,
+        'artisanpack-ecommerce-admin-customer-addresses'       => Customers\AddressesTab::class,
+        'artisanpack-ecommerce-admin-customer-preferences'     => Customers\PreferencesTab::class,
+        'artisanpack-ecommerce-admin-promotions-index'         => Promotions\Index::class,
+        'artisanpack-ecommerce-admin-promotions-form'          => Promotions\Form::class,
+        'artisanpack-ecommerce-admin-promotion-coupons'        => Promotions\CouponsPanel::class,
+        'artisanpack-ecommerce-admin-promotion-usage'          => Promotions\UsagePanel::class,
+        'artisanpack-ecommerce-admin-shipping-index'           => Shipping\Index::class,
+        'artisanpack-ecommerce-admin-tax-index'                => Tax\Index::class,
+        'artisanpack-ecommerce-admin-notifications-index'      => Notifications\Index::class,
+        'artisanpack-ecommerce-admin-notifications-edit'       => Notifications\Edit::class,
+        'artisanpack-ecommerce-admin-webhooks-index'           => Webhooks\Index::class,
+        'artisanpack-ecommerce-admin-webhooks-show'            => Webhooks\Show::class,
+        'artisanpack-ecommerce-admin-order-statuses-index'     => OrderStatuses\Index::class,
+        'artisanpack-ecommerce-admin-kanban-boards-index'      => KanbanBoards\Index::class,
+        'artisanpack-ecommerce-admin-kanban-boards-edit'       => KanbanBoards\Edit::class,
+        'artisanpack-ecommerce-admin-kanban-board-columns'     => KanbanBoards\Columns::class,
+        'artisanpack-ecommerce-admin-kanban-board-automations' => KanbanBoards\Automations::class,
+        'artisanpack-ecommerce-admin-reports-show'             => Reports\Show::class,
+        'artisanpack-ecommerce-admin-settings'                 => Settings\Show::class,
     ];
 
     /**
-     * Registers the package configuration and the picker source registry.
+     * The built-in order detail panels, as `key => [ component, column, position ]`.
+     * Satellites register theirs after these (default position 100) and may
+     * unregister or replace one by key.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, array{0: string, 1: string, 2: int}>
+     */
+    public const ORDER_PANELS = [
+        'fulfillment' => [ 'artisanpack-ecommerce-admin-order-fulfillment', 'main', 10 ],
+        'refunds'     => [ 'artisanpack-ecommerce-admin-order-refunds', 'main', 20 ],
+        'edits'       => [ 'artisanpack-ecommerce-admin-order-edits', 'main', 30 ],
+    ];
+
+    /**
+     * Core product-type panels (spec §7.2): type key => Livewire component,
+     * or null when the type needs no panel.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, string|null>
+     */
+    public const PRODUCT_TYPE_PANELS = [
+        'simple'   => null,
+        'variable' => Products\Panels\VariablePanel::class,
+        'digital'  => Products\Panels\DigitalPanel::class,
+        'grouped'  => Products\Panels\ChildrenPanel::class,
+        'bundled'  => Products\Panels\ChildrenPanel::class,
+    ];
+
+    /**
+     * Registers the package configuration and the extension registries.
      *
      * @since 1.0.0
      *
@@ -134,9 +241,68 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             $registry->register( 'product', new ProductPickerSource() );
             $registry->register( 'variant', new VariantPickerSource() );
             $registry->register( 'customer', new CustomerPickerSource() );
+            $registry->register( 'category', new CategoryPickerSource() );
+            $registry->register( 'tag', new TagPickerSource() );
 
             return $registry;
         } );
+
+        $this->app->singleton( ConfigFormRegistry::class, static function (): ConfigFormRegistry {
+            $registry = new ConfigFormRegistry();
+
+            ConfigSchemas::register( $registry );
+
+            return $registry;
+        } );
+
+        $this->app->singleton( ProductTypePanelRegistry::class, static function (): ProductTypePanelRegistry {
+            $registry = new ProductTypePanelRegistry();
+
+            foreach ( self::PRODUCT_TYPE_PANELS as $type => $component ) {
+                $registry->register( $type, $component );
+            }
+
+            return $registry;
+        } );
+
+        $this->app->singleton( CustomerTabRegistry::class, static function (): CustomerTabRegistry {
+            $registry = new CustomerTabRegistry();
+
+            self::registerCustomerTabs( $registry );
+
+            return $registry;
+        } );
+
+        $this->app->singleton( SettingsTabRegistry::class, static fn (): SettingsTabRegistry => new SettingsTabRegistry() );
+
+        $this->app->singleton( OrderPanelRegistry::class, static function (): OrderPanelRegistry {
+            $registry = new OrderPanelRegistry();
+
+            foreach ( self::ORDER_PANELS as $key => [ $component, $column, $position ] ) {
+                $registry->register( $key, $component, $column, $position );
+            }
+
+            return $registry;
+        } );
+    }
+
+    /**
+     * Registers the built-in customer detail tabs (spec §7.4) at positions
+     * 10–50, leaving room for satellites before, between, and after them.
+     *
+     * @since 1.0.0
+     *
+     * @param  CustomerTabRegistry  $registry  The registry.
+     *
+     * @return void
+     */
+    public static function registerCustomerTabs( CustomerTabRegistry $registry ): void
+    {
+        $registry->register( 'orders', static fn (): string => __( 'Orders' ), 'artisanpack-ecommerce-admin-customer-orders', 10, 'customer', 'order.viewAny' );
+        $registry->register( 'addresses', static fn (): string => __( 'Addresses' ), 'artisanpack-ecommerce-admin-customer-addresses', 20 );
+        $registry->register( 'notifications', static fn (): string => __( 'Notification preferences' ), 'artisanpack-ecommerce-admin-customer-preferences', 30 );
+        $registry->register( 'notes', static fn (): string => __( 'Notes' ), 'artisanpack-ecommerce-admin-notes', 40, 'subject' );
+        $registry->register( 'activity', static fn (): string => __( 'Activity' ), 'artisanpack-ecommerce-admin-timeline', 50, 'subject' );
     }
 
     /**
@@ -157,10 +323,10 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $this->registerTranslations();
         $this->registerCommands();
         $this->registerBladeComponents();
-        $this->registerRbac();
         $this->registerLayoutResolver();
         $this->registerLivewireComponents();
         $this->registerRoutes();
+        $this->registerSpotlight();
         CmsMenu::subscribe();
     }
 
@@ -187,6 +353,63 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             'columns'         => [],
             'product_types'   => [],
         ];
+    }
+
+    /**
+     * Makes the configured `admin.middleware` persistent: class names as
+     * given, aliases resolved to their classes. Middleware groups (`web`)
+     * are left out; Livewire's update route has its own.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public function registerPersistentMiddleware(): void
+    {
+        if ( ! class_exists( Livewire::class ) ) {
+            return;
+        }
+
+        $middleware = self::hostPersistentMiddleware();
+
+        if ( [] !== $middleware ) {
+            Livewire::addPersistentMiddleware( $middleware );
+        }
+    }
+
+    /**
+     * The middleware classes behind `admin.middleware`, without groups.
+     *
+     * @since 1.0.0
+     *
+     * @return array<int, class-string>
+     */
+    public static function hostPersistentMiddleware(): array
+    {
+        $router  = app( 'router' );
+        $aliases = $router->getMiddleware();
+        $groups  = $router->getMiddlewareGroups();
+        $classes = [];
+
+        foreach ( (array) config( 'artisanpack.ecommerce-admin-livewire.admin.middleware', [] ) as $entry ) {
+            if ( ! is_string( $entry ) || '' === $entry ) {
+                continue;
+            }
+
+            $name = explode( ':', $entry, 2 )[0];
+
+            if ( isset( $groups[ $name ] ) ) {
+                continue;
+            }
+
+            $class = $aliases[ $name ] ?? $name;
+
+            if ( is_string( $class ) && class_exists( $class ) ) {
+                $classes[] = $class;
+            }
+        }
+
+        return array_values( array_unique( $classes ) );
     }
 
     /**
@@ -275,6 +498,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
         $this->commands( [
             InstallCommand::class,
+            PruneImportsCommand::class,
             SyncPermissionsCommand::class,
         ] );
     }
@@ -304,11 +528,13 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     }
 
     /**
-     * Registers the Livewire components and the persistent access middleware.
+     * Registers the Livewire components and the persistent middleware.
      *
-     * The route middleware only guards the initial page load. Registering it
-     * as persistent makes Livewire re-run it on every update request from an
-     * admin page.
+     * The route middleware only guards the initial page load. Registering the
+     * access check and the `ecommerce.admin.mutate` limiter as persistent
+     * makes Livewire re-run them on every update request from an admin page.
+     * So do the host's own `admin.middleware` entries (2FA, `verified`,
+     * `password.confirm`, ...), once every alias is known.
      *
      * @since 1.0.0
      *
@@ -324,7 +550,9 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             Livewire::component( $name, $class );
         }
 
-        Livewire::addPersistentMiddleware( [ EnsureAdminAccess::class ] );
+        Livewire::addPersistentMiddleware( [ EnsureAdminAccess::class, ThrottleAdminMutations::class ] );
+
+        $this->app->booted( fn () => $this->registerPersistentMiddleware() );
     }
 
     /**
@@ -340,6 +568,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     protected function registerRoutes(): void
     {
         Route::aliasMiddleware( EnsureAdminAccess::ALIAS, EnsureAdminAccess::class );
+        Route::aliasMiddleware( ThrottleAdminMutations::ALIAS, ThrottleAdminMutations::class );
 
         if ( $this->app->routesAreCached() ) {
             return;
@@ -350,6 +579,33 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         }
 
         $this->loadRoutesFrom( __DIR__ . '/../routes/admin.php' );
+    }
+
+    /**
+     * Adds the admin's results to livewire-ui-components' spotlight (spec
+     * §8.1) unless the palette is disabled.
+     *
+     * The spotlight route resolves the host's search class before it
+     * applies the results filter, so when the host has none an empty
+     * stand-in is bound in its place.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    protected function registerSpotlight(): void
+    {
+        if ( ! AdminSpotlight::enabled() ) {
+            return;
+        }
+
+        addFilter( AdminSpotlight::COMMANDS_FILTER, [ AdminSpotlight::class, 'appendTo' ] );
+
+        $class = config( 'artisanpack.livewire-ui-components.components.spotlight.class' );
+
+        if ( is_string( $class ) && '' !== $class && ! class_exists( $class ) && ! $this->app->bound( $class ) ) {
+            $this->app->bind( $class, NullSpotlight::class );
+        }
     }
 
     /**
@@ -364,31 +620,5 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         foreach ( self::BLADE_COMPONENTS as $name => $class ) {
             Blade::component( 'artisanpack-ec-' . $name, $class );
         }
-    }
-
-    /**
-     * Wires the engine abilities to cms-framework RBAC when it is installed.
-     *
-     * Permissions are granted through the engine's ability filters on every
-     * request; they are created after each `migrate` run (and by
-     * `ecommerce-admin:install` / `ecommerce-admin:sync-permissions`).
-     *
-     * @since 1.0.0
-     *
-     * @return void
-     */
-    protected function registerRbac(): void
-    {
-        if ( ! RbacPermissions::available() ) {
-            return;
-        }
-
-        RbacPermissions::grantThroughPermissions();
-
-        Event::listen( MigrationsEnded::class, static function ( MigrationsEnded $event ): void {
-            if ( 'up' === $event->method ) {
-                RbacPermissions::register();
-            }
-        } );
     }
 }

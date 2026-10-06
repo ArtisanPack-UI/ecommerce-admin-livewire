@@ -5,3 +5,7 @@ composer.lock
 .phpunit.result.cache
 .phpunit.cache/
 build/
+node_modules/
+tests/Browser/Screenshots/
+tests/Browser/workbench/public/vendor/
+.ecommerce-verify-report.json

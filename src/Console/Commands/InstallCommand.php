@@ -13,9 +13,11 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Console\Commands;
 
+use ArtisanPackUI\EcommerceAdminLivewire\Support\NotificationTemplates;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\RbacPermissions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Gate;
+use Throwable;
 
 /**
  * Publishes the admin config and prints the front-end setup steps.
@@ -43,13 +45,49 @@ class InstallCommand extends Command
     ];
 
     /**
-     * The npm package the admin's reorderable lists depend on.
+     * The npm packages the admin's scripts depend on: drag-and-drop for the
+     * reorderable lists, ApexCharts for the dashboard and reports, and
+     * flatpickr for the date pickers.
+     *
+     * @since 1.0.0
+     *
+     * @var array<int, string>
+     */
+    public const NPM_PACKAGES = [ '@artisanpack-ui/livewire-drag-and-drop', 'apexcharts', 'flatpickr' ];
+
+    /**
+     * The lines that expose the chart and date-picker libraries to the
+     * component library, for `resources/js/app.js`.
+     *
+     * @since 1.0.0
+     *
+     * @var array<int, string>
+     */
+    public const JS_GLOBALS = [
+        "import '@artisanpack-ui/livewire-drag-and-drop';",
+        "import ApexCharts from 'apexcharts';",
+        "import flatpickr from 'flatpickr';",
+        'window.ApexCharts = ApexCharts;',
+        'window.flatpickr = flatpickr;',
+    ];
+
+    /**
+     * The command that publishes TinyMCE for the description editor.
      *
      * @since 1.0.0
      *
      * @var string
      */
-    public const NPM_PACKAGE = '@artisanpack-ui/livewire-drag-and-drop';
+    public const PUBLISH_ASSETS_COMMAND = 'php artisan vendor:publish --tag=artisanpack-assets';
+
+    /**
+     * The full front-end setup guide.
+     *
+     * @since 1.0.0
+     *
+     * @var string
+     */
+    public const FRONT_END_DOCS = 'https://github.com/ArtisanPack-UI/ecommerce-admin-livewire/blob/main/docs/installation/front-end.md';
 
     /**
      * @var string
@@ -86,11 +124,35 @@ class InstallCommand extends Command
         }
 
         $this->newLine();
-        $this->components->info( __( 'Install the front-end dependency:' ) );
-        $this->line( '    npm install ' . self::NPM_PACKAGE );
+        $this->components->info( __( 'Install the front-end dependencies:' ) );
+        $this->line( '    npm install ' . implode( ' ', self::NPM_PACKAGES ) );
+
+        $this->newLine();
+        $this->components->info( __( 'Add these lines to your main script (e.g. resources/js/app.js):' ) );
+
+        foreach ( self::JS_GLOBALS as $line ) {
+            $this->line( '    ' . $line );
+        }
+
+        $this->newLine();
+        $this->components->info( __( 'Publish TinyMCE for the product description editor:' ) );
+        $this->line( '    ' . self::PUBLISH_ASSETS_COMMAND );
+
+        $this->newLine();
+        $this->components->warn( __( 'Pin daisyui to ~5.0 in package.json; later releases leave tab panels empty.' ) );
+        $this->components->info( __( 'Full front-end setup: :url', [ 'url' => self::FRONT_END_DOCS ] ) );
 
         $this->newLine();
         $this->checkAuthorization();
+
+        try {
+            NotificationTemplates::sync();
+        } catch ( Throwable $exception ) {
+            // Usually the engine tables aren't migrated yet; the
+            // notifications screen seeds the templates on first open.
+            report( $exception );
+            $this->components->warn( __( 'The notification templates could not be created yet. Run your migrations; the notifications screen creates them when it first opens.' ) );
+        }
 
         return self::SUCCESS;
     }
@@ -111,7 +173,7 @@ class InstallCommand extends Command
         $granted = false;
 
         if ( RbacPermissions::available() ) {
-            $this->call( 'ecommerce-admin:sync-permissions' );
+            $this->call( 'ecommerce:sync-permissions' );
             $this->components->info( __( 'Assign the shop-manager role, or individual ecommerce permissions, to your staff.' ) );
             $granted = true;
         }

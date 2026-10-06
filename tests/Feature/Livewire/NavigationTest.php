@@ -45,7 +45,7 @@ it( 'shows a reviewer-only user just reviews', function (): void {
 } );
 
 it( 'shows the badge counts with an accessible description', function (): void {
-    grantAbilities( [ 'order.viewAny', 'review.viewAny', 'product.viewAny' ] );
+    grantAbilities( [ 'order.viewAny', 'review.viewAny', 'inventory.viewAny' ] );
 
     InventoryItem::factory()->count( 7 )->create( [ 'quantity_on_hand' => 2, 'low_stock_threshold' => 5 ] );
     InventoryItem::factory()->create( [ 'quantity_on_hand' => 20, 'low_stock_threshold' => 5 ] );
@@ -61,6 +61,18 @@ it( 'shows the badge counts with an accessible description', function (): void {
         ->assertSeeHtml( 'aria-label="Inventory (7 low-stock items)"' )
         ->assertSeeHtml( 'aria-label="Reviews (2 reviews awaiting moderation)"' )
         ->assertSeeHtml( 'aria-label="Orders (3 orders awaiting fulfillment)"' );
+} );
+
+it( 'counts low stock the same way as the inventory low-stock filter', function (): void {
+    grantAbilities( [ 'inventory.viewAny' ] );
+
+    InventoryItem::factory()->create( [ 'quantity_on_hand' => 0, 'low_stock_threshold' => 5 ] );
+    InventoryItem::factory()->create( [ 'quantity_on_hand' => 3, 'low_stock_threshold' => 5 ] );
+
+    $filtered = ( new ArtisanPackUI\EcommerceAdminLivewire\Queries\InventoryQuery() )->build( '', [ 'stock' => 'low' ] )->count();
+
+    expect( NavBadges::count( NavBadges::LOW_STOCK ) )->toBe( 1 )
+        ->and( $filtered )->toBe( 1 );
 } );
 
 it( 'caches each badge count and refreshes it on request', function (): void {

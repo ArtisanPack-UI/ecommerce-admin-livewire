@@ -20,10 +20,6 @@
 --}}
 @php
     use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
-    use Illuminate\Support\Facades\Vite;
-
-    $viteEntries = (array) applyFilters( 'ap.ecommerceAdminLivewire.layout.viteEntries', [ 'resources/css/app.css', 'resources/js/app.js' ] );
-    $loadVite    = [] !== $viteEntries && ( Vite::isRunningHot() || is_file( public_path( 'build/manifest.json' ) ) );
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace( '_', '-', app()->getLocale() ) }}">
@@ -32,9 +28,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield( 'title', __( 'Store admin' ) ) &middot; {{ config( 'app.name' ) }}</title>
-    @if ( $loadVite )
-        @vite( $viteEntries )
-    @endif
+    @include( 'ecommerce-admin::partials.vite-assets' )
     @livewireStyles
     @stack( 'styles' )
 </head>
@@ -43,20 +37,32 @@
         {{ __( 'Skip to content' ) }}
     </a>
 
+    <header>
     <x-artisanpack-nav sticky full-width class="ecommerce-admin__topbar">
         <x-slot:brand>
-            <label for="ecommerce-admin-drawer" class="lg:hidden me-3 cursor-pointer" aria-label="{{ __( 'Open navigation' ) }}">
+            {{-- A real, focusable button: the drawer's own toggle is a hidden checkbox. --}}
+            <button
+                type="button"
+                class="lg:hidden me-3 btn btn-ghost btn-sm btn-square"
+                aria-label="{{ __( 'Open navigation' ) }}"
+                aria-controls="ecommerce-admin-drawer"
+                x-data
+                x-on:click="document.getElementById( 'ecommerce-admin-drawer' )?.click()"
+                data-nav-toggle
+            >
                 <x-artisanpack-icon name="o-bars-3" aria-hidden="true" />
-            </label>
+            </button>
             <a href="{{ route( AdminNav::ROUTE_PREFIX . 'dashboard' ) }}" class="font-bold">
                 {{ __( 'Store admin' ) }}
             </a>
         </x-slot:brand>
 
         <x-slot:actions>
+            @include( 'ecommerce-admin::partials.spotlight-button' )
             <x-artisanpack-theme-toggle aria-label="{{ __( 'Toggle dark mode' ) }}" />
         </x-slot:actions>
     </x-artisanpack-nav>
+    </header>
 
     <x-artisanpack-main with-nav full-width>
         <x-slot:sidebar drawer="ecommerce-admin-drawer" class="bg-base-100 lg:bg-inherit ecommerce-admin__sidebar">
@@ -70,7 +76,11 @@
 
     <x-artisanpack-toast />
 
+    @include( 'ecommerce-admin::partials.spotlight' )
+
     @livewireScripts
+    @include( 'ecommerce-admin::partials.accessibility' )
+    @include( 'ecommerce-admin::partials.rate-limit-notice' )
     @stack( 'scripts' )
 </body>
 </html>
