@@ -25,7 +25,9 @@ return [
     | middleware group (such as `web`) is also made Livewire persistent
     | middleware, so it runs again on each Livewire update from an admin page.
     | The command palette searches through its own admin route, so it runs
-    | this stack too. Set `routes_enabled` to false to register the routes
+    | this stack too. Livewire updates from admin pages count toward the
+    | engine's `ecommerce.admin.mutate` rate limiter, except updates that only
+    | read (polls, picker searches, sorting, and paging). Set `routes_enabled` to false to register the routes
     | yourself. `auto_register_cms_nav` injects the admin's navigation into
     | the cms-framework admin menu when present.
     |

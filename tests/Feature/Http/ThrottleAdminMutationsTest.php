@@ -17,7 +17,7 @@ beforeEach( function (): void {
  * Livewire applies persistent middleware once per route per request cycle;
  * flushing its state makes each test request behave like a separate one.
  */
-function throttledUpdate( $test, $user ): Closure
+function throttledUpdate( $test, $user, array $calls = [], array $updates = [] ): Closure
 {
     $page = $test->actingAs( $user )->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk();
 
@@ -26,7 +26,7 @@ function throttledUpdate( $test, $user ): Closure
 
     return fn () => tap( $test, static fn () => app( 'livewire' )->flushState() )->actingAs( $user )->withHeaders( [ 'X-Livewire' => '1' ] )->postJson(
         app( 'livewire' )->getUpdateUri(),
-        [ 'components' => [ [ 'snapshot' => $snapshot, 'calls' => [], 'updates' => [] ] ] ],
+        [ 'components' => [ [ 'snapshot' => $snapshot, 'calls' => $calls, 'updates' => $updates ] ] ],
     );
 }
 
@@ -90,4 +90,19 @@ it( 'turns a 429 into a toast instead of the Livewire error modal', function ():
 
 afterEach( function (): void {
     RateLimiter::clear( 'ecommerce.admin.mutate' );
+} );
+
+it( 'does not count polls and other reads toward the limit', function (): void {
+    $user = makeUser();
+    $poll = throttledUpdate( $this, $user, [ [ 'path' => '', 'method' => '$refresh', 'params' => [] ] ] );
+
+    foreach ( range( 1, 5 ) as $attempt ) {
+        $poll()->assertOk();
+    }
+
+    $write = throttledUpdate( $this, $user, [ [ 'path' => '', 'method' => 'orderBroadcast', 'params' => [] ] ] );
+
+    $write()->assertOk();
+    $write()->assertOk();
+    $write()->assertStatus( 429 );
 } );
