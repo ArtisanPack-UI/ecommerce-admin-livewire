@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reports;
 
+use ArtisanPackUI\Ecommerce\Exceptions\ReportRangeException;
 use ArtisanPackUI\Ecommerce\Registries\ReportRegistry;
 use ArtisanPackUI\Ecommerce\Reports\Report;
 use ArtisanPackUI\Ecommerce\Reports\ReportRange;
@@ -413,6 +414,10 @@ class Show extends Component
 
             try {
                 $range = ReportRange::make( $this->from, $this->to, $this->interval, $this->compare );
+            } catch ( ReportRangeException $exception ) {
+                $this->addError( in_array( $exception->field, [ 'from', 'to', 'interval' ], true ) ? $exception->field : 'from', $exception->getMessage() );
+
+                return null;
             } catch ( InvalidArgumentException ) {
                 $this->addError( 'from', __( 'Reports cover at most :days days. Choose a shorter range.', [ 'days' => ReportRange::MAX_DAYS ] ) );
 

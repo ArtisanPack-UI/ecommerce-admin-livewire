@@ -196,6 +196,31 @@ it( 'edits the threshold and toggles backorders inline', function (): void {
     expect( $item->refresh() )->low_stock_threshold->toBe( 8 )->allow_backorder->toBeTrue();
 } );
 
+it( 'edits the settings of a row in another warehouse through the inventory service', function (): void {
+    $mug  = Product::factory()->create();
+    $main = inventoryRow( $mug, 10, 2 );
+    $east = InventoryItem::query()->create( [
+        'stockable_type'      => $mug->getMorphClass(),
+        'stockable_id'        => $mug->id,
+        'warehouse_id'        => 7,
+        'track_inventory'     => true,
+        'quantity_on_hand'    => 4,
+        'low_stock_threshold' => 1,
+    ] );
+
+    expect( $main->refresh()->warehouse_id )->toBe( InventoryItem::DEFAULT_WAREHOUSE );
+
+    Livewire::test( Index::class )
+        ->call( 'editThreshold', $east->id )
+        ->set( 'thresholdValue', 3 )
+        ->call( 'saveThreshold' )
+        ->assertHasNoErrors()
+        ->call( 'toggleBackorder', $east->id );
+
+    expect( $east->refresh() )->low_stock_threshold->toBe( 3 )->allow_backorder->toBeTrue()
+        ->and( $main->refresh() )->low_stock_threshold->toBe( 2 )->allow_backorder->toBeFalse();
+} );
+
 it( 'clears the threshold when left empty', function (): void {
     $item = inventoryRow( Product::factory()->create(), 10, 4 );
 

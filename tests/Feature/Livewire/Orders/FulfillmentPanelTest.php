@@ -47,6 +47,10 @@ function fulfillmentLabelToken( $component ): string
  */
 function fulfillmentLabelProvider(): void
 {
+    // The test's own transaction (RefreshDatabase) is the baseline; the
+    // carrier must be called outside any transaction the admin opens.
+    $GLOBALS['fulfillmentBaselineLevel'] = Illuminate\Support\Facades\DB::transactionLevel();
+
     app( ShippingLabelProviderRegistry::class )->register( 'fake-labels', new class implements ShippingLabelProvider {
         public function key(): string
         {
@@ -55,6 +59,8 @@ function fulfillmentLabelProvider(): void
 
         public function buyLabel( Shipment $shipment ): ShippingLabel
         {
+            expect( Illuminate\Support\Facades\DB::transactionLevel() )->toBe( $GLOBALS['fulfillmentBaselineLevel'] );
+
             return new ShippingLabel( 4242, 'fake-labels', 'TRACK-' . $shipment->id, 'https://track.example.test/' . $shipment->id, 'usps', 'priority' );
         }
 

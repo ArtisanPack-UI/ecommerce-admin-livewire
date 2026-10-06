@@ -119,7 +119,7 @@ it( 'applies extra filters passed with withFilters', function (): void {
     Order::factory()->create( [ 'order_number' => 'WEB00001' ] );
 
     $numbers = ( new OrdersQuery() )
-        ->withFilters( [ 'channel' => static fn ( $query, mixed $value ) => $query->where( 'orders.order_number', 'like', 'POS' === strtoupper( (string) $value ) ? 'META%' : 'WEB%' ) ] )
+        ->withFilters( [ 'channel' => static fn ( $query, mixed $value ) => $query->where( $query->qualifyColumn( 'order_number' ), 'like', 'POS' === strtoupper( (string) $value ) ? 'META%' : 'WEB%' ) ] )
         ->build( filters: [ 'channel' => 'pos' ] )
         ->pluck( 'order_number' )
         ->all();
@@ -135,4 +135,30 @@ it( 'filters orders awaiting fulfillment the way the dashboard counts them', fun
 
     expect( orderNumbers( '', [ 'awaiting' => '1' ], 'number', 'asc' ) )->toBe( [ 'WAIT0001', 'WAIT0002' ] )
         ->and( orderNumbers( '', [ 'awaiting' => '0' ], 'number', 'asc' ) )->toBe( [ 'HOLD0001', 'SENT0001' ] );
+} );
+
+it( 'filters placed dates by the store\'s day, not the app\'s', function (): void {
+    config()->set( 'app.timezone', 'UTC' );
+    config()->set( 'artisanpack.ecommerce.timezone', 'America/New_York' );
+
+    // 03:30 UTC on Oct 5 is 23:30 on Oct 4 in New York.
+    Order::factory()->create( [ 'order_number' => 'LATE0001', 'placed_at' => Carbon::parse( '2026-10-05 03:30:00', 'UTC' ) ] );
+
+    expect( orderNumbers( '', [ 'placed' => [ 'from' => '2026-10-04', 'to' => '2026-10-04' ] ] ) )->toBe( [ 'LATE0001' ] )
+        ->and( orderNumbers( '', [ 'placed' => [ 'from' => '2026-10-05', 'to' => '2026-10-05' ] ] ) )->toBe( [] );
+} );
+
+it( 'filters customers\' last order dates by the store\'s day', function (): void {
+    config()->set( 'app.timezone', 'UTC' );
+    config()->set( 'artisanpack.ecommerce.timezone', 'America/New_York' );
+
+    Customer::factory()->create( [ 'email' => 'late@example.test', 'last_ordered_at' => Carbon::parse( '2026-10-05 03:30:00', 'UTC' ) ] );
+
+    $emails = static fn ( string $day ): array => ( new ArtisanPackUI\EcommerceAdminLivewire\Queries\CustomersQuery() )
+        ->build( '', [ 'last_order' => [ 'from' => $day, 'to' => $day ] ] )
+        ->pluck( 'email' )
+        ->all();
+
+    expect( $emails( '2026-10-04' ) )->toBe( [ 'late@example.test' ] )
+        ->and( $emails( '2026-10-05' ) )->toBe( [] );
 } );

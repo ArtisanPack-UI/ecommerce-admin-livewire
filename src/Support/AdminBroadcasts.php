@@ -84,7 +84,20 @@ final class AdminBroadcasts
     public const REVIEW_SUBMITTED = 'reviewSubmitted';
 
     /**
+     * Overrides whether rebing/graphql-laravel counts as installed, in tests.
+     *
+     * @since 1.0.0
+     *
+     * @var bool|null
+     */
+    private static ?bool $fakeGraphQl = null;
+
+    /**
      * Whether the user's screens subscribe to the admin channel.
+     *
+     * The engine registers the `ecommerce.admin` channel only when
+     * rebing/graphql-laravel is installed, so without it nothing subscribes
+     * (the channel would answer every subscription with a 403).
      *
      * @since 1.0.0
      *
@@ -97,9 +110,37 @@ final class AdminBroadcasts
         return null !== $user
             && (bool) config( 'artisanpack.ecommerce-admin-livewire.realtime.enabled', false )
             && (bool) config( 'artisanpack.ecommerce.graphql.subscriptions', false )
+            && self::graphQlInstalled()
             && Authorization::allows( $user, 'order.viewAny' )
             && Authorization::allows( $user, 'product.viewAny' )
             && Authorization::allows( $user, 'webhookSubscription.viewAny' );
+    }
+
+    /**
+     * Whether rebing/graphql-laravel is installed.
+     *
+     * @since 1.0.0
+     *
+     * @return bool
+     */
+    public static function graphQlInstalled(): bool
+    {
+        return self::$fakeGraphQl ?? class_exists( 'Rebing\\GraphQL\\GraphQL' );
+    }
+
+    /**
+     * Pretends rebing/graphql-laravel is (or isn't) installed. Pass null to
+     * go back to checking for the class.
+     *
+     * @since 1.0.0
+     *
+     * @param  bool|null  $installed  Whether it counts as installed.
+     *
+     * @return void
+     */
+    public static function fakeGraphQl( ?bool $installed ): void
+    {
+        self::$fakeGraphQl = $installed;
     }
 
     /**

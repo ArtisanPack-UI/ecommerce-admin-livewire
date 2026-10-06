@@ -14,6 +14,8 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Queries;
 
 use ArtisanPackUI\Ecommerce\Models\DigitalFile;
+use ArtisanPackUI\Ecommerce\Models\Product;
+use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -39,9 +41,9 @@ class DigitalFilesQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'label'   => 'digital_files.label',
-            'version' => 'digital_files.version',
-            'updated' => 'digital_files.updated_at',
+            'label'   => static::column( DigitalFile::class, 'label' ),
+            'version' => static::column( DigitalFile::class, 'version' ),
+            'updated' => static::column( DigitalFile::class, 'updated_at' ),
         ];
     }
 
@@ -76,12 +78,12 @@ class DigitalFilesQuery extends ResourceQuery
     protected function applySearch( Builder $query, string $search ): void
     {
         $query->where( static function ( Builder $where ) use ( $search ): void {
-            static::orWhereContains( $where, 'digital_files.label', $search );
-            static::orWhereContains( $where, 'digital_files.version', $search );
-            static::orWhereContains( $where, 'digital_files.path', $search );
+            static::orWhereContains( $where, static::column( DigitalFile::class, 'label' ), $search );
+            static::orWhereContains( $where, static::column( DigitalFile::class, 'version' ), $search );
+            static::orWhereContains( $where, static::column( DigitalFile::class, 'path' ), $search );
 
-            $where->orWhereHas( 'product', static fn ( Builder $product ) => $product->where( static fn ( Builder $name ) => static::orWhereContains( $name, 'products.name', $search ) ) )
-                ->orWhereHas( 'variant.product', static fn ( Builder $product ) => $product->where( static fn ( Builder $name ) => static::orWhereContains( $name, 'products.name', $search ) ) );
+            $where->orWhereHas( 'product', static fn ( Builder $product ) => $product->where( static fn ( Builder $name ) => static::orWhereContains( $name, static::column( Product::class, 'name' ), $search ) ) )
+                ->orWhereHas( 'variant.product', static fn ( Builder $product ) => $product->where( static fn ( Builder $name ) => static::orWhereContains( $name, static::column( Product::class, 'name' ), $search ) ) );
         } );
     }
 
@@ -94,10 +96,10 @@ class DigitalFilesQuery extends ResourceQuery
     {
         return [
             'product'   => static fn ( Builder $query, mixed $value ) => $query->where( static function ( Builder $owner ) use ( $value ): void {
-                $owner->where( 'digital_files.product_id', (int) $value )
-                    ->orWhereHas( 'variant', static fn ( Builder $variant ) => $variant->where( 'product_variants.product_id', (int) $value ) );
+                $owner->where( static::column( DigitalFile::class, 'product_id' ), (int) $value )
+                    ->orWhereHas( 'variant', static fn ( Builder $variant ) => $variant->where( static::column( ProductVariant::class, 'product_id' ), (int) $value ) );
             } ),
-            'streaming' => static fn ( Builder $query, mixed $value ) => $query->where( 'digital_files.is_streaming_only', '1' === (string) $value ),
+            'streaming' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( DigitalFile::class, 'is_streaming_only' ), '1' === (string) $value ),
         ];
     }
 }

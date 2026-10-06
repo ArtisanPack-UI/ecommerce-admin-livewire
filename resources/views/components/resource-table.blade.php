@@ -15,15 +15,21 @@
             <tr>
                 @if ( $selectable )
                     <th scope="col" class="w-1">
+                        {{-- The page's keys are read from data-keys on every use: Alpine
+                             state from the first render would go stale after paging,
+                             sorting, or filtering. --}}
                         <input
                             type="checkbox"
                             class="checkbox checkbox-sm"
                             aria-label="{{ __( 'Select every row on this page' ) }}"
-                            x-data="{ keys: {{ \Illuminate\Support\Js::from( $pageKeys() ) }} }"
-                            x-bind:checked="keys.length > 0 && keys.every( ( key ) => $wire.selected.map( String ).includes( key ) )"
+                            wire:key="select-page-{{ md5( implode( ',', $pageKeys() ) ) }}"
+                            data-keys="{{ json_encode( $pageKeys() ) }}"
+                            data-select-page
+                            x-data="{ keys() { return JSON.parse( this.$el.dataset.keys || '[]' ) } }"
+                            x-bind:checked="keys().length > 0 && keys().every( ( key ) => $wire.selected.map( String ).includes( key ) )"
                             x-on:change="$wire.set( 'selected', $event.target.checked
-                                ? [ ...new Set( [ ...$wire.selected.map( String ), ...keys ] ) ]
-                                : $wire.selected.map( String ).filter( ( key ) => ! keys.includes( key ) ) )"
+                                ? [ ...new Set( [ ...$wire.selected.map( String ), ...keys() ] ) ]
+                                : $wire.selected.map( String ).filter( ( key ) => ! keys().includes( key ) ) )"
                             @disabled( 0 === count( $pageKeys() ) )
                         />
                     </th>

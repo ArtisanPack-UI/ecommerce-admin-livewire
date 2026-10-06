@@ -24,6 +24,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithPickers;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithRuleBuilder;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\PromotionsQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -349,6 +350,8 @@ class Form extends Component
 
             return $model;
         } );
+
+        $this->dispatch( UnsavedChanges::SAVED_EVENT );
 
         if ( $creating ) {
             $this->toastSuccess( __( 'Promotion created.' ) );

@@ -25,6 +25,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\ColorContrast;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\IconChoices;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\KanbanBoards;
 use Closure;
+use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -507,12 +508,32 @@ class Columns extends Component
             return;
         }
 
-        $label   = $column->load( 'substatus' )->displayLabel();
-        $deleted = $this->withActionToken( $token, 'delete-column', static function () use ( $column ): bool {
-            $column->delete();
+        $label = $column->load( 'substatus' )->displayLabel();
 
-            return true;
-        }, $column );
+        try {
+            $deleted = $this->withActionToken( $token, 'delete-column', static fn (): bool => DB::transaction( static function () use ( $column ): bool {
+                // Re-checked under a lock: a card assigned since the check
+                // above still blocks the delete, and the token is released.
+                $locked = KanbanColumn::query()->lockForUpdate()->find( $column->id );
+
+                if ( null === $locked ) {
+                    return false;
+                }
+
+                if ( $locked->cardCount() > 0 ) {
+                    throw new DomainException( 'The column still has cards.' );
+                }
+
+                $locked->delete();
+
+                return true;
+            } ), $column );
+        } catch ( DomainException ) {
+            $this->cancelDelete();
+            $this->toastError( __( 'The column was not deleted.' ), __( 'Move the cards out of this column before deleting it.' ) );
+
+            return;
+        }
 
         $this->cancelDelete();
 

@@ -338,20 +338,33 @@ trait WithRuleBuilder
         }
 
         $result = [];
+        $errors = [];
 
         foreach ( $this->ruleBuilderLists() as $list => $definition ) {
             $result[ $list ] = [];
 
-            foreach ( $this->ruleRows[ $list ] ?? [] as $row ) {
+            foreach ( array_values( $this->ruleRows[ $list ] ?? [] ) as $index => $row ) {
                 $schema = $forms->schema( $definition['registry'], (string) $row['type'] );
+                $config = null === $schema
+                    ? (array) json_decode( (string) $row['config'], true )
+                    : ConfigFormRegistry::cast( $schema, (array) $row['config'] );
 
-                $result[ $list ][] = [
-                    'type'   => (string) $row['type'],
-                    'config' => null === $schema
-                        ? (array) json_decode( (string) $row['config'], true )
-                        : ConfigFormRegistry::cast( $schema, (array) $row['config'] ),
-                ];
+                // The engine's own schema check, since these rows are
+                // written without going through an engine service.
+                try {
+                    $forms->validateDeclared( $definition['registry'], (string) $row['type'], $config, 'ruleRows.' . $list . '.' . $index . '.config' );
+                } catch ( ValidationException $exception ) {
+                    $errors += $exception->errors();
+                }
+
+                $result[ $list ][] = [ 'type' => (string) $row['type'], 'config' => $config ];
             }
+        }
+
+        if ( [] !== $errors ) {
+            $this->openFirstInvalidRule( array_keys( $errors ) );
+
+            throw ValidationException::withMessages( $errors );
         }
 
         return $result;

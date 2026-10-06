@@ -472,17 +472,9 @@ class Index extends Component
             }
         }
 
-        $result = [ $applied, $failed ];
-
-        if ( null === $result ) {
-            return;
-        }
-
         $this->discardUpload();
         $this->bulkAdjusting = false;
         $this->bulkReport    = null;
-
-        [ $applied, $failed ] = $result;
 
         $this->dispatch( 'ecommerce-admin-nav-refresh' );
 

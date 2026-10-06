@@ -16,6 +16,7 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 use ArtisanPackUI\Ecommerce\Models\InventoryItem;
 use ArtisanPackUI\Ecommerce\Models\Order;
 use ArtisanPackUI\Ecommerce\Models\ProductReview;
+use ArtisanPackUI\EcommerceAdminLivewire\Queries\InventoryQuery;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -96,11 +97,19 @@ final class NavBadges
             self::PENDING_REVIEWS => self::remember( $badge, static fn (): int => ProductReview::query()
                 ->where( 'status', ProductReview::STATUS_PENDING )
                 ->count() ),
-            self::LOW_STOCK => self::remember( $badge, static fn (): int => InventoryItem::query()
-                ->where( 'track_inventory', true )
-                ->whereNotNull( 'low_stock_threshold' )
-                ->whereRaw( '(quantity_on_hand - quantity_reserved) <= low_stock_threshold' )
-                ->count() ),
+            // The same rows as the inventory "low" filter: tracked, something
+            // still available, and at or below the threshold.
+            self::LOW_STOCK => self::remember( $badge, static function (): int {
+                $query     = InventoryItem::query();
+                $available = InventoryQuery::availableSql( $query );
+
+                return $query
+                    ->where( $query->qualifyColumn( 'track_inventory' ), true )
+                    ->whereNotNull( $query->qualifyColumn( 'low_stock_threshold' ) )
+                    ->whereRaw( $available . ' > 0' )
+                    ->whereRaw( $available . ' <= ' . $query->getQuery()->getGrammar()->wrap( $query->qualifyColumn( 'low_stock_threshold' ) ) )
+                    ->count();
+            } ),
             default => applyFilters( 'ap.ecommerceAdminLivewire.nav.badge', null, $badge ),
         };
 

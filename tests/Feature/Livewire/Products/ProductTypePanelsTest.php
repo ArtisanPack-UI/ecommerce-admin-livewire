@@ -22,6 +22,7 @@ beforeEach( function (): void {
     config()->set( 'auth.providers.users.model', User::class );
     config()->set( 'artisanpack.ecommerce.base_currency', 'USD' );
     config()->set( 'artisanpack.ecommerce.currency.rates', [ 'USD' => [ 'EUR' => 92_500_000 ] ] );
+    config()->set( 'artisanpack.ecommerce.currency.enabled', [ 'EUR' ] );
     config()->set( 'artisanpack.ecommerce.features.scout', false );
     grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update' ] );
     ProductMedia::fake( false );
@@ -187,6 +188,45 @@ it( 'asks before generating more than 50 variants', function (): void {
         ->assertCount( 'state.variants', 54 );
 } );
 
+it( 'renders and refuses a matrix far larger than the engine allows, without overflowing', function (): void {
+    $attributes = array_map( static fn ( int $a ): array => [
+        'uid'          => "a{$a}",
+        'id'           => null,
+        'key'          => '',
+        'label'        => "Attribute {$a}",
+        'is_variation' => true,
+        'values'       => array_map( static fn ( int $v ): array => [ 'uid' => "a{$a}v{$v}", 'id' => null, 'value' => null, 'label' => "Value {$v}", 'swatch' => '' ], range( 1, 50 ) ),
+    ], range( 1, 12 ) );
+
+    Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => $attributes, 'variants' => [], 'stock_reason' => '' ] )
+        ->assertOk()
+        ->call( 'generateVariants' )
+        ->assertHasErrors( 'state.variants' )
+        ->assertSee( 'That would make more than ' . VariablePanel::MAX_VARIANTS . ' variants.' )
+        ->assertCount( 'state.variants', 0 );
+} );
+
+it( 'accepts colour and image swatches but not CSS', function ( string $swatch, bool $valid ): void {
+    $attributes                                   = teeAttributes( [ 'S' ], [ 'Red' ] );
+    $attributes[1]['values'][0]['swatch']         = $swatch;
+
+    $component = Livewire::test( Form::class )
+        ->set( 'name', 'Tee' )
+        ->set( 'type', 'variable' )
+        ->set( 'panelState', [ 'attributes' => $attributes, 'variants' => [], 'stock_reason' => '' ] )
+        ->call( 'save' );
+
+    $valid
+        ? $component->assertHasNoErrors( 'panelState.attributes.1.values.0.swatch' )
+        : $component->assertHasErrors( 'panelState.attributes.1.values.0.swatch' );
+} )->with( [
+    'hex'       => [ '#ff0000', true ],
+    'name'      => [ 'red', true ],
+    'image ref' => [ 'swatches/red.png', true ],
+    'css'       => [ 'red;background:url(x)', false ],
+] );
+
 it( 'refuses to generate when an attribute has no values', function (): void {
     Livewire::test( VariablePanel::class )
         ->set( 'state', [ 'attributes' => [ [ 'uid' => 'a', 'id' => null, 'key' => '', 'label' => 'Size', 'is_variation' => true, 'values' => [] ] ], 'variants' => [], 'stock_reason' => '' ] )
@@ -253,6 +293,29 @@ it( 'loads, edits, reorders, and deletes variants of a saved product', function 
     expect( $product->variants()->orderBy( 'position' )->pluck( 'name' )->all() )->toBe( [ 'XXL', 'S' ] )
         ->and( ProductVariant::query()->where( 'name', 'XXL' )->sole()->prices()->value( 'price_amount' ) )->toBe( 1800 )
         ->and( ProductVariant::query()->count() )->toBe( 2 );
+} );
+
+it( 'clears one currency of a variant and keeps its scheduled prices', function (): void {
+    $product = app( ProductService::class )->create( [ 'type' => 'variable', 'name' => 'Tee' ] );
+    $variant = app( ProductService::class )->createVariant( $product, [ 'sku' => 'TEE-1' ] );
+    $service = app( ProductService::class );
+
+    $service->upsertPrice( $variant, [ 'currency' => 'USD', 'price_amount' => 1500 ] );
+    $service->upsertPrice( $variant, [ 'currency' => 'EUR', 'price_amount' => 1400 ] );
+    $service->upsertPrice( $variant, [ 'currency' => 'EUR', 'price_amount' => 1000, 'starts_at' => now()->addWeek(), 'ends_at' => now()->addWeeks( 2 ) ] );
+
+    $state                                   = VariablePanel::initialState( $product->refresh() );
+    $state['variants'][0]['prices']['EUR']   = '';
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    $prices = $variant->prices()->orderBy( 'currency' )->orderBy( 'price_amount' )->get();
+
+    expect( $prices->map( static fn ( $price ): array => [ $price->currency, $price->price_amount, null !== $price->starts_at ] )->all() )
+        ->toBe( [ [ 'EUR', 1000, true ], [ 'USD', 1500, false ] ] );
 } );
 
 it( 'requires a reason when a saved variant\'s stock changes', function (): void {

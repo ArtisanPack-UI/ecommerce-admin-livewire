@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Queries;
 
+use ArtisanPackUI\Ecommerce\Models\Coupon;
 use ArtisanPackUI\Ecommerce\Models\Promotion;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -71,11 +72,11 @@ class PromotionsQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'name'     => 'promotions.name',
-            'priority' => 'promotions.priority',
-            'window'   => 'promotions.starts_at',
-            'uses'     => 'promotions.times_used',
-            'created'  => 'promotions.created_at',
+            'name'     => static::column( Promotion::class, 'name' ),
+            'priority' => static::column( Promotion::class, 'priority' ),
+            'window'   => static::column( Promotion::class, 'starts_at' ),
+            'uses'     => static::column( Promotion::class, 'times_used' ),
+            'created'  => static::column( Promotion::class, 'created_at' ),
         ];
     }
 
@@ -96,7 +97,7 @@ class PromotionsQuery extends ResourceQuery
      */
     protected function baseQuery(): Builder
     {
-        return Promotion::query()->select( 'promotions.*' )->withCount( 'coupons' );
+        return Promotion::query()->select( static::column( Promotion::class, '*' ) )->withCount( 'coupons' );
     }
 
     /**
@@ -112,11 +113,11 @@ class PromotionsQuery extends ResourceQuery
     protected function applySearch( Builder $query, string $search ): void
     {
         $query->where( static function ( Builder $where ) use ( $search ): void {
-            static::orWhereContains( $where, 'promotions.name', $search );
-            static::orWhereContains( $where, 'promotions.key', $search );
-            static::orWhereContains( $where, 'promotions.description', $search );
+            static::orWhereContains( $where, static::column( Promotion::class, 'name' ), $search );
+            static::orWhereContains( $where, static::column( Promotion::class, 'key' ), $search );
+            static::orWhereContains( $where, static::column( Promotion::class, 'description' ), $search );
 
-            $where->orWhereHas( 'coupons', static fn ( Builder $coupons ) => $coupons->where( 'coupons.code', strtoupper( trim( $search ) ) ) );
+            $where->orWhereHas( 'coupons', static fn ( Builder $coupons ) => $coupons->where( static::column( Coupon::class, 'code' ), strtoupper( trim( $search ) ) ) );
         } );
     }
 
@@ -132,19 +133,19 @@ class PromotionsQuery extends ResourceQuery
                 $now = Carbon::now();
 
                 match ( (string) $value ) {
-                    'disabled'  => $query->where( 'promotions.is_active', false ),
-                    'scheduled' => $query->where( 'promotions.is_active', true )->where( 'promotions.starts_at', '>', $now ),
-                    'expired'   => $query->where( 'promotions.is_active', true )
-                        ->where( static fn ( Builder $started ) => $started->whereNull( 'promotions.starts_at' )->orWhere( 'promotions.starts_at', '<=', $now ) )
-                        ->where( 'promotions.ends_at', '<=', $now ),
-                    'active'    => $query->where( 'promotions.is_active', true )
-                        ->where( static fn ( Builder $started ) => $started->whereNull( 'promotions.starts_at' )->orWhere( 'promotions.starts_at', '<=', $now ) )
-                        ->where( static fn ( Builder $ending ) => $ending->whereNull( 'promotions.ends_at' )->orWhere( 'promotions.ends_at', '>', $now ) ),
+                    'disabled'  => $query->where( static::column( Promotion::class, 'is_active' ), false ),
+                    'scheduled' => $query->where( static::column( Promotion::class, 'is_active' ), true )->where( static::column( Promotion::class, 'starts_at' ), '>', $now ),
+                    'expired'   => $query->where( static::column( Promotion::class, 'is_active' ), true )
+                        ->where( static fn ( Builder $started ) => $started->whereNull( static::column( Promotion::class, 'starts_at' ) )->orWhere( static::column( Promotion::class, 'starts_at' ), '<=', $now ) )
+                        ->where( static::column( Promotion::class, 'ends_at' ), '<=', $now ),
+                    'active'    => $query->where( static::column( Promotion::class, 'is_active' ), true )
+                        ->where( static fn ( Builder $started ) => $started->whereNull( static::column( Promotion::class, 'starts_at' ) )->orWhere( static::column( Promotion::class, 'starts_at' ), '<=', $now ) )
+                        ->where( static fn ( Builder $ending ) => $ending->whereNull( static::column( Promotion::class, 'ends_at' ) )->orWhere( static::column( Promotion::class, 'ends_at' ), '>', $now ) ),
                     default     => null,
                 };
             },
-            'source_type' => static fn ( Builder $query, mixed $value ) => $query->where( 'promotions.source_type', (string) $value ),
-            'exclusive'   => static fn ( Builder $query, mixed $value ) => $query->where( 'promotions.is_exclusive', '1' === (string) $value ),
+            'source_type' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Promotion::class, 'source_type' ), (string) $value ),
+            'exclusive'   => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Promotion::class, 'is_exclusive' ), '1' === (string) $value ),
         ];
     }
 }

@@ -29,6 +29,7 @@
                         <tr>
                             <th scope="col">{{ __( 'Date' ) }}</th>
                             <th scope="col" class="text-end">{{ __( 'Amount' ) }}</th>
+                            <th scope="col">{{ __( 'Status' ) }}</th>
                             <th scope="col">{{ __( 'Reason' ) }}</th>
                             <th scope="col">{{ __( 'Issued by' ) }}</th>
                             <th scope="col">{{ __( 'Gateway reference' ) }}</th>
@@ -39,6 +40,18 @@
                             <tr wire:key="refund-{{ $refund->id }}">
                                 <td>{{ null === $refund->created_at ? '—' : LocalizedDate::format( $refund->created_at ) }}</td>
                                 <td class="text-end"><x-artisanpack-ec-money :amount="$refund->amount" :currency="$refund->currency" /></td>
+                                <td data-refund-status="{{ $refund->status }}">
+                                    @switch ( $refund->status )
+                                        @case( \ArtisanPackUI\Ecommerce\Models\Refund::STATUS_PENDING )
+                                            <x-artisanpack-badge :value="__( 'Pending' )" class="badge-sm" color="warning" />
+                                            @break
+                                        @case( \ArtisanPackUI\Ecommerce\Models\Refund::STATUS_FAILED )
+                                            <x-artisanpack-badge :value="__( 'Failed' )" class="badge-sm" color="error" />
+                                            @break
+                                        @default
+                                            <x-artisanpack-badge :value="__( 'Refunded' )" class="badge-sm" color="success" />
+                                    @endswitch
+                                </td>
                                 <td>
                                     {{ $refund->reason ?: '—' }}
                                     @foreach ( $refund->items as $line )

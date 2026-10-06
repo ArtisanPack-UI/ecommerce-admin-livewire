@@ -33,7 +33,7 @@ function statusPanelCancelToken( $component ): string
 it( 'renders the current status with only the allowed transitions', function (): void {
     grantAbilities( [ 'order.refund' ] );
 
-    $order = Order::factory()->withSystemStatus( 'processing' )->create();
+    $order = Order::factory()->withSystemStatus( 'processing' )->create( [ 'payment_status' => 'refunded' ] );
 
     Livewire::test( StatusPanel::class, [ 'order' => $order ] )
         ->assertOk()
@@ -46,8 +46,22 @@ it( 'renders the current status with only the allowed transitions', function ():
         ->assertSee( 'Cancel order' );
 } );
 
+it( 'does not offer refunded for an order whose payment is not refunded', function (): void {
+    grantAbilities( [ 'order.refund' ] );
+
+    $order = Order::factory()->withSystemStatus( 'processing' )->create( [ 'payment_status' => 'paid' ] );
+
+    Livewire::test( StatusPanel::class, [ 'order' => $order ] )
+        ->assertDontSeeHtml( 'value="refunded"' )
+        ->set( 'targetStatus', 'refunded' )
+        ->call( 'changeStatus' )
+        ->assertHasErrors( [ 'targetStatus' ] );
+
+    expect( $order->fresh()->system_status )->toBe( 'processing' );
+} );
+
 it( 'only lets users who may refund mark an order refunded', function (): void {
-    $order = Order::factory()->withSystemStatus( 'processing' )->create();
+    $order = Order::factory()->withSystemStatus( 'processing' )->create( [ 'payment_status' => 'refunded' ] );
 
     Livewire::test( StatusPanel::class, [ 'order' => $order ] )
         ->assertDontSeeHtml( 'value="refunded"' )
@@ -175,7 +189,7 @@ it( 'explains a sub-status the order has outgrown', function (): void {
 it( 'summarises a cancel and cancels an unpaid order, releasing its stock', function (): void {
     $order   = Order::factory()->create( [ 'payment_status' => 'pending' ] );
     $product = Product::factory()->create( [ 'name' => 'Linen Shirt' ] );
-    $stock   = InventoryItem::factory()->create( [ 'stockable_type' => Product::class, 'stockable_id' => $product->id ] );
+    $stock   = InventoryItem::factory()->create( [ 'stockable_type' => $product->getMorphClass(), 'stockable_id' => $product->id ] );
 
     app( InventoryService::class )->reserve( $stock, $order, 2 );
 
@@ -220,7 +234,7 @@ it( 'cancels only once per token', function (): void {
     $token     = statusPanelCancelToken( $component );
 
     $component->set( 'cancelReason', 'Duplicate' )->call( 'cancelOrder', $token );
-    Illuminate\Support\Facades\DB::table( 'orders' )->where( 'id', $order->id )->update( [ 'system_status' => 'pending' ] );
+    Illuminate\Support\Facades\DB::table( ( new Order() )->getTable() )->where( 'id', $order->id )->update( [ 'system_status' => 'pending' ] );
 
     $component->set( 'cancelReason', 'Duplicate' )->call( 'cancelOrder', $token );
 

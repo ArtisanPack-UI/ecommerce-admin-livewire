@@ -274,7 +274,7 @@ class Index extends Component
 
         $target  = ProductTag::query()->findOrFail( (int) $this->mergeTargetId );
         $service = app( ProductTagService::class );
-        $ids     = ( clone $selection )->reorder()->pluck( 'product_tags.id' )->map( static fn ( mixed $id ): int => (int) $id )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->map( static fn ( mixed $id ): int => (int) $id )->all();
         $merged  = 0;
 
         DB::transaction( static function () use ( $ids, $target, $service, &$merged ): void {
@@ -305,7 +305,7 @@ class Index extends Component
     protected function deleteSelection( Builder $selection ): ?string
     {
         $service = app( ProductTagService::class );
-        $ids     = ( clone $selection )->reorder()->pluck( 'product_tags.id' )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $deleted = 0;
 
         DB::transaction( static function () use ( $ids, $service, &$deleted ): void {

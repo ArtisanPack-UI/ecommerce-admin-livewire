@@ -239,3 +239,39 @@ it( 'skips filtered widgets with a malformed permission and accepts the ecommerc
 
     Livewire::test( Dashboard::class )->assertOk();
 } );
+
+it( 'runs the 30-day sales report once per render, and caches it between renders', function (): void {
+    grantAbilities( [ 'report.view', 'order.viewAny', 'inventory.viewAny', 'review.viewAny' ] );
+    Order::factory()->count( 3 )->create( [ 'placed_at' => now() ] );
+
+    $runs = 0;
+    $real = app( ArtisanPackUI\Ecommerce\Reports\SalesReport::class );
+    $spy  = Mockery::mock( $real );
+    $spy->shouldReceive( 'run' )->andReturnUsing( static function ( ...$args ) use ( $real, &$runs ): array {
+        ++$runs;
+
+        return $real->run( ...$args );
+    } );
+    app()->instance( ArtisanPackUI\Ecommerce\Reports\SalesReport::class, $spy );
+
+    Illuminate\Support\Facades\DB::flushQueryLog();
+    Illuminate\Support\Facades\DB::enableQueryLog();
+
+    $component = Livewire::test( Dashboard::class );
+
+    $queries = count( Illuminate\Support\Facades\DB::getQueryLog() );
+    Illuminate\Support\Facades\DB::disableQueryLog();
+
+    $component->call( 'orderBroadcast' )->call( 'orderBroadcast' );
+
+    expect( $runs )->toBe( 1 )
+        ->and( $queries )->toBeLessThan( 40 );
+} );
+
+it( 'skips re-rendering on an order broadcast when nothing on screen shows orders', function (): void {
+    grantAbilities( [ 'inventory.viewAny' ] );
+
+    Livewire::test( Dashboard::class )
+        ->call( 'orderBroadcast' )
+        ->assertSet( 'liveAnnouncement', '' );
+} );

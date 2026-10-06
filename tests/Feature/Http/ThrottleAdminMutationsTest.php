@@ -3,6 +3,8 @@
 declare( strict_types=1 );
 
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\ThrottleAdminMutations;
+use Composer\InstalledVersions;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Mechanisms\PersistentMiddleware\PersistentMiddleware;
 
@@ -17,8 +19,11 @@ beforeEach( function (): void {
  * Livewire applies persistent middleware once per route per request cycle;
  * flushing its state makes each test request behave like a separate one.
  */
-function throttledUpdate( $test, $user ): Closure
+function throttledUpdate( $test, $user, ?array $calls = null, array $updates = [] ): Closure
 {
+    // A call that writes, unless the test says otherwise.
+    $calls ??= [ [ 'path' => '', 'method' => 'orderBroadcast', 'params' => [] ] ];
+
     $page = $test->actingAs( $user )->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk();
 
     preg_match( '/wire:snapshot="([^"]+)"/', $page->getContent(), $matches );
@@ -26,7 +31,7 @@ function throttledUpdate( $test, $user ): Closure
 
     return fn () => tap( $test, static fn () => app( 'livewire' )->flushState() )->actingAs( $user )->withHeaders( [ 'X-Livewire' => '1' ] )->postJson(
         app( 'livewire' )->getUpdateUri(),
-        [ 'components' => [ [ 'snapshot' => $snapshot, 'calls' => [], 'updates' => [] ] ] ],
+        [ 'components' => [ [ 'snapshot' => $snapshot, 'calls' => $calls, 'updates' => $updates ] ] ],
     );
 }
 
@@ -91,3 +96,39 @@ it( 'turns a 429 into a toast instead of the Livewire error modal', function ():
 afterEach( function (): void {
     RateLimiter::clear( 'ecommerce.admin.mutate' );
 } );
+
+it( 'does not count polls and other reads toward the limit', function (): void {
+    $user = makeUser();
+
+    // Livewire 3 sends `wire:poll` and `$refresh` as a commit with no calls;
+    // Livewire 4 sends a `$refresh` call (which Livewire 3 rejects).
+    $reads = [ throttledUpdate( $this, $user, [] ) ];
+
+    if ( str_starts_with( (string) InstalledVersions::getVersion( 'livewire/livewire' ), '4.' ) ) {
+        $reads[] = throttledUpdate( $this, $user, [ [ 'path' => '', 'method' => '$refresh', 'params' => [] ] ] );
+    }
+
+    foreach ( $reads as $read ) {
+        foreach ( range( 1, 3 ) as $attempt ) {
+            $read()->assertOk();
+        }
+    }
+
+    $write = throttledUpdate( $this, $user, [ [ 'path' => '', 'method' => 'orderBroadcast', 'params' => [] ] ] );
+
+    $write()->assertOk();
+    $write()->assertOk();
+    $write()->assertStatus( 429 );
+} );
+
+it( 'tells reads from writes by the calls and updates each component sends', function ( array $components, bool $read ): void {
+    expect( ThrottleAdminMutations::onlyReads( Request::create( '/livewire/update', 'POST', [ 'components' => $components ] ) ) )->toBe( $read );
+} )->with( [
+    'a Livewire 3 poll (no calls)'     => [ [ [ 'calls' => [], 'updates' => [] ] ], true ],
+    'a Livewire 4 poll ($refresh)'     => [ [ [ 'calls' => [ [ 'method' => '$refresh' ] ], 'updates' => [] ] ], true ],
+    'sorting and paging'               => [ [ [ 'calls' => [ [ 'method' => 'sort' ], [ 'method' => 'gotoPage' ] ], 'updates' => [] ] ], true ],
+    'a property update'                => [ [ [ 'calls' => [], 'updates' => [ 'search' => 'mug' ] ] ], false ],
+    'any other call'                   => [ [ [ 'calls' => [ [ 'method' => 'save' ] ], 'updates' => [] ] ], false ],
+    'one writing component of two'     => [ [ [ 'calls' => [], 'updates' => [] ], [ 'calls' => [ [ 'method' => 'delete' ] ], 'updates' => [] ] ], false ],
+    'no components'                    => [ [], false ],
+] );

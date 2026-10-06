@@ -35,10 +35,10 @@ class WebhookSubscriptionsQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'name'         => 'webhook_subscriptions.name',
-            'last_success' => 'webhook_subscriptions.last_success_at',
-            'last_failure' => 'webhook_subscriptions.last_failure_at',
-            'failures'     => 'webhook_subscriptions.consecutive_failures',
+            'name'         => static::column( WebhookSubscription::class, 'name' ),
+            'last_success' => static::column( WebhookSubscription::class, 'last_success_at' ),
+            'last_failure' => static::column( WebhookSubscription::class, 'last_failure_at' ),
+            'failures'     => static::column( WebhookSubscription::class, 'consecutive_failures' ),
         ];
     }
 
@@ -59,7 +59,7 @@ class WebhookSubscriptionsQuery extends ResourceQuery
      */
     protected function baseQuery(): Builder
     {
-        return WebhookSubscription::query()->select( 'webhook_subscriptions.*' );
+        return WebhookSubscription::query()->select( static::column( WebhookSubscription::class, '*' ) );
     }
 
     /**
@@ -73,8 +73,8 @@ class WebhookSubscriptionsQuery extends ResourceQuery
     protected function applySearch( Builder $query, string $search ): void
     {
         $query->where( static function ( Builder $where ) use ( $search ): void {
-            static::orWhereContains( $where, 'webhook_subscriptions.name', $search );
-            static::orWhereContains( $where, 'webhook_subscriptions.url', $search );
+            static::orWhereContains( $where, static::column( WebhookSubscription::class, 'name' ), $search );
+            static::orWhereContains( $where, static::column( WebhookSubscription::class, 'url' ), $search );
         } );
     }
 
@@ -86,7 +86,7 @@ class WebhookSubscriptionsQuery extends ResourceQuery
     protected function filters(): array
     {
         return [
-            'active' => static fn ( Builder $query, mixed $value ) => $query->where( 'webhook_subscriptions.is_active', '1' === (string) $value ),
+            'active' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( WebhookSubscription::class, 'is_active' ), '1' === (string) $value ),
         ];
     }
 }

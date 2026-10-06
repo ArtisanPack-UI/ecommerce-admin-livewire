@@ -375,6 +375,19 @@ class Timeline extends Component
             'payment.capture_failed'     => [ 'o-exclamation-triangle', __( 'Payment capture failed: :message', [ 'message' => (string) ( $payload['message'] ?? __( 'unknown error' ) ) ] ) ],
             'payment.fraud_blocked'      => [ 'o-shield-exclamation', __( 'Blocked by the fraud check (score :score)', [ 'score' => (string) ( $payload['score'] ?? '—' ) ] ) ],
             'payment.fraud_challenged'   => [ 'o-shield-exclamation', __( 'Challenged by the fraud check (score :score)', [ 'score' => (string) ( $payload['score'] ?? '—' ) ] ) ],
+            'payment.action_required'    => [ 'o-finger-print', __( 'Payment action required' ) ],
+            'payment.amount_mismatch'    => [ 'o-exclamation-triangle', __( 'The gateway reported :refunded but :requested was requested. Needs reconciliation.', [
+                'refunded'  => $this->money( $payload['actual'] ?? null, (string) ( $payload['currency'] ?? $currency ) ),
+                'requested' => $this->money( $payload['expected'] ?? null, (string) ( $payload['currency'] ?? $currency ) ),
+            ] ) ],
+            'refund.failed'              => [ 'o-exclamation-triangle', __( 'Refund of :amount failed: :error', [
+                'amount' => $this->money( $payload['amount'] ?? null, (string) ( $payload['currency'] ?? $currency ) ),
+                'error'  => (string) ( $payload['error'] ?? __( 'unknown error' ) ),
+            ] ) ],
+            'refund.amount_mismatch'     => [ 'o-exclamation-triangle', __( 'The gateway reported :refunded but :requested was requested. Needs reconciliation.', [
+                'refunded'  => $this->money( $payload['refunded'] ?? null, (string) ( $payload['refunded_currency'] ?? $currency ) ),
+                'requested' => $this->money( $payload['requested'] ?? null, (string) ( $payload['requested_currency'] ?? $currency ) ),
+            ] ) ],
             'kanban.assignment_added'    => [ 'o-view-columns', __( 'Added to board ":board"', [ 'board' => $this->boardName( $payload ) ] ) ],
             'kanban.assignment_removed'  => [ 'o-view-columns', __( 'Removed from board ":board"', [ 'board' => $this->boardName( $payload ) ] ) ],
             'kanban.automation_fired'    => [ 'o-bolt', __( 'Automation ":trigger" ran on board ":board"', [ 'trigger' => (string) ( $payload['trigger_key'] ?? '' ), 'board' => $this->boardName( $payload ) ] ) ],

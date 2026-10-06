@@ -14,8 +14,8 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notifications;
 
 use ArtisanPackUI\Ecommerce\Models\NotificationTemplate;
-use ArtisanPackUI\Ecommerce\Services\NotificationTemplateService;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\NotificationTemplates;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -67,7 +67,7 @@ class Index extends Component
     {
         $this->authorizeEcommerce( 'viewAny', NotificationTemplate::class );
 
-        app( NotificationTemplateService::class )->sync();
+        NotificationTemplates::syncOnce();
     }
 
     /**

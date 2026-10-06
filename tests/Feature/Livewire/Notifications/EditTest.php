@@ -7,6 +7,7 @@ use ArtisanPackUI\Ecommerce\Models\NotificationTemplate;
 use ArtisanPackUI\Ecommerce\Notifications\NotificationCatalog;
 use ArtisanPackUI\Ecommerce\Services\NotificationTemplateService;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notifications\Edit;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
@@ -69,8 +70,10 @@ it( 'updates the preview live and saves', function (): void {
         ->assertSet( 'previewSubject', 'Thanks, Ada' )
         ->set( 'previewJson', '{"Order": {"number": "X1", "customer": {"name": "Grace"}}}' )
         ->assertSet( 'previewSubject', 'Thanks, Grace' )
+        ->assertSeeHtml( 'data-unsaved-changes' )
         ->call( 'save' )
-        ->assertHasNoErrors();
+        ->assertHasNoErrors()
+        ->assertDispatched( UnsavedChanges::SAVED_EVENT );
 
     $template->refresh();
     expect( $template->subject )->toBe( 'Thanks, {{ Order.customer.name }}' )
@@ -139,6 +142,23 @@ it( 'resets to the default copy after confirmation', function (): void {
     expect( $template->refresh() )
         ->subject->toBe( $default->defaultSubject() )
         ->body->toBe( $default->defaultBody() );
+} );
+
+it( 'resets a translation to the default copy in its own locale', function (): void {
+    $english = catalogTemplate();
+    $german  = $english->replicate();
+    $german->fill( [ 'locale' => 'de', 'subject' => 'Eigener Betreff', 'body' => '<p>Eigener Text</p>' ] )->save();
+
+    $default = $german->definition();
+
+    Livewire::test( Edit::class, [ 'template' => $german->id ] )
+        ->call( 'confirmReset' )
+        ->call( 'resetToDefault' );
+
+    expect( $german->refresh() )
+        ->subject->toBe( $default->defaultSubject( 'de' ) )
+        ->body->toBe( $default->defaultBody( 'de' ) )
+        ->and( $default->defaultSubject( 'de' ) )->not->toBe( $default->defaultSubject( 'en' ) );
 } );
 
 it( 'has no reset for a template without a default', function (): void {

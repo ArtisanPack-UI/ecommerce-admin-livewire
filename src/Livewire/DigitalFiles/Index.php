@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\DigitalFiles;
 
+use ArtisanPackUI\Ecommerce\Exceptions\DigitalFileInUseException;
 use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
@@ -30,7 +31,6 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
@@ -106,6 +106,16 @@ class Index extends Component
     public array $form = [];
 
     /**
+     * Files a delete kept because customers bought them, offered for archiving.
+     *
+     * @since 1.0.0
+     *
+     * @var array<int, int>
+     */
+    #[Locked]
+    public array $keptIds = [];
+
+    /**
      * Authorizes the screen.
      *
      * @since 1.0.0
@@ -170,6 +180,7 @@ class Index extends Component
             'disk'               => (string) ( $file->disk ?? DigitalDisks::default() ),
             'path'               => (string) ( $file->path ?? '' ),
             'media_id'           => $file->media_id,
+            'is_archived'        => null !== $file->archived_at,
         ];
         $this->editing      = true;
     }
@@ -204,10 +215,11 @@ class Index extends Component
                 // to nothing, so a version can be changed but not cleared.
                 'form.version'            => [ null === $file || null === $file->version ? 'nullable' : 'required', 'string', 'max:60' ],
                 'form.is_streaming_only'  => [ 'boolean' ],
+                'form.is_archived'        => [ 'boolean' ],
                 'form.source'             => [ 'required', Rule::in( [ 'path', 'media' ] ) ],
                 'form.disk'               => [ 'nullable', 'required_if:form.source,path', Rule::in( DigitalDisks::allowed() ) ],
                 'form.path'               => [ 'nullable', 'required_if:form.source,path', 'string', 'max:1000', DigitalDisks::relativePath() ],
-                'form.media_id'           => [ 'nullable', 'required_if:form.source,media', 'integer', 'min:1' ],
+                'form.media_id'           => [ 'nullable', 'required_if:form.source,media', 'integer', 'min:1', DigitalDisks::privateMedia() ],
             ],
             [],
             [
@@ -230,6 +242,7 @@ class Index extends Component
             'label'              => trim( sanitizeText( (string) $this->form['label'] ) ),
             'version'            => '' === $version ? null : $version,
             'is_streaming_only'  => (bool) $this->form['is_streaming_only'],
+            'is_archived'        => (bool) ( $this->form['is_archived'] ?? false ),
             'media_id'           => $media ? (int) $this->form['media_id'] : null,
             'disk'               => $media ? null : (string) $this->form['disk'],
             'path'               => $media ? null : ltrim( (string) $this->form['path'], '/' ),
@@ -277,6 +290,40 @@ class Index extends Component
      *
      * @return void
      */
+    /**
+     * Archives the files the last delete kept because customers bought
+     * them. Archived files stay downloadable for existing buyers.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public function archiveKept(): void
+    {
+        $this->authorizeEcommerceAbility( 'digitalFile.update' );
+
+        $ids           = $this->keptIds;
+        $this->keptIds = [];
+
+        [ $archived, $skipped ] = $this->archiveFiles( DigitalFile::query()->whereKey( $ids ) );
+
+        $this->toastSuccess( self::archiveSummary( $archived, $skipped ) );
+    }
+
+    /**
+     * Dismisses the archive offer.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public function dismissKept(): void
+    {
+        $this->authorizeTable();
+
+        $this->keptIds = [];
+    }
+
     #[On( 'media-selected' )]
     public function mediaSelected( array $media = [], string $context = '' ): void
     {
@@ -332,6 +379,7 @@ class Index extends Component
                 ->all(),
             'versionBumped'  => null !== $this->fileId && null !== $this->savedVersion && '' !== $version && $version !== $this->savedVersion,
             'diskOptions'    => DigitalDisks::options(),
+            'keptCount'      => count( $this->keptIds ),
             'mediaLibrary'   => ProductMedia::libraryInstalled(),
         ] );
     }
@@ -373,7 +421,9 @@ class Index extends Component
     }
 
     /**
-     * Deletes the selected files (their download entitlements go with them).
+     * Deletes the selected files. The engine refuses to delete a file that
+     * customers bought (their downloads would vanish); those are kept and
+     * offered for archiving instead.
      *
      * @since 1.0.0
      *
@@ -383,18 +433,51 @@ class Index extends Component
      */
     protected function deleteSelection( Builder $selection ): ?string
     {
-        $ids     = ( clone $selection )->reorder()->pluck( 'digital_files.id' )->all();
+        $service = app( DigitalFileService::class );
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $deleted = 0;
+        $kept    = [];
+        $denied  = 0;
 
-        DB::transaction( function () use ( $ids, &$deleted ): void {
-            foreach ( DigitalFile::query()->whereKey( $ids )->get() as $file ) {
-                $this->authorizeEcommerce( 'delete', $file );
-                $file->delete();
-                ++$deleted;
+        foreach ( DigitalFile::query()->whereKey( $ids )->get() as $file ) {
+            if ( ! $this->canEcommerce( 'delete', $file ) ) {
+                ++$denied;
+                continue;
             }
-        } );
 
-        return trans_choice( ':count file deleted.|:count files deleted.', $deleted, [ 'count' => $deleted ] );
+            try {
+                $service->delete( $file );
+                ++$deleted;
+            } catch ( DigitalFileInUseException ) {
+                $kept[] = (int) $file->id;
+            }
+        }
+
+        $this->keptIds = $kept;
+
+        $summary = trans_choice( ':count file deleted.|:count files deleted.', $deleted, [ 'count' => $deleted ] );
+
+        if ( [] !== $kept ) {
+            $summary .= ' ' . trans_choice( ':count file has buyers and was kept. Archive it instead.|:count files have buyers and were kept. Archive them instead.', count( $kept ), [ 'count' => count( $kept ) ] );
+        }
+
+        return self::withDeniedNote( $summary, $denied );
+    }
+
+    /**
+     * Archives the selected files.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder<DigitalFile>  $selection  Selected files.
+     *
+     * @return string|null
+     */
+    protected function archiveSelection( Builder $selection ): ?string
+    {
+        [ $archived, $skipped ] = $this->archiveFiles( DigitalFile::query()->whereKey( ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all() ) );
+
+        return self::archiveSummary( $archived, $skipped );
     }
 
     /**
@@ -467,6 +550,12 @@ class Index extends Component
                 'value' => static fn ( DigitalFile $file ): string => self::location( $file ),
             ],
             [
+                'key'    => 'archived',
+                'label'  => __( 'Archived' ),
+                'value'  => static fn ( DigitalFile $file ): string => null === $file->archived_at ? __( 'No' ) : __( 'Yes' ),
+                'export' => static fn ( DigitalFile $file ): int => null === $file->archived_at ? 0 : 1,
+            ],
+            [
                 'key'    => 'streaming',
                 'label'  => __( 'Streaming only' ),
                 'value'  => static fn ( DigitalFile $file ): string => $file->is_streaming_only ? __( 'Yes' ) : __( 'No' ),
@@ -515,11 +604,69 @@ class Index extends Component
                 'label'   => __( 'Delete' ),
                 'icon'    => 'o-trash',
                 'ability' => 'digitalFile.delete',
-                'confirm' => __( 'Delete the selected files? Customers who bought them lose access to these files.' ),
+                'confirm' => __( 'Delete the selected files? Files customers already bought are kept, and you can archive them instead.' ),
                 'handler' => fn ( Builder $selection ): ?string => $this->deleteSelection( $selection ),
+            ],
+            [
+                'key'     => 'archive',
+                'label'   => __( 'Archive' ),
+                'icon'    => 'o-archive-box',
+                'ability' => 'digitalFile.update',
+                'confirm' => null,
+                'handler' => fn ( Builder $selection ): ?string => $this->archiveSelection( $selection ),
             ],
             $this->exportBulkAction(),
         ];
+    }
+
+    /**
+     * Archives each file the user may update, through the engine service.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder<DigitalFile>  $files  Files to archive.
+     *
+     * @return array{0: int, 1: int} The archived and skipped counts.
+     */
+    private function archiveFiles( Builder $files ): array
+    {
+        $service  = app( DigitalFileService::class );
+        $archived = 0;
+        $skipped  = 0;
+
+        foreach ( $files->get() as $file ) {
+            if ( ! $this->canEcommerce( 'update', $file ) ) {
+                ++$skipped;
+
+                continue;
+            }
+
+            $service->update( $file, [ 'is_archived' => true ] );
+            ++$archived;
+        }
+
+        return [ $archived, $skipped ];
+    }
+
+    /**
+     * The toast for an archive run.
+     *
+     * @since 1.0.0
+     *
+     * @param  int  $archived  Files archived.
+     * @param  int  $skipped   Files the user may not change.
+     *
+     * @return string
+     */
+    private static function archiveSummary( int $archived, int $skipped ): string
+    {
+        $summary = trans_choice( ':count file archived.|:count files archived.', $archived, [ 'count' => $archived ] );
+
+        if ( $skipped > 0 ) {
+            $summary .= ' ' . trans_choice( ':count file skipped: you may not change it.|:count files skipped: you may not change them.', $skipped, [ 'count' => $skipped ] );
+        }
+
+        return $summary;
     }
 
     /**
@@ -537,7 +684,8 @@ class Index extends Component
             'label'              => '',
             'version'            => '',
             'is_streaming_only'  => false,
-            'source'             => ProductMedia::libraryInstalled() ? 'media' : 'path',
+            'is_archived'        => false,
+            'source'             => 'path',
             'disk'               => DigitalDisks::default(),
             'path'               => '',
             'media_id'           => null,

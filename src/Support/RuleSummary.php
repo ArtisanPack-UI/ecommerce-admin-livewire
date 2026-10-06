@@ -14,6 +14,8 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
 use ArtisanPackUI\Ecommerce\Models\Product;
+use ArtisanPackUI\Ecommerce\Models\ProductCategory;
+use ArtisanPackUI\Ecommerce\Models\ProductTag;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use ArtisanPackUI\Ecommerce\Registries\ProductTypeRegistry;
 use ArtisanPackUI\Ecommerce\Support\MoneyFormatter;
@@ -174,7 +176,93 @@ final class RuleSummary
             'customer-in-group'          => __( 'the customer is in :groups', [ 'groups' => self::join( self::strings( $config['groups'] ?? [] ), __( 'or' ) ) ?: __( 'a chosen group' ) ] ),
             'day-of-week'                => __( 'it is :days', [ 'days' => self::join( self::weekdays( $config['days'] ?? [] ), __( 'or' ) ) ?: __( 'a chosen day' ) ] ),
             'customer-first-order'       => __( 'it is the customer\'s first order' ),
+            'cart-contains-category'     => self::containsNamed(
+                'all' === ( $config['match'] ?? 'any' ),
+                self::names( ProductCategory::class, $config['category_ids'] ?? [] ),
+                false !== ( $config['include_descendants'] ?? true )
+                    ? [ __( 'the cart contains an item from :names (or their sub-categories)' ), __( 'the cart contains items from each of :names (or their sub-categories)' ) ]
+                    : [ __( 'the cart contains an item from :names' ), __( 'the cart contains items from each of :names' ) ],
+            ),
+            'cart-contains-tag'          => self::containsNamed(
+                'all' === ( $config['match'] ?? 'any' ),
+                self::names( ProductTag::class, $config['tag_ids'] ?? [] ),
+                [ __( 'the cart contains an item tagged :names' ), __( 'the cart contains items tagged each of :names' ) ],
+            ),
+            'currency-is'                  => __( 'the cart is in :currencies', [ 'currencies' => self::join( self::strings( $config['currencies'] ?? [] ), __( 'or' ) ) ?: __( 'a chosen currency' ) ] ),
+            'customer-lifetime-value-over' => __( 'the customer has spent more than :amount', [ 'amount' => self::money( $config['amount'] ?? null ) ] ),
+            'date-range'                   => self::dateRange( $config ),
+            'min-quantity'                 => __( 'the cart has at least :quantity of :items', [
+                'quantity' => max( 1, (int) ( $config['quantity'] ?? 1 ) ),
+                'items'    => self::items( $config['product_ids'] ?? [], $config['variant_ids'] ?? [], __( 'or' ) ),
+            ] ),
             default                      => null,
+        };
+    }
+
+    /**
+     * "Contains" phrasing for named categories or tags.
+     *
+     * @since 1.0.0
+     *
+     * @param  bool                       $all      Whether every one must match.
+     * @param  array<int, string>         $names    The names.
+     * @param  array{0: string, 1: string} $phrases Any-phrase and all-phrase, each with `:names`.
+     *
+     * @return string
+     */
+    private static function containsNamed( bool $all, array $names, array $phrases ): string
+    {
+        return str_replace( ':names', self::join( $names, $all ? __( 'and' ) : __( 'or' ) ), $phrases[ $all ? 1 : 0 ] );
+    }
+
+    /**
+     * Model names for ids, in order, capped at {@see self::MAX_NAMES}.
+     *
+     * @since 1.0.0
+     *
+     * @param  class-string<\Illuminate\Database\Eloquent\Model>  $model  Category or tag model.
+     * @param  mixed                                               $ids    The ids.
+     *
+     * @return array<int, string>
+     */
+    private static function names( string $model, mixed $ids ): array
+    {
+        $ids = self::ids( $ids );
+
+        if ( [] === $ids ) {
+            return [ __( 'the chosen ones' ) ];
+        }
+
+        $found = $model::query()->whereKey( $ids )->pluck( 'name', 'id' );
+        $names = array_map( static fn ( int $id ): string => (string) ( $found[ $id ] ?? '#' . $id ), $ids );
+
+        if ( count( $names ) > self::MAX_NAMES ) {
+            $more  = count( $names ) - self::MAX_NAMES;
+            $names = [ ...array_slice( $names, 0, self::MAX_NAMES ), trans_choice( ':count more|:count more', $more, [ 'count' => $more ] ) ];
+        }
+
+        return $names;
+    }
+
+    /**
+     * "It is between …" for a date range.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<string, mixed>  $config  The condition config.
+     *
+     * @return string
+     */
+    private static function dateRange( array $config ): string
+    {
+        $from  = is_string( $config['starts_on'] ?? null ) && '' !== $config['starts_on'] ? $config['starts_on'] : null;
+        $until = is_string( $config['ends_on'] ?? null ) && '' !== $config['ends_on'] ? $config['ends_on'] : null;
+
+        return match ( true ) {
+            null !== $from && null !== $until => __( 'it is between :from and :until', [ 'from' => $from, 'until' => $until ] ),
+            null !== $from                    => __( 'it is :from or later', [ 'from' => $from ] ),
+            null !== $until                   => __( 'it is :until or earlier', [ 'until' => $until ] ),
+            default                           => __( 'it is any day' ),
         };
     }
 
@@ -200,6 +288,9 @@ final class RuleSummary
                 'count' => max( 1, (int) ( $config['quantity'] ?? 1 ) ),
                 'item'  => self::items( array_filter( [ $config['product_id'] ?? null ] ), array_filter( [ $config['variant_id'] ?? null ] ), __( 'or' ) ),
             ] ),
+            'fixed-off-product'   => 'line' === ( $config['per'] ?? 'unit' )
+                ? __( ':amount off each line of :items', [ 'amount' => self::money( $config['amount'] ?? null ), 'items' => self::items( $config['product_ids'] ?? [], $config['variant_ids'] ?? [], __( 'and' ) ) ] )
+                : __( ':amount off each :items', [ 'amount' => self::money( $config['amount'] ?? null ), 'items' => self::items( $config['product_ids'] ?? [], $config['variant_ids'] ?? [], __( 'and' ) ) ] ),
             'tiered-discount'     => trans_choice( 'a tiered discount with :count tier|a tiered discount with :count tiers', count( (array) ( $config['tiers'] ?? [] ) ), [ 'count' => count( (array) ( $config['tiers'] ?? [] ) ) ] ),
             default               => null,
         };
@@ -367,6 +458,19 @@ final class RuleSummary
      */
     private static function money( mixed $amount ): string
     {
+        // A per-currency amount: `{ "USD": 500, "EUR": 450 }`.
+        if ( is_array( $amount ) ) {
+            $parts = [];
+
+            foreach ( $amount as $currency => $minor ) {
+                if ( is_string( $currency ) && 1 === preg_match( '/^[A-Za-z]{3}$/', $currency ) && is_numeric( $minor ) ) {
+                    $parts[] = MoneyFormatter::format( (int) $minor, strtoupper( $currency ) );
+                }
+            }
+
+            return [] === $parts ? __( 'an amount' ) : implode( ' / ', $parts );
+        }
+
         return is_numeric( $amount ) ? MoneyFormatter::format( (int) $amount, StoreCurrencies::base() ) : __( 'an amount' );
     }
 

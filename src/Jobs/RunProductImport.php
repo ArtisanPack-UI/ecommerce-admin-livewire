@@ -54,6 +54,33 @@ class RunProductImport implements ShouldQueue
     use Queueable;
 
     /**
+     * Rows applied between state saves.
+     *
+     * @since 1.0.0
+     *
+     * @var int
+     */
+    public const SAVE_EVERY_ROWS = 25;
+
+    /**
+     * Seconds between state saves, whichever comes first.
+     *
+     * @since 1.0.0
+     *
+     * @var float
+     */
+    public const SAVE_EVERY_SECONDS = 2.0;
+
+    /**
+     * The most row errors kept in the state; the rest are only counted.
+     *
+     * @since 1.0.0
+     *
+     * @var int
+     */
+    public const MAX_ERRORS = 500;
+
+    /**
      * Seconds the job may run.
      *
      * @since 1.0.0
@@ -165,9 +192,22 @@ class RunProductImport implements ShouldQueue
         $state['status'] = 'running';
         $state           = ProductImports::save( $state );
 
+        // The state is saved every few rows, not after each one (a full
+        // JSON rewrite, a PUT on S3). A crash replays at most those rows on
+        // resume, which is safe: rows match products by SKU or slug, so a
+        // replayed create becomes an update.
         $state = ProductImports::withSource( $state, function ( string $path ) use ( $state, $user ): array {
+            $pending = 0;
+            $savedAt = microtime( true );
+
             foreach ( Csv::rows( $path, (int) $state['processed'] ) as $row ) {
-                $state = ProductImports::save( $this->applyRow( $state, $row, $user ) );
+                $state = $this->applyRow( $state, $row, $user );
+
+                if ( ++$pending >= self::SAVE_EVERY_ROWS || microtime( true ) - $savedAt >= self::SAVE_EVERY_SECONDS ) {
+                    $state   = ProductImports::save( $state );
+                    $pending = 0;
+                    $savedAt = microtime( true );
+                }
             }
 
             return $state;
@@ -224,6 +264,12 @@ class RunProductImport implements ShouldQueue
     private static function recordError( array $state, array $row, array $mapped, string $message ): array
     {
         ++$state['counts']['failed'];
+
+        if ( count( (array) ( $state['errors'] ?? [] ) ) >= self::MAX_ERRORS ) {
+            $state['errors_truncated'] = (int) ( $state['errors_truncated'] ?? 0 ) + 1;
+
+            return $state;
+        }
 
         $state['errors'][] = [
             'line'    => (int) ( $row['__line'] ?? 0 ),

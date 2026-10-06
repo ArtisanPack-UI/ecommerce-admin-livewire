@@ -203,9 +203,10 @@ class RefundsPanel extends Component
             return;
         }
 
-        $quantity = max( 0, min( (int) $value, (int) $item->quantity ) );
+        $quantity  = max( 0, min( (int) $value, (int) $item->quantity ) );
+        $remaining = max( 0, (int) $item->total_amount - ( $this->refundedAmounts( new Collection( [ $item ] ) )[ (int) $item->id ] ?? 0 ) );
 
-        $this->lines[ $itemId ]['amount'] = intdiv( (int) $item->total_amount * $quantity, (int) $item->quantity );
+        $this->lines[ $itemId ]['amount'] = min( intdiv( (int) $item->total_amount * $quantity, (int) $item->quantity ), $remaining );
 
         if ( 0 === $quantity ) {
             $this->lines[ $itemId ]['restock'] = false;
@@ -312,14 +313,8 @@ class RefundsPanel extends Component
         $refundable      = $this->refundable( $order );
         $items           = $order->items()->orderBy( 'id' )->get()->keyBy( 'id' );
         $refunded        = $this->refundedUnits( $items );
-        $refundedAmounts = RefundItem::query()
-            ->whereIn( 'order_item_id', $items->modelKeys() )
-            ->selectRaw( 'order_item_id, COALESCE(SUM(amount), 0) AS refunded' )
-            ->groupBy( 'order_item_id' )
-            ->pluck( 'refunded', 'order_item_id' )
-            ->map( static fn ( mixed $amount ): int => (int) $amount )
-            ->all();
-        $money      = static fn ( int $amount ): string => MoneyFormatter::format( $amount, (string) $order->currency );
+        $refundedAmounts = $this->refundedAmounts( $items );
+        $money           = static fn ( int $amount ): string => MoneyFormatter::format( $amount, (string) $order->currency );
 
         $rules = [
             'mode'   => [ 'required', Rule::in( self::MODES ) ],
@@ -356,15 +351,36 @@ class RefundsPanel extends Component
         );
 
         if ( 'amount' === $this->mode ) {
-            $first = $items->first();
-
-            if ( null === $first ) {
+            if ( $items->isEmpty() ) {
                 $this->addError( 'amount', __( 'This order has no items to refund against.' ) );
 
                 return null;
             }
 
-            $lines = [ [ 'order_item_id' => (int) $first->id, 'quantity' => 0, 'amount' => (int) $this->amount, 'restock' => false ] ];
+            // The engine caps each line at what is left on it, so the amount
+            // is spread over the lines in order, each up to its remainder.
+            $left  = (int) $this->amount;
+            $lines = [];
+
+            foreach ( $items as $id => $item ) {
+                $remaining = max( 0, (int) $item->total_amount - ( $refundedAmounts[ $id ] ?? 0 ) );
+                $share     = min( $left, $remaining );
+
+                if ( $share > 0 ) {
+                    $lines[] = [ 'order_item_id' => (int) $id, 'quantity' => 0, 'amount' => $share, 'restock' => false ];
+                    $left -= $share;
+                }
+
+                if ( 0 === $left ) {
+                    break;
+                }
+            }
+
+            if ( $left > 0 ) {
+                $this->addError( 'amount', __( 'Only :amount can be refunded against the order\'s lines.', [ 'amount' => $money( (int) $this->amount - $left ) ] ) );
+
+                return null;
+            }
         } else {
             $lines = [];
 
@@ -433,7 +449,33 @@ class RefundsPanel extends Component
             return 0;
         }
 
-        return max( 0, (int) $order->total_amount - (int) $order->total_refunded_amount );
+        // A pending refund (sent, or waiting to be reconciled) can't be
+        // refunded again.
+        $pending = (int) Refund::query()->where( 'order_id', $order->id )->where( 'status', Refund::STATUS_PENDING )->sum( 'amount' );
+
+        return max( 0, (int) $order->total_amount - (int) $order->total_refunded_amount - $pending );
+    }
+
+    /**
+     * Amounts already refunded per item, counting only pending and succeeded
+     * refunds (a failed refund moved no money).
+     *
+     * @since 1.0.0
+     *
+     * @param  Collection<int, OrderItem>  $items  Items.
+     *
+     * @return array<int, int> Amount by item id.
+     */
+    protected function refundedAmounts( Collection $items ): array
+    {
+        return RefundItem::query()
+            ->whereIn( 'order_item_id', $items->modelKeys() )
+            ->whereHas( 'refund', static fn ( $query ) => $query->counting() )
+            ->selectRaw( 'order_item_id, COALESCE(SUM(amount), 0) AS refunded' )
+            ->groupBy( 'order_item_id' )
+            ->pluck( 'refunded', 'order_item_id' )
+            ->map( static fn ( mixed $amount ): int => (int) $amount )
+            ->all();
     }
 
     /**
@@ -449,6 +491,7 @@ class RefundsPanel extends Component
     {
         return RefundItem::query()
             ->whereIn( 'order_item_id', $items->modelKeys() )
+            ->whereHas( 'refund', static fn ( $query ) => $query->counting() )
             ->selectRaw( 'order_item_id, COALESCE(SUM(quantity), 0) AS refunded' )
             ->groupBy( 'order_item_id' )
             ->pluck( 'refunded', 'order_item_id' )

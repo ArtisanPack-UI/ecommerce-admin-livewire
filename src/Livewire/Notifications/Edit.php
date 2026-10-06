@@ -19,9 +19,12 @@ use ArtisanPackUI\Ecommerce\Models\NotificationTemplate;
 use ArtisanPackUI\Ecommerce\Services\NotificationTemplateService;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use JsonException;
@@ -360,6 +363,7 @@ class Edit extends Component
         }
 
         $this->renderPreview();
+        $this->dispatch( UnsavedChanges::SAVED_EVENT );
         $this->toastSuccess( __( 'Template saved.' ) );
     }
 
@@ -410,10 +414,11 @@ class Edit extends Component
             return;
         }
 
-        $attributes = [ 'body' => $definition->defaultBody() ];
+        $locale     = (string) $template->locale;
+        $attributes = [ 'body' => $definition->defaultBody( $locale ) ];
 
         if ( $this->hasSubject() ) {
-            $attributes['subject'] = $definition->defaultSubject();
+            $attributes['subject'] = $definition->defaultSubject( $locale );
         }
 
         try {
@@ -428,6 +433,7 @@ class Edit extends Component
         $this->body    = (string) $template->body;
         $this->resetErrorBag();
         $this->renderPreview();
+        $this->dispatch( UnsavedChanges::SAVED_EVENT );
         $this->toastSuccess( __( 'Template reset to the default copy.' ) );
     }
 
@@ -462,7 +468,7 @@ class Edit extends Component
 
         $this->newLocale = '';
         $this->toastSuccess( __( 'Translation added. Edit it below.' ) );
-        $this->redirectRoute( 'artisanpack.ecommerce.admin.notifications.edit', [ 'template' => $copy->id ] );
+        $this->redirectToTemplate( (int) $copy->id );
     }
 
     /**
@@ -557,7 +563,7 @@ class Edit extends Component
             'localeOptions' => $siblings->map( static fn ( NotificationTemplate $row ): array => [ 'id' => (int) $row->id, 'name' => Index::localeLabel( (string) $row->locale ) ] )->all(),
             'newLocales'    => array_map( static fn ( string $locale ): array => [ 'id' => $locale, 'name' => Index::localeLabel( $locale ) ], $this->availableLocales() ),
             'channelLabel'  => Index::channelLabel( (string) $template->channel ),
-            'indexUrl'      => route( 'artisanpack.ecommerce.admin.notifications.index' ),
+            'indexUrl'      => Route::has( AdminNav::ROUTE_PREFIX . 'notifications.index' ) ? route( AdminNav::ROUTE_PREFIX . 'notifications.index' ) : null,
         ] );
     }
 
@@ -794,7 +800,7 @@ class Edit extends Component
         }
 
         $this->authorizeEcommerce( 'view', $target );
-        $this->redirectRoute( 'artisanpack.ecommerce.admin.notifications.edit', [ 'template' => $target->id ] );
+        $this->redirectToTemplate( (int) $target->id );
     }
 
     /**
@@ -876,5 +882,23 @@ class Edit extends Component
         }
 
         return $this->loadedTemplate;
+    }
+
+    /**
+     * Opens another template's editor, when the edit route is registered.
+     *
+     * @since 1.0.0
+     *
+     * @param  int  $id  The template.
+     *
+     * @return void
+     */
+    protected function redirectToTemplate( int $id ): void
+    {
+        $route = AdminNav::ROUTE_PREFIX . 'notifications.edit';
+
+        if ( Route::has( $route ) ) {
+            $this->redirectRoute( $route, [ 'template' => $id ] );
+        }
     }
 }

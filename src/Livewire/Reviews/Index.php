@@ -356,13 +356,18 @@ class Index extends Component
         $service = app( ReviewService::class );
         $reason  = 'reject' === $action ? sanitizeText( $this->rejectReason ) : null;
         $engine  = 'reject' === $action ? 'reject' : self::MODERATIONS[ $action ];
-        $ids     = ( clone $selection )->reorder()->pluck( 'product_reviews.id' )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $changed = 0;
+        $denied  = 0;
 
-        DB::transaction( function () use ( $ids, $service, $engine, $reason, &$changed ): void {
+        DB::transaction( function () use ( $ids, $service, $engine, $reason, &$changed, &$denied ): void {
             foreach ( array_chunk( $ids, 200 ) as $chunk ) {
                 foreach ( ProductReview::query()->whereKey( $chunk )->get() as $review ) {
-                    $this->authorizeEcommerce( 'moderate', $review );
+                    if ( ! $this->canEcommerce( 'moderate', $review ) ) {
+                        ++$denied;
+                        continue;
+                    }
+
                     $service->moderate( $review, $engine, $reason, $this->actorId() );
                     ++$changed;
                 }
@@ -375,7 +380,7 @@ class Index extends Component
 
         $this->dispatch( 'ecommerce-admin-nav-refresh' );
 
-        return self::message( $action, $changed );
+        return self::withDeniedNote( self::message( $action, $changed ), $denied );
     }
 
     /**
@@ -390,13 +395,18 @@ class Index extends Component
     protected function deleteSelection( Builder $selection ): ?string
     {
         $service = app( ReviewService::class );
-        $ids     = ( clone $selection )->reorder()->pluck( 'product_reviews.id' )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $deleted = 0;
+        $denied  = 0;
 
-        DB::transaction( function () use ( $ids, $service, &$deleted ): void {
+        DB::transaction( function () use ( $ids, $service, &$deleted, &$denied ): void {
             foreach ( array_chunk( $ids, 200 ) as $chunk ) {
                 foreach ( ProductReview::query()->whereKey( $chunk )->get() as $review ) {
-                    $this->authorizeEcommerce( 'delete', $review );
+                    if ( ! $this->canEcommerce( 'delete', $review ) ) {
+                        ++$denied;
+                        continue;
+                    }
+
                     $service->delete( $review );
                     ++$deleted;
                 }
@@ -410,7 +420,7 @@ class Index extends Component
 
         $this->dispatch( 'ecommerce-admin-nav-refresh' );
 
-        return trans_choice( ':count review deleted.|:count reviews deleted.', $deleted, [ 'count' => $deleted ] );
+        return self::withDeniedNote( trans_choice( ':count review deleted.|:count reviews deleted.', $deleted, [ 'count' => $deleted ] ), $denied );
     }
 
     /**

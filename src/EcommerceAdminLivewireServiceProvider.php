@@ -17,6 +17,7 @@ namespace ArtisanPackUI\EcommerceAdminLivewire;
 
 use ArtisanPackUI\Ecommerce\Registries\SatelliteRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
+use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\PruneImportsCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\SyncPermissionsCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\ThrottleAdminMutations;
@@ -58,12 +59,9 @@ use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\NullSpotlight;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ConfigSchemas;
-use ArtisanPackUI\EcommerceAdminLivewire\Support\RbacPermissions;
 use ArtisanPackUI\EcommerceAdminLivewire\View\Components;
 use Illuminate\Contracts\View\View as ViewContract;
-use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -325,7 +323,6 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $this->registerTranslations();
         $this->registerCommands();
         $this->registerBladeComponents();
-        $this->registerRbac();
         $this->registerLayoutResolver();
         $this->registerLivewireComponents();
         $this->registerRoutes();
@@ -356,6 +353,63 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             'columns'         => [],
             'product_types'   => [],
         ];
+    }
+
+    /**
+     * Makes the configured `admin.middleware` persistent: class names as
+     * given, aliases resolved to their classes. Middleware groups (`web`)
+     * are left out; Livewire's update route has its own.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public function registerPersistentMiddleware(): void
+    {
+        if ( ! class_exists( Livewire::class ) ) {
+            return;
+        }
+
+        $middleware = self::hostPersistentMiddleware();
+
+        if ( [] !== $middleware ) {
+            Livewire::addPersistentMiddleware( $middleware );
+        }
+    }
+
+    /**
+     * The middleware classes behind `admin.middleware`, without groups.
+     *
+     * @since 1.0.0
+     *
+     * @return array<int, class-string>
+     */
+    public static function hostPersistentMiddleware(): array
+    {
+        $router  = app( 'router' );
+        $aliases = $router->getMiddleware();
+        $groups  = $router->getMiddlewareGroups();
+        $classes = [];
+
+        foreach ( (array) config( 'artisanpack.ecommerce-admin-livewire.admin.middleware', [] ) as $entry ) {
+            if ( ! is_string( $entry ) || '' === $entry ) {
+                continue;
+            }
+
+            $name = explode( ':', $entry, 2 )[0];
+
+            if ( isset( $groups[ $name ] ) ) {
+                continue;
+            }
+
+            $class = $aliases[ $name ] ?? $name;
+
+            if ( is_string( $class ) && class_exists( $class ) ) {
+                $classes[] = $class;
+            }
+        }
+
+        return array_values( array_unique( $classes ) );
     }
 
     /**
@@ -444,6 +498,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
         $this->commands( [
             InstallCommand::class,
+            PruneImportsCommand::class,
             SyncPermissionsCommand::class,
         ] );
     }
@@ -478,6 +533,8 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * The route middleware only guards the initial page load. Registering the
      * access check and the `ecommerce.admin.mutate` limiter as persistent
      * makes Livewire re-run them on every update request from an admin page.
+     * So do the host's own `admin.middleware` entries (2FA, `verified`,
+     * `password.confirm`, ...), once every alias is known.
      *
      * @since 1.0.0
      *
@@ -494,6 +551,8 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         }
 
         Livewire::addPersistentMiddleware( [ EnsureAdminAccess::class, ThrottleAdminMutations::class ] );
+
+        $this->app->booted( fn () => $this->registerPersistentMiddleware() );
     }
 
     /**
@@ -561,31 +620,5 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         foreach ( self::BLADE_COMPONENTS as $name => $class ) {
             Blade::component( 'artisanpack-ec-' . $name, $class );
         }
-    }
-
-    /**
-     * Wires the engine abilities to cms-framework RBAC when it is installed.
-     *
-     * Permissions are granted through the engine's ability filters on every
-     * request; they are created after each `migrate` run (and by
-     * `ecommerce-admin:install` / `ecommerce-admin:sync-permissions`).
-     *
-     * @since 1.0.0
-     *
-     * @return void
-     */
-    protected function registerRbac(): void
-    {
-        if ( ! RbacPermissions::available() ) {
-            return;
-        }
-
-        RbacPermissions::grantThroughPermissions();
-
-        Event::listen( MigrationsEnded::class, static function ( MigrationsEnded $event ): void {
-            if ( 'up' === $event->method ) {
-                RbacPermissions::register();
-            }
-        } );
     }
 }

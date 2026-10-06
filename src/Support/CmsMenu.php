@@ -171,9 +171,12 @@ final class CmsMenu
             'external'  => false,
         ];
 
-        if ( null !== $item['badge'] && null !== ( $count = NavBadges::count( $item['badge'] ) ) ) {
+        // A registry entry carries its count; a core entry names a badge.
+        $count = $item['badgeCount'] ?? ( null === $item['badge'] ? null : NavBadges::count( $item['badge'] ) );
+
+        if ( null !== $count && $count > 0 ) {
             $node['badge']      = $count;
-            $node['badgeLabel'] = NavBadges::describe( $item['badge'], $count );
+            $node['badgeLabel'] = NavBadges::describe( $item['badge'] ?? $item['key'], $count );
         }
 
         return $node;

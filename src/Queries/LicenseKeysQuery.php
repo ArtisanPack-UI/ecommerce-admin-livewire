@@ -13,7 +13,9 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Queries;
 
+use ArtisanPackUI\Ecommerce\Models\Customer;
 use ArtisanPackUI\Ecommerce\Models\LicenseKey;
+use ArtisanPackUI\Ecommerce\Models\Order;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -22,9 +24,10 @@ use Illuminate\Support\Carbon;
  * Search, filters, and sorts for the license keys table (spec §7.2).
  *
  * Search matches the order number, the order email, and the customer's
- * name; it matches the key itself only when the query is built with
+ * name. It matches the key itself only when the query is built with
  * `$searchKeys` (users who may see keys in full), so a masked list cannot
- * be used to confirm a guessed key.
+ * be used to confirm a guessed key. Keys are encrypted at rest, so a key
+ * matches only when it is entered in full (compared by its `key_hash`).
  *
  * The `status` filter is `active`, `revoked`, or `expired`.
  *
@@ -52,9 +55,9 @@ class LicenseKeysQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'issued'      => 'license_keys.created_at',
-            'expires'     => 'license_keys.expires_at',
-            'activations' => 'license_keys.activations_count',
+            'issued'      => static::column( LicenseKey::class, 'created_at' ),
+            'expires'     => static::column( LicenseKey::class, 'expires_at' ),
+            'activations' => static::column( LicenseKey::class, 'activations_count' ),
         ];
     }
 
@@ -96,20 +99,22 @@ class LicenseKeysQuery extends ResourceQuery
         $number     = ltrim( $search, '#' );
 
         $query->where( static function ( Builder $where ) use ( $search, $number, $searchKeys ): void {
+            // Keys are stored encrypted, so they match only in full, through
+            // their HMAC (case and surrounding spaces don't matter).
             if ( $searchKeys ) {
-                static::orWhereContains( $where, 'license_keys.key', $search );
+                $where->orWhereIn( static::column( LicenseKey::class, 'key_hash' ), LicenseKey::hashCandidates( $search ) );
             }
 
             $where->orWhereHas( 'orderItem.order', static function ( Builder $order ) use ( $search, $number ): void {
                 $order->where( static function ( Builder $match ) use ( $search, $number ): void {
-                    static::orWhereContains( $match, 'orders.order_number', '' === $number ? $search : $number );
-                    static::orWhereContains( $match, 'orders.email', $search );
+                    static::orWhereContains( $match, static::column( Order::class, 'order_number' ), '' === $number ? $search : $number );
+                    static::orWhereContains( $match, static::column( Order::class, 'email' ), $search );
 
                     $match->orWhereHas( 'customer', static function ( Builder $customer ) use ( $search ): void {
                         $customer->where( static function ( Builder $name ) use ( $search ): void {
-                            static::orWhereContains( $name, 'customers.first_name', $search );
-                            static::orWhereContains( $name, 'customers.last_name', $search );
-                            static::orWhereContains( $name, 'customers.email', $search );
+                            static::orWhereContains( $name, static::column( Customer::class, 'first_name' ), $search );
+                            static::orWhereContains( $name, static::column( Customer::class, 'last_name' ), $search );
+                            static::orWhereContains( $name, static::column( Customer::class, 'email' ), $search );
                         } );
                     } );
                 } );
@@ -129,9 +134,9 @@ class LicenseKeysQuery extends ResourceQuery
                 $now = Carbon::now();
 
                 match ( (string) $value ) {
-                    'revoked' => $query->where( 'license_keys.is_revoked', true ),
-                    'expired' => $query->where( 'license_keys.is_revoked', false )->whereNotNull( 'license_keys.expires_at' )->where( 'license_keys.expires_at', '<=', $now ),
-                    'active'  => $query->where( 'license_keys.is_revoked', false )->where( static fn ( Builder $live ) => $live->whereNull( 'license_keys.expires_at' )->orWhere( 'license_keys.expires_at', '>', $now ) ),
+                    'revoked' => $query->where( static::column( LicenseKey::class, 'is_revoked' ), true ),
+                    'expired' => $query->where( static::column( LicenseKey::class, 'is_revoked' ), false )->whereNotNull( static::column( LicenseKey::class, 'expires_at' ) )->where( static::column( LicenseKey::class, 'expires_at' ), '<=', $now ),
+                    'active'  => $query->where( static::column( LicenseKey::class, 'is_revoked' ), false )->where( static fn ( Builder $live ) => $live->whereNull( static::column( LicenseKey::class, 'expires_at' ) )->orWhere( static::column( LicenseKey::class, 'expires_at' ), '>', $now ) ),
                     default   => null,
                 };
             },

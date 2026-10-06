@@ -49,3 +49,17 @@ it( 'registers the publish tags', function ( string $tag ): void {
 it( 'registers the install command', function (): void {
     expect( Artisan::all() )->toHaveKey( 'ecommerce-admin:install' );
 } );
+
+it( 'makes the host\'s admin middleware persistent, resolving aliases and skipping groups', function (): void {
+    app( 'router' )->aliasMiddleware( 'test.verified', Tests\Fixtures\Http\RequireVerifiedName::class );
+    config()->set( 'artisanpack.ecommerce-admin-livewire.admin.middleware', [ 'web', 'auth', 'test.verified:extra', Illuminate\Auth\Middleware\RequirePassword::class, 'not-a-thing' ] );
+
+    expect( EcommerceAdminLivewireServiceProvider::hostPersistentMiddleware() )
+        ->toContain( Tests\Fixtures\Http\RequireVerifiedName::class, Illuminate\Auth\Middleware\RequirePassword::class )
+        ->not->toContain( 'web' );
+
+    app()->getProvider( EcommerceAdminLivewireServiceProvider::class )->registerPersistentMiddleware();
+
+    expect( app( Livewire\Mechanisms\PersistentMiddleware\PersistentMiddleware::class )->getPersistentMiddleware() )
+        ->toContain( Tests\Fixtures\Http\RequireVerifiedName::class, Illuminate\Auth\Middleware\RequirePassword::class );
+} );

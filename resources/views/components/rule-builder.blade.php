@@ -55,7 +55,7 @@
                                         variant="ghost"
                                         size="xs"
                                         icon="o-arrow-up"
-                                        wire:click="moveRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }}, -1 )" data-reorder="up" data-reorder-list="rules-{{ $list['key'] }}" data-reorder-key="rule-{{ $row['id'] }}" data-reorder-item="{{ $row['label'] }}"
+                                        wire:click="moveRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="rules-{{ $list['key'] }}" data-reorder-key="rule-{{ $row['id'] }}" data-reorder-item="{{ $row['label'] }}"
                                         :disabled="0 === $row['index']"
                                         :aria-label="__( 'Move :label up', [ 'label' => $row['label'] ] )"
                                     />
@@ -63,7 +63,7 @@
                                         variant="ghost"
                                         size="xs"
                                         icon="o-arrow-down"
-                                        wire:click="moveRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }}, 1 )" data-reorder="down" data-reorder-list="rules-{{ $list['key'] }}" data-reorder-key="rule-{{ $row['id'] }}" data-reorder-item="{{ $row['label'] }}"
+                                        wire:click="moveRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="rules-{{ $list['key'] }}" data-reorder-key="rule-{{ $row['id'] }}" data-reorder-item="{{ $row['label'] }}"
                                         :disabled="$row['index'] === count( $list['rows'] ) - 1"
                                         :aria-label="__( 'Move :label down', [ 'label' => $row['label'] ] )"
                                     />
@@ -82,7 +82,7 @@
                                         variant="ghost"
                                         size="xs"
                                         icon="o-trash"
-                                        wire:click="removeRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }} )"
+                                        wire:click="removeRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }} )" wire:loading.attr="disabled"
                                         :aria-label="__( 'Remove :label', [ 'label' => $row['label'] ] )"
                                     />
                                 </div>

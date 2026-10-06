@@ -316,3 +316,16 @@ it( 'does not recreate a sub-status deleted while it was being edited', function
     expect( OrderSubstatus::query()->where( 'key', 'printing' )->exists() )->toBeFalse()
         ->and( sentToasts( $component ) )->toContain( 'This sub-status was deleted.' );
 } );
+
+it( 'renders a non-hex colour from the API as transparent', function (): void {
+    $substatus = OrderSubstatus::factory()->forSystemStatus( 'processing' )->create( [ 'label' => 'Odd', 'color' => 'red;x:y' ] );
+
+    Livewire::test( Index::class )
+        ->assertSee( 'Odd' )
+        ->assertDontSeeHtml( 'red;x:y' )
+        ->assertSeeHtml( 'background-color: transparent' );
+
+    expect( $substatus->exists )->toBeTrue()
+        ->and( ColorContrast::safeHex( '#a1B2c3' ) )->toBe( '#a1B2c3' )
+        ->and( ColorContrast::safeHex( '#abc' ) )->toBe( 'transparent' );
+} );

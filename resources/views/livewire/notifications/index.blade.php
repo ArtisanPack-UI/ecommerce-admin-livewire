@@ -58,6 +58,7 @@
                         <span class="ms-2 text-sm font-normal opacity-75">{{ $group['key'] }}</span>
                     </h2>
 
+                    {{-- A plain table, not x-artisanpack-table: see src/View/Components/ResourceTable.php for why. --}}
                     <div class="overflow-x-auto">
                         <table class="table table-sm">
                             <caption class="sr-only">{{ __( ':template templates', [ 'template' => $group['label'] ] ) }}</caption>

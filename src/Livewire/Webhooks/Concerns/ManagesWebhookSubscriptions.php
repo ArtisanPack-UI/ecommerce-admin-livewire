@@ -27,8 +27,11 @@ use Livewire\Attributes\Locked;
  * - "Re-enable" switches a subscription back on; the engine clears its
  *   consecutive-failure count so it gets the full failure budget again.
  *
- * A revealed secret lives in `$revealedSecret` only until the user closes
- * the notice; it is never read back from the database for display.
+ * A revealed secret is rendered once, from a property Livewire doesn't
+ * serialize, so it never sits in the component snapshot the browser keeps
+ * and sends back. Later renders leave the dialog's copy alone (`wire:ignore`)
+ * until the user closes it. It is never read back from the database for
+ * display.
  *
  * The using component needs AuthorizesEcommerce, SendsToasts, and
  * WithActionToken.
@@ -40,16 +43,6 @@ use Livewire\Attributes\Locked;
  */
 trait ManagesWebhookSubscriptions
 {
-    /**
-     * A secret to show once (after create or rotate), or null.
-     *
-     * @since 1.0.0
-     *
-     * @var string|null
-     */
-    #[Locked]
-    public ?string $revealedSecret = null;
-
     /**
      * Whether the one-time secret notice is open.
      *
@@ -77,6 +70,16 @@ trait ManagesWebhookSubscriptions
      * @var bool
      */
     public bool $confirmingRotate = false;
+
+    /**
+     * A secret to show once (after create or rotate), for this request's
+     * render only. Not public, so it never reaches the snapshot.
+     *
+     * @since 1.0.0
+     *
+     * @var string|null
+     */
+    protected ?string $secretToShow = null;
 
     /**
      * Asks to confirm rotating a subscription's secret.
@@ -181,8 +184,8 @@ trait ManagesWebhookSubscriptions
      */
     public function dismissSecret(): void
     {
-        $this->revealedSecret = null;
-        $this->showingSecret  = false;
+        $this->secretToShow  = null;
+        $this->showingSecret = false;
     }
 
     /**
@@ -196,7 +199,7 @@ trait ManagesWebhookSubscriptions
     public function updatedShowingSecret(): void
     {
         if ( ! $this->showingSecret ) {
-            $this->revealedSecret = null;
+            $this->secretToShow = null;
         }
     }
 
@@ -211,7 +214,7 @@ trait ManagesWebhookSubscriptions
      */
     protected function revealSecret( string $secret ): void
     {
-        $this->revealedSecret = $secret;
-        $this->showingSecret  = true;
+        $this->secretToShow  = $secret;
+        $this->showingSecret = true;
     }
 }

@@ -17,6 +17,7 @@ use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Csv;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductCsv;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductImports;
@@ -45,8 +46,8 @@ use Throwable;
  *   failed rows can be downloaded as CSV.
  * - The uploaded file is deleted when the import completes or is discarded.
  *
- * The screen needs `product.create`; each row then needs `product.create`
- * or `product.update` for what it does.
+ * The screen needs `product.create` or `product.update`; each row then
+ * needs `product.create` or `product.update` for what it does.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -241,8 +242,11 @@ class Import extends Component
             $context = [];
             $rows    = [];
             $counts  = [ 'create' => 0, 'update' => 0, 'error' => 0 ];
+            $read    = Csv::read( $path, self::maxRows() )['rows'];
 
-            foreach ( Csv::read( $path, self::maxRows() )['rows'] as $row ) {
+            ProductCsv::preload( array_map( static fn ( array $row ): array => ProductImports::mapRow( $row, $mapping ), $read ), $context );
+
+            foreach ( $read as $row ) {
                 $result = ProductCsv::check( ProductImports::mapRow( $row, $mapping ), $context );
                 $kind   = 'error' === $result['action'] ? 'error' : ( str_starts_with( $result['action'], 'create' ) ? 'create' : 'update' );
 
@@ -422,7 +426,8 @@ class Import extends Component
     }
 
     /**
-     * The screen needs `product.create`.
+     * The screen needs `product.create` or `product.update`, like the
+     * import job; each row is then authorized for what it does.
      *
      * @since 1.0.0
      *
@@ -430,7 +435,9 @@ class Import extends Component
      */
     protected function authorizeScreen(): void
     {
-        $this->authorizeEcommerce( 'create', Product::class );
+        if ( ! $this->canEcommerce( 'create', Product::class ) && ! Authorization::allows( auth()->user(), 'product.update' ) ) {
+            $this->denyEcommerce();
+        }
     }
 
     /**

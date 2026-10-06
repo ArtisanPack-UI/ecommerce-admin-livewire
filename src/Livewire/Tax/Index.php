@@ -443,9 +443,13 @@ class Index extends Component
      */
     public function editClass( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'taxRate.update' );
-
         $class = TaxClass::query()->find( $id );
+
+        // Through the TaxClass policy on the record, like createClass(), so
+        // a per-record decision applies.
+        null === $class
+            ? $this->authorizeEcommerceAbility( 'taxRate.update' )
+            : $this->authorizeEcommerce( 'update', $class );
 
         $this->resetErrorBag();
         $this->editingClassId    = null === $class ? null : (int) $class->id;
@@ -461,11 +465,10 @@ class Index extends Component
      */
     public function saveClass(): void
     {
-        $this->authorizeEcommerceAbility( 'taxRate.update' );
-
         $class = null === $this->editingClassId ? null : TaxClass::query()->find( $this->editingClassId );
 
         if ( null === $class ) {
+            $this->authorizeEcommerceAbility( 'taxRate.update' );
             $this->cancelClass();
 
             return;
@@ -509,9 +512,13 @@ class Index extends Component
      */
     public function confirmDeleteClass( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'taxRate.delete' );
+        $class = TaxClass::query()->find( $id );
 
-        $this->deletingClassId       = TaxClass::query()->whereKey( $id )->exists() ? $id : null;
+        null === $class
+            ? $this->authorizeEcommerceAbility( 'taxRate.delete' )
+            : $this->authorizeEcommerce( 'delete', $class );
+
+        $this->deletingClassId       = null === $class ? null : $id;
         $this->confirmingClassDelete = null !== $this->deletingClassId;
     }
 
@@ -540,11 +547,10 @@ class Index extends Component
      */
     public function deleteClass( string $token ): void
     {
-        $this->authorizeEcommerceAbility( 'taxRate.delete' );
-
         $class = null === $this->deletingClassId || ! $this->confirmingClassDelete ? null : TaxClass::query()->find( $this->deletingClassId );
 
         if ( null === $class ) {
+            $this->authorizeEcommerceAbility( 'taxRate.delete' );
             $this->cancelDeleteClass();
 
             return;
@@ -556,17 +562,19 @@ class Index extends Component
         $blocked = null;
 
         $deleted = $this->withActionToken( $token, 'delete-class', static function () use ( $class, &$blocked ): bool {
-            // Re-checked under a lock so a rate or product added meanwhile still blocks the delete.
-            $locked  = TaxClass::query()->lockForUpdate()->find( $class->id );
-            $blocked = null === $locked ? null : self::classBlocker( $locked );
+            return DB::transaction( static function () use ( $class, &$blocked ): bool {
+                // Re-checked under a lock so a rate or product added meanwhile still blocks the delete.
+                $locked  = TaxClass::query()->lockForUpdate()->find( $class->id );
+                $blocked = null === $locked ? null : self::classBlocker( $locked );
 
-            if ( null === $locked || null !== $blocked ) {
-                return false;
-            }
+                if ( null === $locked || null !== $blocked ) {
+                    return false;
+                }
 
-            $locked->delete();
+                $locked->delete();
 
-            return true;
+                return true;
+            } );
         }, $class );
 
         $this->cancelDeleteClass();
@@ -647,7 +655,7 @@ class Index extends Component
         $this->validateImport();
 
         $plan   = $this->importPlan();
-        $result = $this->withActionToken( $token, 'import', static function () use ( $plan ): array {
+        $result = $this->withActionToken( $token, 'import', static fn (): array => DB::transaction( static function () use ( $plan ): array {
             $created = 0;
             $updated = 0;
 
@@ -662,7 +670,7 @@ class Index extends Component
             }
 
             return [ $created, $updated ];
-        } );
+        } ) );
 
         if ( null === $result ) {
             return;
@@ -725,7 +733,17 @@ class Index extends Component
     {
         $this->authorizeTable();
 
-        $csv = TaxRateCsv::export( $this->filteredQuery()->reorder()->orderBy( 'tax_rates.country_code' )->orderBy( 'tax_rates.region_code' )->orderBy( 'tax_rates.priority' )->orderBy( 'tax_rates.id' ) );
+        $query = $this->filteredQuery()->reorder()->orderBy( ( new TaxRate() )->qualifyColumn( 'country_code' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'region_code' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'priority' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'id' ) );
+        $limit = max( 1, (int) config( 'artisanpack.ecommerce-admin-livewire.tables.export_max_rows', 10_000 ) );
+
+        if ( ( clone $query )->count() > $limit ) {
+            $this->toastWarning(
+                __( 'The export was cut short.' ),
+                trans_choice( 'Only the first :count row was exported.|Only the first :count rows were exported.', $limit, [ 'count' => $limit ] ),
+            );
+        }
+
+        $csv = TaxRateCsv::export( $query, $limit );
 
         return response()->streamDownload( static function () use ( $csv ): void {
             echo $csv;
@@ -1032,12 +1050,39 @@ class Index extends Component
      */
     protected function setActive( Builder $selection, bool $active ): string
     {
-        $ids     = ( clone $selection )->reorder()->pluck( 'tax_rates.id' )->all();
-        $changed = TaxRate::query()->whereKey( $ids )->where( 'is_active', ! $active )->update( [ 'is_active' => $active, 'updated_at' => Carbon::now() ] );
+        [ $ids, $denied ] = $this->allowedRateIds( $selection, 'update' );
+        $changed          = TaxRate::query()->whereKey( $ids )->where( 'is_active', ! $active )->update( [ 'is_active' => $active, 'updated_at' => Carbon::now() ] );
 
-        return $active
+        return self::withDeniedNote( $active
             ? trans_choice( ':count rate switched on.|:count rates switched on.', $changed, [ 'count' => $changed ] )
-            : trans_choice( ':count rate switched off.|:count rates switched off.', $changed, [ 'count' => $changed ] );
+            : trans_choice( ':count rate switched off.|:count rates switched off.', $changed, [ 'count' => $changed ] ), $denied );
+    }
+
+    /**
+     * The selected rate ids the user may `$ability`, checked against the
+     * policy on each rate, and how many were denied.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder<TaxRate>  $selection  Selected rates.
+     * @param  string            $ability    `update` or `delete`.
+     *
+     * @return array{0: array<int, int>, 1: int}
+     */
+    protected function allowedRateIds( Builder $selection, string $ability ): array
+    {
+        $ids    = [];
+        $denied = 0;
+
+        foreach ( ( clone $selection )->reorder()->get() as $rate ) {
+            if ( $this->canEcommerce( $ability, $rate ) ) {
+                $ids[] = (int) $rate->id;
+            } else {
+                ++$denied;
+            }
+        }
+
+        return [ $ids, $denied ];
     }
 
     /**
@@ -1051,14 +1096,14 @@ class Index extends Component
      */
     protected function deleteSelection( Builder $selection ): string
     {
-        $ids     = array_map( 'intval', ( clone $selection )->reorder()->pluck( 'tax_rates.id' )->all() );
-        $deleted = TaxRate::query()->whereKey( $ids )->delete();
+        [ $ids, $denied ] = $this->allowedRateIds( $selection, 'delete' );
+        $deleted          = TaxRate::query()->whereKey( $ids )->delete();
 
         if ( null !== $this->editingRateId && in_array( $this->editingRateId, $ids, true ) ) {
             $this->cancelRate();
         }
 
-        return trans_choice( ':count tax rate deleted.|:count tax rates deleted.', $deleted, [ 'count' => $deleted ] );
+        return self::withDeniedNote( trans_choice( ':count tax rate deleted.|:count tax rates deleted.', $deleted, [ 'count' => $deleted ] ), $denied );
     }
 
     /**

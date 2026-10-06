@@ -27,9 +27,10 @@
     </x-artisanpack-modal>
 @endif
 
-@if ( null !== $revealedSecret )
+@if ( $showingSecret )
     <x-artisanpack-modal wire:model.live="showingSecret" :title="__( 'Signing secret' )" separator persistent>
-        <div class="flex flex-col gap-3" data-revealed-secret x-data="{ copied: false }">
+        {{-- The secret is in this render only; wire:ignore keeps it on screen through later renders. --}}
+        <div class="flex flex-col gap-3" data-revealed-secret wire:ignore x-data="{ copied: false, failed: false }">
             <x-artisanpack-alert
                 color="warning"
                 icon="o-exclamation-triangle"
@@ -37,16 +38,16 @@
                 :description="__( 'It is shown only once. Store it with the receiving endpoint to verify signatures.' )"
                 role="status"
             />
-            <x-artisanpack-input id="webhook-secret" :label="__( 'Secret' )" :value="$revealedSecret" readonly class="font-mono" x-ref="secret" />
+            <x-artisanpack-input id="webhook-secret" :label="__( 'Secret' )" :value="$revealedSecret ?? ''" readonly class="font-mono" x-ref="secret" />
             <div>
                 <x-artisanpack-button
                     variant="outline"
                     size="sm"
                     icon="o-clipboard-document"
-                    x-on:click="navigator.clipboard?.writeText( $refs.secret.value ).then( () => copied = true )"
+                    x-on:click="( navigator.clipboard ? navigator.clipboard.writeText( $refs.secret.value ) : Promise.reject() ).then( () => { copied = true; failed = false } ).catch( () => { failed = true; copied = false; $refs.secret.focus(); $refs.secret.select() } )"
                     :label="__( 'Copy secret' )"
                 />
-                <span class="ms-2 text-sm" role="status" x-text="copied ? @js( __( 'Copied.' ) ) : ''"></span>
+                <span class="ms-2 text-sm" role="status" x-text="copied ? @js( __( 'Copied.' ) ) : ( failed ? @js( __( 'Copy failed. The secret is selected; press Ctrl+C.' ) ) : '' )"></span>
             </div>
         </div>
 

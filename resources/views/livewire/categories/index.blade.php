@@ -25,13 +25,11 @@
             :description="__( 'Group products into categories so shoppers can browse them.' )"
         />
     @else
-        <ul class="flex list-none flex-col divide-y divide-base-300 rounded-box border border-base-300" role="tree" aria-label="{{ __( 'Categories' ) }}" data-category-tree>
+        <ul class="flex list-none flex-col divide-y divide-base-300 rounded-box border border-base-300" aria-label="{{ __( 'Categories' ) }}" data-category-tree>
             @foreach ( $tree as $row )
                 @php $category = $row['category']; @endphp
                 <li
                     wire:key="category-{{ $category->id }}"
-                    role="treeitem"
-                    aria-level="{{ $row['depth'] + 1 }}"
                     class="flex flex-wrap items-center gap-3 p-3"
                     style="padding-inline-start: {{ 0.75 + $row['depth'] * 1.5 }}rem"
                     data-category="{{ $category->id }}"
@@ -42,6 +40,9 @@
                     @endif
 
                     <div class="min-w-0 grow">
+                        @if ( $row['depth'] > 0 )
+                            <span class="sr-only">{{ __( 'Level :n', [ 'n' => $row['depth'] + 1 ] ) }}</span>
+                        @endif
                         <span class="font-semibold">{{ $category->name }}</span>
                         <span class="ms-2 text-sm opacity-75">/{{ $category->slug }}</span>
                         @if ( $row['children'] > 0 )
@@ -61,7 +62,7 @@
                                 variant="ghost"
                                 size="sm"
                                 icon="o-arrow-up"
-                                wire:click="move( {{ $category->id }}, -1 )" data-reorder="up" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
+                                wire:click="move( {{ $category->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
                                 :disabled="$row['first']"
                                 :aria-label="__( 'Move :name up', [ 'name' => $category->name ] )"
                             />
@@ -69,7 +70,7 @@
                                 variant="ghost"
                                 size="sm"
                                 icon="o-arrow-down"
-                                wire:click="move( {{ $category->id }}, 1 )" data-reorder="down" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
+                                wire:click="move( {{ $category->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
                                 :disabled="$row['last']"
                                 :aria-label="__( 'Move :name down', [ 'name' => $category->name ] )"
                             />

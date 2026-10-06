@@ -25,6 +25,7 @@
                 id="resource-table-search"
                 class="min-w-64"
                 :label="__( 'Search' )"
+                :hint="$searchHint ?? null"
                 icon="o-magnifying-glass"
                 type="search"
                 wire:model.live.debounce.300ms="search"

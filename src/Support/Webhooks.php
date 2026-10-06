@@ -217,10 +217,10 @@ final class Webhooks
     public static function whereStatus( Builder $query, string $status ): void
     {
         match ( $status ) {
-            'delivered' => $query->whereNotNull( 'webhook_deliveries.delivered_at' ),
-            'failed'    => $query->whereNull( 'webhook_deliveries.delivered_at' )->whereNull( 'webhook_deliveries.next_retry_at' ),
-            'pending'   => $query->whereNull( 'webhook_deliveries.delivered_at' )->whereNotNull( 'webhook_deliveries.next_retry_at' )->where( 'webhook_deliveries.attempts', 0 ),
-            'retrying'  => $query->whereNull( 'webhook_deliveries.delivered_at' )->whereNotNull( 'webhook_deliveries.next_retry_at' )->where( 'webhook_deliveries.attempts', '>', 0 ),
+            'delivered' => $query->whereNotNull( $query->qualifyColumn( 'delivered_at' ) ),
+            'failed'    => $query->whereNull( $query->qualifyColumn( 'delivered_at' ) )->whereNull( $query->qualifyColumn( 'next_retry_at' ) ),
+            'pending'   => $query->whereNull( $query->qualifyColumn( 'delivered_at' ) )->whereNotNull( $query->qualifyColumn( 'next_retry_at' ) )->where( $query->qualifyColumn( 'attempts' ), 0 ),
+            'retrying'  => $query->whereNull( $query->qualifyColumn( 'delivered_at' ) )->whereNotNull( $query->qualifyColumn( 'next_retry_at' ) )->where( $query->qualifyColumn( 'attempts' ), '>', 0 ),
             default     => null,
         };
     }

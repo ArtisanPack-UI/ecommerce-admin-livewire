@@ -13,8 +13,10 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Queries;
 
+use ArtisanPackUI\Ecommerce\Support\StoreTimezone;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 /**
@@ -190,6 +192,38 @@ abstract class ResourceQuery
     }
 
     /**
+     * A column qualified with its model's table. Queries never hard-code
+     * table names, because the engine prefixes them.
+     *
+     * @since 1.0.0
+     *
+     * @param  class-string<Model>  $modelClass  The model.
+     * @param  string               $column      The column, or `*`.
+     *
+     * @return string
+     */
+    public static function column( string $modelClass, string $column ): string
+    {
+        return ( new $modelClass() )->qualifyColumn( $column );
+    }
+
+    /**
+     * {@see self::column()}, wrapped by the query's grammar for raw SQL.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder              $query       The query whose grammar wraps the identifier.
+     * @param  class-string<Model>  $modelClass  The model.
+     * @param  string               $column      The column.
+     *
+     * @return string
+     */
+    public static function raw( Builder $query, string $modelClass, string $column ): string
+    {
+        return $query->getQuery()->getGrammar()->wrap( self::column( $modelClass, $column ) );
+    }
+
+    /**
      * The query with its eager loads and scoping, before search and filters.
      *
      * @since 1.0.0
@@ -253,7 +287,8 @@ abstract class ResourceQuery
     }
 
     /**
-     * A `Y-m-d` date, or null when the value is not a real calendar date.
+     * A `Y-m-d` date in the store's time zone, or null when the value is not
+     * a real calendar date.
      *
      * @since 1.0.0
      *
@@ -271,6 +306,35 @@ abstract class ResourceQuery
             return null;
         }
 
-        return Carbon::createFromFormat( '!Y-m-d', $value );
+        return Carbon::createFromFormat( '!Y-m-d', $value, StoreTimezone::name() );
+    }
+
+    /**
+     * The start of a store-time-zone day, in the app time zone (the one
+     * timestamps are stored in), or null for an invalid date.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed  $value  A `Y-m-d` date.
+     *
+     * @return Carbon|null
+     */
+    protected static function dayStart( mixed $value ): ?Carbon
+    {
+        return static::date( $value )?->startOfDay()->setTimezone( (string) config( 'app.timezone', 'UTC' ) );
+    }
+
+    /**
+     * The end of a store-time-zone day, in the app time zone.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed  $value  A `Y-m-d` date.
+     *
+     * @return Carbon|null
+     */
+    protected static function dayEnd( mixed $value ): ?Carbon
+    {
+        return static::date( $value )?->endOfDay()->setTimezone( (string) config( 'app.timezone', 'UTC' ) );
     }
 }

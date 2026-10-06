@@ -13,7 +13,9 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Http\Controllers;
 
+use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 /**
@@ -37,6 +39,26 @@ class AdminScreenController extends Controller
      *
      * @return View
      */
+    /**
+     * The command palette's results: the host's own spotlight results, then
+     * the admin's (through the component library's results filter).
+     *
+     * @since 1.0.0
+     *
+     * @param  Request  $request  The request (`search` query).
+     *
+     * @return array<int, mixed>
+     */
+    public function spotlight( Request $request ): array
+    {
+        $class   = config( 'artisanpack.livewire-ui-components.components.spotlight.class' );
+        $results = is_string( $class ) && '' !== $class && ( class_exists( $class ) || app()->bound( $class ) )
+            ? (array) app()->make( $class )->search( $request )
+            : [];
+
+        return array_values( (array) applyFilters( AdminSpotlight::COMMANDS_FILTER, $results, $request->user() ) );
+    }
+
     public function dashboard(): View
     {
         return view( 'ecommerce-admin::pages.dashboard' );

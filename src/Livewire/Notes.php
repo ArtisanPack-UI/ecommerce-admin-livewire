@@ -33,9 +33,9 @@ use Livewire\Component;
  *
  * Mounted with the subject model. Anyone who may view the subject sees its
  * notes; adding one needs the `update` ability on the subject, and deleting
- * one is limited to its author or a user with `update`. Order notes carry a
+ * one needs `update` on the subject. Order notes carry a
  * "visible to customer" toggle (off by default) that maps to
- * `order_notes.is_customer_visible`; customer notes are always internal.
+ * `ecommerce_order_notes.is_customer_visible`; customer notes are always internal.
  *
  * Bodies are stripped of markup on the way in and escaped on the way out.
  * Writes go through the engine's `OrderNoteService` / `CustomerNoteService`,
@@ -262,8 +262,9 @@ class Notes extends Component
     }
 
     /**
-     * Whether the current user may delete `$note`: its author, or anyone
-     * with `update` on the subject.
+     * Whether the current user may delete `$note`: only with `update` on
+     * the subject, so an author who lost that right can't delete their
+     * notes either.
      *
      * @since 1.0.0
      *
@@ -274,9 +275,7 @@ class Notes extends Component
      */
     protected function canDelete( Model $note, Model $subject ): bool
     {
-        $author = $note->getAttribute( 'author_user_id' );
-
-        return ( null !== $author && (int) $author === $this->actorId() ) || $this->canEcommerce( 'update', $subject );
+        return $this->canEcommerce( 'update', $subject );
     }
 
     /**

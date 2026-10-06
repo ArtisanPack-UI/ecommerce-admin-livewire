@@ -28,6 +28,11 @@ Route::prefix( trim( (string) config( 'artisanpack.ecommerce-admin-livewire.admi
     ->group( static function (): void {
         Route::get( '/', [ AdminScreenController::class, 'dashboard' ] )->name( 'dashboard' );
 
+        // The command palette's search, behind the full admin middleware
+        // (2FA, verified, password confirmation, ...), unlike the component
+        // library's shared spotlight route.
+        Route::get( 'spotlight', [ AdminScreenController::class, 'spotlight' ] )->name( 'spotlight' );
+
         Route::get( 'orders', [ AdminScreenController::class, 'ordersIndex' ] )->name( 'orders.index' );
         Route::get( 'orders/{order}', [ AdminScreenController::class, 'ordersShow' ] )->whereNumber( 'order' )->name( 'orders.show' );
 

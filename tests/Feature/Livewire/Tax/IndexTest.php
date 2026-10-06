@@ -191,6 +191,22 @@ it( 'validates a new tax class', function (): void {
         ->assertHasErrors( [ 'newClassKey' => 'regex' ] );
 } );
 
+it( 'asks the policy about the specific class before editing or deleting it', function (): void {
+    $locked = TaxClass::query()->where( 'key', 'reduced' )->sole();
+    $other  = TaxClass::query()->where( 'key', 'zero' )->sole();
+
+    foreach ( [ 'update', 'delete' ] as $action ) {
+        addFilter( 'ap.ecommerce.abilities.taxRate.' . $action, static fn ( bool $allowed, $user, $request, mixed $subject = null ): bool => $allowed && ! ( $subject instanceof TaxClass && $subject->is( $locked ) ), 10, 4 );
+    }
+
+    Livewire::test( Index::class )->call( 'editClass', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'confirmDeleteClass', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'editClass', $other->id )->assertSet( 'editingClassId', $other->id );
+
+    removeAllFilters( 'ap.ecommerce.abilities.taxRate.update' );
+    removeAllFilters( 'ap.ecommerce.abilities.taxRate.delete' );
+} );
+
 it( 'blocks deleting a class that rates or products use', function (): void {
     $class = TaxClass::query()->where( 'key', 'reduced' )->sole();
     TaxRate::factory()->create( [ 'tax_class_key' => 'reduced' ] );
@@ -301,6 +317,18 @@ it( 'exports rates in the import format', function (): void {
     $csv = TaxRateCsv::export( TaxRate::query()->orderBy( 'id' ) );
 
     expect( $csv )->toContain( 'tax_class_key,country_code,region_code' )->toContain( 'standard,US,NY,,8.875,"NY sales tax"' );
+} );
+
+it( 'cuts an export at tables.export_max_rows and says so', function (): void {
+    config()->set( 'artisanpack.ecommerce-admin-livewire.tables.export_max_rows', 2 );
+    TaxRate::factory()->count( 3 )->sequence( [ 'country_code' => 'US' ], [ 'country_code' => 'CA' ], [ 'country_code' => 'DE' ] )->create();
+
+    $component = Livewire::test( Index::class )->call( 'exportRates' );
+    $download  = $component->effects['download'] ?? null;
+    $lines     = array_values( array_filter( explode( "\n", trim( base64_decode( (string) $download['content'] ) ) ) ) );
+
+    expect( $lines )->toHaveCount( 3 )
+        ->and( sentToasts( $component ) )->toContain( 'The export was cut short.' );
 } );
 
 it( 'hides write controls without the abilities', function (): void {

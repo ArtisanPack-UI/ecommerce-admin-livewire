@@ -6,11 +6,14 @@ use ArtisanPackUI\Ecommerce\Models\KanbanAutomation;
 use ArtisanPackUI\Ecommerce\Models\KanbanBoard;
 use ArtisanPackUI\Ecommerce\Models\KanbanColumn;
 use ArtisanPackUI\Ecommerce\Models\OrderSubstatus;
+use ArtisanPackUI\Ecommerce\Webhooks\WebhookUrlGuard;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\KanbanBoards\Automations;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 
 beforeEach( function (): void {
+    // Hosts resolve to a public address unless they are IP literals.
+    WebhookUrlGuard::resolveUsing( static fn ( string $host ): array => [ '93.184.216.34' ] );
     grantAbilities( [ 'kanbanBoard.viewAny', 'kanbanBoard.view', 'kanbanBoard.update', 'product.viewAny' ] );
     $this->actingAs( makeUser() );
 
@@ -91,6 +94,20 @@ it( 'emails the customer when a card reaches Shipped, for first orders only', fu
         ->conditions->toBe( [ [ 'type' => 'customer-first-order', 'config' => [] ] ] )
         ->and( $automation->trigger_config['to'] )->toBe( [ 'customer' ] )
         ->and( $automation->trigger_config['subject'] )->toBe( 'Your order shipped' );
+} );
+
+it( 'saves a dispatch-job trigger when jobs are configured', function (): void {
+    config()->set( 'artisanpack.ecommerce.kanban.dispatchable_jobs', [ Illuminate\Queue\CallQueuedClosure::class ] );
+
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->set( 'form.to_column_id', $this->shipped->id )
+        ->set( 'form.trigger_key', 'dispatch-job' )
+        ->set( 'form.trigger_config.job', Illuminate\Queue\CallQueuedClosure::class )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( KanbanAutomation::query()->sole()->trigger_config )->toBe( [ 'job' => Illuminate\Queue\CallQueuedClosure::class ] );
 } );
 
 it( 'edits an automation and keeps a stored signing secret', function (): void {
@@ -278,4 +295,32 @@ it( 'still shows a stored secret after switching triggers and back', function ()
         ->assertSet( 'secretIsSet', false )
         ->set( 'form.trigger_key', 'webhook' )
         ->assertSet( 'secretIsSet', true );
+} );
+
+afterEach( function (): void {
+    WebhookUrlGuard::resolveUsing( null );
+} );
+
+it( 'refuses a webhook trigger URL that points at a private address', function ( string $url ): void {
+    config()->set( 'artisanpack.ecommerce.webhooks.allow_insecure_urls', true );
+
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->set( 'form.to_column_id', $this->shipped->id )
+        ->set( 'form.trigger_key', 'webhook' )
+        ->set( 'form.trigger_config.url', $url )
+        ->call( 'save' )
+        ->assertHasErrors( 'form.trigger_config.url' );
+
+    expect( KanbanAutomation::query()->count() )->toBe( 0 );
+} )->with( [ 'loopback' => 'http://127.0.0.1/', 'metadata' => 'http://169.254.169.254/latest' ] );
+
+it( 'refuses a plain-http webhook trigger URL unless insecure URLs are allowed', function (): void {
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->set( 'form.to_column_id', $this->shipped->id )
+        ->set( 'form.trigger_key', 'webhook' )
+        ->set( 'form.trigger_config.url', 'http://hooks.example.test/' )
+        ->call( 'save' )
+        ->assertHasErrors( 'form.trigger_config.url' );
 } );

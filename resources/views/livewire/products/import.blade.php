@@ -17,7 +17,7 @@
         'update-variant' => __( 'Update variant' ),
     ];
 @endphp
-<div @if ( in_array( $step, [ 'queued', 'running' ], true ) ) wire:poll.2s @endif>
+<div @if ( in_array( $step, [ 'queued', 'running' ], true ) ) wire:poll.5s @endif>
     <x-artisanpack-header :title="__( 'Import products' )" :level="1" separator>
         <x-slot:actions>
             <x-artisanpack-button variant="ghost" icon="o-document-arrow-down" wire:click="downloadSample" :label="__( 'Download a sample file' )" />

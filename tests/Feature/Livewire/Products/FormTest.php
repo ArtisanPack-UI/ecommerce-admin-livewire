@@ -19,6 +19,7 @@ beforeEach( function (): void {
     config()->set( 'auth.providers.users.model', User::class );
     config()->set( 'artisanpack.ecommerce.base_currency', 'USD' );
     config()->set( 'artisanpack.ecommerce.currency.rates', [ 'USD' => [ 'EUR' => 92_500_000 ] ] );
+    config()->set( 'artisanpack.ecommerce.currency.enabled', [ 'EUR' ] );
     config()->set( 'artisanpack.ecommerce.features.scout', false );
     grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update', 'product.delete' ] );
     ProductMedia::fake( false );
@@ -183,6 +184,33 @@ it( 'validates every tab and switches to the first one with an error', function 
     'unknown tax class'   => [ [ 'taxClassKey' => 'luxury' ], 'taxClassKey', 'tax' ],
     'unknown category'    => [ [ 'categoryIds' => [ 999 ] ], 'categoryIds.0', 'organization' ],
     'bad image URL'       => [ [ 'featuredImageUrl' => 'javascript:alert(1)' ], 'featuredImageUrl', 'media' ],
+] );
+
+it( 'requires the compare-at price to be higher than the price', function ( ?int $compareAt, bool $valid ): void {
+    $component = Livewire::test( Form::class )
+        ->set( 'name', 'Shirt' )
+        ->set( 'prices.0.price_amount', 1_000 )
+        ->set( 'prices.0.compare_at_amount', $compareAt )
+        ->call( 'save' );
+
+    if ( $valid ) {
+        $component->assertHasNoErrors();
+
+        expect( Product::query()->count() )->toBe( 1 );
+
+        return;
+    }
+
+    $component->assertHasErrors( 'prices.0.compare_at_amount' )
+        ->assertSee( 'The compare-at price must be higher than the price.' )
+        ->assertSet( 'tab', 'pricing' );
+
+    expect( Product::query()->count() )->toBe( 0 );
+} )->with( [
+    'lower'  => [ 900, false ],
+    'equal'  => [ 1_000, false ],
+    'higher' => [ 1_200, true ],
+    'empty'  => [ null, true ],
 ] );
 
 it( 'puts engine refusals on the matching field', function (): void {

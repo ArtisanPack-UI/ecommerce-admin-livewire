@@ -83,6 +83,7 @@ class Navigation extends Component
         $this->authorizeAdminAccess();
 
         NavBadges::flush();
+        AdminNav::flush();
     }
 
     /**
@@ -98,10 +99,12 @@ class Navigation extends Component
 
         foreach ( $sections as &$section ) {
             foreach ( $section['items'] as &$item ) {
-                $count = null === $item['badge'] ? null : NavBadges::count( $item['badge'] );
+                // A registry entry carries its count; a core entry names a badge.
+                $count = $item['badgeCount'] ?? ( null === $item['badge'] ? null : NavBadges::count( $item['badge'] ) );
+                $count = null !== $count && $count > 0 ? $count : null;
 
                 $item['badgeCount'] = $count;
-                $item['badgeLabel'] = null === $count ? null : NavBadges::describe( $item['badge'], $count );
+                $item['badgeLabel'] = null === $count ? null : NavBadges::describe( $item['badge'] ?? $item['key'], $count );
                 $item['active']     = $item['key'] === $this->activeKey;
             }
         }

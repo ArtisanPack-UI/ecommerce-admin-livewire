@@ -8,8 +8,9 @@
 --}}
 @php
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Settings\Show;
+    use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 @endphp
-<div class="flex flex-col gap-6">
+<div class="flex flex-col gap-6" x-data="{ {!! UnsavedChanges::members() !!} }" {!! UnsavedChanges::attributes() !!}>
     <x-artisanpack-header :title="__( 'Settings' )" :subtitle="$tab['description']" :level="1" separator />
 
     <nav aria-label="{{ __( 'Settings sections' ) }}">
@@ -145,7 +146,7 @@
                                         @endif
 
                                         @foreach ( (array) ( $form[ $field ] ?? [] ) as $index => $row )
-                                            <div class="flex flex-wrap items-end gap-3" role="group" aria-label="{{ __( ':field row :number', [ 'field' => $definition->label, 'number' => $index + 1 ] ) }}" wire:key="{{ $id }}-row-{{ $index }}">
+                                            <div class="flex flex-wrap items-end gap-3" role="group" aria-label="{{ __( ':field row :number', [ 'field' => $definition->label, 'number' => $index + 1 ] ) }}" wire:key="{{ $id }}-row-{{ \ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys::of( $row, $index ) }}">
                                                 <x-artisanpack-input :id="$id . '-' . $index . '-key'" :label="__( 'Key' )" class="w-32" wire:model="{{ $path }}.{{ $index }}.key" />
                                                 <div class="min-w-48 flex-1">
                                                     <x-artisanpack-input :id="$id . '-' . $index . '-value'" :label="__( 'Value' )" wire:model="{{ $path }}.{{ $index }}.value" />
@@ -155,7 +156,7 @@
                                                         variant="ghost"
                                                         size="sm"
                                                         icon="o-trash"
-                                                        wire:click="removeMapRow( {{ \Illuminate\Support\Js::from( $definition->key ) }}, {{ (int) $index }} )"
+                                                        wire:click="removeMapRow( {{ \Illuminate\Support\Js::from( $definition->key ) }}, {{ (int) $index }} )" wire:loading.attr="disabled"
                                                         :label="__( 'Remove' )"
                                                         :aria-label="__( 'Remove :field row :number', [ 'field' => $definition->label, 'number' => $index + 1 ] )"
                                                     />
@@ -210,6 +211,8 @@
                                             variant="link"
                                             size="xs"
                                             wire:click="resetToDefault( {{ \Illuminate\Support\Js::from( $definition->key ) }} )"
+                                            wire:confirm="{{ __( 'Reset :setting to its default? This saves immediately.', [ 'setting' => $definition->label ] ) }}"
+                                            wire:loading.attr="disabled"
                                             :label="__( 'Reset to default' )"
                                             :aria-label="__( 'Reset to default: :setting', [ 'setting' => $definition->label ] )"
                                         />

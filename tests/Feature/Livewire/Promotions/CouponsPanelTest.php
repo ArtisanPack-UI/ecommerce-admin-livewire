@@ -156,6 +156,7 @@ it( 'validates the generate settings', function (): void {
 } );
 
 it( 'exports the codes to CSV', function (): void {
+    grantAbilities( [ 'promotion.update' ] );
     Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'B-CODE' ] );
     Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'A-CODE' ] );
 
@@ -168,6 +169,27 @@ it( 'exports the codes to CSV', function (): void {
 
     expect( strpos( $content, 'A-CODE' ) )->toBeLessThan( strpos( $content, 'B-CODE' ) )
         ->and( $content )->toContain( 'Code' );
+} );
+
+it( 'does not let a user who may only view the promotion export its codes', function (): void {
+    Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'SECRET' ] );
+
+    Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )
+        ->call( 'exportCodes' )
+        ->assertForbidden();
+} );
+
+it( 'refuses to add codes to an automatic promotion', function (): void {
+    $automatic = Promotion::factory()->create( [ 'source_type' => Promotion::SOURCE_AUTOMATIC ] );
+
+    Livewire::test( CouponsPanel::class, [ 'promotion' => $automatic ] )
+        ->set( 'newCode', 'SPRING' )
+        ->call( 'addCode' )
+        ->assertHasErrors( 'newCode' )
+        ->set( 'generateCount', 5 )
+        ->call( 'generateCodes' );
+
+    expect( Coupon::query()->where( 'promotion_id', $automatic->id )->count() )->toBe( 0 );
 } );
 
 it( 'searches codes', function (): void {
@@ -210,7 +232,7 @@ it( 'refuses writes without the coupon abilities', function (): void {
 it( 'reports a code taken by a concurrent request instead of failing', function (): void {
     Coupon::creating( static function ( Coupon $coupon ): void {
         if ( 'RACED' === $coupon->code && ! Coupon::query()->where( 'code', 'RACED' )->exists() ) {
-            Illuminate\Support\Facades\DB::table( 'coupons' )->insert( [ 'promotion_id' => $coupon->promotion_id, 'code' => 'RACED', 'created_at' => now(), 'updated_at' => now() ] );
+            Illuminate\Support\Facades\DB::table( ( new Coupon() )->getTable() )->insert( [ 'promotion_id' => $coupon->promotion_id, 'code' => 'RACED', 'created_at' => now(), 'updated_at' => now() ] );
         }
     } );
 

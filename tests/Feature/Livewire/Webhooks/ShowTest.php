@@ -146,7 +146,7 @@ it( 're-enables and rotates from the detail screen', function (): void {
         ->and( $subscription->consecutive_failures )->toBe( 0 )
         ->and( $subscription->secret )->not->toBe( 'whsec_previous-secret-0000000' );
 
-    $component->assertSet( 'revealedSecret', $subscription->secret );
+    $component->assertSee( $subscription->secret )->assertSet( 'showingSecret', true );
 } );
 
 it( 'hides replay, rotate, and re-enable without webhookSubscription.update', function (): void {

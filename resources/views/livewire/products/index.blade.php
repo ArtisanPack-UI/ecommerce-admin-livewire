@@ -11,7 +11,7 @@
     <x-artisanpack-header :title="__( 'Products' )" :level="1" separator>
         <x-slot:actions>
             <x-artisanpack-button variant="outline" icon="o-document-arrow-down" wire:click="exportCatalog" wire:loading.attr="disabled" :label="__( 'Export catalog' )" />
-            @if ( $canCreate && \Illuminate\Support\Facades\Route::has( $importRoute ) )
+            @if ( $canImport && \Illuminate\Support\Facades\Route::has( $importRoute ) )
                 <x-artisanpack-button variant="outline" icon="o-arrow-up-tray" :link="route( $importRoute )" :label="__( 'Import' )" />
             @endif
             @if ( $canCreate && \Illuminate\Support\Facades\Route::has( $createRoute ) )

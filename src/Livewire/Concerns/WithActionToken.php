@@ -15,7 +15,7 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns;
 
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ActionTokens;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Makes destructive and money-moving actions idempotent (spec §5.2).
@@ -30,9 +30,15 @@ use Illuminate\Support\Facades\DB;
  * />
  * ```
  *
- * The action wraps its write in `withActionToken()`. The token is consumed in
- * the same transaction as the write, so a reused token is a no-op with a
- * notice, and a write that fails releases the token for a retry.
+ * The action wraps its write in `withActionToken()`. The token is consumed
+ * first (a unique index makes that atomic), so a reused token is a no-op with
+ * a notice, and a write that throws releases the token for a retry.
+ *
+ * The write does **not** run inside a transaction: engine services such as
+ * `RefundService::issue()` and `ShipmentService::buyLabel()` call the
+ * gateway or carrier outside any transaction on purpose, and an outer
+ * rollback would erase the ledger rows they record around that call. A write
+ * that changes several local rows opens its own `DB::transaction()`.
  *
  * Uses {@see SendsToasts}.
  *
@@ -62,7 +68,8 @@ trait WithActionToken
      * Runs a write once per token.
      *
      * Returns null without running `$write` when the token is invalid,
-     * expired, or already used; the user gets a notice instead.
+     * expired, or already used; the user gets a notice instead. When
+     * `$write` throws, the token is released so the user can retry.
      *
      * @since 1.0.0
      *
@@ -89,26 +96,22 @@ trait WithActionToken
             return null;
         }
 
-        $spent = false;
-
-        $result = DB::transaction( static function () use ( $user, $action, $scope, $token, $write, &$spent ): mixed {
-            if ( ! ActionTokens::consume( $user, $action, $scope, $token ) ) {
-                $spent = true;
-
-                return null;
-            }
-
-            return $write();
-        } );
-
-        if ( $spent ) {
+        if ( ! ActionTokens::consume( $user, $action, $scope, $token ) ) {
             $this->toastWarning(
                 __( 'That action was already submitted.' ),
                 __( 'Nothing was changed the second time.' ),
             );
+
+            return null;
         }
 
-        return $result;
+        try {
+            return $write();
+        } catch ( Throwable $exception ) {
+            ActionTokens::release( $user, $action, $token );
+
+            throw $exception;
+        }
     }
 
     /**

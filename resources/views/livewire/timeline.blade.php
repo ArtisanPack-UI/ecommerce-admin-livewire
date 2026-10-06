@@ -23,7 +23,7 @@
                     :variant="$filter === $value ? 'primary' : 'ghost'"
                     :label="$label"
                     aria-pressed="{{ $filter === $value ? 'true' : 'false' }}"
-                    wire:click="$set( 'filter', '{{ $value }}' )"
+                    wire:click="$set( 'filter', {{ \Illuminate\Support\Js::from( $value ) }} )"
                 />
             @endforeach
         </div>

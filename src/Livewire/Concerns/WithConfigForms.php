@@ -121,7 +121,7 @@ trait WithConfigForms
             return (string) json_encode( (object) $config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
         }
 
-        return array_replace( $forms->defaults( $registry, $entry ), $config );
+        return $forms->formValues( $registry, $entry, $config );
     }
 
     /**
@@ -153,7 +153,11 @@ trait WithConfigForms
             return (array) json_decode( (string) $value, true );
         }
 
-        return ConfigFormRegistry::cast( $schema, (array) $value );
+        $config = ConfigFormRegistry::cast( $schema, (array) $value );
+
+        $forms->validateDeclared( $registry, $entry, $config, $property );
+
+        return $config;
     }
 
     /**

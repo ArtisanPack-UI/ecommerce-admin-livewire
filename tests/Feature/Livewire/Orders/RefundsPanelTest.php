@@ -6,6 +6,7 @@ use ArtisanPackUI\Ecommerce\Contracts\PaymentGateway;
 use ArtisanPackUI\Ecommerce\Models\InventoryItem;
 use ArtisanPackUI\Ecommerce\Models\Order;
 use ArtisanPackUI\Ecommerce\Models\OrderItem;
+use ArtisanPackUI\Ecommerce\Models\OrderTimelineEntry;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\Refund;
 use ArtisanPackUI\Ecommerce\Registries\PaymentGatewayRegistry;
@@ -22,11 +23,13 @@ beforeEach( function (): void {
 
     $this->gateway = refundsPanelGateway();
 
+    // The engine folds shipping and tax into each line's total, so the
+    // lines add up to the order total: shirts 3,000 + gift wrap 500.
     $this->order = Order::factory()->create( [
         'payment_status'      => 'paid',
         'payment_gateway_key' => 'fake',
-        'subtotal_amount'     => 3_000,
-        'shipping_amount'     => 500,
+        'subtotal_amount'     => 3_500,
+        'shipping_amount'     => 0,
         'total_amount'        => 3_500,
     ] );
     $this->product = Product::factory()->create();
@@ -38,19 +41,36 @@ beforeEach( function (): void {
         'unit_price_amount' => 1_000,
         'total_amount'      => 3_000,
     ] );
+    $this->wrap    = OrderItem::factory()->create( [
+        'order_id'          => $this->order->id,
+        'product_id'        => null,
+        'product_snapshot'  => [ 'name' => 'Gift wrap', 'sku' => 'WRAP', 'type' => 'simple', 'options' => [] ],
+        'quantity'          => 1,
+        'unit_price_amount' => 500,
+        'total_amount'      => 500,
+    ] );
 } );
 
 /**
  * Registers a fake gateway under `$key`.
  */
-function refundsPanelGateway( bool $partial = true, ?string $declined = null, string $key = 'fake' ): PaymentGateway
+function refundsPanelGateway( bool $partial = true, ?string $declined = null, string $key = 'fake', int $shortBy = 0 ): PaymentGateway
 {
     $gateway = Mockery::mock( PaymentGateway::class );
     $gateway->shouldReceive( 'key' )->andReturn( $key );
     $gateway->shouldReceive( 'label' )->andReturn( 'Fake Pay' );
     $gateway->shouldReceive( 'supportsRefunds' )->andReturn( true );
     $gateway->shouldReceive( 'supportsPartialRefunds' )->andReturn( $partial );
-    $gateway->shouldReceive( 'refund' )->andReturnUsing( fn ( Order $order, Money $amount ): RefundResult => null === $declined ? RefundResult::success( $amount, 're_panel_1' ) : RefundResult::failure( $amount, 'declined', $declined ) );
+    // The test's own transaction (RefreshDatabase) is the baseline.
+    $baseline = Illuminate\Support\Facades\DB::transactionLevel();
+
+    $gateway->shouldReceive( 'refund' )->andReturnUsing( static function ( Order $order, Money $amount ) use ( $declined, $shortBy, $baseline ): RefundResult {
+        // Engine 1.0 calls the gateway outside any transaction of its own,
+        // and the admin must not open one around it either.
+        expect( Illuminate\Support\Facades\DB::transactionLevel() )->toBe( $baseline );
+
+        return null === $declined ? RefundResult::success( $amount->subtract( Money::USD( $shortBy ) ), 're_panel_1' ) : RefundResult::failure( $amount, 'declined', $declined );
+    } );
 
     app( PaymentGatewayRegistry::class )->register( $key, $gateway );
 
@@ -108,7 +128,7 @@ it( 'hides and refuses refunds without order.refund', function (): void {
 } );
 
 it( 'refunds one of three items and restocks it', function (): void {
-    $stock = InventoryItem::factory()->create( [ 'stockable_type' => Product::class, 'stockable_id' => $this->product->id, 'quantity_on_hand' => 4 ] );
+    $stock = InventoryItem::factory()->create( [ 'stockable_type' => $this->product->getMorphClass(), 'stockable_id' => $this->product->id, 'quantity_on_hand' => 4 ] );
 
     $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
         ->call( 'startRefund' )
@@ -155,7 +175,10 @@ it( 'refunds the full order', function (): void {
 
     $component->call( 'refund', refundsPanelToken( $component ) )->assertHasNoErrors();
 
-    expect( $this->order->fresh()->payment_status )->toBe( 'refunded' );
+    $refund = Refund::query()->with( 'items' )->sole();
+
+    expect( $this->order->fresh()->payment_status )->toBe( 'refunded' )
+        ->and( $refund->items->pluck( 'amount', 'order_item_id' )->all() )->toBe( [ $this->item->id => 3_000, $this->wrap->id => 500 ] );
 
     Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )->assertDontSee( 'Issue refund' );
 } );
@@ -198,7 +221,7 @@ it( 'only offers the full balance when the gateway cannot refund part of an orde
     expect( Refund::query()->count() )->toBe( 0 );
 } );
 
-it( 'shows the gateway\'s refusal without recording a refund', function (): void {
+it( 'shows the gateway\'s refusal and keeps the failed refund on record', function (): void {
     refundsPanelGateway( declined: 'The card has expired.', key: 'declining' );
     $this->order->update( [ 'payment_gateway_key' => 'declining' ] );
 
@@ -211,8 +234,15 @@ it( 'shows the gateway\'s refusal without recording a refund', function (): void
         ->assertHasErrors( [ 'refund' ] )
         ->assertSee( 'The card has expired.' );
 
-    expect( Refund::query()->count() )->toBe( 0 )
+    // The engine records the attempt as failed, with a timeline entry; a
+    // rollback around the gateway call would have erased both.
+    expect( Refund::query()->sole()->status )->toBe( Refund::STATUS_FAILED )
+        ->and( OrderTimelineEntry::query()->where( 'order_id', $this->order->id )->where( 'event_type', 'refund.failed' )->count() )->toBe( 1 )
         ->and( $this->order->fresh()->payment_status )->toBe( 'paid' );
+
+    Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->assertSeeHtml( 'data-refund-status="failed"' )
+        ->assertSee( '$35.00' );
 } );
 
 it( 'refunds only once per token', function (): void {
@@ -268,4 +298,97 @@ it( 'does not open the refund dialog from the URL when nothing is refundable', f
     Livewire::withQueryParams( [ 'action' => 'refund' ] )
         ->test( RefundsPanel::class, [ 'order' => $this->order ] )
         ->assertSet( 'refunding', false );
+} );
+
+it( 'fully refunds a two-line order through a gateway that cannot refund part of it', function (): void {
+    refundsPanelGateway( partial: false, key: 'full-only' );
+    $this->order->update( [ 'payment_gateway_key' => 'full-only' ] );
+
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startRefund' )
+        ->assertSet( 'amount', 3_500 );
+
+    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasNoErrors();
+
+    expect( $this->order->fresh()->payment_status )->toBe( 'refunded' )
+        ->and( Refund::query()->sole()->items )->toHaveCount( 2 );
+} );
+
+it( 'refuses an amount the order\'s lines can\'t hold, before the engine sees it', function (): void {
+    $this->order->update( [ 'total_amount' => 4_000 ] );
+
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startRefund' )
+        ->set( 'mode', 'amount' )
+        ->set( 'amount', 3_600 );
+
+    $component->call( 'refund', refundsPanelToken( $component ) )
+        ->assertHasErrors( [ 'amount' ] )
+        ->assertSee( 'Only $35.00 can be refunded against the order&#039;s lines.', false );
+
+    expect( Refund::query()->count() )->toBe( 0 );
+} );
+
+it( 'keeps a mismatched refund pending and refuses another until it is reconciled', function (): void {
+    refundsPanelGateway( key: 'short', shortBy: 100 );
+    $this->order->update( [ 'payment_gateway_key' => 'short' ] );
+
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startRefund' )
+        ->set( 'mode', 'amount' )
+        ->set( 'amount', 1_000 );
+
+    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasErrors( [ 'refund' ] );
+
+    $pending = Refund::query()->sole();
+
+    expect( $pending->status )->toBe( Refund::STATUS_PENDING );
+
+    // The pending 1,000 is no longer refundable.
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order->fresh() ] )
+        ->assertSeeHtml( 'data-refund-status="pending"' )
+        ->assertSee( '$25.00' )
+        ->call( 'startRefund' )
+        ->set( 'mode', 'amount' )
+        ->set( 'amount', 3_000 );
+
+    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasErrors( [ 'amount' ] );
+
+    expect( Refund::query()->count() )->toBe( 1 );
+} );
+
+it( 'lets the units of a declined refund be refunded again', function (): void {
+    refundsPanelGateway( declined: 'Try later.', key: 'declining' );
+    $this->order->update( [ 'payment_gateway_key' => 'declining' ] );
+
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startRefund' )
+        ->set( "lines.{$this->item->id}.quantity", 3 );
+
+    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasErrors( [ 'refund' ] );
+
+    $this->order->update( [ 'payment_gateway_key' => 'fake' ] );
+
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order->fresh() ] )
+        ->call( 'startRefund' )
+        ->set( "lines.{$this->item->id}.quantity", 3 )
+        ->assertSet( "lines.{$this->item->id}.amount", 3_000 );
+
+    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasNoErrors();
+
+    expect( Refund::query()->where( 'status', Refund::STATUS_SUCCEEDED )->sole()->amount )->toBe( 3_000 );
+} );
+
+it( 'pre-fills no more than is left on a line after an earlier amount refund', function (): void {
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startRefund' )
+        ->set( 'mode', 'amount' )
+        ->set( 'amount', 500 );
+
+    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasNoErrors();
+
+    Livewire::test( RefundsPanel::class, [ 'order' => $this->order->fresh() ] )
+        ->call( 'startRefund' )
+        ->set( "lines.{$this->item->id}.quantity", 3 )
+        ->assertSet( "lines.{$this->item->id}.amount", 2_500 );
 } );

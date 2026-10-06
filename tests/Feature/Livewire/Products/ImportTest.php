@@ -49,10 +49,28 @@ it( 'renders the upload step', function (): void {
         ->assertSee( 'Download a sample file' );
 } );
 
-it( 'is denied without product.create', function (): void {
+it( 'is denied without product.create or product.update', function (): void {
     Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+    Gate::define( 'ecommerce.product.update', static fn (): bool => false );
 
     Livewire::test( Import::class )->assertForbidden();
+} );
+
+it( 'lets a user who may only update products import updates', function (): void {
+    Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+    Product::factory()->create( [ 'sku' => 'MUG-1', 'name' => 'Mug' ] );
+
+    $component = Livewire::test( Import::class )
+        ->assertOk()
+        ->set( 'csv', importUpload( "sku,name\nMUG-1,Renamed\nNEW-1,New\n" ) )
+        ->call( 'upload' )
+        ->call( 'check' );
+
+    $component->call( 'apply', $component->viewData( 'applyToken' ) );
+
+    expect( Product::query()->where( 'sku', 'MUG-1' )->value( 'name' ) )->toBe( 'Renamed' )
+        ->and( Product::query()->where( 'sku', 'NEW-1' )->exists() )->toBeFalse()
+        ->and( importState( $component )['errors'][0]['message'] )->toBe( 'You may not create products.' );
 } );
 
 it( 'validates the upload by type, size, and row count', function (): void {
@@ -228,7 +246,7 @@ it( 'applies once per token', function (): void {
 
     $component->call( 'apply', $token )
         ->assertSeeHtml( 'data-import-progress="queued"' )
-        ->assertSeeHtml( 'wire:poll.2s' );
+        ->assertSeeHtml( 'wire:poll.5s' );
 
     Queue::assertPushed( RunProductImport::class, 1 );
 
@@ -379,7 +397,7 @@ it( 'lets only one worker run an import at a time', function (): void {
     Queue::fake();
 
     $component = Livewire::test( Import::class )
-        ->set( 'csv', importUpload( "name\nMug\n" ) )
+        ->set( 'csv', importUpload( "name,sku\nMug,MUG-1\n" ) )
         ->call( 'upload' )
         ->call( 'check' );
 
@@ -401,4 +419,35 @@ it( 'lets only one worker run an import at a time', function (): void {
 
     expect( importState( $component )['status'] )->toBe( 'completed' )
         ->and( Product::query()->count() )->toBe( 1 );
+} );
+
+it( 'dry-runs 500 rows in a handful of queries', function (): void {
+    ArtisanPackUI\Ecommerce\Models\TaxClass::query()->firstOrCreate( [ 'key' => 'reduced' ], [ 'label' => 'Reduced' ] );
+    ProductCategory::factory()->create( [ 'slug' => 'kitchen' ] );
+    Product::factory()->create( [ 'sku' => 'MUG-1', 'slug' => 'mug-1' ] );
+
+    $rows = array_map( static fn ( int $n ): array => [
+        'name'          => "Mug {$n}",
+        'sku'           => "MUG-{$n}",
+        'slug'          => "mug-{$n}",
+        'categories'    => 'kitchen',
+        'tax_class_key' => 'reduced',
+        'price_USD'     => '12.50',
+    ], range( 1, 500 ) );
+
+    $context = [];
+
+    Illuminate\Support\Facades\DB::flushQueryLog();
+    Illuminate\Support\Facades\DB::enableQueryLog();
+
+    ArtisanPackUI\EcommerceAdminLivewire\Support\ProductCsv::preload( $rows, $context );
+
+    $actions = array_map( static fn ( array $row ): string => ArtisanPackUI\EcommerceAdminLivewire\Support\ProductCsv::check( $row, $context )['action'], $rows );
+
+    $queries = count( Illuminate\Support\Facades\DB::getQueryLog() );
+    Illuminate\Support\Facades\DB::disableQueryLog();
+
+    expect( $queries )->toBeLessThan( 20 )
+        ->and( $actions[0] )->toBe( 'update' )
+        ->and( array_count_values( $actions ) )->toBe( [ 'update' => 1, 'create' => 499 ] );
 } );

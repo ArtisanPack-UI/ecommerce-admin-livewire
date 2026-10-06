@@ -3,10 +3,12 @@
 declare( strict_types=1 );
 
 use ArtisanPackUI\Ecommerce\Events\DigitalProductUpdated;
+use ArtisanPackUI\Ecommerce\Models\DigitalDownload;
 use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\DigitalFiles\Index;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -21,6 +23,7 @@ beforeEach( function (): void {
 
 afterEach( function (): void {
     ProductMedia::fake( null );
+    DigitalDisks::fakeMediaDisks( null );
 } );
 
 it( 'lists files with product, label, version, location, and streaming flag', function (): void {
@@ -79,6 +82,7 @@ it( 'creates a file on a disk path', function (): void {
 } );
 
 it( 'attaches a file to a variant', function (): void {
+    DigitalDisks::fakeMediaDisks( [ 9 => 'local' ] );
     $course  = Product::factory()->variable()->create();
     $variant = ProductVariant::factory()->create( [ 'product_id' => $course->id ] );
 
@@ -178,6 +182,45 @@ it( 'deletes a file after confirmation', function (): void {
     expect( DigitalFile::query()->find( $file->id ) )->toBeNull();
 } );
 
+it( 'keeps files customers bought when deleting, and offers to archive them', function (): void {
+    $bought = DigitalFile::factory()->create( [ 'label' => 'Bought' ] );
+    $unsold = DigitalFile::factory()->create( [ 'label' => 'Unsold' ] );
+    DigitalDownload::factory()->create( [ 'digital_file_id' => $bought->id ] );
+
+    $component = Livewire::test( Index::class )
+        ->set( 'selected', [ $bought->id, $unsold->id ] )
+        ->call( 'runBulkAction', 'delete' );
+    $component->call( 'confirmBulkAction', $component->viewData( 'tableConfirmToken' ) )
+        ->assertSet( 'keptIds', [ $bought->id ] )
+        ->assertSeeHtml( 'data-kept-files' )
+        ->assertSee( '1 file has buyers and was kept.' );
+
+    expect( DigitalFile::query()->pluck( 'id' )->all() )->toBe( [ $bought->id ] );
+
+    $component->call( 'archiveKept' )->assertSet( 'keptIds', [] );
+
+    expect( $bought->refresh()->archived_at )->not->toBeNull();
+} );
+
+it( 'archives the selected files and edits the archive flag in the drawer', function (): void {
+    $file = DigitalFile::factory()->create();
+
+    Livewire::test( Index::class )
+        ->set( 'selected', [ $file->id ] )
+        ->call( 'runBulkAction', 'archive' );
+
+    expect( $file->refresh()->archived_at )->not->toBeNull();
+
+    Livewire::test( Index::class )
+        ->call( 'edit', $file->id )
+        ->assertSet( 'form.is_archived', true )
+        ->set( 'form.is_archived', false )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( $file->refresh()->archived_at )->toBeNull();
+} );
+
 it( 'does not let a saved version be cleared, which would notify customers', function (): void {
     Event::fake( [ DigitalProductUpdated::class ] );
     $file = DigitalFile::factory()->create( [ 'version' => '1.0' ] );
@@ -191,4 +234,29 @@ it( 'does not let a saved version be cleared, which would notify customers', fun
 
     expect( $file->refresh()->version )->toBe( '1.0' );
     Event::assertNotDispatched( DigitalProductUpdated::class );
+} );
+
+it( 'starts a new file on a disk path, even with the media library installed', function (): void {
+    ProductMedia::fake( true, Tests\Fixtures\Livewire\FakeMediaModal::class );
+
+    Livewire::test( Index::class )->call( 'create' )->assertSet( 'form.source', 'path' );
+} );
+
+it( 'refuses a media-library file on a public disk', function (): void {
+    DigitalDisks::fakeMediaDisks( [ 7 => 'public', 8 => 'local' ] );
+    $product = Product::factory()->create();
+
+    $form = static fn ( int $media ) => Livewire::test( Index::class )
+        ->call( 'create' )
+        ->set( 'form.product_id', $product->id )
+        ->set( 'form.label', 'Guide' )
+        ->set( 'form.source', 'media' )
+        ->set( 'form.media_id', $media )
+        ->call( 'save' );
+
+    $form( 7 )->assertHasErrors( 'form.media_id' )->assertSee( 'That media item is on a public disk.' );
+    $form( 8 )->assertHasNoErrors();
+    $form( 99 )->assertHasErrors( 'form.media_id' );
+
+    expect( DigitalFile::query()->pluck( 'media_id' )->all() )->toBe( [ 8 ] );
 } );

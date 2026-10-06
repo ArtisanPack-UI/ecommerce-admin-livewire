@@ -20,6 +20,7 @@ use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use ArtisanPackUI\Ecommerce\Services\InventoryService;
 use ArtisanPackUI\Ecommerce\Services\ProductService;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 /**
  * Reads and changes a stock row on behalf of the inventory screen.
@@ -153,7 +154,7 @@ final class StockLevels
         return InventoryItem::query()
             ->where( 'stockable_type', $stockable->getMorphClass() )
             ->where( 'stockable_id', $stockable->getKey() )
-            ->whereNull( 'warehouse_id' )
+            ->where( 'warehouse_id', InventoryItem::DEFAULT_WAREHOUSE )
             ->first();
     }
 
@@ -261,9 +262,13 @@ final class StockLevels
         $stockable = $item->stockable;
         $service   = app( ProductService::class );
 
-        if ( null !== $item->warehouse_id ) {
-            // The engine's product writes only reach the row with no warehouse.
-            $item->fill( $settings )->save();
+        if ( InventoryItem::DEFAULT_WAREHOUSE !== (int) $item->warehouse_id ) {
+            // The engine's product writes only reach the default warehouse row.
+            try {
+                app( InventoryService::class )->updateSettings( $item, $settings );
+            } catch ( InvalidArgumentException $exception ) {
+                throw ProductWriteException::field( 'settings', 'invalid', $exception->getMessage() );
+            }
 
             return;
         }

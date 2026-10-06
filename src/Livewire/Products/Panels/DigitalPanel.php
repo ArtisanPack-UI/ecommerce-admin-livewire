@@ -13,6 +13,8 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products\Panels;
 
+use ArtisanPackUI\Ecommerce\Exceptions\DigitalFileInUseException;
+use ArtisanPackUI\Ecommerce\Exceptions\ProductWriteException;
 use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Services\DigitalFileService;
@@ -88,6 +90,7 @@ class DigitalPanel extends ProductTypePanel
                     'label'             => (string) $file->label,
                     'version'           => (string) ( $file->version ?? '' ),
                     'is_streaming_only' => (bool) $file->is_streaming_only,
+                    'is_archived'       => null !== $file->archived_at,
                     'source'            => null === $file->media_id ? 'path' : 'media',
                     'disk'              => (string) ( $file->disk ?? self::defaultDisk() ),
                     'path'              => (string) ( $file->path ?? '' ),
@@ -113,14 +116,16 @@ class DigitalPanel extends ProductTypePanel
     public static function rules( array $state, ?Product $product ): array
     {
         return [
+            ...self::savedVersionRules( $state, $product ),
             'files'                     => [ 'array', 'max:50' ],
             'files.*.label'             => [ 'required', 'string', 'max:255' ],
             'files.*.version'           => [ 'nullable', 'string', 'max:60' ],
             'files.*.is_streaming_only' => [ 'boolean' ],
+            'files.*.is_archived'       => [ 'boolean' ],
             'files.*.source'            => [ 'required', Rule::in( [ 'path', 'media' ] ) ],
             'files.*.disk'              => [ 'nullable', 'required_if:files.*.source,path', Rule::in( self::allowedDisks() ) ],
             'files.*.path'              => [ 'nullable', 'required_if:files.*.source,path', 'string', 'max:1000', self::relativePath() ],
-            'files.*.media_id'          => [ 'nullable', 'required_if:files.*.source,media', 'integer', 'min:1' ],
+            'files.*.media_id'          => [ 'nullable', 'required_if:files.*.source,media', 'integer', 'min:1', DigitalDisks::privateMedia() ],
             'download_limit'            => [ 'nullable', 'integer', 'min:0', 'max:100000' ],
             'download_expiry_days'      => [ 'nullable', 'integer', 'min:0', 'max:36500' ],
             'licensing_enabled'         => [ 'boolean' ],
@@ -168,6 +173,7 @@ class DigitalPanel extends ProductTypePanel
                 'label'             => trim( sanitizeText( (string) $row['label'] ) ),
                 'version'           => '' === trim( (string) ( $row['version'] ?? '' ) ) ? null : trim( sanitizeText( (string) $row['version'] ) ),
                 'is_streaming_only' => (bool) ( $row['is_streaming_only'] ?? false ),
+                'is_archived'       => (bool) ( $row['is_archived'] ?? false ),
                 'media_id'          => $media ? (int) $row['media_id'] : null,
                 'disk'              => $media ? null : (string) $row['disk'],
                 'path'              => $media ? null : ltrim( (string) $row['path'], '/' ),
@@ -183,23 +189,32 @@ class DigitalPanel extends ProductTypePanel
             $keep[] = (int) $file->id;
         }
 
-        DigitalFile::query()
-            ->where( 'product_id', $product->id )
-            ->whereNull( 'product_variant_id' )
-            ->whereNotIn( 'id', $keep )
-            ->get()
-            ->each( static fn ( DigitalFile $file ) => $file->delete() );
+        // The engine refuses to delete a file customers bought; the whole
+        // save rolls back and the panel says to archive it instead.
+        foreach ( DigitalFile::query()->where( 'product_id', $product->id )->whereNull( 'product_variant_id' )->whereNotIn( 'id', $keep )->get() as $file ) {
+            try {
+                $files->delete( $file );
+            } catch ( DigitalFileInUseException $exception ) {
+                throw ProductWriteException::field( 'files', 'file-in-use', __( 'Customers bought ":file", so it can\'t be removed. Keep it and turn on Archived instead.', [ 'file' => (string) $file->label ] ) );
+            }
+        }
+
+        // The engine replaces each top-level meta key, so start from the
+        // stored values and change only the keys this panel manages
+        // (licensing.types, set through the API, must survive).
+        $digital   = self::withManaged( (array) ( $product->meta['digital'] ?? [] ), [
+            'download_limit'       => self::intOrNull( $state['download_limit'] ?? null ),
+            'download_expiry_days' => self::intOrNull( $state['download_expiry_days'] ?? null ),
+        ] );
+        $licensing = self::withManaged( (array) ( $product->meta['licensing'] ?? [] ), [
+            'enabled'           => (bool) ( $state['licensing_enabled'] ?? false ),
+            'activations_limit' => self::intOrNull( $state['activations_limit'] ?? null ),
+            'expires_in_days'   => self::intOrNull( $state['license_expires_in_days'] ?? null ),
+        ] );
 
         app( ProductService::class )->update( $product, [ 'meta' => [
-            'digital'   => array_filter( [
-                'download_limit'       => self::intOrNull( $state['download_limit'] ?? null ),
-                'download_expiry_days' => self::intOrNull( $state['download_expiry_days'] ?? null ),
-            ], static fn ( ?int $value ): bool => null !== $value ),
-            'licensing' => array_filter( [
-                'enabled'           => (bool) ( $state['licensing_enabled'] ?? false ),
-                'activations_limit' => self::intOrNull( $state['activations_limit'] ?? null ),
-                'expires_in_days'   => self::intOrNull( $state['license_expires_in_days'] ?? null ),
-            ], static fn ( mixed $value ): bool => null !== $value ),
+            'digital'   => $digital,
+            'licensing' => $licensing,
         ] ] );
     }
 
@@ -219,7 +234,8 @@ class DigitalPanel extends ProductTypePanel
             'label'             => '',
             'version'           => '',
             'is_streaming_only' => false,
-            'source'            => ProductMedia::libraryInstalled() ? 'media' : 'path',
+            'is_archived'       => false,
+            'source'            => 'path',
             'disk'              => self::defaultDisk(),
             'path'              => '',
             'media_id'          => null,
@@ -348,6 +364,69 @@ class DigitalPanel extends ProductTypePanel
      *
      * @return int|null
      */
+    /**
+     * `$stored` with the managed keys set (or removed when null), other keys
+     * kept as they were.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<string, mixed>  $stored   The stored meta section.
+     * @param  array<string, mixed>  $managed  The managed keys' new values.
+     *
+     * @return array<string, mixed>
+     */
+    protected static function withManaged( array $stored, array $managed ): array
+    {
+        foreach ( $managed as $key => $value ) {
+            if ( null === $value ) {
+                unset( $stored[ $key ] );
+            } else {
+                $stored[ $key ] = $value;
+            }
+        }
+
+        return $stored;
+    }
+
+    /**
+     * A version can be changed but not cleared on a saved file that has
+     * one: the engine emails buyers whenever a saved version changes,
+     * including to nothing. The stored versions load in one query.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<string, mixed>  $state    Panel state.
+     * @param  Product|null          $product  The saved product.
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected static function savedVersionRules( array $state, ?Product $product ): array
+    {
+        $files = array_values( (array) ( $state['files'] ?? [] ) );
+        $ids   = array_values( array_filter( array_map( static fn ( mixed $row ): ?int => is_array( $row ) && is_numeric( $row['id'] ?? null ) ? (int) $row['id'] : null, $files ) ) );
+
+        if ( null === $product || [] === $ids ) {
+            return [];
+        }
+
+        $versioned = DigitalFile::query()
+            ->where( 'product_id', $product->id )
+            ->whereKey( $ids )
+            ->whereNotNull( 'version' )
+            ->pluck( 'id' )
+            ->map( static fn ( mixed $id ): int => (int) $id )
+            ->all();
+        $rules     = [];
+
+        foreach ( $files as $index => $row ) {
+            if ( is_array( $row ) && is_numeric( $row['id'] ?? null ) && in_array( (int) $row['id'], $versioned, true ) ) {
+                $rules[ "files.{$index}.version" ] = [ 'required', 'string', 'max:60' ];
+            }
+        }
+
+        return $rules;
+    }
+
     protected static function intOrNull( mixed $value ): ?int
     {
         return is_numeric( $value ) ? (int) $value : null;

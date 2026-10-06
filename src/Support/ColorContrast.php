@@ -117,6 +117,22 @@ final class ColorContrast
     }
 
     /**
+     * A colour safe to print into a `style` attribute: a six-digit hex
+     * colour, or `transparent` for anything else (the engine API checks only
+     * the length).
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed  $color  The stored colour.
+     *
+     * @return string
+     */
+    public static function safeHex( mixed $color ): string
+    {
+        return is_string( $color ) && 1 === preg_match( '/^#[0-9A-Fa-f]{6}$/D', $color ) ? $color : 'transparent';
+    }
+
+    /**
      * Whether two colours reach {@see self::MIN_RATIO}, through the
      * accessibility package when it is booted.
      *

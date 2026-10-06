@@ -87,7 +87,7 @@ class CouponsPanel extends Component
     public const CODE_PATTERN = '/^[A-Z0-9][A-Z0-9_-]*$/D';
 
     /**
-     * The longest code the `coupons.code` column holds.
+     * The longest code the `ecommerce_coupons.code` column holds.
      *
      * @since 1.0.0
      *
@@ -239,6 +239,10 @@ class CouponsPanel extends Component
     public function addCode(): void
     {
         $this->authorizeEcommerce( 'create', Coupon::class );
+
+        if ( ! $this->acceptsCodes() ) {
+            return;
+        }
 
         $this->newCode = Coupon::normalize( $this->newCode );
 
@@ -420,6 +424,10 @@ class CouponsPanel extends Component
     {
         $this->authorizeEcommerce( 'create', Coupon::class );
 
+        if ( ! $this->acceptsCodes() ) {
+            return;
+        }
+
         $this->generatePrefix = Coupon::normalize( $this->generatePrefix );
 
         $this->validate(
@@ -488,7 +496,12 @@ class CouponsPanel extends Component
     public function exportCodes(): StreamedResponse
     {
         $promotion = $this->promotion();
-        $rows      = [];
+
+        // The codes themselves grant discounts, so exporting them needs the
+        // right to change the promotion, not just to see it.
+        $this->authorizeEcommerce( 'update', $promotion );
+
+        $rows = [];
 
         foreach ( Coupon::query()->where( 'promotion_id', $this->promotionId )->orderBy( 'code' )->lazy( 500 ) as $coupon ) {
             $rows[] = [ (string) $coupon->code, $coupon->created_at?->format( DATE_ATOM ) ?? '' ];
@@ -523,6 +536,7 @@ class CouponsPanel extends Component
             'canDelete'   => $this->canEcommerce( 'delete', new Coupon( [ 'promotion_id' => $this->promotionId ] ) ),
             'deleteToken' => null === $this->deletingId ? null : $this->actionToken( 'delete-code', $promotion ),
             'isCoupon'    => Promotion::SOURCE_COUPON === $promotion->source_type,
+            'canExport'   => $this->canEcommerce( 'update', $promotion ),
         ] );
     }
 
@@ -646,6 +660,25 @@ class CouponsPanel extends Component
      *
      * @return Promotion
      */
+    /**
+     * Whether the promotion takes codes; adds an error when it doesn't.
+     * Automatic promotions apply without a code, so codes would do nothing.
+     *
+     * @since 1.0.0
+     *
+     * @return bool
+     */
+    protected function acceptsCodes(): bool
+    {
+        if ( Promotion::SOURCE_COUPON === $this->promotion()->source_type ) {
+            return true;
+        }
+
+        $this->addError( 'newCode', __( 'This promotion applies automatically, so it has no codes. Make it a coupon promotion first.' ) );
+
+        return false;
+    }
+
     protected function promotion(): Promotion
     {
         return Promotion::query()->findOrFail( $this->promotionId );

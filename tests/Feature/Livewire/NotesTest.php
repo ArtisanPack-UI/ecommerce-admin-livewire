@@ -125,16 +125,27 @@ it( 'adds customer notes without a visibility toggle', function (): void {
         ->and( ActivityLogEntry::query()->where( 'event_type', 'note.added' )->exists() )->toBeTrue();
 } );
 
-it( 'lets the author delete their own note', function (): void {
+it( 'lets the author delete their own note while they may update the order', function (): void {
     $note = OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Mine' ] );
-
-    Gate::define( 'ecommerce.order.update', static fn (): bool => false );
 
     Livewire::test( Notes::class, [ 'subject' => $this->order ] )
         ->call( 'deleteNote', $note->id )
         ->assertDispatched( Notes::NOTES_CHANGED_EVENT );
 
     expect( OrderNote::query()->count() )->toBe( 0 );
+} );
+
+it( 'refuses an author who lost update on the order', function (): void {
+    $note = OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Mine' ] );
+
+    Gate::define( 'ecommerce.order.update', static fn (): bool => false );
+
+    Livewire::test( Notes::class, [ 'subject' => $this->order ] )
+        ->assertDontSeeHtml( 'deleteNote(' )
+        ->call( 'deleteNote', $note->id )
+        ->assertForbidden();
+
+    expect( OrderNote::query()->count() )->toBe( 1 );
 } );
 
 it( 'refuses to delete someone else\'s note without update', function (): void {

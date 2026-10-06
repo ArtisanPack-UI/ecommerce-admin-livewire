@@ -202,5 +202,6 @@ it( 'will not delete a column with cards', function (): void {
     $component->call( 'delete', $component->viewData( 'deleteToken' ) );
 
     expect( KanbanColumn::query()->whereKey( $column->id )->exists() )->toBeTrue()
-        ->and( sentToasts( $component ) )->toContain( 'Move the cards out of this column before deleting it.' );
+        ->and( sentToasts( $component ) )->toContain( 'Move the cards out of this column before deleting it.' )
+        ->and( ArtisanPackUI\Ecommerce\Models\IdempotencyRecord::query()->count() )->toBe( 0 );
 } );

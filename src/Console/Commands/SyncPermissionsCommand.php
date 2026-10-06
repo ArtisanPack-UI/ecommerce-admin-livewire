@@ -17,27 +17,35 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\RbacPermissions;
 use Illuminate\Console\Command;
 
 /**
- * Registers the engine abilities as cms-framework RBAC permissions.
+ * Deprecated alias of the engine's `ecommerce:sync-permissions`.
+ *
+ * The engine now owns the ability catalog and the cms-framework sync. This
+ * command prints a notice and forwards to it.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
  *
  * @since      1.0.0
+ * @deprecated 1.0.0 Use `ecommerce:sync-permissions`.
  */
 class SyncPermissionsCommand extends Command
 {
     /**
+     * @since 1.0.0
+     *
      * @var string
      */
     protected $signature = 'ecommerce-admin:sync-permissions';
 
     /**
+     * @since 1.0.0
+     *
      * @var string
      */
-    protected $description = 'Register the ecommerce abilities as cms-framework permissions and create the shop-manager role.';
+    protected $description = 'Deprecated: use ecommerce:sync-permissions. Registers the ecommerce abilities as cms-framework permissions.';
 
     /**
-     * Runs the command.
+     * Forwards to the engine command.
      *
      * @since 1.0.0
      *
@@ -45,20 +53,14 @@ class SyncPermissionsCommand extends Command
      */
     public function handle(): int
     {
+        $this->components->warn( __( 'ecommerce-admin:sync-permissions is deprecated. Run ecommerce:sync-permissions instead.' ) );
+
         if ( ! RbacPermissions::available() ) {
             $this->components->warn( __( 'cms-framework is not installed, so there are no RBAC permissions to register. Grant access with the ecommerce.admin gate instead.' ) );
 
             return self::SUCCESS;
         }
 
-        $count = RbacPermissions::register();
-
-        $this->components->info( trans_choice(
-            'Registered :count ecommerce permission and the :role role.|Registered :count ecommerce permissions and the :role role.',
-            $count,
-            [ 'count' => $count, 'role' => RbacPermissions::ROLE ],
-        ) );
-
-        return self::SUCCESS;
+        return $this->call( 'ecommerce:sync-permissions' );
     }
 }

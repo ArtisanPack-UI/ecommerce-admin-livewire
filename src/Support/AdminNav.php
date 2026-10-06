@@ -13,6 +13,8 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
+use ArrayObject;
+use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +31,13 @@ use Illuminate\Support\Facades\Route;
  *   is registered, so entries for screens that have not shipped stay hidden.
  * - A null `permission` (the dashboard) is visible to anyone who can reach
  *   the admin, but never grants access on its own.
+ * - Satellites register entries and sections with the engine's
+ *   `AdminMenuRegistry`. A registry entry's `badge` is an already-resolved
+ *   count (`badgeCount`); a core entry's `badge` is a {@see NavBadges} key.
+ *
+ * The entries are built once per request: the access middleware runs on
+ * every Livewire update, and resolving the registry runs every satellite's
+ * badge query.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -65,6 +74,16 @@ final class AdminNav
     public const MENU_REGISTRY = 'ArtisanPackUI\\Ecommerce\\Registries\\AdminMenuRegistry';
 
     /**
+     * The container key of the per-request memo (a scoped binding, so queue
+     * workers and Octane flush it between jobs and requests).
+     *
+     * @since 1.0.0
+     *
+     * @var string
+     */
+    public const MEMO = 'artisanpack.ecommerce-admin-livewire.nav.memo';
+
+    /**
      * The navigation sections.
      *
      * Satellites add sections through the `ap.ecommerceAdminLivewire.nav.sections`
@@ -76,15 +95,23 @@ final class AdminNav
      */
     public static function sections(): array
     {
-        return (array) applyFilters( 'ap.ecommerceAdminLivewire.nav.sections', [
-            self::TOP       => [ 'label' => null, 'position' => 0 ],
-            'orders'        => [ 'label' => __( 'Orders' ), 'position' => 10 ],
-            'catalog'       => [ 'label' => __( 'Catalog' ), 'position' => 20 ],
-            'customers'     => [ 'label' => __( 'Customers' ), 'position' => 30 ],
-            'marketing'     => [ 'label' => __( 'Marketing' ), 'position' => 40 ],
-            'reports'       => [ 'label' => __( 'Reports' ), 'position' => 50 ],
-            'configuration' => [ 'label' => __( 'Configuration' ), 'position' => 60 ],
-        ] );
+        return self::memo( 'sections', static function (): array {
+            $sections = [
+                self::TOP       => [ 'label' => null, 'position' => 0 ],
+                'orders'        => [ 'label' => __( 'Orders' ), 'position' => 10 ],
+                'catalog'       => [ 'label' => __( 'Catalog' ), 'position' => 20 ],
+                'customers'     => [ 'label' => __( 'Customers' ), 'position' => 30 ],
+                'marketing'     => [ 'label' => __( 'Marketing' ), 'position' => 40 ],
+                'reports'       => [ 'label' => __( 'Reports' ), 'position' => 50 ],
+                'configuration' => [ 'label' => __( 'Configuration' ), 'position' => 60 ],
+            ];
+
+            foreach ( self::registrySections() as $section ) {
+                $sections[ $section['key'] ] ??= [ 'label' => $section['label'], 'position' => $section['position'] ];
+            }
+
+            return (array) applyFilters( 'ap.ecommerceAdminLivewire.nav.sections', $sections );
+        } );
     }
 
     /**
@@ -101,36 +128,22 @@ final class AdminNav
      */
     public static function items(): array
     {
-        $sections = self::sections();
-        $items    = [];
+        return self::memo( 'items', static fn (): array => self::buildItems() );
+    }
 
-        $raw = (array) applyFilters( 'ap.ecommerceAdminLivewire.nav.items', [ ...self::coreItems(), ...self::registryItems() ] );
-
-        foreach ( $raw as $item ) {
-            if ( ! is_array( $item ) || ! isset( $item['key'], $item['label'], $item['route'] ) ) {
-                continue;
-            }
-
-            $item['permission'] = self::permission( $item['permission'] ?? null, (string) $item['key'] );
-
-            if ( false === $item['permission'] ) {
-                continue;
-            }
-
-            $items[ (string) $item['key'] ] = self::normalize( $item );
+    /**
+     * Drops the entries built for this request, so the next call rebuilds
+     * them (after a satellite registers an entry mid-request, for example).
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public static function flush(): void
+    {
+        if ( app()->bound( self::MEMO ) ) {
+            app( self::MEMO )->exchangeArray( [] );
         }
-
-        $items = array_values( $items );
-
-        usort( $items, static fn ( array $a, array $b ): int => [
-            $sections[ $a['section'] ]['position'] ?? PHP_INT_MAX,
-            $a['position'],
-        ] <=> [
-            $sections[ $b['section'] ]['position'] ?? PHP_INT_MAX,
-            $b['position'],
-        ] );
-
-        return $items;
     }
 
     /**
@@ -150,7 +163,7 @@ final class AdminNav
 
         return array_values( array_filter(
             self::items(),
-            static fn ( array $item ): bool => Route::has( $item['route'] )
+            static fn ( array $item ): bool => ( Route::has( $item['route'] ) || null !== $item['url'] )
                 && ( null === $item['permission'] || Authorization::allows( $user, $item['permission'] ) ),
         ) );
     }
@@ -200,6 +213,14 @@ final class AdminNav
             return false;
         }
 
+        // The core entries first: most admins hold one of them, so the
+        // check never has to resolve satellite entries (and their badges).
+        foreach ( self::coreItems() as $item ) {
+            if ( null !== $item['permission'] && Authorization::allows( $user, $item['permission'] ) ) {
+                return true;
+            }
+        }
+
         foreach ( self::items() as $item ) {
             if ( null !== $item['permission'] && Authorization::allows( $user, $item['permission'] ) ) {
                 return true;
@@ -220,7 +241,11 @@ final class AdminNav
      */
     public static function url( array $item ): string
     {
-        return Route::has( $item['route'] ) ? route( $item['route'], $item['parameters'] ?? [] ) : '#';
+        if ( Route::has( $item['route'] ) ) {
+            return route( $item['route'], $item['parameters'] ?? [] );
+        }
+
+        return $item['url'] ?? '#';
     }
 
     /**
@@ -246,6 +271,47 @@ final class AdminNav
         $base = preg_replace( '/\.(index|show)$/', '', $route );
 
         return $base !== $route && request()->routeIs( $base . '.*' );
+    }
+
+    /**
+     * Builds every entry, sorted by section and position.
+     *
+     * @since 1.0.0
+     *
+     * @return array<int, array{key: string, label: string, icon: string, route: string, url: string|null, parameters: array<string, mixed>, position: int, permission: string|null, section: string, badge: string|null, badgeCount: int|null}>
+     */
+    private static function buildItems(): array
+    {
+        $sections = self::sections();
+        $items    = [];
+
+        $raw = (array) applyFilters( 'ap.ecommerceAdminLivewire.nav.items', [ ...self::coreItems(), ...self::registryItems() ] );
+
+        foreach ( $raw as $item ) {
+            if ( ! is_array( $item ) || ! isset( $item['key'], $item['label'], $item['route'] ) ) {
+                continue;
+            }
+
+            $item['permission'] = self::permission( $item['permission'] ?? null, (string) $item['key'] );
+
+            if ( false === $item['permission'] ) {
+                continue;
+            }
+
+            $items[ (string) $item['key'] ] = self::normalize( $item );
+        }
+
+        $items = array_values( $items );
+
+        usort( $items, static fn ( array $a, array $b ): int => [
+            $sections[ $a['section'] ]['position'] ?? PHP_INT_MAX,
+            $a['position'],
+        ] <=> [
+            $sections[ $b['section'] ]['position'] ?? PHP_INT_MAX,
+            $b['position'],
+        ] );
+
+        return $items;
     }
 
     /**
@@ -292,10 +358,9 @@ final class AdminNav
     }
 
     /**
-     * Entries satellites registered with the engine's `AdminMenuRegistry`.
-     *
-     * The registry is planned for engine 1.0 (engine issue #144); until it
-     * exists the `ap.ecommerceAdminLivewire.nav.items` filter does the same job.
+     * Entries satellites registered with the engine's `AdminMenuRegistry`
+     * (engine issue #144). The registry resolves each entry's badge to a
+     * count, which is carried as `badgeCount`.
      *
      * @since 1.0.0
      *
@@ -313,10 +378,68 @@ final class AdminNav
             return [];
         }
 
-        return array_values( array_map(
-            static fn ( mixed $item ): array => is_object( $item ) && method_exists( $item, 'toArray' ) ? $item->toArray() : (array) $item,
-            (array) $registry->all(),
-        ) );
+        return array_values( array_map( static function ( mixed $item ): array {
+            $item = is_object( $item ) && method_exists( $item, 'toArray' ) ? $item->toArray() : (array) $item;
+
+            if ( is_int( $item['badge'] ?? null ) ) {
+                $item['badgeCount'] = $item['badge'];
+                $item['badge']      = null;
+            }
+
+            return $item;
+        }, (array) $registry->all() ) );
+    }
+
+    /**
+     * Sections satellites registered with the engine's `AdminMenuRegistry`.
+     *
+     * @since 1.0.0
+     *
+     * @return array<int, array{key: string, label: string, position: int}>
+     */
+    private static function registrySections(): array
+    {
+        if ( ! class_exists( self::MENU_REGISTRY ) || ! app()->bound( self::MENU_REGISTRY ) ) {
+            return [];
+        }
+
+        $registry = app( self::MENU_REGISTRY );
+
+        if ( ! method_exists( $registry, 'sections' ) ) {
+            return [];
+        }
+
+        return array_values( array_filter( array_map(
+            static fn ( mixed $section ): ?array => is_array( $section ) && isset( $section['key'], $section['label'] )
+                ? [ 'key' => (string) $section['key'], 'label' => (string) $section['label'], 'position' => (int) ( $section['position'] ?? 100 ) ]
+                : null,
+            (array) $registry->sections(),
+        ) ) );
+    }
+
+    /**
+     * A value built once per request (per locale), held in a scoped
+     * container binding so it never outlives the request, job, or test.
+     *
+     * @since 1.0.0
+     *
+     * @param  string           $key    Memo key.
+     * @param  Closure(): array<mixed>  $build  Builds the value.
+     *
+     * @return array<mixed>
+     */
+    private static function memo( string $key, Closure $build ): array
+    {
+        $app = app();
+
+        if ( ! $app->bound( self::MEMO ) ) {
+            $app->scoped( self::MEMO, static fn (): ArrayObject => new ArrayObject() );
+        }
+
+        $memo  = $app->make( self::MEMO );
+        $index = $key . ':' . $app->getLocale();
+
+        return $memo[ $index ] ??= $build();
     }
 
     /**
@@ -370,7 +493,9 @@ final class AdminNav
             'position'   => (int) ( $item['position'] ?? 100 ),
             'permission' => isset( $item['permission'] ) && '' !== $item['permission'] ? (string) $item['permission'] : null,
             'section'    => isset( $item['section'] ) && array_key_exists( (string) $item['section'], self::sections() ) ? (string) $item['section'] : self::TOP,
-            'badge'      => isset( $item['badge'] ) ? (string) $item['badge'] : null,
+            'url'        => isset( $item['url'] ) && is_string( $item['url'] ) && '' !== $item['url'] && ! Route::has( (string) $item['route'] ) ? $item['url'] : null,
+            'badge'      => isset( $item['badge'] ) && is_string( $item['badge'] ) && '' !== $item['badge'] ? $item['badge'] : null,
+            'badgeCount' => isset( $item['badgeCount'] ) && is_int( $item['badgeCount'] ) ? $item['badgeCount'] : null,
         ];
     }
 }

@@ -416,7 +416,7 @@ class Index extends Component
         $name = (string) $category->name;
 
         try {
-            $deleted = $this->withActionToken( $token, 'delete', function () use ( $category, $hasChildren ): bool {
+            $deleted = $this->withActionToken( $token, 'delete', fn (): bool => DB::transaction( function () use ( $category, $hasChildren ): bool {
                 if ( $hasChildren && 'other' === $this->childrenTarget ) {
                     $service = app( ProductCategoryService::class );
                     $target  = (int) $this->childrenTargetId;
@@ -430,7 +430,7 @@ class Index extends Component
                 app( ProductCategoryService::class )->delete( $category );
 
                 return true;
-            }, $category );
+            } ), $category );
         } catch ( ProductWriteException $exception ) {
             // The transaction rolled back the child moves and the delete.
             $this->cancelDelete();

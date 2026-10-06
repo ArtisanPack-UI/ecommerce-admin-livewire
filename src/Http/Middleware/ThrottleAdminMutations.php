@@ -28,7 +28,9 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Registered on the admin routes as `ecommerce-admin.throttle` and as
  * Livewire persistent middleware, so it re-runs on every update request from
- * an admin page. The page loads themselves are not counted.
+ * an admin page. The page loads themselves are not counted, and neither are
+ * updates that only read: no property updates, and only calls listed in
+ * {@see self::READ_CALLS} (polls, picker searches, sorting, paging).
  *
  * Over the limit it answers 429 with `Retry-After` and a JSON body
  * (`message`, `retry_after`); the page assets turn that into a toast. The
@@ -61,6 +63,15 @@ class ThrottleAdminMutations
     public const LIMITER = 'ecommerce.admin.mutate';
 
     /**
+     * Calls that only read, so a request made of them isn't counted.
+     *
+     * @since 1.0.0
+     *
+     * @var array<int, string>
+     */
+    public const READ_CALLS = [ '$refresh', 'searchPicker', 'sort', 'gotoPage', 'nextPage', 'previousPage', 'setPage' ];
+
+    /**
      * @since 1.0.0
      *
      * @param  RateLimiter  $limiter  The rate limiter.
@@ -83,7 +94,7 @@ class ThrottleAdminMutations
      */
     public function handle( Request $request, Closure $next ): Response
     {
-        if ( ! self::isLivewireUpdate( $request ) ) {
+        if ( ! self::isLivewireUpdate( $request ) || self::onlyReads( $request ) ) {
             return $next( $request );
         }
 
@@ -161,6 +172,41 @@ class ThrottleAdminMutations
      *
      * @return array<int, Limit>
      */
+    /**
+     * Whether every component in the update only reads: it sends no
+     * property updates, and every call it makes is one of
+     * {@see self::READ_CALLS}. A commit with no calls at all is a read too:
+     * it is how Livewire 3 sends `wire:poll` and `$refresh`.
+     *
+     * @since 1.0.0
+     *
+     * @param  Request  $request  The Livewire update request.
+     *
+     * @return bool
+     */
+    public static function onlyReads( Request $request ): bool
+    {
+        $components = $request->input( 'components' );
+
+        if ( ! is_array( $components ) || [] === $components ) {
+            return false;
+        }
+
+        foreach ( $components as $component ) {
+            if ( ! is_array( $component ) || [] !== (array) ( $component['updates'] ?? [] ) ) {
+                return false;
+            }
+
+            foreach ( (array) ( $component['calls'] ?? [] ) as $call ) {
+                if ( ! is_array( $call ) || ! in_array( $call['method'] ?? null, self::READ_CALLS, true ) ) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     private static function limits( mixed $result ): array
     {
         $limits = $result instanceof Limit ? [ $result ] : (array) $result;

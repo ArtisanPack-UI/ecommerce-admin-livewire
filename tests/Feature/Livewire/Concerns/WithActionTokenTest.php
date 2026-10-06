@@ -44,6 +44,15 @@ it( 'runs the write once when the same token is submitted twice', function (): v
         ->and( sentToasts( $component ) )->toContain( 'That action was already submitted.' );
 } );
 
+it( 'runs the write at the caller\'s transaction level, not inside a transaction of its own', function (): void {
+    $component = Livewire::test( TokenScreen::class, [ 'orderId' => $this->order->id ] );
+    $baseline  = Illuminate\Support\Facades\DB::transactionLevel();
+
+    $component->call( 'refund', refundToken( $component ) );
+
+    expect( $component->get( 'levelInside' ) )->toBe( $baseline );
+} );
+
 it( 'mints a fresh token on every render, so a deliberate second action works', function (): void {
     $component = Livewire::test( TokenScreen::class, [ 'orderId' => $this->order->id ] );
 

@@ -69,7 +69,16 @@ final class ProductCsv
      *
      * @var array<int, string>
      */
-    public const PRODUCT_COLUMNS = [ 'type', 'name', 'slug', 'sku', 'status', 'short_description', 'description', 'barcode', 'weight', 'weight_unit', 'length', 'width', 'height', 'dim_unit', 'is_taxable', 'tax_class_key' ];
+    public const PRODUCT_COLUMNS = [ 'type', 'name', 'slug', 'sku', 'status', 'short_description', 'description', 'barcode', 'weight', 'weight_unit', 'length', 'width', 'height', 'dim_unit', 'is_taxable', 'tax_class_key', 'is_featured', 'position' ];
+
+    /**
+     * The largest catalog position (the column is an unsigned int).
+     *
+     * @since 1.0.0
+     *
+     * @var int
+     */
+    public const MAX_POSITION = 4294967295;
 
     /**
      * Stock columns.
@@ -87,7 +96,7 @@ final class ProductCsv
      *
      * @var array<int, string>
      */
-    public const BOOLEAN_COLUMNS = [ 'is_taxable', 'track_inventory', 'allow_backorder' ];
+    public const BOOLEAN_COLUMNS = [ 'is_taxable', 'track_inventory', 'allow_backorder', 'is_featured' ];
 
     /**
      * Columns read as decimal numbers.
@@ -97,6 +106,16 @@ final class ProductCsv
      * @var array<int, string>
      */
     public const DECIMAL_COLUMNS = [ 'weight', 'length', 'width', 'height' ];
+
+    /**
+     * A decimal cell: up to 9 digits, then up to 4 decimals after a dot or
+     * a comma.
+     *
+     * @since 1.0.0
+     *
+     * @var string
+     */
+    public const DECIMAL_PATTERN = '/^\d{1,9}([.,]\d{1,4})?$/D';
 
     /**
      * Every column, keyed by name, with its label.
@@ -126,6 +145,8 @@ final class ProductCsv
             'dim_unit'            => __( 'Dimension unit' ),
             'is_taxable'          => __( 'Taxable' ),
             'tax_class_key'       => __( 'Tax class' ),
+            'is_featured'         => __( 'Featured' ),
+            'position'            => __( 'Catalog position' ),
             'track_inventory'     => __( 'Track inventory' ),
             'quantity_on_hand'    => __( 'Quantity on hand' ),
             'allow_backorder'     => __( 'Allow backorders' ),
@@ -281,7 +302,7 @@ final class ProductCsv
         try {
             $action = self::resolve( $row, $context );
 
-            self::validateValues( $row, $action );
+            self::validateValues( $row, $action, $context['lookup'] ?? null );
 
             foreach ( [ self::value( $row, 'sku' ), self::value( $row, 'variant_sku' ) ] as $index => $sku ) {
                 if ( '' === $sku || ( 0 === $index && self::isVariantRow( $row ) ) ) {
@@ -324,6 +345,83 @@ final class ProductCsv
      *
      * @return string The action taken: `create`, `update`, `create-variant`, or `update-variant`.
      */
+    /**
+     * Loads what a dry run of `$rows` looks up (the products, variants, tax
+     * classes, and categories the rows name) in a few queries per 500 rows,
+     * into `$context['lookup']` for {@see self::check()}. Without it each
+     * row costs about eight queries.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<int, array<string, string>>  $rows     Mapped rows.
+     * @param  array<string, mixed>               $context  Dry-run context, filled in.
+     *
+     * @return void
+     */
+    public static function preload( array $rows, array &$context ): void
+    {
+        $lookup = [ 'skus' => [], 'slugs' => [], 'variants' => [], 'taxClasses' => [], 'categories' => [] ];
+
+        foreach ( array_chunk( $rows, 500 ) as $chunk ) {
+            $skus       = [];
+            $slugs      = [];
+            $taxClasses = [];
+            $categories = [];
+
+            foreach ( $chunk as $row ) {
+                foreach ( [ self::value( $row, 'sku' ), self::value( $row, 'variant_sku' ) ] as $sku ) {
+                    if ( '' !== $sku ) {
+                        $skus[] = $sku;
+                    }
+                }
+
+                if ( '' !== self::value( $row, 'slug' ) ) {
+                    $slugs[] = Str::slug( self::value( $row, 'slug' ) );
+                }
+
+                if ( '' !== self::value( $row, 'tax_class_key' ) ) {
+                    $taxClasses[] = self::value( $row, 'tax_class_key' );
+                }
+
+                array_push( $categories, ...self::listValue( $row, 'categories' ) );
+            }
+
+            if ( [] !== $skus || [] !== $slugs ) {
+                $products = Product::query()
+                    ->where( static fn ( Builder $query ) => $query->whereIn( 'sku', array_values( array_unique( $skus ) ) )->orWhereIn( 'slug', array_values( array_unique( $slugs ) ) ) )
+                    ->get();
+
+                foreach ( $products as $product ) {
+                    if ( null !== $product->sku && '' !== (string) $product->sku ) {
+                        $lookup['skus'][ (string) $product->sku ] = $product;
+                    }
+
+                    $lookup['slugs'][ (string) $product->slug ] = $product;
+                }
+            }
+
+            if ( [] !== $skus ) {
+                foreach ( ProductVariant::query()->with( 'product' )->whereIn( 'sku', array_values( array_unique( $skus ) ) )->get() as $variant ) {
+                    $lookup['variants'][ (string) $variant->sku ] = $variant;
+                }
+            }
+
+            if ( [] !== $taxClasses ) {
+                foreach ( TaxClass::query()->whereIn( 'key', array_values( array_unique( $taxClasses ) ) )->pluck( 'key' ) as $key ) {
+                    $lookup['taxClasses'][ (string) $key ] = true;
+                }
+            }
+
+            if ( [] !== $categories ) {
+                foreach ( ProductCategory::query()->whereIn( 'slug', array_values( array_unique( $categories ) ) )->pluck( 'slug' ) as $slug ) {
+                    $lookup['categories'][ (string) $slug ] = true;
+                }
+            }
+        }
+
+        $context['lookup'] = $lookup;
+    }
+
     public static function apply( array $row, ?Authenticatable $user ): string
     {
         $context = [];
@@ -397,7 +495,8 @@ final class ProductCsv
      */
     private static function resolve( array $row, array $context ): array
     {
-        $product = self::matchProduct( $row );
+        $lookup  = $context['lookup'] ?? null;
+        $product = self::matchProduct( $row, $lookup );
 
         if ( self::isVariantRow( $row ) ) {
             $variantSku = self::value( $row, 'variant_sku' );
@@ -406,7 +505,9 @@ final class ProductCsv
                 throw new InvalidArgumentException( __( 'A variant row needs a variant SKU.' ) );
             }
 
-            $variant = ProductVariant::query()->with( 'product' )->where( 'sku', $variantSku )->first();
+            $variant = null === $lookup
+                ? ProductVariant::query()->with( 'product' )->where( 'sku', $variantSku )->first()
+                : self::fromLookup( $lookup['variants'], $variantSku );
 
             if ( null !== $variant ) {
                 self::assertEditable( $variant->product );
@@ -414,7 +515,7 @@ final class ProductCsv
                 return [ 'action' => 'update-variant', 'product' => $variant->product, 'variant' => $variant ];
             }
 
-            if ( Product::query()->where( 'sku', $variantSku )->exists() ) {
+            if ( null === $lookup ? Product::query()->where( 'sku', $variantSku )->exists() : null !== self::fromLookup( $lookup['skus'], $variantSku ) ) {
                 throw new InvalidArgumentException( __( 'Another product or variant already uses this SKU.' ) );
             }
 
@@ -447,6 +548,12 @@ final class ProductCsv
             return [ 'action' => 'update', 'product' => null, 'variant' => null ];
         }
 
+        // Without either, a resumed import (which can replay a few rows)
+        // couldn't tell it had already created the product.
+        if ( [] === $pending ) {
+            throw new InvalidArgumentException( __( 'A new product needs a SKU or a slug.' ) );
+        }
+
         return [ 'action' => 'create', 'product' => null, 'variant' => null ];
     }
 
@@ -462,7 +569,7 @@ final class ProductCsv
      *
      * @return void
      */
-    private static function validateValues( array $row, array $action ): void
+    private static function validateValues( array $row, array $action, ?array $lookup = null ): void
     {
         $creating = 'create' === $action['action'];
         $type     = self::value( $row, 'type' );
@@ -490,7 +597,9 @@ final class ProductCsv
         foreach ( self::DECIMAL_COLUMNS as $column ) {
             $value = self::value( $row, $column );
 
-            if ( '' !== $value && ( ! is_numeric( $value ) || (float) $value < 0 ) ) {
+            // Up to 9 digits and 4 decimals, with a dot or a comma: no
+            // exponents ("1e308"), signs, or grouping.
+            if ( '' !== $value && 1 !== preg_match( self::DECIMAL_PATTERN, $value ) ) {
                 throw new InvalidArgumentException( __( 'Column ":column" must be a number.', [ 'column' => $column ] ) );
             }
         }
@@ -503,13 +612,22 @@ final class ProductCsv
             }
         }
 
+        $position = self::value( $row, 'position' );
+
+        if ( '' !== $position && ( 1 !== preg_match( '/^\d{1,10}$/', $position ) || (int) $position > self::MAX_POSITION ) ) {
+            throw new InvalidArgumentException( __( 'Column ":column" must be a whole number from 0 to :max.', [ 'column' => 'position', 'max' => self::MAX_POSITION ] ) );
+        }
+
         $taxClass = self::value( $row, 'tax_class_key' );
 
-        if ( '' !== $taxClass && ! TaxClass::query()->where( 'key', $taxClass )->exists() ) {
+        if ( '' !== $taxClass && ! ( null === $lookup ? TaxClass::query()->where( 'key', $taxClass )->exists() : null !== self::fromLookup( $lookup['taxClasses'], $taxClass ) ) ) {
             throw new InvalidArgumentException( __( 'Tax class ":class" does not exist.', [ 'class' => $taxClass ] ) );
         }
 
-        $missing = array_diff( self::listValue( $row, 'categories' ), ProductCategory::query()->whereIn( 'slug', self::listValue( $row, 'categories' ) )->pluck( 'slug' )->all() );
+        $categories = self::listValue( $row, 'categories' );
+        $missing    = null === $lookup
+            ? array_diff( $categories, ProductCategory::query()->whereIn( 'slug', $categories )->pluck( 'slug' )->all() )
+            : array_filter( $categories, static fn ( string $slug ): bool => null === self::fromLookup( $lookup['categories'], $slug ) );
 
         if ( [] !== $missing ) {
             throw new InvalidArgumentException( __( 'No category has the slug ":slug".', [ 'slug' => reset( $missing ) ] ) );
@@ -518,7 +636,7 @@ final class ProductCsv
         self::priceRows( $row );
 
         if ( ! self::isVariantRow( $row ) ) {
-            self::assertUnique( $row, $action['product'] );
+            self::assertUnique( $row, $action['product'], $lookup );
         }
     }
 
@@ -534,20 +652,30 @@ final class ProductCsv
      *
      * @return void
      */
-    private static function assertUnique( array $row, ?Product $product ): void
+    private static function assertUnique( array $row, ?Product $product, ?array $lookup = null ): void
     {
         $sku  = self::value( $row, 'sku' );
         $slug = Str::slug( self::value( $row, 'slug' ) );
         $id   = $product?->id;
 
-        if ( '' !== $sku && (
-            Product::query()->where( 'sku', $sku )->when( null !== $id, static fn ( Builder $query ) => $query->whereKeyNot( $id ) )->exists()
-            || ProductVariant::query()->where( 'sku', $sku )->exists()
-        ) ) {
+        if ( null !== $lookup ) {
+            $other     = '' === $sku ? null : self::fromLookup( $lookup['skus'], $sku );
+            $skuTaken  = '' !== $sku && ( ( $other instanceof Product && $other->id !== $id ) || null !== self::fromLookup( $lookup['variants'], $sku ) );
+            $owner     = '' === $slug ? null : self::fromLookup( $lookup['slugs'], $slug );
+            $slugTaken = $owner instanceof Product && $owner->id !== $id;
+        } else {
+            $skuTaken  = '' !== $sku && (
+                Product::query()->where( 'sku', $sku )->when( null !== $id, static fn ( Builder $query ) => $query->whereKeyNot( $id ) )->exists()
+                || ProductVariant::query()->where( 'sku', $sku )->exists()
+            );
+            $slugTaken = '' !== $slug && Product::query()->where( 'slug', $slug )->when( null !== $id, static fn ( Builder $query ) => $query->whereKeyNot( $id ) )->exists();
+        }
+
+        if ( $skuTaken ) {
             throw new InvalidArgumentException( __( 'Another product or variant already uses the SKU ":sku".', [ 'sku' => $sku ] ) );
         }
 
-        if ( '' !== $slug && Product::query()->where( 'slug', $slug )->when( null !== $id, static fn ( Builder $query ) => $query->whereKeyNot( $id ) )->exists() ) {
+        if ( $slugTaken ) {
             throw new InvalidArgumentException( __( 'Another product already uses the slug ":slug".', [ 'slug' => $slug ] ) );
         }
     }
@@ -561,10 +689,16 @@ final class ProductCsv
      *
      * @return Product|null
      */
-    private static function matchProduct( array $row ): ?Product
+    private static function matchProduct( array $row, ?array $lookup = null ): ?Product
     {
         $sku  = self::value( $row, 'sku' );
         $slug = self::value( $row, 'slug' );
+
+        if ( null !== $lookup ) {
+            $bySku = '' === $sku ? null : self::fromLookup( $lookup['skus'], $sku );
+
+            return ( $bySku instanceof Product ? $bySku : null ) ?? ( '' === $slug ? null : self::fromLookup( $lookup['slugs'], Str::slug( $slug ) ) );
+        }
 
         return ( '' === $sku ? null : Product::query()->where( 'sku', $sku )->first() )
             ?? ( '' === $slug ? null : Product::query()->where( 'slug', Str::slug( $slug ) )->first() );
@@ -606,7 +740,12 @@ final class ProductCsv
             $value = self::value( $row, $column );
 
             if ( '' !== $value ) {
-                $data[ $column ] = in_array( $column, self::BOOLEAN_COLUMNS, true ) ? self::boolean( $value ) : $value;
+                $data[ $column ] = match ( true ) {
+                    in_array( $column, self::BOOLEAN_COLUMNS, true ) => self::boolean( $value ),
+                    in_array( $column, self::DECIMAL_COLUMNS, true ) => str_replace( ',', '.', $value ),
+                    'position' === $column                           => (int) $value,
+                    default                                          => $value,
+                };
             }
         }
 
@@ -827,7 +966,7 @@ final class ProductCsv
         $map         = [];
 
         $items = InventoryItem::query()
-            ->whereNull( 'warehouse_id' )
+            ->where( 'warehouse_id', InventoryItem::DEFAULT_WAREHOUSE )
             ->where( static function ( Builder $owner ) use ( $productType, $productIds, $variantType, $variantIds ): void {
                 $owner->where( static fn ( Builder $own ) => $own->where( 'stockable_type', $productType )->whereIn( 'stockable_id', $productIds ) )
                     ->orWhere( static fn ( Builder $own ) => $own->where( 'stockable_type', $variantType )->whereIn( 'stockable_id', [] === $variantIds ? [ 0 ] : $variantIds ) );
@@ -998,8 +1137,38 @@ final class ProductCsv
      *
      * @return string
      */
-    private static function looseKey( string $header): string
+    private static function looseKey( string $header ): string
     {
         return (string) preg_replace( '/[^a-z0-9]/', '', strtolower( $header ) );
+    }
+
+    /**
+     * A preloaded entry under `$key`, matched the way the database compares
+     * (case-insensitively on MySQL and SQL Server, exactly elsewhere).
+     *
+     * @since 1.0.0
+     *
+     * @param  array<string, mixed>  $map  Entries by value.
+     * @param  string                $key  The value looked for.
+     *
+     * @return mixed The entry, or null.
+     */
+    private static function fromLookup( array $map, string $key ): mixed
+    {
+        if ( array_key_exists( $key, $map ) ) {
+            return $map[ $key ];
+        }
+
+        if ( ! in_array( ( new Product() )->getConnection()->getDriverName(), [ 'mysql', 'mariadb', 'sqlsrv' ], true ) ) {
+            return null;
+        }
+
+        foreach ( $map as $value => $entry ) {
+            if ( 0 === strcasecmp( (string) $value, $key ) ) {
+                return $entry;
+            }
+        }
+
+        return null;
     }
 }

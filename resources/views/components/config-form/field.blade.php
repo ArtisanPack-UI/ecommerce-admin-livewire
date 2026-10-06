@@ -66,6 +66,17 @@
             <x-artisanpack-textarea :id="$id" :label="$field['label']" :hint="$field['hint']" rows="6" class="font-mono" wire:model="{{ $path }}" />
             @break
 
+        @case( 'textarea' )
+            <x-artisanpack-textarea :id="$id" :label="$field['label']" :hint="$field['hint']" rows="4" wire:model="{{ $path }}" />
+            @break
+
+        @case( 'json' )
+            <x-artisanpack-code :id="$id" :label="$field['label']" :hint="$field['hint']" language="json" height="6rem" wire:model="{{ $path }}" />
+            @error( $path )
+                <p class="text-sm text-error" role="alert">{{ $message }}</p>
+            @enderror
+            @break
+
         @case( 'product' )
             @if ( 'variant' === $field['source'] )
                 <x-artisanpack-ec-variant-picker :id="$id" :model="$path" :label="$field['label']" :hint="$field['hint']" :single="! $field['multiple']" :options="$pickerOptions( 'variant', $path )" />
@@ -75,7 +86,11 @@
             @break
 
         @case( 'category' )
-            <x-artisanpack-ec-category-picker :id="$id" :model="$path" :label="$field['label']" :hint="$field['hint']" />
+            <x-artisanpack-ec-category-picker :id="$id" :model="$path" :label="$field['label']" :hint="$field['hint']" :single="! $field['multiple']" :options="$pickerOptions( 'category', $path )" />
+            @break
+
+        @case( 'product-tag' )
+            <x-artisanpack-ec-tag-picker :id="$id" :model="$path" :label="$field['label']" :hint="$field['hint']" :single="! $field['multiple']" :options="$pickerOptions( 'tag', $path )" />
             @break
 
         @case( 'repeater' )
@@ -96,7 +111,7 @@
                 @endif
 
                 @foreach ( $rows as $index => $row )
-                    <div class="flex flex-wrap items-end gap-3 border-b border-base-200 pb-3" role="group" aria-label="{{ __( ':field row :number', [ 'field' => $field['label'], 'number' => $index + 1 ] ) }}" wire:key="{{ $id }}-row-{{ $index }}">
+                    <div class="flex flex-wrap items-end gap-3 border-b border-base-200 pb-3" role="group" aria-label="{{ __( ':field row :number', [ 'field' => $field['label'], 'number' => $index + 1 ] ) }}" wire:key="{{ $id }}-row-{{ \ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys::of( $row, $index ) }}">
                         @foreach ( $field['fields'] as $column )
                             <div class="min-w-40 flex-1">
                                 @include( 'ecommerce-admin::components.config-form.field', [ 'field' => $column, 'path' => $path . '.' . $index . '.' . $column['name'], 'root' => $root, 'relative' => $relative ] )
@@ -106,7 +121,7 @@
                             variant="ghost"
                             size="sm"
                             icon="o-trash"
-                            wire:click="removeConfigRow( {{ $rowArguments }}, {{ (int) $index }} )"
+                            wire:click="removeConfigRow( {{ $rowArguments }}, {{ (int) $index }} )" wire:loading.attr="disabled"
                             :label="__( 'Remove' )"
                             :aria-label="__( 'Remove :field row :number', [ 'field' => $field['label'], 'number' => $index + 1 ] )"
                         />

@@ -4,6 +4,7 @@ declare( strict_types=1 );
 
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\ConfigFormRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
 use Livewire\Livewire;
 use Tests\Fixtures\Livewire\ConfigFormHost;
 
@@ -134,8 +135,14 @@ it( 'adds and removes repeater rows', function (): void {
         ->set( 'config.tiers.1.min_subtotal', 5000 )
         ->assertSee( 'Tiers row 2' );
 
+    $kept = $component->get( 'config.tiers.1' )[ RowKeys::KEY ];
+
     $component->call( 'removeConfigRow', 'promotion-action', 'every-type', 'config', 'tiers', 0 )
-        ->assertSet( 'config.tiers', [ [ 'min_subtotal' => 5000 ] ] );
+        ->assertSet( 'config.tiers', [ [ RowKeys::KEY => $kept, 'min_subtotal' => 5000 ] ] )
+        ->assertSeeHtml( 'wire:key="config-config-tiers-row-' . $kept . '"' );
+
+    expect( ConfigFormRegistry::cast( app( ConfigFormRegistry::class )->schema( 'promotion-action', 'every-type' ), $component->get( 'config' ) )['tiers'] )
+        ->toBe( [ [ 'min_subtotal' => 5000 ] ] );
 } );
 
 it( 'ignores row actions aimed at something that is not a repeater', function (): void {
@@ -195,6 +202,7 @@ it( 'says when an entry has no settings', function (): void {
 it( 'edits an entry with no schema as JSON, with a notice', function (): void {
     Livewire::test( ConfigFormHost::class, [ 'registry' => 'shipping-method', 'entry' => 'third-party-courier', 'stored' => [ 'account' => 'ACME', 'zones' => [ 1, 2 ] ] ] )
         ->assertSee( 'No form for these settings' )
+        ->assertDontSeeHtml( '<x-artisanpack-alert' )
         ->assertSee( 'Settings (JSON)' )
         ->assertSet( 'config', "{\n    \"account\": \"ACME\",\n    \"zones\": [\n        1,\n        2\n    ]\n}" )
         ->set( 'config', '{"account": "ACME", "express": true}' )

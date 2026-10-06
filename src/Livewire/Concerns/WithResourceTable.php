@@ -440,6 +440,27 @@ trait WithResourceTable
     }
 
     /**
+     * Appends a note about selected rows a per-record policy kept the user
+     * from changing. Bulk actions check every row with the policy on the
+     * record (`canEcommerce()`), skip the denied ones, and say how many.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $message  The result.
+     * @param  int     $denied   Rows skipped.
+     *
+     * @return string
+     */
+    protected static function withDeniedNote( string $message, int $denied ): string
+    {
+        if ( $denied < 1 ) {
+            return $message;
+        }
+
+        return trim( $message . ' ' . trans_choice( ':count row skipped because you may not change it.|:count rows skipped because you may not change them.', $denied, [ 'count' => $denied ] ) );
+    }
+
+    /**
      * The screen key used in extension filter names, e.g. `orders`.
      *
      * @since 1.0.0
@@ -824,12 +845,29 @@ trait WithResourceTable
      */
     protected function normalizedSelection(): array
     {
-        $keys = array_filter(
-            $this->selected,
+        // Checked one at a time, a selection can't grow past a few pages;
+        // anything bigger is a crafted request (use "select all matching").
+        $keys = array_slice( array_filter(
+            (array) $this->selected,
             static fn ( mixed $key ): bool => ( is_int( $key ) || ( is_string( $key ) && ctype_digit( $key ) ) ) && (int) $key > 0,
-        );
+        ), 0, $this->maxSelection() * 2 );
 
-        return array_values( array_unique( array_map( 'intval', $keys ) ) );
+        return array_slice( array_values( array_unique( array_map( 'intval', $keys ) ) ), 0, $this->maxSelection() );
+    }
+
+    /**
+     * The most rows that can be ticked one by one: `tables.max_selection`,
+     * or the largest page size times 50.
+     *
+     * @since 1.0.0
+     *
+     * @return int
+     */
+    protected function maxSelection(): int
+    {
+        $configured = (int) config( 'artisanpack.ecommerce-admin-livewire.tables.max_selection', 0 );
+
+        return $configured > 0 ? $configured : max( $this->perPageValues() ) * 50;
     }
 
     /**

@@ -19,6 +19,7 @@ use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductCategory;
 use ArtisanPackUI\Ecommerce\Models\ProductImage;
 use ArtisanPackUI\Ecommerce\Models\ProductPrice;
+use ArtisanPackUI\Ecommerce\Models\ProductRelation;
 use ArtisanPackUI\Ecommerce\Models\TaxClass;
 use ArtisanPackUI\Ecommerce\Registries\ProductTypeRegistry;
 use ArtisanPackUI\Ecommerce\Services\ProductService;
@@ -31,7 +32,9 @@ use ArtisanPackUI\EcommerceAdminLivewire\Registries\ProductTypePanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Html;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
+use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +87,16 @@ class Form extends Component
      *
      * @var array<int, string>
      */
-    public const TABS = [ 'general', 'pricing', 'inventory', 'shipping', 'tax', 'organization', 'media', 'panel', 'activity' ];
+    public const TABS = [ 'general', 'pricing', 'inventory', 'shipping', 'tax', 'organization', 'linked', 'media', 'panel', 'activity' ];
+
+    /**
+     * The most products one relation list holds.
+     *
+     * @since 1.0.0
+     *
+     * @var int
+     */
+    public const MAX_RELATIONS = 50;
 
     /**
      * Media-library modal contexts.
@@ -357,6 +369,24 @@ class Form extends Component
     public array $tagNames = [];
 
     /**
+     * Whether the product is featured.
+     *
+     * @since 1.0.0
+     *
+     * @var bool
+     */
+    public bool $isFeatured = false;
+
+    /**
+     * The manual catalog order (lower first).
+     *
+     * @since 1.0.0
+     *
+     * @var int|string|null
+     */
+    public int|string|null $catalogPosition = 0;
+
+    /**
      * Featured media-library item.
      *
      * @since 1.0.0
@@ -393,6 +423,28 @@ class Form extends Component
     public array $panelState = [];
 
     /**
+     * Related product ids per relation type (`upsell`, `cross_sell`,
+     * `related`), in order.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, array<int, int>>
+     */
+    public array $relations = [];
+
+    /**
+     * The product chosen in each relation list's "add" picker; it is moved
+     * into the list right away. Empty is `''`, not null: the component
+     * library's single-select choices read `selection.length` even when
+     * hidden, which throws on null.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, int|string>
+     */
+    public array $relationPick = [];
+
+    /**
      * The product, loaded once per request.
      *
      * @since 1.0.0
@@ -423,8 +475,10 @@ class Form extends Component
     {
         if ( null === $product || '' === $product ) {
             $this->authorizeEcommerce( 'create', Product::class );
-            $this->prices     = self::emptyPrices( null );
-            $this->panelState = $this->panelDefaults( $this->type, null );
+            $this->prices       = self::emptyPrices( null );
+            $this->panelState   = $this->panelDefaults( $this->type, null );
+            $this->relations    = self::emptyRelations();
+            $this->relationPick = self::emptyRelationPicks();
 
             return;
         }
@@ -616,6 +670,112 @@ class Form extends Component
      *
      * @return void
      */
+    /**
+     * Adds the product picked in a relation list's picker to the end of
+     * that list. The product itself, a product already in the list, and a
+     * full list are ignored.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed   $value  The picked product id.
+     * @param  string  $type   The relation type (the property key).
+     *
+     * @return void
+     */
+    public function updatedRelationPick( mixed $value, string $type ): void
+    {
+        $this->authorizeRelationWrite();
+
+        $this->relationPick = self::emptyRelationPicks();
+
+        if ( ! in_array( $type, ProductRelation::TYPES, true ) || ! is_numeric( $value ) ) {
+            return;
+        }
+
+        $id   = (int) $value;
+        $list = $this->relationList( $type );
+
+        if ( $id === $this->productId || in_array( $id, $list, true ) || count( $list ) >= self::MAX_RELATIONS || ! Product::query()->whereKey( $id )->exists() ) {
+            return;
+        }
+
+        $this->relations[ $type ] = [ ...$list, $id ];
+    }
+
+    /**
+     * Moves a related product up or down its list.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $type       The relation type.
+     * @param  int     $index      The product's position.
+     * @param  int     $direction  -1 up, 1 down.
+     *
+     * @return void
+     */
+    public function moveRelation( string $type, int $index, int $direction ): void
+    {
+        $this->authorizeRelationWrite();
+
+        $list   = $this->relationList( $type );
+        $target = $index + ( $direction < 0 ? -1 : 1 );
+
+        if ( ! isset( $list[ $index ], $list[ $target ] ) ) {
+            return;
+        }
+
+        [ $list[ $index ], $list[ $target ] ] = [ $list[ $target ], $list[ $index ] ];
+
+        $this->relations[ $type ] = $list;
+    }
+
+    /**
+     * Puts a relation list in the order a drag left it in. The ids must be
+     * exactly the list's current ids.
+     *
+     * @since 1.0.0
+     *
+     * @param  string             $type  The relation type.
+     * @param  array<int, mixed>  $ids   The product ids, in their new order.
+     *
+     * @return void
+     */
+    public function reorderRelations( string $type, array $ids ): void
+    {
+        $this->authorizeRelationWrite();
+
+        $list = $this->relationList( $type );
+        $ids  = array_map( 'intval', array_values( array_filter( $ids, 'is_numeric' ) ) );
+
+        if ( count( $ids ) !== count( $list ) || [] !== array_diff( $list, $ids ) || count( array_unique( $ids ) ) !== count( $ids ) ) {
+            return;
+        }
+
+        $this->relations[ $type ] = $ids;
+    }
+
+    /**
+     * Removes a related product from its list.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $type   The relation type.
+     * @param  int     $index  The product's position.
+     *
+     * @return void
+     */
+    public function removeRelation( string $type, int $index ): void
+    {
+        $this->authorizeRelationWrite();
+
+        $list = $this->relationList( $type );
+
+        unset( $list[ $index ] );
+
+        $this->relations[ $type ] = array_values( $list );
+        $this->resetErrorBag( 'relations.' . $type );
+    }
+
     #[On( 'media-selected' )]
     public function mediaSelected( array $media = [], string $context = '' ): void
     {
@@ -752,6 +912,8 @@ class Form extends Component
             'panelErrors'     => $this->panelErrors(),
             'errorTabs'       => $this->errorTabs( array_keys( $this->getErrorBag()->toArray() ) ),
             'categoryOptions' => $this->optionsForPicker( 'category', 'categoryIds' ),
+            'relationLists'   => $this->relationLists(),
+            'canWrite'        => ! $this->readOnly && ( null === $product ? $this->canEcommerce( 'create', Product::class ) : $this->canEcommerce( 'update', $product ) ),
             'quantityDelta'   => null === $product || ! is_numeric( $this->quantity ) ? 0 : (int) $this->quantity - $this->quantityLoaded,
             'indexUrl'        => Route::has( AdminNav::ROUTE_PREFIX . 'products.index' ) ? route( AdminNav::ROUTE_PREFIX . 'products.index' ) : null,
         ] );
@@ -775,7 +937,8 @@ class Form extends Component
             'sku', 'barcode', 'trackInventory', 'quantity', 'stockReason', 'allowBackorder', 'lowStockThreshold' => 'inventory',
             'weight', 'weightUnit', 'length', 'width', 'height', 'dimUnit'                                       => 'shipping',
             'isTaxable', 'taxClassKey'                                                                           => 'tax',
-            'categoryIds', 'tagNames'                                                                            => 'organization',
+            'categoryIds', 'tagNames', 'isFeatured', 'catalogPosition'                                           => 'organization',
+            'relations'                                                                                          => 'linked',
             'featuredMediaId', 'featuredImageUrl', 'gallery'                                                     => 'media',
             'panelState'                                                                                         => 'panel',
             default                                                                                              => 'general',
@@ -825,7 +988,11 @@ class Form extends Component
                     }
                 }
             } );
-        } )->validate( array_merge( $this->rules( $product ), $this->scheduledPriceRules() ), [], $this->validationAttributes() );
+        } )->validate(
+            array_merge( $this->rules( $product ), $this->scheduledPriceRules(), $this->compareAtRules() ),
+            [ 'prices.*.compare_at_amount.gt' => __( 'The compare-at price must be higher than the price.' ) ],
+            $this->validationAttributes(),
+        );
     }
 
     /**
@@ -876,13 +1043,40 @@ class Form extends Component
             'categoryIds.*'                => [ 'integer', Rule::exists( ProductCategory::class, 'id' ) ],
             'tagNames'                     => [ 'array', 'max:50' ],
             'tagNames.*'                   => [ 'string', 'max:120' ],
+            'isFeatured'                   => [ 'boolean' ],
+            'catalogPosition'              => [ 'nullable', 'integer', 'min:0', 'max:4294967295' ],
             'featuredMediaId'              => [ 'nullable', 'integer', 'min:1' ],
             'featuredImageUrl'             => [ 'nullable', 'string', 'max:1000', 'url:http,https' ],
             'gallery'                      => [ 'array', 'max:50' ],
             'gallery.*.media_id'           => [ 'nullable', 'integer', 'min:1' ],
             'gallery.*.image_url'          => [ 'nullable', 'string', 'max:1000', 'url:http,https', 'required_without:gallery.*.media_id' ],
             'gallery.*.alt_text'           => [ 'nullable', 'string', 'max:255' ],
+            ...$this->relationRules(),
         ];
+    }
+
+    /**
+     * Rules for the relation lists: known types only, capped, existing
+     * products, no duplicates.
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    protected function relationRules(): array
+    {
+        $rules = [ 'relations' => [ 'array', static function ( string $attribute, mixed $value, Closure $fail ): void {
+            if ( [] !== array_diff( array_keys( (array) $value ), ProductRelation::TYPES ) ) {
+                $fail( __( 'Unknown relation type.' ) );
+            }
+        } ] ];
+
+        foreach ( ProductRelation::TYPES as $type ) {
+            $rules[ 'relations.' . $type ]        = [ 'array', 'max:' . self::MAX_RELATIONS ];
+            $rules[ 'relations.' . $type . '.*' ] = [ 'integer', 'distinct', Rule::exists( Product::class, 'id' ) ];
+        }
+
+        return $rules;
     }
 
     /**
@@ -922,9 +1116,16 @@ class Form extends Component
             'taxClassKey'                => __( 'tax class' ),
             'categoryIds.*'              => __( 'category' ),
             'tagNames.*'                 => __( 'tag' ),
+            'catalogPosition'            => __( 'catalog position' ),
             'featuredImageUrl'           => __( 'featured image URL' ),
             'gallery.*.image_url'        => __( 'image URL' ),
             'gallery.*.alt_text'         => __( 'alt text' ),
+            'relations.upsell'           => __( 'upsells' ),
+            'relations.cross_sell'       => __( 'cross-sells' ),
+            'relations.related'          => __( 'related products' ),
+            'relations.upsell.*'         => __( 'upsell' ),
+            'relations.cross_sell.*'     => __( 'cross-sell' ),
+            'relations.related.*'        => __( 'related product' ),
         ];
     }
 
@@ -963,6 +1164,29 @@ class Form extends Component
      *
      * @return array<string, mixed>
      */
+    /**
+     * A compare-at price must be above the row's price (rows without a
+     * price are skipped).
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function compareAtRules(): array
+    {
+        $rules = [];
+
+        foreach ( $this->prices as $index => $row ) {
+            if ( ! is_numeric( $row['price_amount'] ?? null ) || ! is_numeric( $row['compare_at_amount'] ?? null ) ) {
+                continue;
+            }
+
+            $rules[ "prices.{$index}.compare_at_amount" ] = [ 'nullable', 'integer', 'min:0', 'max:999999999999999', "gt:prices.{$index}.price_amount" ];
+        }
+
+        return $rules;
+    }
+
     protected function scheduledPriceRules(): array
     {
         $rules = [];
@@ -1013,8 +1237,14 @@ class Form extends Component
             'prices'                  => $this->priceRows(),
             'category_ids'            => array_map( 'intval', $this->categoryIds ),
             'tag_ids'                 => $this->tagIds(),
+            'is_featured'             => $this->isFeatured,
+            'position'                => is_numeric( $this->catalogPosition ) ? (int) $this->catalogPosition : 0,
             'featured_image_media_id' => $this->featuredMediaId,
             'featured_image_url'      => null === $this->featuredMediaId ? $this->featuredImageUrl : '',
+            'relations'               => array_map(
+                static fn ( array $ids ): array => array_map( 'intval', array_values( $ids ) ),
+                array_intersect_key( $this->relations, array_flip( ProductRelation::TYPES ) ) + self::emptyRelations(),
+            ),
             'images'                  => array_map( static fn ( array $row ): array => [
                 'id'        => $row['id'] ?? null,
                 'media_id'  => $row['media_id'] ?? null,
@@ -1193,7 +1423,7 @@ class Form extends Component
             return 'prices.' . ( $this->priceRowIndex[ (int) $matches[1] ] ?? (int) $matches[1] ) . '.' . $matches[2];
         }
 
-        if ( str_starts_with( $field, 'panelState.' ) || str_starts_with( $field, 'prices.' ) ) {
+        if ( str_starts_with( $field, 'panelState.' ) || str_starts_with( $field, 'prices.' ) || str_starts_with( $field, 'relations' ) ) {
             return $field;
         }
 
@@ -1211,6 +1441,8 @@ class Form extends Component
             'featured_image_url'            => 'featuredImageUrl',
             'category_ids'                  => 'categoryIds',
             'tag_ids'                       => 'tagNames',
+            'is_featured'                   => 'isFeatured',
+            'position'                      => 'catalogPosition',
             'stock_adjustment.reason'       => 'stockReason',
             'inventory.low_stock_threshold' => 'lowStockThreshold',
             default                         => 'name',
@@ -1251,7 +1483,7 @@ class Form extends Component
         $stock = InventoryItem::query()
             ->where( 'stockable_type', $product->getMorphClass() )
             ->where( 'stockable_id', $product->id )
-            ->whereNull( 'warehouse_id' )
+            ->where( 'warehouse_id', InventoryItem::DEFAULT_WAREHOUSE )
             ->first();
 
         $this->type              = (string) $product->type;
@@ -1278,8 +1510,10 @@ class Form extends Component
         $this->dimUnit           = (string) ( $product->dim_unit ?? '' );
         $this->isTaxable         = (bool) $product->is_taxable;
         $this->taxClassKey       = (string) ( $product->tax_class_key ?? '' );
-        $this->categoryIds       = $product->categories()->pluck( 'product_categories.id' )->map( static fn ( $id ): int => (int) $id )->all();
+        $this->categoryIds       = $product->categories()->allRelatedIds()->map( static fn ( $id ): int => (int) $id )->all();
         $this->tagNames          = $product->tags()->orderBy( 'name' )->pluck( 'name' )->all();
+        $this->isFeatured        = (bool) $product->is_featured;
+        $this->catalogPosition   = (int) $product->position;
         $this->featuredMediaId   = $product->featured_image_media_id;
         $this->featuredImageUrl  = (string) ( $product->meta['featured_image_url'] ?? '' );
         $this->gallery           = $product->images()->get()->map( static fn ( ProductImage $image ): array => [
@@ -1290,6 +1524,118 @@ class Form extends Component
             'alt_text'  => (string) ( $image->alt_text ?? '' ),
         ] )->all();
         $this->panelState        = $this->panelDefaults( $this->type, $product );
+        $this->relations         = self::emptyRelations();
+        $this->relationPick      = self::emptyRelationPicks();
+
+        foreach ( $product->productRelations()->get( [ 'type', 'related_product_id', 'position' ] ) as $relation ) {
+            if ( isset( $this->relations[ $relation->type ] ) ) {
+                $this->relations[ $relation->type ][] = (int) $relation->related_product_id;
+            }
+        }
+    }
+
+    /**
+     * Ids the related-product pickers must not offer: the product itself
+     * and the products already in that list.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $type   The source key.
+     * @param  string  $field  The property path.
+     *
+     * @return array<int, int>
+     */
+    protected function pickerExcludedIds( string $type, string $field ): array
+    {
+        if ( 'product' !== $type || ! str_starts_with( $field, 'relationPick.' ) ) {
+            return [];
+        }
+
+        return array_values( array_filter( [ $this->productId, ...$this->relationList( Str::after( $field, 'relationPick.' ) ) ] ) );
+    }
+
+    /**
+     * Each relation list with its label and products, the products loaded
+     * in one query.
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, array{type: string, label: string, hint: string, products: array<int, array{id: int, name: string, sku: string|null}>}>
+     */
+    protected function relationLists(): array
+    {
+        $ids      = array_merge( ...array_values( array_map( fn ( string $type ): array => $this->relationList( $type ), ProductRelation::TYPES ) ) );
+        $products = [] === $ids ? collect() : Product::query()->whereKey( array_unique( $ids ) )->get( [ 'id', 'name', 'sku' ] )->keyBy( 'id' );
+        $labels   = [
+            ProductRelation::UPSELL     => [ __( 'Upsells' ), __( 'Pricier or better alternatives, offered on this product\'s page.' ) ],
+            ProductRelation::CROSS_SELL => [ __( 'Cross-sells' ), __( 'Products that go with this one, offered in the cart.' ) ],
+            ProductRelation::RELATED    => [ __( 'Related products' ), __( 'Similar products shown alongside this one.' ) ],
+        ];
+        $lists    = [];
+
+        foreach ( ProductRelation::TYPES as $type ) {
+            $lists[ $type ] = [
+                'type'     => $type,
+                'label'    => $labels[ $type ][0],
+                'hint'     => $labels[ $type ][1],
+                'products' => array_map( static fn ( int $id ): array => [
+                    'id'   => $id,
+                    'name' => (string) ( $products->get( $id )?->name ?? __( 'Product #:id', [ 'id' => $id ] ) ),
+                    'sku'  => $products->get( $id )?->sku,
+                ], $this->relationList( $type ) ),
+            ];
+        }
+
+        return $lists;
+    }
+
+    /**
+     * One relation list's ids, or an empty list for an unknown type.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $type  The relation type.
+     *
+     * @return array<int, int>
+     */
+    protected function relationList( string $type ): array
+    {
+        if ( ! in_array( $type, ProductRelation::TYPES, true ) ) {
+            return [];
+        }
+
+        return array_values( array_map( 'intval', array_filter( (array) ( $this->relations[ $type ] ?? [] ), 'is_numeric' ) ) );
+    }
+
+    /**
+     * Allows a change to the relation lists: the form must be writable and
+     * the user may create (new product) or update (existing) it.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    protected function authorizeRelationWrite(): void
+    {
+        $this->assertWritable();
+
+        $product = $this->product();
+
+        null === $product
+            ? $this->authorizeEcommerce( 'create', Product::class )
+            : $this->authorizeEcommerce( 'update', $product );
+    }
+
+    /**
+     * An empty list per relation type.
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, array<int, int>>
+     */
+    protected static function emptyRelations(): array
+    {
+        return array_fill_keys( ProductRelation::TYPES, [] );
     }
 
     /**
@@ -1429,6 +1775,18 @@ class Form extends Component
     }
 
     /**
+     * Each relation list's empty "add" picker value.
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, string>
+     */
+    protected static function emptyRelationPicks(): array
+    {
+        return array_fill_keys( ProductRelation::TYPES, '' );
+    }
+
+    /**
      * One price row.
      *
      * @since 1.0.0
@@ -1442,6 +1800,7 @@ class Form extends Component
     protected static function priceRow( string $currency, ?ProductPrice $row, bool $scheduled ): array
     {
         return [
+            RowKeys::KEY        => RowKeys::make(),
             'currency'          => $currency,
             'price_amount'      => null === $row ? null : (int) $row->price_amount,
             'compare_at_amount' => null === $row?->compare_at_amount ? null : (int) $row->compare_at_amount,
@@ -1511,7 +1870,7 @@ class Form extends Component
      *
      * @return int|null
      */
-    protected static function intOrNull( mixed $value ): ?int
+    protected static function intOrNull( mixed $value): ?int
     {
         return null === $value || '' === $value ? null : (int) $value;
     }

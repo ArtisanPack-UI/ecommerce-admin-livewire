@@ -7,6 +7,8 @@ use ArtisanPackUI\Ecommerce\Settings\SettingsRepository;
 use ArtisanPackUI\EcommerceAdminLivewire\EcommerceAdminLivewireServiceProvider;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Settings\Show;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\SettingsTabRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 use Tests\Fixtures\Livewire\LoyaltySettingsTab;
@@ -62,8 +64,10 @@ it( 'saves changed values through the engine repository', function (): void {
     $component = Livewire::test( Show::class, [ 'group' => 'general' ] )
         ->set( 'form.notifications__store_name', 'Acme Outfitters' )
         ->set( 'form.notifications__support_email', 'help@acme.test' )
+        ->assertSeeHtml( 'data-unsaved-changes' )
         ->call( 'save' )
         ->assertHasNoErrors()
+        ->assertDispatched( UnsavedChanges::SAVED_EVENT )
         ->assertSeeHtml( 'data-setting-stored' );
 
     expect( sentToasts( $component ) )->toContain( '2 settings saved.' )
@@ -122,6 +126,19 @@ it( 'resets a changed value to its default', function (): void {
     expect( settingsRepository()->isStored( 'reviews.allow_guests' ) )->toBeFalse();
 } );
 
+it( 'resets one setting without discarding unsaved edits to the others', function (): void {
+    settingsRepository()->update( 'checkout', [ 'checkout.reservation_ttl_minutes' => 30 ] );
+
+    Livewire::test( Show::class, [ 'group' => 'checkout' ] )
+        ->set( 'form.cart__abandoned_after_minutes', 999 )
+        ->assertSeeHtml( 'wire:confirm=' )
+        ->call( 'resetToDefault', 'checkout.reservation_ttl_minutes' )
+        ->assertSet( 'form.cart__abandoned_after_minutes', 999 )
+        ->assertSet( 'form.checkout__reservation_ttl_minutes', settingsRepository()->get( 'checkout.reservation_ttl_minutes' ) );
+
+    expect( settingsRepository()->isStored( 'checkout.reservation_ttl_minutes' ) )->toBeFalse();
+} );
+
 it( 'shows whether each payment credential is configured without showing it', function (): void {
     config()->set( 'artisanpack.ecommerce.gateways.stripe.secret_key', 'sk_test_hidden' );
     config()->set( 'artisanpack.ecommerce.gateways.stripe.webhook_secret', null );
@@ -160,6 +177,24 @@ it( 'edits list and key/value settings', function (): void {
         ->call( 'save' );
 
     expect( settingsRepository()->get( 'localization.tax_labels' ) )->toBe( [] );
+} );
+
+it( 'keys key/value rows by a row id, so removing one keeps the others in place', function (): void {
+    $component = Livewire::test( Show::class, [ 'group' => 'tax' ] )
+        ->call( 'addMapRow', 'localization.tax_labels' )
+        ->call( 'addMapRow', 'localization.tax_labels' );
+
+    $kept = $component->get( 'form.localization__tax_labels.1' )[ RowKeys::KEY ];
+
+    $component->call( 'removeMapRow', 'localization.tax_labels', 0 )
+        ->assertSet( 'form.localization__tax_labels.0.' . RowKeys::KEY, $kept )
+        ->assertSeeHtml( '-row-' . $kept . '"' )
+        ->set( 'form.localization__tax_labels.0.key', 'en_US' )
+        ->set( 'form.localization__tax_labels.0.value', 'Sales Tax' )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( settingsRepository()->get( 'localization.tax_labels' ) )->toBe( [ 'en_US' => 'Sales Tax' ] );
 } );
 
 it( 'lists the registered satellites read-only', function (): void {

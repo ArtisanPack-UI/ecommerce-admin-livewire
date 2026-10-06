@@ -386,12 +386,12 @@ class Index extends Component
         }
 
         $name    = (string) $board->name;
-        $deleted = $this->withActionToken( $token, 'delete', static function () use ( $board ): bool {
+        $deleted = $this->withActionToken( $token, 'delete', static fn (): bool => DB::transaction( static function () use ( $board ): bool {
             $board->delete();
             KanbanBoards::ensureDefault();
 
             return true;
-        }, $board );
+        } ), $board );
 
         $this->cancelDelete();
 

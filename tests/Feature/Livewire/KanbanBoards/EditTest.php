@@ -5,6 +5,7 @@ declare( strict_types=1 );
 use ArtisanPackUI\Ecommerce\Models\KanbanBoard;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\KanbanBoards\Edit;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\KanbanBoards;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 
@@ -50,8 +51,10 @@ it( 'saves the details and routing rules', function (): void {
         ->set( 'ruleToAdd.conditions', 'min-subtotal' )->call( 'addRule', 'conditions' )
         ->set( 'ruleRows.conditions.0.config.amount', 10000 )
         ->assertSee( 'Orders match when the subtotal is at least $100.00.' )
+        ->assertSeeHtml( 'data-unsaved-changes' )
         ->call( 'save' )
-        ->assertHasNoErrors();
+        ->assertHasNoErrors()
+        ->assertDispatched( UnsavedChanges::SAVED_EVENT );
 
     expect( $board->fresh() )
         ->name->toBe( 'Print production' )

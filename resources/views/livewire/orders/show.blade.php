@@ -165,7 +165,7 @@
             @endif
 
             @foreach ( $mainPanels as $panel )
-                <div data-order-panel="{{ $panel['key'] }}">
+                <div data-order-panel="{{ $panel['key'] }}" wire:key="order-panel-wrap-{{ $panel['key'] }}">
                     @livewire( $panel['component'], [ 'order' => $order ], key( 'order-panel-' . $panel['key'] ) )
                 </div>
             @endforeach
@@ -240,7 +240,7 @@
                                         size="xs"
                                         icon="o-x-mark"
                                         class="ms-auto"
-                                        wire:click="removeFromBoard( {{ (int) $assignment->board_id }} )"
+                                        wire:click="removeFromBoard( {{ (int) $assignment->board_id }} )" wire:loading.attr="disabled"
                                         wire:loading.attr="disabled"
                                         :label="__( 'Remove' )"
                                         :aria-label="__( 'Remove from :board', [ 'board' => $assignment->board?->name ?? '' ] )"
@@ -267,7 +267,7 @@
             </x-artisanpack-card>
 
             @foreach ( $sidePanels as $panel )
-                <div data-order-panel="{{ $panel['key'] }}">
+                <div data-order-panel="{{ $panel['key'] }}" wire:key="order-panel-wrap-{{ $panel['key'] }}">
                     @livewire( $panel['component'], [ 'order' => $order ], key( 'order-panel-' . $panel['key'] ) )
                 </div>
             @endforeach

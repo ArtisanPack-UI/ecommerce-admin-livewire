@@ -135,7 +135,7 @@ it( 'merges duplicate tags into one', function (): void {
         ->assertSet( 'selected', [] );
 
     expect( ProductTag::query()->find( $lower->id ) )->toBeNull()
-        ->and( $upper->products()->pluck( 'products.id' )->sort()->values()->all() )->toBe( [ $a->id, $b->id ] );
+        ->and( $upper->products()->pluck( ( new Product() )->qualifyColumn( 'id' ) )->sort()->values()->all() )->toBe( [ $a->id, $b->id ] );
 } );
 
 it( 'refuses to merge without product.update', function (): void {

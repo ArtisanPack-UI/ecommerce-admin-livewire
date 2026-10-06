@@ -22,6 +22,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithPickers;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithRuleBuilder;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\KanbanBoards;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -207,6 +208,7 @@ class Edit extends Component
         $this->loadedBoard = $board->fresh();
         $this->fillFromBoard( $this->loadedBoard );
 
+        $this->dispatch( UnsavedChanges::SAVED_EVENT );
         $this->toastSuccess( __( 'Board ":name" saved.', [ 'name' => $board->name ] ) );
     }
 

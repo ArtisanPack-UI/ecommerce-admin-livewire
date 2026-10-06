@@ -32,6 +32,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithPickers;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ShippingMethods;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StatusPresenter;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\UserNames;
@@ -293,7 +294,7 @@ class EditPanel extends Component
             return;
         }
 
-        $this->newItems[] = [ 'product_id' => (int) $product->id, 'variant_id' => $line['variant_id'], 'quantity' => (int) $this->addQuantity ];
+        $this->newItems[] = [ RowKeys::KEY => RowKeys::make(), 'product_id' => (int) $product->id, 'variant_id' => $line['variant_id'], 'quantity' => (int) $this->addQuantity ];
         $this->preview    = null;
         $this->reset( 'addProductId', 'addVariantId', 'addQuantity' );
     }

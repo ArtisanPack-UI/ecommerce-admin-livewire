@@ -169,7 +169,7 @@ it( 'runs the engine product list-query filter', function (): void {
     Product::factory()->create( [ 'name' => 'Visible' ] );
     Product::factory()->create( [ 'name' => 'Hidden by a satellite' ] );
 
-    addFilter( 'ap.ecommerce.product.listQuery', static fn ( Builder $query, array $filters ): Builder => $query->where( 'products.name', '!=', 'Hidden by a satellite' ) );
+    addFilter( 'ap.ecommerce.product.listQuery', static fn ( Builder $query, array $filters ): Builder => $query->where( $query->qualifyColumn( 'name' ), '!=', 'Hidden by a satellite' ) );
 
     Livewire::test( Index::class )->assertSee( 'Visible' )->assertDontSee( 'Hidden by a satellite' );
 } );
@@ -315,6 +315,7 @@ it( 'translates its strings', function (): void {
 
 it( 'exports the catalog with one row per product or variant and a price pair per currency', function (): void {
     config()->set( 'artisanpack.ecommerce.currency.rates.USD', [ 'EUR' => 92_000_000 ] );
+    config()->set( 'artisanpack.ecommerce.currency.enabled', [ 'EUR' ] );
     $mug = Product::factory()->create( [ 'name' => 'Blue Mug', 'sku' => 'MUG-1', 'status' => 'active' ] );
     ProductPrice::factory()->forPriceable( $mug )->create( [ 'currency' => 'USD', 'price_amount' => 1250, 'compare_at_amount' => 1500 ] );
     ProductPrice::factory()->forPriceable( $mug )->create( [ 'currency' => 'EUR', 'price_amount' => 1100 ] );
@@ -367,10 +368,39 @@ it( 'exports the selected products as catalog CSV, escaping formulas', function 
         ->and( $rows[1][ array_search( 'name', $rows[0], true ) ] )->toBe( "'=HYPERLINK(\"x\")" );
 } );
 
-it( 'links to the import screen for users who may create products', function (): void {
+it( 'links to the import screen for users who may create or update products', function (): void {
     Livewire::test( Index::class )->assertSee( 'Import' )->assertSeeHtml( 'products/import' );
 
     Gate::define( 'ecommerce.product.create', static fn (): bool => false );
 
+    Livewire::test( Index::class )->assertSeeHtml( 'products/import' );
+
+    Gate::define( 'ecommerce.product.update', static fn (): bool => false );
+
     Livewire::test( Index::class )->assertDontSeeHtml( 'products/import' );
+} );
+
+it( 'caps a crafted selection instead of loading it whole', function (): void {
+    $component = Livewire::test( Index::class )->set( 'selected', range( 1, 70_000 ) );
+
+    expect( $component->get( 'selected' ) )->toHaveCount( 100 * 50 );
+
+    config()->set( 'artisanpack.ecommerce-admin-livewire.tables.max_selection', 10 );
+
+    expect( Livewire::test( Index::class )->set( 'selected', range( 1, 500 ) )->get( 'selected' ) )->toHaveCount( 10 );
+} );
+
+it( 'shows the price the storefront charges when scheduled prices overlap', function (): void {
+    $product = Product::factory()->create();
+
+    priceFor( $product, 2_000 );
+    ProductPrice::factory()->forPriceable( $product )->create( [ 'currency' => 'USD', 'price_amount' => 1_500, 'starts_at' => now()->subDays( 10 ), 'ends_at' => now()->addDays( 10 ) ] );
+    ProductPrice::factory()->forPriceable( $product )->create( [ 'currency' => 'USD', 'price_amount' => 1_200, 'starts_at' => now()->subDays( 2 ), 'ends_at' => now()->addDays( 30 ) ] );
+    ProductPrice::factory()->forPriceable( $product )->create( [ 'currency' => 'USD', 'price_amount' => 1_100, 'starts_at' => now()->subDays( 2 ), 'ends_at' => now()->addDays( 5 ) ] );
+
+    $loaded   = ( new ArtisanPackUI\EcommerceAdminLivewire\Queries\ProductsQuery() )->build()->whereKey( $product->id )->sole();
+    $resolved = app( ArtisanPackUI\Ecommerce\Services\ProductPriceResolver::class )->resolve( $product, 'USD' );
+
+    expect( ArtisanPackUI\EcommerceAdminLivewire\Queries\ProductsQuery::priceRange( $loaded )['min'] )->toBe( 1_100 )
+        ->and( (int) $resolved->getAmount() )->toBe( 1_100 );
 } );

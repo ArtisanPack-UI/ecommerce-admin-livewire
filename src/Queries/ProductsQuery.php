@@ -92,12 +92,13 @@ class ProductsQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'name'    => 'products.name',
-            'sku'     => 'products.sku',
-            'type'    => 'products.type',
-            'status'  => 'products.status',
-            'stock'   => 'stock_available',
-            'updated' => 'products.updated_at',
+            'name'     => static::column( Product::class, 'name' ),
+            'sku'      => static::column( Product::class, 'sku' ),
+            'type'     => static::column( Product::class, 'type' ),
+            'status'   => static::column( Product::class, 'status' ),
+            'stock'    => 'stock_available',
+            'position' => static::column( Product::class, 'position' ),
+            'updated'  => static::column( Product::class, 'updated_at' ),
         ];
     }
 
@@ -127,6 +128,23 @@ class ProductsQuery extends ResourceQuery
         $now       = Carbon::now();
         $base      = null;
         $scheduled = null;
+
+        // The same order as the engine's ProductPriceResolver::activeRowFor(),
+        // so the list shows the price the storefront charges: the latest
+        // start first, then the soonest end, then the newest row.
+        $rows = $rows->sort( static fn ( $a, $b ): int => [
+            null === $a->starts_at,
+            -( $a->starts_at?->getTimestamp() ?? 0 ),
+            null === $a->ends_at,
+            $a->ends_at?->getTimestamp() ?? 0,
+            -(int) $a->id,
+        ] <=> [
+            null === $b->starts_at,
+            -( $b->starts_at?->getTimestamp() ?? 0 ),
+            null === $b->ends_at,
+            $b->ends_at?->getTimestamp() ?? 0,
+            -(int) $b->id,
+        ] );
 
         foreach ( $rows as $row ) {
             if ( null === $row->starts_at && null === $row->ends_at ) {
@@ -197,7 +215,7 @@ class ProductsQuery extends ResourceQuery
         $prices   = static fn ( $query ) => $query->where( 'currency', $currency );
 
         return Product::query()
-            ->select( 'products.*' )
+            ->select( static::column( Product::class, '*' ) )
             ->selectSub( $this->stockRows()->selectRaw( 'COALESCE(SUM(quantity_on_hand - quantity_reserved), 0)' ), 'stock_available' )
             ->selectSub( $this->stockRows()->selectRaw( 'COUNT(*)' ), 'stock_tracked' )
             ->withCount( 'variants' )
@@ -223,14 +241,14 @@ class ProductsQuery extends ResourceQuery
         $scoutIds = $this->scoutIds( $search );
 
         $query->where( static function ( Builder $where ) use ( $search, $scoutIds ): void {
-            static::orWhereContains( $where, 'products.name', $search );
-            static::orWhereContains( $where, 'products.slug', $search );
-            static::orWhereContains( $where, 'products.sku', $search );
+            static::orWhereContains( $where, static::column( Product::class, 'name' ), $search );
+            static::orWhereContains( $where, static::column( Product::class, 'slug' ), $search );
+            static::orWhereContains( $where, static::column( Product::class, 'sku' ), $search );
 
-            $where->orWhereHas( 'variants', static fn ( Builder $variant ) => $variant->where( static fn ( Builder $sku ) => static::orWhereContains( $sku, 'product_variants.sku', $search ) ) );
+            $where->orWhereHas( 'variants', static fn ( Builder $variant ) => $variant->where( static fn ( Builder $sku ) => static::orWhereContains( $sku, static::column( ProductVariant::class, 'sku' ), $search ) ) );
 
             if ( [] !== $scoutIds ) {
-                $where->orWhereIn( 'products.id', $scoutIds );
+                $where->orWhereIn( static::column( Product::class, 'id' ), $scoutIds );
             }
         } );
     }
@@ -243,11 +261,12 @@ class ProductsQuery extends ResourceQuery
     protected function filters(): array
     {
         return [
-            'status'   => static fn ( Builder $query, mixed $value ) => $query->where( 'products.status', (string) $value ),
-            'type'     => static fn ( Builder $query, mixed $value ) => $query->where( 'products.type', (string) $value ),
+            'status'   => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Product::class, 'status' ), (string) $value ),
+            'type'     => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Product::class, 'type' ), (string) $value ),
             'category' => static fn ( Builder $query, mixed $value ) => $query->whereHas( 'categories', static fn ( Builder $category ) => $category->whereKey( (int) $value ) ),
             'tag'      => static fn ( Builder $query, mixed $value ) => $query->whereHas( 'tags', static fn ( Builder $tag ) => $tag->whereKey( (int) $value ) ),
             'stock'    => fn ( Builder $query, mixed $value ) => $this->applyStockState( $query, (string) $value ),
+            'featured' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Product::class, 'is_featured' ), '1' === (string) $value ),
         ];
     }
 
@@ -270,15 +289,16 @@ class ProductsQuery extends ResourceQuery
     protected function applyStockState( Builder $query, string $state ): void
     {
         $available = $this->stockRows()->selectRaw( 'COALESCE(SUM(quantity_on_hand - quantity_reserved), 0)' );
+        $lowRows   = $this->stockRows();
 
         match ( $state ) {
             'untracked' => $query->whereNotExists( $this->stockRows()->toBase() ),
             'out'       => $query->whereExists( $this->stockRows()->toBase() )->where( $available->toBase(), '<=', 0 ),
             'in'        => $query->whereExists( $this->stockRows()->toBase() )->where( $available->toBase(), '>', 0 ),
             'low'       => $query->where( $available->toBase(), '>', 0 )->whereExists(
-                $this->stockRows()
-                    ->whereNotNull( 'inventory_items.low_stock_threshold' )
-                    ->whereRaw( '(inventory_items.quantity_on_hand - inventory_items.quantity_reserved) <= inventory_items.low_stock_threshold' )
+                $lowRows
+                    ->whereNotNull( static::column( InventoryItem::class, 'low_stock_threshold' ) )
+                    ->whereRaw( InventoryQuery::availableSql( $lowRows ) . ' <= ' . static::raw( $lowRows, InventoryItem::class, 'low_stock_threshold' ) )
                     ->toBase(),
             ),
             default     => null,
@@ -298,12 +318,12 @@ class ProductsQuery extends ResourceQuery
         $variant = ( new ProductVariant() )->getMorphClass();
 
         return InventoryItem::query()
-            ->where( 'inventory_items.track_inventory', true )
+            ->where( static::column( InventoryItem::class, 'track_inventory' ), true )
             ->where( static function ( Builder $owner ) use ( $product, $variant ): void {
-                $owner->where( static fn ( Builder $own ) => $own->where( 'inventory_items.stockable_type', $product )->whereColumn( 'inventory_items.stockable_id', 'products.id' ) )
-                    ->orWhere( static fn ( Builder $own ) => $own->where( 'inventory_items.stockable_type', $variant )->whereIn(
-                        'inventory_items.stockable_id',
-                        ProductVariant::query()->select( 'product_variants.id' )->whereColumn( 'product_variants.product_id', 'products.id' ),
+                $owner->where( static fn ( Builder $own ) => $own->where( static::column( InventoryItem::class, 'stockable_type' ), $product )->whereColumn( static::column( InventoryItem::class, 'stockable_id' ), static::column( Product::class, 'id' ) ) )
+                    ->orWhere( static fn ( Builder $own ) => $own->where( static::column( InventoryItem::class, 'stockable_type' ), $variant )->whereIn(
+                        static::column( InventoryItem::class, 'stockable_id' ),
+                        ProductVariant::query()->select( static::column( ProductVariant::class, 'id' ) )->whereColumn( static::column( ProductVariant::class, 'product_id' ), static::column( Product::class, 'id' ) ),
                     ) );
             } );
     }

@@ -66,7 +66,7 @@
                                 variant="ghost"
                                 size="sm"
                                 icon="o-arrow-up"
-                                wire:click="move( {{ $board->id }}, -1 )" data-reorder="up" data-reorder-list="boards" data-reorder-key="board-{{ $board->id }}" data-reorder-item="{{ $board->name }}"
+                                wire:click="move( {{ $board->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="boards" data-reorder-key="board-{{ $board->id }}" data-reorder-item="{{ $board->name }}"
                                 :disabled="$loop->first"
                                 :aria-label="__( 'Move :name up', [ 'name' => $board->name ] )"
                             />
@@ -74,7 +74,7 @@
                                 variant="ghost"
                                 size="sm"
                                 icon="o-arrow-down"
-                                wire:click="move( {{ $board->id }}, 1 )" data-reorder="down" data-reorder-list="boards" data-reorder-key="board-{{ $board->id }}" data-reorder-item="{{ $board->name }}"
+                                wire:click="move( {{ $board->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="boards" data-reorder-key="board-{{ $board->id }}" data-reorder-item="{{ $board->name }}"
                                 :disabled="$loop->last"
                                 :aria-label="__( 'Move :name down', [ 'name' => $board->name ] )"
                             />

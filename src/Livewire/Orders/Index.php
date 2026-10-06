@@ -212,7 +212,7 @@ class Index extends Component
 
         $substatus = OrderSubstatus::query()->findOrFail( (int) $this->bulkSubstatusId );
 
-        if ( ( clone $selection )->where( 'orders.system_status', '!=', $substatus->system_status )->exists() ) {
+        if ( ( clone $selection )->where( $selection->qualifyColumn( 'system_status' ), '!=', $substatus->system_status )->exists() ) {
             $this->addError( 'bulkSubstatusId', __( '":substatus" does not fit every selected order. Pick a sub-status of the orders\' current status.', [ 'substatus' => $substatus->label ] ) );
 
             return null;
@@ -220,15 +220,24 @@ class Index extends Component
 
         // Collect the ids first: paging through the selection while moving
         // orders would skip rows whenever the move takes them out of a filter.
-        $ids     = ( clone $selection )->reorder()->pluck( 'orders.id' )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $machine = app( OrderStatusMachine::class );
         $actorId = auth()->id();
 
+        $allowed = [];
+        $denied  = 0;
+
         foreach ( array_chunk( $ids, 200 ) as $chunk ) {
             foreach ( Order::query()->whereKey( $chunk )->get() as $order ) {
-                $this->authorizeEcommerce( 'update', $order );
+                if ( $this->canEcommerce( 'update', $order ) ) {
+                    $allowed[] = (int) $order->id;
+                } else {
+                    ++$denied;
+                }
             }
         }
+
+        $ids = $allowed;
 
         try {
             DB::transaction( static function () use ( $ids, $substatus, $machine, $actorId ): void {
@@ -248,11 +257,11 @@ class Index extends Component
 
         $this->bulkSubstatusId = null;
 
-        return trans_choice(
+        return self::withDeniedNote( trans_choice(
             ':count order moved to ":substatus".|:count orders moved to ":substatus".',
             $moved,
             [ 'count' => $moved, 'substatus' => $substatus->label ],
-        );
+        ), $denied );
     }
 
     /**
@@ -265,7 +274,7 @@ class Index extends Component
      */
     protected function bulkSubstatusOptions(): array
     {
-        $statuses = $this->selectionQuery()->reorder()->select( 'orders.system_status' )->distinct()->pluck( 'system_status' );
+        $statuses = $this->selectionQuery()->reorder()->select( ( new Order() )->qualifyColumn( 'system_status' ) )->distinct()->pluck( 'system_status' );
 
         if ( 1 !== $statuses->count() ) {
             return [];

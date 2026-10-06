@@ -21,7 +21,7 @@
                         size="sm"
                         variant="outline"
                         icon="o-plus"
-                        wire:click="create( '{{ $group['status'] }}' )"
+                        wire:click="create( {{ \Illuminate\Support\Js::from( $group['status'] ) }} )"
                         :label="__( 'Add sub-status' )"
                         :aria-label="__( 'Add sub-status to :status', [ 'status' => $group['label'] ] )"
                     />
@@ -34,7 +34,7 @@
                     <li wire:key="substatus-{{ $substatus->id }}" class="flex flex-wrap items-center gap-3 p-3" data-substatus="{{ $substatus->key }}">
                         <span
                             class="size-5 shrink-0 rounded border border-base-300"
-                            style="background-color: {{ $substatus->color ?? 'transparent' }}"
+                            style="background-color: {{ \ArtisanPackUI\EcommerceAdminLivewire\Support\ColorContrast::safeHex( $substatus->color ) }}"
                             aria-hidden="true"
                         ></span>
 
@@ -58,7 +58,7 @@
                                     variant="ghost"
                                     size="sm"
                                     icon="o-arrow-up"
-                                    wire:click="move( {{ $substatus->id }}, -1 )" data-reorder="up" data-reorder-list="substatuses-{{ $group['status'] }}" data-reorder-key="substatus-{{ $substatus->id }}" data-reorder-item="{{ $substatus->label }}"
+                                    wire:click="move( {{ $substatus->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="substatuses-{{ $group['status'] }}" data-reorder-key="substatus-{{ $substatus->id }}" data-reorder-item="{{ $substatus->label }}"
                                     :disabled="$loop->first"
                                     :aria-label="__( 'Move :name up', [ 'name' => $substatus->label ] )"
                                 />
@@ -66,7 +66,7 @@
                                     variant="ghost"
                                     size="sm"
                                     icon="o-arrow-down"
-                                    wire:click="move( {{ $substatus->id }}, 1 )" data-reorder="down" data-reorder-list="substatuses-{{ $group['status'] }}" data-reorder-key="substatus-{{ $substatus->id }}" data-reorder-item="{{ $substatus->label }}"
+                                    wire:click="move( {{ $substatus->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="substatuses-{{ $group['status'] }}" data-reorder-key="substatus-{{ $substatus->id }}" data-reorder-item="{{ $substatus->label }}"
                                     :disabled="$loop->last"
                                     :aria-label="__( 'Move :name down', [ 'name' => $substatus->label ] )"
                                 />

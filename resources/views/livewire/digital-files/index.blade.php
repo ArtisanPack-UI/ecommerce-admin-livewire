@@ -23,6 +23,25 @@
         @endif
     </x-artisanpack-header>
 
+    @if ( $keptCount > 0 )
+        <x-artisanpack-alert
+            color="warning"
+            icon="o-archive-box"
+            :title="trans_choice( ':count file has buyers and was kept.|:count files have buyers and were kept.', $keptCount, [ 'count' => $keptCount ] )"
+            :description="__( 'Archive files instead of deleting them: existing buyers keep their downloads, and the file is no longer offered.' )"
+            role="status"
+            class="mb-4"
+            data-kept-files
+        >
+            <x-slot:actions>
+                @if ( $canUpdate )
+                    <x-artisanpack-button size="sm" color="primary" wire:click="archiveKept" wire:loading.attr="disabled" :label="__( 'Archive instead' )" />
+                @endif
+                <x-artisanpack-button size="sm" variant="ghost" wire:click="dismissKept" :label="__( 'Dismiss' )" />
+            </x-slot:actions>
+        </x-artisanpack-alert>
+    @endif
+
     @include( 'ecommerce-admin::partials.resource-table', [
         'emptyIcon'        => 'o-arrow-down-tray',
         'emptyTitle'       => __( 'No digital files yet' ),
@@ -82,7 +101,9 @@
 
                 <x-artisanpack-toggle id="digital-file-streaming" :label="__( 'Streaming only' )" :hint="__( 'Can be played but never downloaded.' )" wire:model="form.is_streaming_only" />
 
-                <x-artisanpack-radio id="digital-file-source" :label="__( 'File' )" :options="$sourceOptions" wire:model.live="form.source" inline />
+                <x-artisanpack-toggle id="digital-file-archived" :label="__( 'Archived' )" :hint="__( 'Existing buyers keep their downloads; the file is no longer offered.' )" wire:model="form.is_archived" />
+
+                <x-artisanpack-radio id="digital-file-source" :label="__( 'File' )" :hint="__( 'A media-library file must be stored on a private disk (:disks), or buyers could download it without a link.', [ 'disks' => implode( ', ', \ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::allowed() ) ] )" :options="$sourceOptions" wire:model.live="form.source" inline />
 
                 @if ( 'media' === $form['source'] )
                     <div class="flex flex-wrap items-center gap-3">
