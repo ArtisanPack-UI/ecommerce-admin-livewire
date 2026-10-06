@@ -121,3 +121,47 @@ it( 'drops entries with a malformed permission instead of failing', function ():
 
     removeAllFilters( 'ap.ecommerceAdminLivewire.nav.items' );
 } );
+
+it( 'groups registry entries under registry sections and renders their resolved badge', function (): void {
+    grantAbilities( [ 'customer.viewAny' ] );
+    fakeAdminRoutes( [ 'customers.index', 'loyalty.index' ] );
+
+    $registry = app( AdminMenuRegistry::class );
+    $registry->registerSection( 'rewards', 'Rewards', 45 );
+    $registry->register( 'loyalty', [
+        'section'    => 'rewards',
+        'label'      => 'Loyalty',
+        'route'      => 'artisanpack.ecommerce.admin.loyalty.index',
+        'permission' => 'customer.viewAny',
+        'badge'      => static fn (): int => 3,
+    ] );
+
+    $user    = makeUser();
+    $grouped = AdminNav::grouped( $user );
+    $loyalty = collect( $grouped['rewards']['items'] ?? [] )->firstWhere( 'key', 'loyalty' );
+
+    expect( $grouped['rewards']['label'] ?? null )->toBe( 'Rewards' )
+        ->and( array_keys( $grouped ) )->toBe( [ 'top', 'customers', 'rewards' ] )
+        ->and( $loyalty )->toMatchArray( [ 'badge' => null, 'badgeCount' => 3 ] );
+
+    Livewire\Livewire::actingAs( $user )
+        ->test( ArtisanPackUI\EcommerceAdminLivewire\Livewire\Navigation::class )
+        ->assertSee( 'Loyalty' )
+        ->assertSeeHtml( '3' )
+        ->assertSee( 'Loyalty (3 items)' );
+} );
+
+it( 'links registry entries that give a URL instead of a route name', function (): void {
+    grantAbilities( [ 'customer.viewAny' ] );
+
+    app( AdminMenuRegistry::class )->register( 'docs', [
+        'label'      => 'Docs',
+        'route'      => 'https://example.test/docs',
+        'permission' => 'customer.viewAny',
+    ] );
+
+    $docs = collect( AdminNav::visibleItems( makeUser() ) )->firstWhere( 'key', 'docs' );
+
+    expect( $docs )->not->toBeNull()
+        ->and( AdminNav::url( $docs ) )->toBe( 'https://example.test/docs' );
+} );
