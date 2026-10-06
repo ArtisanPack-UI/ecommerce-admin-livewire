@@ -1016,6 +1016,7 @@
     "On hand": "Vorrätig",
     "On hand: :on_hand. Reserved: :reserved. Available: :available.": "Vorrätig: :on_hand. Reserviert: :reserved. Verfügbar: :available.",
     "One per line.": "Einer pro Zeile.",
+    "Only :amount can be refunded against the order's lines.": "Auf die Positionen der Bestellung können nur :amount erstattet werden.",
     "Only :max of this item are left to ship.": "Von diesem Artikel sind nur noch :max zu versenden.",
     "Only :max of this item can still be refunded.": "Von diesem Artikel können nur noch :max erstattet werden.",
     "Only email templates can be sent as a test.": "Nur E-Mail-Vorlagen können als Test gesendet werden.",

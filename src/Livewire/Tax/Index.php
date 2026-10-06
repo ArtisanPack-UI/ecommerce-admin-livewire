@@ -556,17 +556,19 @@ class Index extends Component
         $blocked = null;
 
         $deleted = $this->withActionToken( $token, 'delete-class', static function () use ( $class, &$blocked ): bool {
-            // Re-checked under a lock so a rate or product added meanwhile still blocks the delete.
-            $locked  = TaxClass::query()->lockForUpdate()->find( $class->id );
-            $blocked = null === $locked ? null : self::classBlocker( $locked );
+            return DB::transaction( static function () use ( $class, &$blocked ): bool {
+                // Re-checked under a lock so a rate or product added meanwhile still blocks the delete.
+                $locked  = TaxClass::query()->lockForUpdate()->find( $class->id );
+                $blocked = null === $locked ? null : self::classBlocker( $locked );
 
-            if ( null === $locked || null !== $blocked ) {
-                return false;
-            }
+                if ( null === $locked || null !== $blocked ) {
+                    return false;
+                }
 
-            $locked->delete();
+                $locked->delete();
 
-            return true;
+                return true;
+            } );
         }, $class );
 
         $this->cancelDeleteClass();
@@ -647,7 +649,7 @@ class Index extends Component
         $this->validateImport();
 
         $plan   = $this->importPlan();
-        $result = $this->withActionToken( $token, 'import', static function () use ( $plan ): array {
+        $result = $this->withActionToken( $token, 'import', static fn (): array => DB::transaction( static function () use ( $plan ): array {
             $created = 0;
             $updated = 0;
 
@@ -662,7 +664,7 @@ class Index extends Component
             }
 
             return [ $created, $updated ];
-        } );
+        } ) );
 
         if ( null === $result ) {
             return;

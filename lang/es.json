@@ -1016,6 +1016,7 @@
     "On hand": "En almacén",
     "On hand: :on_hand. Reserved: :reserved. Available: :available.": "En almacén: :on_hand. Reservado: :reserved. Disponible: :available.",
     "One per line.": "Uno por línea.",
+    "Only :amount can be refunded against the order's lines.": "Solo se pueden reembolsar :amount con cargo a las líneas del pedido.",
     "Only :max of this item are left to ship.": "Solo quedan :max unidades de este artículo por enviar.",
     "Only :max of this item can still be refunded.": "Solo se pueden reembolsar todavía :max unidades de este artículo.",
     "Only email templates can be sent as a test.": "Solo las plantillas de correo electrónico se pueden enviar como prueba.",

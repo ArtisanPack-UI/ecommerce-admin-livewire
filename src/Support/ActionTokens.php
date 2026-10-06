@@ -143,6 +143,27 @@ final class ActionTokens
     }
 
     /**
+     * Frees a consumed token, so the action can be retried after its write
+     * failed.
+     *
+     * @since 1.0.0
+     *
+     * @param  Authenticatable|null  $user    The user it was consumed for.
+     * @param  string                $action  The action name.
+     * @param  string                $token   The token.
+     *
+     * @return void
+     */
+    public static function release( ?Authenticatable $user, string $action, string $token ): void
+    {
+        IdempotencyRecord::query()
+            ->where( 'actor_scope', self::actor( $user ) )
+            ->where( 'endpoint_key', Str::limit( self::ENDPOINT_PREFIX . $action, 191, '' ) )
+            ->where( 'idempotency_key', hash( 'sha256', $token ) )
+            ->delete();
+    }
+
+    /**
      * The signature over the user, scope, and payload.
      *
      * @since 1.0.0

@@ -667,7 +667,7 @@ class Index extends Component
         $type = (string) $this->deletingType;
         $name = $subject instanceof ShippingZone ? (string) $subject->name : (string) $subject->label;
 
-        $deleted = $this->withActionToken( $token, 'delete-' . $type, static function () use ( $subject ): bool {
+        $deleted = $this->withActionToken( $token, 'delete-' . $type, static fn (): bool => DB::transaction( static function () use ( $subject ): bool {
             if ( $subject instanceof ShippingZone ) {
                 ShippingMethod::query()->where( 'zone_id', $subject->id )->delete();
             }
@@ -675,7 +675,7 @@ class Index extends Component
             $subject->delete();
 
             return true;
-        }, $subject );
+        } ), $subject );
 
         $this->cancelDelete();
 
