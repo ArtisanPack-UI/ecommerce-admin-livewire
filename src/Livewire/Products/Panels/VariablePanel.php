@@ -200,7 +200,7 @@ class VariablePanel extends ProductTypePanel
             'attributes.*.is_variation'    => [ 'boolean' ],
             'attributes.*.values'          => [ 'array', 'max:100' ],
             'attributes.*.values.*.label'  => [ 'required', 'string', 'max:120' ],
-            'attributes.*.values.*.swatch' => [ 'nullable', 'string', 'max:60' ],
+            'attributes.*.values.*.swatch' => [ 'nullable', 'string', 'max:60', 'regex:/^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+|[A-Za-z0-9_\-\/\.]+)$/' ],
             'variants'                     => [ 'array', 'max:' . self::MAX_VARIANTS, self::distinctSkus() ],
             'variants.*.name'              => [ 'nullable', 'string', 'max:255' ],
             'variants.*.sku'               => [ 'nullable', 'string', 'max:100' ],
@@ -741,7 +741,9 @@ class VariablePanel extends ProductTypePanel
     }
 
     /**
-     * The size of the full attribute matrix.
+     * The size of the full attribute matrix, capped well above the most
+     * variants the engine generates, so many large attributes can't
+     * overflow an int.
      *
      * @since 1.0.0
      *
@@ -749,6 +751,7 @@ class VariablePanel extends ProductTypePanel
      */
     protected function matrixSize(): int
     {
+        $cap  = ProductService::MAX_GENERATED_VARIANTS * 4;
         $size = 0;
 
         foreach ( (array) ( $this->state['attributes'] ?? [] ) as $attribute ) {
@@ -757,6 +760,10 @@ class VariablePanel extends ProductTypePanel
             }
 
             $size = max( 1, $size ) * count( (array) ( $attribute['values'] ?? [] ) );
+
+            if ( $size > $cap ) {
+                return $cap;
+            }
         }
 
         return $size;

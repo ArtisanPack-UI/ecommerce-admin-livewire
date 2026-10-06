@@ -188,6 +188,45 @@ it( 'asks before generating more than 50 variants', function (): void {
         ->assertCount( 'state.variants', 54 );
 } );
 
+it( 'renders and refuses a matrix far larger than the engine allows, without overflowing', function (): void {
+    $attributes = array_map( static fn ( int $a ): array => [
+        'uid'          => "a{$a}",
+        'id'           => null,
+        'key'          => '',
+        'label'        => "Attribute {$a}",
+        'is_variation' => true,
+        'values'       => array_map( static fn ( int $v ): array => [ 'uid' => "a{$a}v{$v}", 'id' => null, 'value' => null, 'label' => "Value {$v}", 'swatch' => '' ], range( 1, 50 ) ),
+    ], range( 1, 12 ) );
+
+    Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => $attributes, 'variants' => [], 'stock_reason' => '' ] )
+        ->assertOk()
+        ->call( 'generateVariants' )
+        ->assertHasErrors( 'state.variants' )
+        ->assertSee( 'That would make more than ' . VariablePanel::MAX_VARIANTS . ' variants.' )
+        ->assertCount( 'state.variants', 0 );
+} );
+
+it( 'accepts colour and image swatches but not CSS', function ( string $swatch, bool $valid ): void {
+    $attributes                                   = teeAttributes( [ 'S' ], [ 'Red' ] );
+    $attributes[1]['values'][0]['swatch']         = $swatch;
+
+    $component = Livewire::test( Form::class )
+        ->set( 'name', 'Tee' )
+        ->set( 'type', 'variable' )
+        ->set( 'panelState', [ 'attributes' => $attributes, 'variants' => [], 'stock_reason' => '' ] )
+        ->call( 'save' );
+
+    $valid
+        ? $component->assertHasNoErrors( 'panelState.attributes.1.values.0.swatch' )
+        : $component->assertHasErrors( 'panelState.attributes.1.values.0.swatch' );
+} )->with( [
+    'hex'       => [ '#ff0000', true ],
+    'name'      => [ 'red', true ],
+    'image ref' => [ 'swatches/red.png', true ],
+    'css'       => [ 'red;background:url(x)', false ],
+] );
+
 it( 'refuses to generate when an attribute has no values', function (): void {
     Livewire::test( VariablePanel::class )
         ->set( 'state', [ 'attributes' => [ [ 'uid' => 'a', 'id' => null, 'key' => '', 'label' => 'Size', 'is_variation' => true, 'values' => [] ] ], 'variants' => [], 'stock_reason' => '' ] )
