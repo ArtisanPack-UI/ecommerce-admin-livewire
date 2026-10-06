@@ -210,7 +210,7 @@ it( 'refuses writes without the coupon abilities', function (): void {
 it( 'reports a code taken by a concurrent request instead of failing', function (): void {
     Coupon::creating( static function ( Coupon $coupon ): void {
         if ( 'RACED' === $coupon->code && ! Coupon::query()->where( 'code', 'RACED' )->exists() ) {
-            Illuminate\Support\Facades\DB::table( 'coupons' )->insert( [ 'promotion_id' => $coupon->promotion_id, 'code' => 'RACED', 'created_at' => now(), 'updated_at' => now() ] );
+            Illuminate\Support\Facades\DB::table( ( new Coupon() )->getTable() )->insert( [ 'promotion_id' => $coupon->promotion_id, 'code' => 'RACED', 'created_at' => now(), 'updated_at' => now() ] );
         }
     } );
 

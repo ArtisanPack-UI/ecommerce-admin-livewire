@@ -1278,7 +1278,7 @@ class Form extends Component
         $this->dimUnit           = (string) ( $product->dim_unit ?? '' );
         $this->isTaxable         = (bool) $product->is_taxable;
         $this->taxClassKey       = (string) ( $product->tax_class_key ?? '' );
-        $this->categoryIds       = $product->categories()->pluck( 'product_categories.id' )->map( static fn ( $id ): int => (int) $id )->all();
+        $this->categoryIds       = $product->categories()->allRelatedIds()->map( static fn ( $id ): int => (int) $id )->all();
         $this->tagNames          = $product->tags()->orderBy( 'name' )->pluck( 'name' )->all();
         $this->featuredMediaId   = $product->featured_image_media_id;
         $this->featuredImageUrl  = (string) ( $product->meta['featured_image_url'] ?? '' );

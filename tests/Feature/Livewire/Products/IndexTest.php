@@ -169,7 +169,7 @@ it( 'runs the engine product list-query filter', function (): void {
     Product::factory()->create( [ 'name' => 'Visible' ] );
     Product::factory()->create( [ 'name' => 'Hidden by a satellite' ] );
 
-    addFilter( 'ap.ecommerce.product.listQuery', static fn ( Builder $query, array $filters ): Builder => $query->where( 'products.name', '!=', 'Hidden by a satellite' ) );
+    addFilter( 'ap.ecommerce.product.listQuery', static fn ( Builder $query, array $filters ): Builder => $query->where( $query->qualifyColumn( 'name' ), '!=', 'Hidden by a satellite' ) );
 
     Livewire::test( Index::class )->assertSee( 'Visible' )->assertDontSee( 'Hidden by a satellite' );
 } );

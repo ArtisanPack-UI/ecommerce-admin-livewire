@@ -87,7 +87,7 @@ class CouponsPanel extends Component
     public const CODE_PATTERN = '/^[A-Z0-9][A-Z0-9_-]*$/D';
 
     /**
-     * The longest code the `coupons.code` column holds.
+     * The longest code the `ecommerce_coupons.code` column holds.
      *
      * @since 1.0.0
      *

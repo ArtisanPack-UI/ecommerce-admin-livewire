@@ -119,7 +119,7 @@ it( 'applies extra filters passed with withFilters', function (): void {
     Order::factory()->create( [ 'order_number' => 'WEB00001' ] );
 
     $numbers = ( new OrdersQuery() )
-        ->withFilters( [ 'channel' => static fn ( $query, mixed $value ) => $query->where( 'orders.order_number', 'like', 'POS' === strtoupper( (string) $value ) ? 'META%' : 'WEB%' ) ] )
+        ->withFilters( [ 'channel' => static fn ( $query, mixed $value ) => $query->where( $query->qualifyColumn( 'order_number' ), 'like', 'POS' === strtoupper( (string) $value ) ? 'META%' : 'WEB%' ) ] )
         ->build( filters: [ 'channel' => 'pos' ] )
         ->pluck( 'order_number' )
         ->all();

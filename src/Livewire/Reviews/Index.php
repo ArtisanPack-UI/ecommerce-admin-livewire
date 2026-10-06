@@ -356,7 +356,7 @@ class Index extends Component
         $service = app( ReviewService::class );
         $reason  = 'reject' === $action ? sanitizeText( $this->rejectReason ) : null;
         $engine  = 'reject' === $action ? 'reject' : self::MODERATIONS[ $action ];
-        $ids     = ( clone $selection )->reorder()->pluck( 'product_reviews.id' )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $changed = 0;
 
         DB::transaction( function () use ( $ids, $service, $engine, $reason, &$changed ): void {
@@ -390,7 +390,7 @@ class Index extends Component
     protected function deleteSelection( Builder $selection ): ?string
     {
         $service = app( ReviewService::class );
-        $ids     = ( clone $selection )->reorder()->pluck( 'product_reviews.id' )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $deleted = 0;
 
         DB::transaction( function () use ( $ids, $service, &$deleted ): void {

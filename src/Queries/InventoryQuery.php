@@ -58,11 +58,11 @@ class InventoryQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'on_hand'   => 'inventory_items.quantity_on_hand',
-            'reserved'  => 'inventory_items.quantity_reserved',
+            'on_hand'   => static::column( InventoryItem::class, 'quantity_on_hand' ),
+            'reserved'  => static::column( InventoryItem::class, 'quantity_reserved' ),
             'available' => 'quantity_available',
-            'threshold' => 'inventory_items.low_stock_threshold',
-            'updated'   => 'inventory_items.updated_at',
+            'threshold' => static::column( InventoryItem::class, 'low_stock_threshold' ),
+            'updated'   => static::column( InventoryItem::class, 'updated_at' ),
         ];
     }
 
@@ -77,15 +77,31 @@ class InventoryQuery extends ResourceQuery
     }
 
     /**
+     * `(on hand - reserved)` for raw SQL, with the columns qualified.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder<InventoryItem>  $query  The query whose grammar wraps the columns.
+     *
+     * @return string
+     */
+    public static function availableSql( Builder $query ): string
+    {
+        return '(' . static::raw( $query, InventoryItem::class, 'quantity_on_hand' ) . ' - ' . static::raw( $query, InventoryItem::class, 'quantity_reserved' ) . ')';
+    }
+
+    /**
      * @since 1.0.0
      *
      * @return Builder<InventoryItem>
      */
     protected function baseQuery(): Builder
     {
-        return InventoryItem::query()
-            ->select( 'inventory_items.*' )
-            ->selectRaw( '(inventory_items.quantity_on_hand - inventory_items.quantity_reserved) as quantity_available' )
+        $query = InventoryItem::query();
+
+        return $query
+            ->select( static::column( InventoryItem::class, '*' ) )
+            ->selectRaw( self::availableSql( $query ) . ' as quantity_available' )
             ->with( [
                 'stockable' => static fn ( MorphTo $morph ) => $morph->morphWith( [
                     ProductVariant::class => [ 'product:id,name,type,sku' ],
@@ -108,15 +124,15 @@ class InventoryQuery extends ResourceQuery
         $query->where( static function ( Builder $where ) use ( $search ): void {
             $where->whereHasMorph( 'stockable', [ Product::class ], static function ( Builder $product ) use ( $search ): void {
                 $product->where( static function ( Builder $match ) use ( $search ): void {
-                    static::orWhereContains( $match, 'products.name', $search );
-                    static::orWhereContains( $match, 'products.sku', $search );
+                    static::orWhereContains( $match, static::column( Product::class, 'name' ), $search );
+                    static::orWhereContains( $match, static::column( Product::class, 'sku' ), $search );
                 } );
             } )->orWhereHasMorph( 'stockable', [ ProductVariant::class ], static function ( Builder $variant ) use ( $search ): void {
                 $variant->where( static function ( Builder $match ) use ( $search ): void {
-                    static::orWhereContains( $match, 'product_variants.name', $search );
-                    static::orWhereContains( $match, 'product_variants.sku', $search );
+                    static::orWhereContains( $match, static::column( ProductVariant::class, 'name' ), $search );
+                    static::orWhereContains( $match, static::column( ProductVariant::class, 'sku' ), $search );
 
-                    $match->orWhereHas( 'product', static fn ( Builder $product ) => $product->where( static fn ( Builder $name ) => static::orWhereContains( $name, 'products.name', $search ) ) );
+                    $match->orWhereHas( 'product', static fn ( Builder $product ) => $product->where( static fn ( Builder $name ) => static::orWhereContains( $name, static::column( Product::class, 'name' ), $search ) ) );
                 } );
             } );
         } );
@@ -131,21 +147,24 @@ class InventoryQuery extends ResourceQuery
     {
         return [
             'stock'   => static function ( Builder $query, mixed $value ): void {
-                $available = '(inventory_items.quantity_on_hand - inventory_items.quantity_reserved)';
+                $available = self::availableSql( $query );
+                $threshold = static::raw( $query, InventoryItem::class, 'low_stock_threshold' );
+                $onHand    = static::raw( $query, InventoryItem::class, 'quantity_on_hand' );
+                $reserved  = static::raw( $query, InventoryItem::class, 'quantity_reserved' );
 
                 match ( (string) $value ) {
-                    'out'   => $query->where( 'inventory_items.track_inventory', true )->whereRaw( $available . ' <= 0' ),
-                    'low'   => $query->where( 'inventory_items.track_inventory', true )
-                        ->whereNotNull( 'inventory_items.low_stock_threshold' )
+                    'out'   => $query->where( static::column( InventoryItem::class, 'track_inventory' ), true )->whereRaw( $available . ' <= 0' ),
+                    'low'   => $query->where( static::column( InventoryItem::class, 'track_inventory' ), true )
+                        ->whereNotNull( static::column( InventoryItem::class, 'low_stock_threshold' ) )
                         ->whereRaw( $available . ' > 0' )
-                        ->whereRaw( $available . ' <= inventory_items.low_stock_threshold' ),
-                    'reorder' => $query->where( 'inventory_items.track_inventory', true )
-                        ->whereNotNull( 'inventory_items.low_stock_threshold' )
-                        ->whereRaw( 'inventory_items.quantity_on_hand <= inventory_items.low_stock_threshold + inventory_items.quantity_reserved' ),
+                        ->whereRaw( $available . ' <= ' . $threshold ),
+                    'reorder' => $query->where( static::column( InventoryItem::class, 'track_inventory' ), true )
+                        ->whereNotNull( static::column( InventoryItem::class, 'low_stock_threshold' ) )
+                        ->whereRaw( $onHand . ' <= ' . $threshold . ' + ' . $reserved ),
                     default => null,
                 };
             },
-            'tracked' => static fn ( Builder $query, mixed $value ) => $query->where( 'inventory_items.track_inventory', '1' === (string) $value ),
+            'tracked' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( InventoryItem::class, 'track_inventory' ), '1' === (string) $value ),
         ];
     }
 }

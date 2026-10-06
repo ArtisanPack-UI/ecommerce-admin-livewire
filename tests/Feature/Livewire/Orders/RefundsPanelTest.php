@@ -108,7 +108,7 @@ it( 'hides and refuses refunds without order.refund', function (): void {
 } );
 
 it( 'refunds one of three items and restocks it', function (): void {
-    $stock = InventoryItem::factory()->create( [ 'stockable_type' => Product::class, 'stockable_id' => $this->product->id, 'quantity_on_hand' => 4 ] );
+    $stock = InventoryItem::factory()->create( [ 'stockable_type' => $this->product->getMorphClass(), 'stockable_id' => $this->product->id, 'quantity_on_hand' => 4 ] );
 
     $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
         ->call( 'startRefund' )

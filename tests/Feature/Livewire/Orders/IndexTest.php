@@ -313,7 +313,7 @@ it( 'lets satellites add columns, filters, and bulk actions', function (): void 
     ] );
     addFilter( 'ap.ecommerceAdminLivewire.table.orders.filters', static fn ( array $filters ): array => [
         ...$filters,
-        [ 'key' => 'subscribed', 'label' => 'Subscribed', 'type' => 'boolean', 'apply' => static fn ( $query, string $value ) => '1' === $value ? $query->whereNotNull( 'orders.meta->subscription' ) : $query->whereNull( 'orders.meta->subscription' ) ],
+        [ 'key' => 'subscribed', 'label' => 'Subscribed', 'type' => 'boolean', 'apply' => static fn ( $query, string $value ) => '1' === $value ? $query->whereNotNull( $query->qualifyColumn( 'meta' ) . '->subscription' ) : $query->whereNull( $query->qualifyColumn( 'meta' ) . '->subscription' ) ],
     ] );
     addFilter( 'ap.ecommerceAdminLivewire.table.orders.bulkActions', static fn ( array $actions ): array => [
         ...$actions,

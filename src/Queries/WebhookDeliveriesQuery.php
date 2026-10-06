@@ -46,9 +46,9 @@ class WebhookDeliveriesQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'created'   => 'webhook_deliveries.id',
-            'attempts'  => 'webhook_deliveries.attempts',
-            'delivered' => 'webhook_deliveries.delivered_at',
+            'created'   => static::column( WebhookDelivery::class, 'id' ),
+            'attempts'  => static::column( WebhookDelivery::class, 'attempts' ),
+            'delivered' => static::column( WebhookDelivery::class, 'delivered_at' ),
         ];
     }
 
@@ -70,8 +70,8 @@ class WebhookDeliveriesQuery extends ResourceQuery
     protected function baseQuery(): Builder
     {
         return WebhookDelivery::query()
-            ->select( 'webhook_deliveries.*' )
-            ->where( 'webhook_deliveries.subscription_id', $this->subscriptionId );
+            ->select( static::column( WebhookDelivery::class, '*' ) )
+            ->where( static::column( WebhookDelivery::class, 'subscription_id' ), $this->subscriptionId );
     }
 
     /**
@@ -85,8 +85,8 @@ class WebhookDeliveriesQuery extends ResourceQuery
     protected function applySearch( Builder $query, string $search ): void
     {
         $query->where( static function ( Builder $where ) use ( $search ): void {
-            static::orWhereContains( $where, 'webhook_deliveries.event', $search );
-            static::orWhereContains( $where, 'webhook_deliveries.response_body', $search );
+            static::orWhereContains( $where, static::column( WebhookDelivery::class, 'event' ), $search );
+            static::orWhereContains( $where, static::column( WebhookDelivery::class, 'response_body' ), $search );
         } );
     }
 
@@ -98,7 +98,7 @@ class WebhookDeliveriesQuery extends ResourceQuery
     protected function filters(): array
     {
         return [
-            'event'  => static fn ( Builder $query, mixed $value ) => $query->where( 'webhook_deliveries.event', (string) $value ),
+            'event'  => static fn ( Builder $query, mixed $value ) => $query->where( static::column( WebhookDelivery::class, 'event' ), (string) $value ),
             'status' => static fn ( Builder $query, mixed $value ) => Webhooks::whereStatus( $query, (string) $value ),
         ];
     }

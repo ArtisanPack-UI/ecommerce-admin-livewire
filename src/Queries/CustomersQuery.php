@@ -42,13 +42,13 @@ class CustomersQuery extends ResourceQuery
     {
         return [
             'name'       => static function ( Builder $query, string $direction ): void {
-                $query->orderBy( 'customers.last_name', $direction )->orderBy( 'customers.first_name', $direction );
+                $query->orderBy( static::column( Customer::class, 'last_name' ), $direction )->orderBy( static::column( Customer::class, 'first_name' ), $direction );
             },
-            'email'      => 'customers.email',
-            'orders'     => 'customers.orders_count',
-            'spent'      => 'customers.total_spent_amount',
-            'last_order' => 'customers.last_ordered_at',
-            'created'    => 'customers.created_at',
+            'email'      => static::column( Customer::class, 'email' ),
+            'orders'     => static::column( Customer::class, 'orders_count' ),
+            'spent'      => static::column( Customer::class, 'total_spent_amount' ),
+            'last_order' => static::column( Customer::class, 'last_ordered_at' ),
+            'created'    => static::column( Customer::class, 'created_at' ),
         ];
     }
 
@@ -69,7 +69,7 @@ class CustomersQuery extends ResourceQuery
      */
     protected function baseQuery(): Builder
     {
-        return Customer::query()->select( 'customers.*' );
+        return Customer::query()->select( static::column( Customer::class, '*' ) );
     }
 
     /**
@@ -87,14 +87,14 @@ class CustomersQuery extends ResourceQuery
         $words = array_values( array_filter( preg_split( '/\s+/u', $search ) ?: [] ) );
 
         $query->where( static function ( Builder $where ) use ( $search, $words ): void {
-            static::orWhereContains( $where, 'customers.email', $search );
-            static::orWhereContains( $where, 'customers.phone', $search );
+            static::orWhereContains( $where, static::column( Customer::class, 'email' ), $search );
+            static::orWhereContains( $where, static::column( Customer::class, 'phone' ), $search );
 
             $where->orWhere( static function ( Builder $name ) use ( $words ): void {
                 foreach ( $words as $word ) {
                     $name->where( static function ( Builder $part ) use ( $word ): void {
-                        static::orWhereContains( $part, 'customers.first_name', $word );
-                        static::orWhereContains( $part, 'customers.last_name', $word );
+                        static::orWhereContains( $part, static::column( Customer::class, 'first_name' ), $word );
+                        static::orWhereContains( $part, static::column( Customer::class, 'last_name' ), $word );
                     } );
                 }
             } );
@@ -110,18 +110,18 @@ class CustomersQuery extends ResourceQuery
     {
         return [
             'has_account'       => static fn ( Builder $query, mixed $value ) => '1' === (string) $value
-                ? $query->whereNotNull( 'customers.user_id' )
-                : $query->whereNull( 'customers.user_id' ),
-            'accepts_marketing' => static fn ( Builder $query, mixed $value ) => $query->where( 'customers.accepts_marketing', '1' === (string) $value ),
+                ? $query->whereNotNull( static::column( Customer::class, 'user_id' ) )
+                : $query->whereNull( static::column( Customer::class, 'user_id' ) ),
+            'accepts_marketing' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Customer::class, 'accepts_marketing' ), '1' === (string) $value ),
             'orders'            => static function ( Builder $query, mixed $value ): void {
                 $range = (array) $value;
 
                 if ( is_numeric( $range['min'] ?? null ) ) {
-                    $query->where( 'customers.orders_count', '>=', (int) ceil( (float) $range['min'] ) );
+                    $query->where( static::column( Customer::class, 'orders_count' ), '>=', (int) ceil( (float) $range['min'] ) );
                 }
 
                 if ( is_numeric( $range['max'] ?? null ) ) {
-                    $query->where( 'customers.orders_count', '<=', (int) floor( (float) $range['max'] ) );
+                    $query->where( static::column( Customer::class, 'orders_count' ), '<=', (int) floor( (float) $range['max'] ) );
                 }
             },
             'spent'             => static function ( Builder $query, mixed $value ): void {
@@ -131,11 +131,11 @@ class CustomersQuery extends ResourceQuery
                 $max     = self::minorBound( $range['max'] ?? null, $subunit, false );
 
                 if ( null !== $min ) {
-                    $query->where( 'customers.total_spent_amount', '>=', $min );
+                    $query->where( static::column( Customer::class, 'total_spent_amount' ), '>=', $min );
                 }
 
                 if ( null !== $max ) {
-                    $query->where( 'customers.total_spent_amount', '<=', $max );
+                    $query->where( static::column( Customer::class, 'total_spent_amount' ), '<=', $max );
                 }
             },
             'last_order'        => static function ( Builder $query, mixed $value ): void {
@@ -144,11 +144,11 @@ class CustomersQuery extends ResourceQuery
                 $to    = static::date( $range['to'] ?? null );
 
                 if ( null !== $from ) {
-                    $query->where( 'customers.last_ordered_at', '>=', $from->startOfDay() );
+                    $query->where( static::column( Customer::class, 'last_ordered_at' ), '>=', $from->startOfDay() );
                 }
 
                 if ( null !== $to ) {
-                    $query->where( 'customers.last_ordered_at', '<=', $to->endOfDay() );
+                    $query->where( static::column( Customer::class, 'last_ordered_at' ), '<=', $to->endOfDay() );
                 }
             },
         ];

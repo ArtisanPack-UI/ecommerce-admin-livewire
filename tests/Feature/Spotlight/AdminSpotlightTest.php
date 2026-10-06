@@ -123,8 +123,11 @@ it( 'runs one query per provider', function (): void {
 
     DB::enableQueryLog();
     AdminSpotlight::search( 'mug', $this->user );
+    $tables  = collect( [ Order::class, Product::class, Customer::class, Promotion::class, Coupon::class ] )
+        ->map( static fn ( string $model ): string => preg_quote( ( new $model() )->getTable(), '/' ) )
+        ->implode( '|' );
     $queries = collect( DB::getQueryLog() )->pluck( 'query' )
-        ->filter( static fn ( string $sql ): bool => 1 === preg_match( '/from "(orders|products|customers|promotions|coupons)"/', $sql ) );
+        ->filter( static fn ( string $sql ): bool => 1 === preg_match( '/from "(' . $tables . ')"/', $sql ) );
     DB::disableQueryLog();
 
     // One query per provider. (Coupons eager-load their promotions only when

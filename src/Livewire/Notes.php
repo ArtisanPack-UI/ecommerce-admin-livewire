@@ -35,7 +35,7 @@ use Livewire\Component;
  * notes; adding one needs the `update` ability on the subject, and deleting
  * one is limited to its author or a user with `update`. Order notes carry a
  * "visible to customer" toggle (off by default) that maps to
- * `order_notes.is_customer_visible`; customer notes are always internal.
+ * `ecommerce_order_notes.is_customer_visible`; customer notes are always internal.
  *
  * Bodies are stripped of markup on the way in and escaped on the way out.
  * Writes go through the engine's `OrderNoteService` / `CustomerNoteService`,

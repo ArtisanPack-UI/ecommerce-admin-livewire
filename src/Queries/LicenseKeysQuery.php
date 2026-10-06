@@ -13,7 +13,9 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Queries;
 
+use ArtisanPackUI\Ecommerce\Models\Customer;
 use ArtisanPackUI\Ecommerce\Models\LicenseKey;
+use ArtisanPackUI\Ecommerce\Models\Order;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -52,9 +54,9 @@ class LicenseKeysQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'issued'      => 'license_keys.created_at',
-            'expires'     => 'license_keys.expires_at',
-            'activations' => 'license_keys.activations_count',
+            'issued'      => static::column( LicenseKey::class, 'created_at' ),
+            'expires'     => static::column( LicenseKey::class, 'expires_at' ),
+            'activations' => static::column( LicenseKey::class, 'activations_count' ),
         ];
     }
 
@@ -97,19 +99,19 @@ class LicenseKeysQuery extends ResourceQuery
 
         $query->where( static function ( Builder $where ) use ( $search, $number, $searchKeys ): void {
             if ( $searchKeys ) {
-                static::orWhereContains( $where, 'license_keys.key', $search );
+                static::orWhereContains( $where, static::column( LicenseKey::class, 'key' ), $search );
             }
 
             $where->orWhereHas( 'orderItem.order', static function ( Builder $order ) use ( $search, $number ): void {
                 $order->where( static function ( Builder $match ) use ( $search, $number ): void {
-                    static::orWhereContains( $match, 'orders.order_number', '' === $number ? $search : $number );
-                    static::orWhereContains( $match, 'orders.email', $search );
+                    static::orWhereContains( $match, static::column( Order::class, 'order_number' ), '' === $number ? $search : $number );
+                    static::orWhereContains( $match, static::column( Order::class, 'email' ), $search );
 
                     $match->orWhereHas( 'customer', static function ( Builder $customer ) use ( $search ): void {
                         $customer->where( static function ( Builder $name ) use ( $search ): void {
-                            static::orWhereContains( $name, 'customers.first_name', $search );
-                            static::orWhereContains( $name, 'customers.last_name', $search );
-                            static::orWhereContains( $name, 'customers.email', $search );
+                            static::orWhereContains( $name, static::column( Customer::class, 'first_name' ), $search );
+                            static::orWhereContains( $name, static::column( Customer::class, 'last_name' ), $search );
+                            static::orWhereContains( $name, static::column( Customer::class, 'email' ), $search );
                         } );
                     } );
                 } );
@@ -129,9 +131,9 @@ class LicenseKeysQuery extends ResourceQuery
                 $now = Carbon::now();
 
                 match ( (string) $value ) {
-                    'revoked' => $query->where( 'license_keys.is_revoked', true ),
-                    'expired' => $query->where( 'license_keys.is_revoked', false )->whereNotNull( 'license_keys.expires_at' )->where( 'license_keys.expires_at', '<=', $now ),
-                    'active'  => $query->where( 'license_keys.is_revoked', false )->where( static fn ( Builder $live ) => $live->whereNull( 'license_keys.expires_at' )->orWhere( 'license_keys.expires_at', '>', $now ) ),
+                    'revoked' => $query->where( static::column( LicenseKey::class, 'is_revoked' ), true ),
+                    'expired' => $query->where( static::column( LicenseKey::class, 'is_revoked' ), false )->whereNotNull( static::column( LicenseKey::class, 'expires_at' ) )->where( static::column( LicenseKey::class, 'expires_at' ), '<=', $now ),
+                    'active'  => $query->where( static::column( LicenseKey::class, 'is_revoked' ), false )->where( static fn ( Builder $live ) => $live->whereNull( static::column( LicenseKey::class, 'expires_at' ) )->orWhere( static::column( LicenseKey::class, 'expires_at' ), '>', $now ) ),
                     default   => null,
                 };
             },

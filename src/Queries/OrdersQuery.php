@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Queries;
 
+use ArtisanPackUI\Ecommerce\Models\Customer;
 use ArtisanPackUI\Ecommerce\Models\Order;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -47,13 +48,13 @@ class OrdersQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'number'             => 'orders.order_number',
-            'placed'             => 'orders.placed_at',
-            'customer'           => 'orders.email',
-            'system_status'      => 'orders.system_status',
-            'payment_status'     => 'orders.payment_status',
-            'fulfillment_status' => 'orders.fulfillment_status',
-            'total'              => 'orders.total_amount',
+            'number'             => static::column( Order::class, 'order_number' ),
+            'placed'             => static::column( Order::class, 'placed_at' ),
+            'customer'           => static::column( Order::class, 'email' ),
+            'system_status'      => static::column( Order::class, 'system_status' ),
+            'payment_status'     => static::column( Order::class, 'payment_status' ),
+            'fulfillment_status' => static::column( Order::class, 'fulfillment_status' ),
+            'total'              => static::column( Order::class, 'total_amount' ),
             'items'              => 'items_sum_quantity',
         ];
     }
@@ -80,7 +81,7 @@ class OrdersQuery extends ResourceQuery
     protected function baseQuery(): Builder
     {
         return Order::query()
-            ->select( 'orders.*' )
+            ->select( static::column( Order::class, '*' ) )
             ->with( [ 'customer', 'substatus' ] )
             ->withSum( 'items', 'quantity' );
     }
@@ -101,14 +102,14 @@ class OrdersQuery extends ResourceQuery
         $words  = array_values( array_filter( preg_split( '/\s+/u', $search ) ?: [] ) );
 
         $query->where( static function ( Builder $where ) use ( $number, $search, $words ): void {
-            static::orWhereContains( $where, 'orders.order_number', '' === $number ? $search : $number );
-            static::orWhereContains( $where, 'orders.email', $search );
+            static::orWhereContains( $where, static::column( Order::class, 'order_number' ), '' === $number ? $search : $number );
+            static::orWhereContains( $where, static::column( Order::class, 'email' ), $search );
 
             $where->orWhereHas( 'customer', static function ( Builder $customer ) use ( $words ): void {
                 foreach ( $words as $word ) {
                     $customer->where( static function ( Builder $name ) use ( $word ): void {
-                        static::orWhereContains( $name, 'customers.first_name', $word );
-                        static::orWhereContains( $name, 'customers.last_name', $word );
+                        static::orWhereContains( $name, static::column( Customer::class, 'first_name' ), $word );
+                        static::orWhereContains( $name, static::column( Customer::class, 'last_name' ), $word );
                     } );
                 }
             } );
@@ -125,14 +126,14 @@ class OrdersQuery extends ResourceQuery
     protected function filters(): array
     {
         return [
-            'system_status'      => static fn ( Builder $query, mixed $value ) => $query->where( 'orders.system_status', (string) $value ),
-            'substatus'          => static fn ( Builder $query, mixed $value ) => $query->where( 'orders.substatus_id', (int) $value ),
-            'payment_status'     => static fn ( Builder $query, mixed $value ) => $query->where( 'orders.payment_status', (string) $value ),
-            'fulfillment_status' => static fn ( Builder $query, mixed $value ) => $query->where( 'orders.fulfillment_status', (string) $value ),
-            'currency'           => static fn ( Builder $query, mixed $value ) => $query->where( 'orders.currency', strtoupper( (string) $value ) ),
+            'system_status'      => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Order::class, 'system_status' ), (string) $value ),
+            'substatus'          => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Order::class, 'substatus_id' ), (int) $value ),
+            'payment_status'     => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Order::class, 'payment_status' ), (string) $value ),
+            'fulfillment_status' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Order::class, 'fulfillment_status' ), (string) $value ),
+            'currency'           => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Order::class, 'currency' ), strtoupper( (string) $value ) ),
             'awaiting'           => static fn ( Builder $query, mixed $value ) => '1' === (string) $value
-                ? $query->where( 'orders.system_status', 'processing' )->whereIn( 'orders.fulfillment_status', [ 'unfulfilled', 'partial' ] )
-                : $query->where( static fn ( Builder $not ) => $not->where( 'orders.system_status', '!=', 'processing' )->orWhereNotIn( 'orders.fulfillment_status', [ 'unfulfilled', 'partial' ] ) ),
+                ? $query->where( static::column( Order::class, 'system_status' ), 'processing' )->whereIn( static::column( Order::class, 'fulfillment_status' ), [ 'unfulfilled', 'partial' ] )
+                : $query->where( static fn ( Builder $not ) => $not->where( static::column( Order::class, 'system_status' ), '!=', 'processing' )->orWhereNotIn( static::column( Order::class, 'fulfillment_status' ), [ 'unfulfilled', 'partial' ] ) ),
             'board'              => static fn ( Builder $query, mixed $value ) => $query->whereHas(
                 'boardAssignments',
                 static fn ( Builder $assignment ) => $assignment->where( 'board_id', (int) $value )->whereNull( 'removed_at' ),
@@ -143,11 +144,11 @@ class OrdersQuery extends ResourceQuery
                 $to    = static::date( $range['to'] ?? null );
 
                 if ( null !== $from ) {
-                    $query->where( 'orders.placed_at', '>=', $from->startOfDay() );
+                    $query->where( static::column( Order::class, 'placed_at' ), '>=', $from->startOfDay() );
                 }
 
                 if ( null !== $to ) {
-                    $query->where( 'orders.placed_at', '<=', $to->endOfDay() );
+                    $query->where( static::column( Order::class, 'placed_at' ), '<=', $to->endOfDay() );
                 }
             },
         ];

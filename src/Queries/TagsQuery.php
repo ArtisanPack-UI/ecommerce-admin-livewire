@@ -36,8 +36,8 @@ class TagsQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'name'     => 'product_tags.name',
-            'slug'     => 'product_tags.slug',
+            'name'     => static::column( ProductTag::class, 'name' ),
+            'slug'     => static::column( ProductTag::class, 'slug' ),
             'products' => 'products_count',
         ];
     }
@@ -75,8 +75,8 @@ class TagsQuery extends ResourceQuery
     protected function applySearch( Builder $query, string $search ): void
     {
         $query->where( static function ( Builder $where ) use ( $search ): void {
-            static::orWhereContains( $where, 'product_tags.name', $search );
-            static::orWhereContains( $where, 'product_tags.slug', $search );
+            static::orWhereContains( $where, static::column( ProductTag::class, 'name' ), $search );
+            static::orWhereContains( $where, static::column( ProductTag::class, 'slug' ), $search );
         } );
     }
 

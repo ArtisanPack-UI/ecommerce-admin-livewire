@@ -383,7 +383,7 @@ class Index extends Component
      */
     protected function deleteSelection( Builder $selection ): ?string
     {
-        $ids     = ( clone $selection )->reorder()->pluck( 'digital_files.id' )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $deleted = 0;
 
         DB::transaction( function () use ( $ids, &$deleted ): void {

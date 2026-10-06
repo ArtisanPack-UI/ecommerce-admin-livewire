@@ -175,7 +175,7 @@ it( 'explains a sub-status the order has outgrown', function (): void {
 it( 'summarises a cancel and cancels an unpaid order, releasing its stock', function (): void {
     $order   = Order::factory()->create( [ 'payment_status' => 'pending' ] );
     $product = Product::factory()->create( [ 'name' => 'Linen Shirt' ] );
-    $stock   = InventoryItem::factory()->create( [ 'stockable_type' => Product::class, 'stockable_id' => $product->id ] );
+    $stock   = InventoryItem::factory()->create( [ 'stockable_type' => $product->getMorphClass(), 'stockable_id' => $product->id ] );
 
     app( InventoryService::class )->reserve( $stock, $order, 2 );
 
@@ -220,7 +220,7 @@ it( 'cancels only once per token', function (): void {
     $token     = statusPanelCancelToken( $component );
 
     $component->set( 'cancelReason', 'Duplicate' )->call( 'cancelOrder', $token );
-    Illuminate\Support\Facades\DB::table( 'orders' )->where( 'id', $order->id )->update( [ 'system_status' => 'pending' ] );
+    Illuminate\Support\Facades\DB::table( ( new Order() )->getTable() )->where( 'id', $order->id )->update( [ 'system_status' => 'pending' ] );
 
     $component->set( 'cancelReason', 'Duplicate' )->call( 'cancelOrder', $token );
 

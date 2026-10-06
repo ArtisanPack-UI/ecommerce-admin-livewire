@@ -725,7 +725,7 @@ class Index extends Component
     {
         $this->authorizeTable();
 
-        $csv = TaxRateCsv::export( $this->filteredQuery()->reorder()->orderBy( 'tax_rates.country_code' )->orderBy( 'tax_rates.region_code' )->orderBy( 'tax_rates.priority' )->orderBy( 'tax_rates.id' ) );
+        $csv = TaxRateCsv::export( $this->filteredQuery()->reorder()->orderBy( ( new TaxRate() )->qualifyColumn( 'country_code' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'region_code' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'priority' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'id' ) ) );
 
         return response()->streamDownload( static function () use ( $csv ): void {
             echo $csv;
@@ -1032,7 +1032,7 @@ class Index extends Component
      */
     protected function setActive( Builder $selection, bool $active ): string
     {
-        $ids     = ( clone $selection )->reorder()->pluck( 'tax_rates.id' )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $changed = TaxRate::query()->whereKey( $ids )->where( 'is_active', ! $active )->update( [ 'is_active' => $active, 'updated_at' => Carbon::now() ] );
 
         return $active
@@ -1051,7 +1051,7 @@ class Index extends Component
      */
     protected function deleteSelection( Builder $selection ): string
     {
-        $ids     = array_map( 'intval', ( clone $selection )->reorder()->pluck( 'tax_rates.id' )->all() );
+        $ids     = array_map( 'intval', ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all() );
         $deleted = TaxRate::query()->whereKey( $ids )->delete();
 
         if ( null !== $this->editingRateId && in_array( $this->editingRateId, $ids, true ) ) {

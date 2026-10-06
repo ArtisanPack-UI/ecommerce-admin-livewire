@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Queries;
 
+use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductReview;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,8 +40,8 @@ class ReviewsQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'submitted' => 'product_reviews.created_at',
-            'rating'    => 'product_reviews.rating',
+            'submitted' => static::column( ProductReview::class, 'created_at' ),
+            'rating'    => static::column( ProductReview::class, 'rating' ),
         ];
     }
 
@@ -62,7 +63,7 @@ class ReviewsQuery extends ResourceQuery
     protected function baseQuery(): Builder
     {
         return ProductReview::query()
-            ->select( 'product_reviews.*' )
+            ->select( static::column( ProductReview::class, '*' ) )
             ->with( [ 'product:id,name' ] )
             ->withCount( 'media' );
     }
@@ -78,12 +79,12 @@ class ReviewsQuery extends ResourceQuery
     protected function applySearch( Builder $query, string $search ): void
     {
         $query->where( static function ( Builder $where ) use ( $search ): void {
-            static::orWhereContains( $where, 'product_reviews.author_name', $search );
-            static::orWhereContains( $where, 'product_reviews.author_email', $search );
-            static::orWhereContains( $where, 'product_reviews.title', $search );
-            static::orWhereContains( $where, 'product_reviews.body', $search );
+            static::orWhereContains( $where, static::column( ProductReview::class, 'author_name' ), $search );
+            static::orWhereContains( $where, static::column( ProductReview::class, 'author_email' ), $search );
+            static::orWhereContains( $where, static::column( ProductReview::class, 'title' ), $search );
+            static::orWhereContains( $where, static::column( ProductReview::class, 'body' ), $search );
 
-            $where->orWhereHas( 'product', static fn ( Builder $product ) => $product->where( static fn ( Builder $name ) => static::orWhereContains( $name, 'products.name', $search ) ) );
+            $where->orWhereHas( 'product', static fn ( Builder $product ) => $product->where( static fn ( Builder $name ) => static::orWhereContains( $name, static::column( Product::class, 'name' ), $search ) ) );
         } );
     }
 
@@ -95,10 +96,10 @@ class ReviewsQuery extends ResourceQuery
     protected function filters(): array
     {
         return [
-            'status'   => static fn ( Builder $query, mixed $value ) => $query->where( 'product_reviews.status', (string) $value ),
-            'rating'   => static fn ( Builder $query, mixed $value ) => $query->where( 'product_reviews.rating', (int) $value ),
-            'product'  => static fn ( Builder $query, mixed $value ) => $query->where( 'product_reviews.product_id', (int) $value ),
-            'verified' => static fn ( Builder $query, mixed $value ) => $query->where( 'product_reviews.is_verified_purchase', '1' === (string) $value ),
+            'status'   => static fn ( Builder $query, mixed $value ) => $query->where( static::column( ProductReview::class, 'status' ), (string) $value ),
+            'rating'   => static fn ( Builder $query, mixed $value ) => $query->where( static::column( ProductReview::class, 'rating' ), (int) $value ),
+            'product'  => static fn ( Builder $query, mixed $value ) => $query->where( static::column( ProductReview::class, 'product_id' ), (int) $value ),
+            'verified' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( ProductReview::class, 'is_verified_purchase' ), '1' === (string) $value ),
         ];
     }
 }

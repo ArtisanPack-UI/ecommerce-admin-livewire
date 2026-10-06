@@ -333,7 +333,7 @@ class Dashboard extends Component
     protected function lowStock(): Collection
     {
         return LowStockReport::query()
-            ->select( 'inventory_items.*' )
+            ->select( ( new InventoryItem() )->qualifyColumn( '*' ) )
             ->selectRaw( '(quantity_on_hand - quantity_reserved) as quantity_available' )
             ->with( [
                 'stockable' => static fn ( MorphTo $morph ) => $morph->morphWith( [

@@ -251,7 +251,7 @@ class Index extends Component
     protected function deleteSelection( Builder $selection ): ?string
     {
         $service = app( ProductService::class );
-        $ids     = ( clone $selection )->reorder()->pluck( 'products.id' )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $deleted = 0;
 
         DB::transaction( function () use ( $ids, $service, &$deleted ): void {
@@ -350,7 +350,7 @@ class Index extends Component
     protected function eachEditable( Builder $selection, string $ability, callable $write ): array
     {
         // Collect ids first: the write can take rows out of the filter.
-        $ids     = ( clone $selection )->reorder()->pluck( 'products.id' )->all();
+        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $changed = 0;
         $skipped = 0;
         $failed  = 0;

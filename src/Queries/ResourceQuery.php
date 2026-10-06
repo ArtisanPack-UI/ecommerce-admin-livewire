@@ -15,6 +15,7 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Queries;
 
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 /**
@@ -187,6 +188,38 @@ abstract class ResourceQuery
         $wrapped = $query->getQuery()->getGrammar()->wrap( $column );
 
         $query->orWhereRaw( 'LOWER(' . $wrapped . ') LIKE ? ESCAPE ?', [ $pattern, '\\' ] );
+    }
+
+    /**
+     * A column qualified with its model's table. Queries never hard-code
+     * table names, because the engine prefixes them.
+     *
+     * @since 1.0.0
+     *
+     * @param  class-string<Model>  $modelClass  The model.
+     * @param  string               $column      The column, or `*`.
+     *
+     * @return string
+     */
+    public static function column( string $modelClass, string $column ): string
+    {
+        return ( new $modelClass() )->qualifyColumn( $column );
+    }
+
+    /**
+     * {@see self::column()}, wrapped by the query's grammar for raw SQL.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder              $query       The query whose grammar wraps the identifier.
+     * @param  class-string<Model>  $modelClass  The model.
+     * @param  string               $column      The column.
+     *
+     * @return string
+     */
+    public static function raw( Builder $query, string $modelClass, string $column ): string
+    {
+        return $query->getQuery()->getGrammar()->wrap( self::column( $modelClass, $column ) );
     }
 
     /**

@@ -70,7 +70,7 @@ it( 'creates a subscription and shows its secret once', function (): void {
 
     expect( $secret )->toStartWith( 'whsec_' )
         ->and( $subscription->events )->toBe( [ 'order.refunded', 'order.cancelled' ] )
-        ->and( (string) DB::table( 'webhook_subscriptions' )->value( 'secret' ) )->not->toContain( $secret );
+        ->and( (string) DB::table( ( new WebhookSubscription() )->getTable() )->value( 'secret' ) )->not->toContain( $secret );
 
     $component->assertSet( 'revealedSecret', $secret )
         ->assertSeeHtml( 'data-revealed-secret' )

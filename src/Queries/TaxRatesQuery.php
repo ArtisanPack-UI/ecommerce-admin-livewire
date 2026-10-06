@@ -38,12 +38,12 @@ class TaxRatesQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'class'    => 'tax_rates.tax_class_key',
-            'country'  => 'tax_rates.country_code',
-            'region'   => 'tax_rates.region_code',
-            'rate'     => 'tax_rates.rate_ubps',
-            'label'    => 'tax_rates.label',
-            'priority' => 'tax_rates.priority',
+            'class'    => static::column( TaxRate::class, 'tax_class_key' ),
+            'country'  => static::column( TaxRate::class, 'country_code' ),
+            'region'   => static::column( TaxRate::class, 'region_code' ),
+            'rate'     => static::column( TaxRate::class, 'rate_ubps' ),
+            'label'    => static::column( TaxRate::class, 'label' ),
+            'priority' => static::column( TaxRate::class, 'priority' ),
         ];
     }
 
@@ -78,9 +78,9 @@ class TaxRatesQuery extends ResourceQuery
     protected function applySearch( Builder $query, string $search ): void
     {
         $query->where( static function ( Builder $where ) use ( $search ): void {
-            static::orWhereContains( $where, 'tax_rates.label', $search );
-            static::orWhereContains( $where, 'tax_rates.region_code', $search );
-            static::orWhereContains( $where, 'tax_rates.postal_pattern', $search );
+            static::orWhereContains( $where, static::column( TaxRate::class, 'label' ), $search );
+            static::orWhereContains( $where, static::column( TaxRate::class, 'region_code' ), $search );
+            static::orWhereContains( $where, static::column( TaxRate::class, 'postal_pattern' ), $search );
         } );
     }
 
@@ -92,9 +92,9 @@ class TaxRatesQuery extends ResourceQuery
     protected function filters(): array
     {
         return [
-            'class'   => static fn ( Builder $query, mixed $value ) => $query->where( 'tax_rates.tax_class_key', (string) $value ),
-            'country' => static fn ( Builder $query, mixed $value ) => $query->where( 'tax_rates.country_code', strtoupper( (string) $value ) ),
-            'active'  => static fn ( Builder $query, mixed $value ) => $query->where( 'tax_rates.is_active', '1' === (string) $value ),
+            'class'   => static fn ( Builder $query, mixed $value ) => $query->where( static::column( TaxRate::class, 'tax_class_key' ), (string) $value ),
+            'country' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( TaxRate::class, 'country_code' ), strtoupper( (string) $value ) ),
+            'active'  => static fn ( Builder $query, mixed $value ) => $query->where( static::column( TaxRate::class, 'is_active' ), '1' === (string) $value ),
         ];
     }
 }
