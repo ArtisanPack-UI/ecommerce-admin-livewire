@@ -256,6 +256,29 @@ it( 'loads, edits, reorders, and deletes variants of a saved product', function 
         ->and( ProductVariant::query()->count() )->toBe( 2 );
 } );
 
+it( 'clears one currency of a variant and keeps its scheduled prices', function (): void {
+    $product = app( ProductService::class )->create( [ 'type' => 'variable', 'name' => 'Tee' ] );
+    $variant = app( ProductService::class )->createVariant( $product, [ 'sku' => 'TEE-1' ] );
+    $service = app( ProductService::class );
+
+    $service->upsertPrice( $variant, [ 'currency' => 'USD', 'price_amount' => 1500 ] );
+    $service->upsertPrice( $variant, [ 'currency' => 'EUR', 'price_amount' => 1400 ] );
+    $service->upsertPrice( $variant, [ 'currency' => 'EUR', 'price_amount' => 1000, 'starts_at' => now()->addWeek(), 'ends_at' => now()->addWeeks( 2 ) ] );
+
+    $state                                   = VariablePanel::initialState( $product->refresh() );
+    $state['variants'][0]['prices']['EUR']   = '';
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    $prices = $variant->prices()->orderBy( 'currency' )->orderBy( 'price_amount' )->get();
+
+    expect( $prices->map( static fn ( $price ): array => [ $price->currency, $price->price_amount, null !== $price->starts_at ] )->all() )
+        ->toBe( [ [ 'EUR', 1000, true ], [ 'USD', 1500, false ] ] );
+} );
+
 it( 'requires a reason when a saved variant\'s stock changes', function (): void {
     $product = app( ProductService::class )->create( [ 'type' => 'variable', 'name' => 'Tee' ] );
     $variant = app( ProductService::class )->createVariant( $product, [ 'sku' => 'TEE-1', 'inventory' => [ 'quantity_on_hand' => 4 ] ] );

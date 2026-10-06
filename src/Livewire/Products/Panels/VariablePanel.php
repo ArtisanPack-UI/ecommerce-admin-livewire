@@ -813,6 +813,11 @@ class VariablePanel extends ProductTypePanel
             $amount = $prices[ $currency ] ?? null;
 
             if ( null === $amount || '' === $amount ) {
+                // The engine has no single-row delete (syncPrices() would
+                // recreate every row, scheduled ones included), so the row is
+                // removed here, after the same editability check.
+                $service->assertEditable( $variant->product );
+
                 ProductPrice::query()
                     ->where( 'priceable_type', $variant->getMorphClass() )
                     ->where( 'priceable_id', $variant->id )
