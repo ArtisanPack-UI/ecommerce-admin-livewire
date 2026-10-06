@@ -15,8 +15,9 @@ jobs:
     name: Check no release exists for the tag
 
     steps:
-      # This workflow must create the release itself, so Packagist is updated.
-      # A release created by hand for the tag skips that. Fail fast with the
+      # This workflow must create the release itself, so the signed
+      # verification report is attached and Packagist is updated. A release
+      # created by hand for the tag skips both. Fail fast with the
       # reason instead of after the tests.
       - name: Refuse a tag that already has a release
         env:
@@ -68,8 +69,24 @@ jobs:
           XDEBUG_MODE: off
         run: vendor/bin/pest --testsuite=Unit,Feature --no-coverage
 
+  # The engine's satellite contract verification. On a tag it signs the
+  # report on a separate runner when ECOMMERCE_VERIFY_SIGNING_KEY is set;
+  # the release job attaches it. The admin is UI only: --allow-empty.
+  verify:
+    needs: preflight
+    # Pinned to an engine release tag: this job hands the workflow the
+    # signing key, so never point it at a moving branch.
+    uses: ArtisanPack-UI/ecommerce/.github/workflows/verify-satellite.yml@v1.0.0
+    permissions:
+      contents: read
+    with:
+      php-version: '8.4'
+      extra-args: '--allow-empty'
+    secrets:
+      ECOMMERCE_VERIFY_SIGNING_KEY: ${{ secrets.ECOMMERCE_VERIFY_SIGNING_KEY }}
+
   release:
-    needs: test
+    needs: [test, verify]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: Create Release
@@ -118,12 +135,28 @@ jobs:
 
           echo "$NOTES" > release_notes.txt
 
+      # Releases are immutable once published, so the report and its
+      # signature go in with the release, not after it.
+      - name: Download the signed verification report
+        if: ${{ needs.verify.outputs.signed == 'true' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ecommerce-verify-signature
+          path: verification
+
+      - name: Warn when the report is not signed
+        if: ${{ needs.verify.outputs.signed != 'true' }}
+        run: echo "::warning::ECOMMERCE_VERIFY_SIGNING_KEY is not set, so the verification report is not signed or attached. The satellite stays unverified on the engine's satellites page."
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: v${{ steps.version.outputs.version }}
           body_path: release_notes.txt
           generate_release_notes: false
+          files: |
+            ${{ needs.verify.outputs.signed == 'true' && 'verification/.ecommerce-verify-report.json' || '' }}
+            ${{ needs.verify.outputs.signed == 'true' && 'verification/verify-report.sig' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

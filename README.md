@@ -117,6 +117,7 @@ guidelines](CONTRIBUTING.md) to learn more about how you can contribute to this 
 composer test           # unit and feature tests
 composer lint           # php-cs-fixer (dry run) and phpcs
 composer test:browser   # browser suite; see docs/advanced/browser-tests.md
+composer ecommerce:verify-satellite  # the engine's satellite contract verification
 ```
 
 ## License

@@ -73,7 +73,8 @@
     "test:browser": [
       "npm run build:browser",
       "./vendor/bin/pest --group=browser"
-    ]
+    ],
+    "ecommerce:verify-satellite": "ecommerce-verify-satellite --allow-empty"
   },
   "config": {
     "sort-packages": true,
