@@ -129,6 +129,23 @@ class ProductsQuery extends ResourceQuery
         $base      = null;
         $scheduled = null;
 
+        // The same order as the engine's ProductPriceResolver::activeRowFor(),
+        // so the list shows the price the storefront charges: the latest
+        // start first, then the soonest end, then the newest row.
+        $rows = $rows->sort( static fn ( $a, $b ): int => [
+            null === $a->starts_at,
+            -( $a->starts_at?->getTimestamp() ?? 0 ),
+            null === $a->ends_at,
+            $a->ends_at?->getTimestamp() ?? 0,
+            -(int) $a->id,
+        ] <=> [
+            null === $b->starts_at,
+            -( $b->starts_at?->getTimestamp() ?? 0 ),
+            null === $b->ends_at,
+            $b->ends_at?->getTimestamp() ?? 0,
+            -(int) $b->id,
+        ] );
+
         foreach ( $rows as $row ) {
             if ( null === $row->starts_at && null === $row->ends_at ) {
                 $base ??= $row;

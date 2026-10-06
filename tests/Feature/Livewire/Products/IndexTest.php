@@ -389,3 +389,18 @@ it( 'caps a crafted selection instead of loading it whole', function (): void {
 
     expect( Livewire::test( Index::class )->set( 'selected', range( 1, 500 ) )->get( 'selected' ) )->toHaveCount( 10 );
 } );
+
+it( 'shows the price the storefront charges when scheduled prices overlap', function (): void {
+    $product = Product::factory()->create();
+
+    priceFor( $product, 2_000 );
+    ProductPrice::factory()->forPriceable( $product )->create( [ 'currency' => 'USD', 'price_amount' => 1_500, 'starts_at' => now()->subDays( 10 ), 'ends_at' => now()->addDays( 10 ) ] );
+    ProductPrice::factory()->forPriceable( $product )->create( [ 'currency' => 'USD', 'price_amount' => 1_200, 'starts_at' => now()->subDays( 2 ), 'ends_at' => now()->addDays( 30 ) ] );
+    ProductPrice::factory()->forPriceable( $product )->create( [ 'currency' => 'USD', 'price_amount' => 1_100, 'starts_at' => now()->subDays( 2 ), 'ends_at' => now()->addDays( 5 ) ] );
+
+    $loaded   = ( new ArtisanPackUI\EcommerceAdminLivewire\Queries\ProductsQuery() )->build()->whereKey( $product->id )->sole();
+    $resolved = app( ArtisanPackUI\Ecommerce\Services\ProductPriceResolver::class )->resolve( $product, 'USD' );
+
+    expect( ArtisanPackUI\EcommerceAdminLivewire\Queries\ProductsQuery::priceRange( $loaded )['min'] )->toBe( 1_100 )
+        ->and( (int) $resolved->getAmount() )->toBe( 1_100 );
+} );
