@@ -99,3 +99,14 @@ it( 'skips the Vite build when the host filters out every entry', function (): v
     removeAllFilters( 'ap.ecommerceAdminLivewire.layout.viteEntries' );
     unlink( $hot );
 } );
+
+it( 'puts the CSP nonce on its inline scripts', function (): void {
+    grantAbilities( [ 'order.viewAny' ] );
+    $this->actingAs( makeUser() );
+    Illuminate\Support\Facades\Vite::useCspNonce( 'nonce-abc123' );
+
+    $html = $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk()->getContent();
+
+    expect( substr_count( $html, 'nonce="nonce-abc123"' ) )->toBeGreaterThanOrEqual( 2 )
+        ->and( $html )->toMatch( '/<script data-ecommerce-admin-rate-limit\s+nonce="nonce-abc123"/' );
+} );

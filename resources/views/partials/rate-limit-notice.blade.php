@@ -10,7 +10,7 @@
 
     @since      1.0.0
 --}}
-<script data-ecommerce-admin-rate-limit>
+<script data-ecommerce-admin-rate-limit @if ( null !== ( $cspNonce = \Illuminate\Support\Facades\Vite::cspNonce() ) ) nonce="{{ $cspNonce }}" @endif>
     ( () => {
         const fallback = @js( __( 'Too many changes in a short time. Try again shortly.' ) );
         const title    = @js( __( 'Slow down' ) );

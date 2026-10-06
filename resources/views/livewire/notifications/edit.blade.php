@@ -44,8 +44,8 @@
     data-notification-editor="{{ $template->id }}"
 >
     @assets
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.2/ace.js" integrity="sha384-7At53v27YjwyO+MGQtN09WDN4Usk+18Tx7rZPLFcixW1yNHAr0mR46P27VxBiU4h" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.2/ext-language_tools.js" integrity="sha384-tM062o3qwppSZeyxbtqMzlCBc0qwr2V5tKBS+AlXKOgqTMYMUj4CGkCT9/ZDMpoi" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script @if ( null !== ( $cspNonce = \Illuminate\Support\Facades\Vite::cspNonce() ) ) nonce="{{ $cspNonce }}" @endif src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.2/ace.js" integrity="sha384-7At53v27YjwyO+MGQtN09WDN4Usk+18Tx7rZPLFcixW1yNHAr0mR46P27VxBiU4h" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script @if ( null !== ( $cspNonce = \Illuminate\Support\Facades\Vite::cspNonce() ) ) nonce="{{ $cspNonce }}" @endif src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.2/ext-language_tools.js" integrity="sha384-tM062o3qwppSZeyxbtqMzlCBc0qwr2V5tKBS+AlXKOgqTMYMUj4CGkCT9/ZDMpoi" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     @endassets
 
     <x-artisanpack-header :title="$label" :subtitle="$template->key . ' · ' . $channelLabel" :level="1" separator>

@@ -28,7 +28,7 @@
     aria-atomic="true"
     data-reorder-message="{{ __( 'Moved :item to position :position of :total.' ) }}"
 ></div>
-<script>
+<script @if ( null !== ( $cspNonce = \Illuminate\Support\Facades\Vite::cspNonce() ) ) nonce="{{ $cspNonce }}" @endif>
     ( () => {
         if ( window.ecommerceAdminAccessibility ) {
             return;
