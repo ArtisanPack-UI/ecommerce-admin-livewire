@@ -27,6 +27,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithResourceTable;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ProductsQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Csv;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductCsv;
@@ -103,6 +104,7 @@ class Index extends Component
 
         return view( 'ecommerce-admin::livewire.products.index', $data + [
             'canCreate'           => $this->canEcommerce( 'create', Product::class ),
+            'canImport'           => $this->canEcommerce( 'create', Product::class ) || Authorization::allows( auth()->user(), 'product.update' ),
             'importRoute'         => AdminNav::ROUTE_PREFIX . 'products.import',
             'bulkCategoryOptions' => $data['tableSelectionCount'] > 0 ? self::categoryOptions() : [],
             'bulkTagOptions'      => $data['tableSelectionCount'] > 0 ? self::tagOptions() : [],

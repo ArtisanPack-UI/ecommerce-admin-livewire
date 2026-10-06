@@ -368,10 +368,14 @@ it( 'exports the selected products as catalog CSV, escaping formulas', function 
         ->and( $rows[1][ array_search( 'name', $rows[0], true ) ] )->toBe( "'=HYPERLINK(\"x\")" );
 } );
 
-it( 'links to the import screen for users who may create products', function (): void {
+it( 'links to the import screen for users who may create or update products', function (): void {
     Livewire::test( Index::class )->assertSee( 'Import' )->assertSeeHtml( 'products/import' );
 
     Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+
+    Livewire::test( Index::class )->assertSeeHtml( 'products/import' );
+
+    Gate::define( 'ecommerce.product.update', static fn (): bool => false );
 
     Livewire::test( Index::class )->assertDontSeeHtml( 'products/import' );
 } );

@@ -49,10 +49,28 @@ it( 'renders the upload step', function (): void {
         ->assertSee( 'Download a sample file' );
 } );
 
-it( 'is denied without product.create', function (): void {
+it( 'is denied without product.create or product.update', function (): void {
     Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+    Gate::define( 'ecommerce.product.update', static fn (): bool => false );
 
     Livewire::test( Import::class )->assertForbidden();
+} );
+
+it( 'lets a user who may only update products import updates', function (): void {
+    Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+    Product::factory()->create( [ 'sku' => 'MUG-1', 'name' => 'Mug' ] );
+
+    $component = Livewire::test( Import::class )
+        ->assertOk()
+        ->set( 'csv', importUpload( "sku,name\nMUG-1,Renamed\nNEW-1,New\n" ) )
+        ->call( 'upload' )
+        ->call( 'check' );
+
+    $component->call( 'apply', $component->viewData( 'applyToken' ) );
+
+    expect( Product::query()->where( 'sku', 'MUG-1' )->value( 'name' ) )->toBe( 'Renamed' )
+        ->and( Product::query()->where( 'sku', 'NEW-1' )->exists() )->toBeFalse()
+        ->and( importState( $component )['errors'][0]['message'] )->toBe( 'You may not create products.' );
 } );
 
 it( 'validates the upload by type, size, and row count', function (): void {
