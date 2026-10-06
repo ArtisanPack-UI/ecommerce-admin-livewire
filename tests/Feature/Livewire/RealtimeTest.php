@@ -40,6 +40,21 @@ function realtimeListeners( $component ): array
     return invade( $component->instance() )->getListeners();
 }
 
+it( 'does not subscribe when the engine has no admin channel (rebing/graphql-laravel missing)', function (): void {
+    expect( AdminBroadcasts::enabled( $this->user ) )->toBeTrue();
+
+    AdminBroadcasts::fakeGraphQl( false );
+
+    try {
+        expect( AdminBroadcasts::enabled( $this->user ) )->toBeFalse()
+            ->and( AdminBroadcasts::graphQlInstalled() )->toBeFalse();
+    } finally {
+        AdminBroadcasts::fakeGraphQl( null );
+    }
+
+    expect( AdminBroadcasts::graphQlInstalled() )->toBe( class_exists( Rebing\GraphQL\GraphQL::class ) );
+} );
+
 it( 'subscribes to the admin channel only when every condition holds', function (): void {
     expect( AdminBroadcasts::enabled( $this->user ) )->toBeTrue()
         ->and( AdminBroadcasts::enabled( null ) )->toBeFalse();
