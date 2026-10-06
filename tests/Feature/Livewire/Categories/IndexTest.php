@@ -36,6 +36,16 @@ it( 'renders the tree with depth and product counts', function (): void {
         ->assertSee( '1 subcategory' );
 } );
 
+it( 'lists categories without claiming tree keyboard behaviour, announcing depth instead', function (): void {
+    $parent = ProductCategory::query()->create( [ 'name' => 'Apparel', 'slug' => 'apparel' ] );
+    ProductCategory::query()->create( [ 'name' => 'Shirts', 'slug' => 'shirts', 'parent_id' => $parent->id ] );
+
+    Livewire::test( Index::class )
+        ->assertDontSeeHtml( 'role="tree"' )
+        ->assertDontSeeHtml( 'role="treeitem"' )
+        ->assertSee( 'Level 2' );
+} );
+
 it( 'shows the empty state', function (): void {
     Livewire::test( Index::class )->assertSee( 'No categories yet' );
 } );
