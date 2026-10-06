@@ -434,11 +434,13 @@ class Form extends Component
 
     /**
      * The product chosen in each relation list's "add" picker; it is moved
-     * into the list right away.
+     * into the list right away. Empty is `''`, not null: the component
+     * library's single-select choices read `selection.length` even when
+     * hidden, which throws on null.
      *
      * @since 1.0.0
      *
-     * @var array<string, int|string|null>
+     * @var array<string, int|string>
      */
     public array $relationPick = [];
 
@@ -476,7 +478,7 @@ class Form extends Component
             $this->prices       = self::emptyPrices( null );
             $this->panelState   = $this->panelDefaults( $this->type, null );
             $this->relations    = self::emptyRelations();
-            $this->relationPick = array_fill_keys( ProductRelation::TYPES, null );
+            $this->relationPick = self::emptyRelationPicks();
 
             return;
         }
@@ -684,7 +686,7 @@ class Form extends Component
     {
         $this->authorizeRelationWrite();
 
-        $this->relationPick = array_fill_keys( ProductRelation::TYPES, null );
+        $this->relationPick = self::emptyRelationPicks();
 
         if ( ! in_array( $type, ProductRelation::TYPES, true ) || ! is_numeric( $value ) ) {
             return;
@@ -1523,7 +1525,7 @@ class Form extends Component
         ] )->all();
         $this->panelState        = $this->panelDefaults( $this->type, $product );
         $this->relations         = self::emptyRelations();
-        $this->relationPick      = array_fill_keys( ProductRelation::TYPES, null );
+        $this->relationPick      = self::emptyRelationPicks();
 
         foreach ( $product->productRelations()->get( [ 'type', 'related_product_id', 'position' ] ) as $relation ) {
             if ( isset( $this->relations[ $relation->type ] ) ) {
@@ -1770,6 +1772,18 @@ class Form extends Component
         }
 
         return [ ...array_values( $base ), ...$scheduled ];
+    }
+
+    /**
+     * Each relation list's empty "add" picker value.
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, string>
+     */
+    protected static function emptyRelationPicks(): array
+    {
+        return array_fill_keys( ProductRelation::TYPES, '' );
     }
 
     /**

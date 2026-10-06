@@ -70,7 +70,7 @@ it( 'selects only the current page\'s rows after paging, keeping earlier pages\'
         ->assertScript( 'document.querySelectorAll( "[data-resource-table] tbody tr" ).length', 10 )
         ->check( '[data-select-page]' )
         ->assertScript( $selectedCount, 10 )
-        ->click( 'button[wire\\:click^="gotoPage(2"], button[wire\\:click^="nextPage"]' )
+        ->click( 'button[aria-label="Go to page 2"]' )
         ->assertScript( 'document.querySelectorAll( "[data-resource-table] tbody tr" ).length', Product::query()->count() - 10 )
         ->assertScript( 'document.querySelector( "[data-select-page]" ).checked', false );
 

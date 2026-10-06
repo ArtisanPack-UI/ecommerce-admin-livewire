@@ -46,7 +46,7 @@ it( 'saves all three relation types in order, and a reorder persists', function 
         ->set( 'relationPick.cross_sell', $this->cups->id )
         ->set( 'relationPick.related', $this->beans->id )
         ->assertSet( 'relations.upsell', [ $this->grinder->id, $this->beans->id ] )
-        ->assertSet( 'relationPick.upsell', null )
+        ->assertSet( 'relationPick.upsell', '' )
         ->call( 'save' )
         ->assertHasNoErrors();
 

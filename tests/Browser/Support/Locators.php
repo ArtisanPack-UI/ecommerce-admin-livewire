@@ -44,6 +44,9 @@ final class Locators
 
     /**
      * The button or link with the accessible name `$name` (exact match).
+     * Unicode stays unescaped: Playwright reads `\u00e9` literally, so a
+     * name like "céramique" would never match and the click would wait
+     * forever.
      *
      * @param  string  $name  The accessible name.
      * @param  string  $role  The ARIA role.
@@ -52,6 +55,6 @@ final class Locators
      */
     public static function role( string $name, string $role = 'button' ): string
     {
-        return 'internal:role=' . $role . '[name=' . json_encode( $name ) . 's]';
+        return 'internal:role=' . $role . '[name=' . json_encode( $name, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . 's]';
     }
 }
