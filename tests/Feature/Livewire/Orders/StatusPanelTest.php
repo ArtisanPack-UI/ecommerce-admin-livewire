@@ -33,7 +33,7 @@ function statusPanelCancelToken( $component ): string
 it( 'renders the current status with only the allowed transitions', function (): void {
     grantAbilities( [ 'order.refund' ] );
 
-    $order = Order::factory()->withSystemStatus( 'processing' )->create();
+    $order = Order::factory()->withSystemStatus( 'processing' )->create( [ 'payment_status' => 'refunded' ] );
 
     Livewire::test( StatusPanel::class, [ 'order' => $order ] )
         ->assertOk()
@@ -46,8 +46,22 @@ it( 'renders the current status with only the allowed transitions', function ():
         ->assertSee( 'Cancel order' );
 } );
 
+it( 'does not offer refunded for an order whose payment is not refunded', function (): void {
+    grantAbilities( [ 'order.refund' ] );
+
+    $order = Order::factory()->withSystemStatus( 'processing' )->create( [ 'payment_status' => 'paid' ] );
+
+    Livewire::test( StatusPanel::class, [ 'order' => $order ] )
+        ->assertDontSeeHtml( 'value="refunded"' )
+        ->set( 'targetStatus', 'refunded' )
+        ->call( 'changeStatus' )
+        ->assertHasErrors( [ 'targetStatus' ] );
+
+    expect( $order->fresh()->system_status )->toBe( 'processing' );
+} );
+
 it( 'only lets users who may refund mark an order refunded', function (): void {
-    $order = Order::factory()->withSystemStatus( 'processing' )->create();
+    $order = Order::factory()->withSystemStatus( 'processing' )->create( [ 'payment_status' => 'refunded' ] );
 
     Livewire::test( StatusPanel::class, [ 'order' => $order ] )
         ->assertDontSeeHtml( 'value="refunded"' )

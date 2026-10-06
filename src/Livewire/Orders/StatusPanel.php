@@ -299,7 +299,8 @@ class StatusPanel extends Component
      * The statuses the picker offers: the machine's edges from the current
      * status, minus `cancelled` (its own flow) and `failed` (set by the
      * payment flow). `refunded` is only offered to users who may refund,
-     * since marking an order refunded blocks further refunds and shipping.
+     * and only once the payment itself is refunded: marking an order
+     * refunded moves no money, and blocks further refunds and shipping.
      *
      * @since 1.0.0
      *
@@ -309,12 +310,15 @@ class StatusPanel extends Component
      */
     protected function statusTargets( Order $order ): array
     {
-        $canRefund = $this->canEcommerce( 'refund', $order );
+        // Setting "refunded" by hand moves no money, so it is only offered to
+        // record a refund the payment already shows; refunds themselves go
+        // through the refunds panel.
+        $canMarkRefunded = 'refunded' === (string) $order->payment_status && $this->canEcommerce( 'refund', $order );
 
         return array_values( array_filter(
             OrderStatusMachine::ALLOWED_TRANSITIONS[ (string) $order->system_status ] ?? [],
             static fn ( string $status ): bool => ! in_array( $status, [ 'cancelled', 'failed' ], true )
-                && ( 'refunded' !== $status || $canRefund ),
+                && ( 'refunded' !== $status || $canMarkRefunded ),
         ) );
     }
 
