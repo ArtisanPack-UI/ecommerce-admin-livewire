@@ -13,9 +13,11 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Console\Commands;
 
+use ArtisanPackUI\EcommerceAdminLivewire\Support\NotificationTemplates;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\RbacPermissions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Gate;
+use Throwable;
 
 /**
  * Publishes the admin config and prints the front-end setup steps.
@@ -91,6 +93,15 @@ class InstallCommand extends Command
 
         $this->newLine();
         $this->checkAuthorization();
+
+        try {
+            NotificationTemplates::sync();
+        } catch ( Throwable $exception ) {
+            // Usually the engine tables aren't migrated yet; the
+            // notifications screen seeds the templates on first open.
+            report( $exception );
+            $this->components->warn( __( 'The notification templates could not be created yet. Run your migrations; the notifications screen creates them when it first opens.' ) );
+        }
 
         return self::SUCCESS;
     }

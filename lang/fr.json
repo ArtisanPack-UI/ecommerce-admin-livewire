@@ -1518,6 +1518,7 @@
     "The mode must be \"delta\" or \"set\".": "Le mode doit être « delta » ou « set ».",
     "The most cards the column may hold. Moves into a full column are refused. Leave empty for no limit.": "Le nombre maximal de cartes que la colonne peut contenir. Les déplacements vers une colonne pleine sont refusés. Laissez vide pour aucune limite.",
     "The new attempt appears at the top of the log.": "La nouvelle tentative apparaît en haut du journal.",
+    "The notification templates could not be created yet. Run your migrations; the notifications screen creates them when it first opens.": "Les modèles de notification n'ont pas encore pu être créés. Lancez vos migrations ; l'écran des notifications les crée à sa première ouverture.",
     "The order cannot move to that status from :status.": "La commande ne peut pas passer à ce statut depuis :status.",
     "The order could not be taken off \":board\".": "La commande n’a pas pu être retirée de « :board ».",
     "The order is already on that board.": "La commande est déjà sur ce tableau.",

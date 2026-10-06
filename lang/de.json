@@ -1518,6 +1518,7 @@
     "The mode must be \"delta\" or \"set\".": "Der Modus muss „delta“ oder „set“ sein.",
     "The most cards the column may hold. Moves into a full column are refused. Leave empty for no limit.": "Die maximale Anzahl Karten in der Spalte. Verschiebungen in eine volle Spalte werden abgelehnt. Leer lassen für kein Limit.",
     "The new attempt appears at the top of the log.": "Der neue Versuch erscheint oben im Protokoll.",
+    "The notification templates could not be created yet. Run your migrations; the notifications screen creates them when it first opens.": "Die Benachrichtigungsvorlagen konnten noch nicht erstellt werden. Führen Sie Ihre Migrationen aus; die Benachrichtigungsseite erstellt sie beim ersten Öffnen.",
     "The order cannot move to that status from :status.": "Die Bestellung kann von :status nicht in diesen Status wechseln.",
     "The order could not be taken off \":board\".": "Die Bestellung konnte nicht von „:board“ entfernt werden.",
     "The order is already on that board.": "Die Bestellung ist bereits auf diesem Board.",

@@ -1518,6 +1518,7 @@
     "The mode must be \"delta\" or \"set\".": "The mode must be \"delta\" or \"set\".",
     "The most cards the column may hold. Moves into a full column are refused. Leave empty for no limit.": "The most cards the column may hold. Moves into a full column are refused. Leave empty for no limit.",
     "The new attempt appears at the top of the log.": "The new attempt appears at the top of the log.",
+    "The notification templates could not be created yet. Run your migrations; the notifications screen creates them when it first opens.": "The notification templates could not be created yet. Run your migrations; the notifications screen creates them when it first opens.",
     "The order cannot move to that status from :status.": "The order cannot move to that status from :status.",
     "The order could not be taken off \":board\".": "The order could not be taken off \":board\".",
     "The order is already on that board.": "The order is already on that board.",

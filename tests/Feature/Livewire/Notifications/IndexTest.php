@@ -52,3 +52,23 @@ it( 'is denied without notificationTemplate.viewAny', function (): void {
 
     Livewire::test( Index::class )->assertForbidden();
 } );
+
+it( 'seeds the catalog once per deploy, not on every page view', function (): void {
+    $service = Mockery::spy( app( ArtisanPackUI\Ecommerce\Services\NotificationTemplateService::class ) );
+    app()->instance( ArtisanPackUI\Ecommerce\Services\NotificationTemplateService::class, $service );
+
+    Livewire::test( Index::class );
+    Livewire::test( Index::class );
+
+    $service->shouldHaveReceived( 'sync' )->once();
+} );
+
+it( 'seeds the catalog from the install command', function (): void {
+    expect( NotificationTemplate::query()->count() )->toBe( 0 );
+
+    $this->artisan( 'ecommerce-admin:install' )->assertSuccessful();
+
+    expect( NotificationTemplate::query()->count() )->toBeGreaterThan( 0 );
+
+    Illuminate\Support\Facades\File::delete( config_path( 'artisanpack/ecommerce-admin-livewire.php' ) );
+} );
