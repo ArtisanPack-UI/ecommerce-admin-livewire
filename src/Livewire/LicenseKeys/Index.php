@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\LicenseKeys;
 
+use ArtisanPackUI\Ecommerce\Models\LicenseActivation;
 use ArtisanPackUI\Ecommerce\Models\LicenseKey;
 use ArtisanPackUI\Ecommerce\Services\LicenseService;
 use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
@@ -98,6 +99,29 @@ class Index extends Component
     public string $revokeReason = '';
 
     /**
+     * The activation (of the key in the open drawer) waiting for the
+     * deactivate confirmation.
+     *
+     * @since 1.0.0
+     *
+     * @var int|null
+     */
+    #[Locked]
+    public ?int $deactivatingId = null;
+
+    public bool $deactivating = false;
+
+    /**
+     * What the drawer's live region last announced.
+     *
+     * @since 1.0.0
+     *
+     * @var string
+     */
+    #[Locked]
+    public string $drawerStatus = '';
+
+    /**
      * Authorizes the screen.
      *
      * @since 1.0.0
@@ -122,8 +146,96 @@ class Index extends Component
     {
         $this->authorizeTable();
 
-        $this->viewingId = LicenseKey::query()->whereKey( $id )->exists() ? $id : null;
-        $this->viewing   = null !== $this->viewingId;
+        $this->viewingId    = LicenseKey::query()->whereKey( $id )->exists() ? $id : null;
+        $this->viewing      = null !== $this->viewingId;
+        $this->drawerStatus = '';
+        $this->closeDeactivate();
+    }
+
+    /**
+     * Asks to confirm freeing an activation slot of the key in the open
+     * drawer. The activation is looked up by id on that key only.
+     *
+     * @since 1.0.0
+     *
+     * @param  int  $activationId  The activation.
+     *
+     * @return void
+     */
+    public function startDeactivate( int $activationId ): void
+    {
+        $this->authorizeEcommerceAbility( 'licenseKey.revoke' );
+
+        $activation = $this->drawerActivation( $activationId );
+
+        if ( null === $activation ) {
+            return;
+        }
+
+        $this->deactivatingId = (int) $activation->id;
+        $this->deactivating   = true;
+    }
+
+    /**
+     * Frees the activation slot: the engine removes the activation and
+     * lowers the key's count. Works on revoked and expired keys too.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $token  The one-time token minted with the confirmation.
+     *
+     * @return void
+     */
+    public function deactivate( string $token ): void
+    {
+        $this->authorizeEcommerceAbility( 'licenseKey.revoke' );
+
+        $license = null === $this->viewingId ? null : LicenseKey::query()->find( $this->viewingId );
+        $id      = $this->deactivatingId;
+
+        $this->closeDeactivate();
+
+        if ( null === $license || null === $id ) {
+            return;
+        }
+
+        $this->authorizeEcommerce( 'revoke', $license );
+
+        $activation = $license->activations()->whereKey( $id )->first();
+
+        $removed = null === $activation ? false : $this->withActionToken(
+            $token,
+            'deactivate',
+            static fn (): bool => app( LicenseService::class )->deactivate( $license, (string) $activation->machine_fingerprint ),
+            $activation,
+        );
+
+        if ( null === $removed ) {
+            return;
+        }
+
+        if ( false === $removed ) {
+            $this->drawerStatus = __( 'That machine was already deactivated.' );
+            $this->toastWarning( $this->drawerStatus );
+
+            return;
+        }
+
+        $this->drawerStatus = __( 'Activation slot freed.' );
+        $this->toastSuccess( $this->drawerStatus );
+    }
+
+    /**
+     * Closes the deactivate confirmation.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public function closeDeactivate(): void
+    {
+        $this->deactivating   = false;
+        $this->deactivatingId = null;
     }
 
     /**
@@ -214,13 +326,19 @@ class Index extends Component
         $viewing  = null === $this->viewingId || ! $this->viewing ? null : LicenseKey::query()->with( [ 'activations' => static fn ( $query ) => $query->orderByDesc( 'last_seen_at' ) ] )->find( $this->viewingId );
         $revoking = null === $this->revokingId || ! $this->revoking ? null : LicenseKey::query()->find( $this->revokingId );
 
+        $deactivating = null === $viewing || null === $this->deactivatingId || ! $this->deactivating ? null : $viewing->activations->firstWhere( 'id', $this->deactivatingId );
+
         return view( 'ecommerce-admin::livewire.license-keys.index', $this->resourceTableData() + [
-            'canRevoke'   => Authorization::allows( auth()->user(), 'licenseKey.revoke' ),
-            'searchHint'  => $this->canViewKeys() ? __( 'Search by order, customer, or a full license key.' ) : __( 'Search by order or customer.' ),
-            'viewingKey'  => $viewing,
-            'revokingKey' => $revoking,
-            'revokeToken' => null === $revoking ? null : $this->actionToken( 'revoke', $revoking ),
-            'keyFor'      => fn ( LicenseKey $key ): string => $this->displayKey( $key ),
+            'canViewKeys'         => $this->canViewKeys(),
+            'deactivatingMachine' => $deactivating,
+            'deactivateToken'     => null === $deactivating ? null : $this->actionToken( 'deactivate', $deactivating ),
+            'machineFor'          => fn ( LicenseActivation $activation ): string => $this->machineLabel( $activation ),
+            'canRevoke'           => Authorization::allows( auth()->user(), 'licenseKey.revoke' ),
+            'searchHint'          => $this->canViewKeys() ? __( 'Search by order, customer, or a full license key.' ) : __( 'Search by order or customer.' ),
+            'viewingKey'          => $viewing,
+            'revokingKey'         => $revoking,
+            'revokeToken'         => null === $revoking ? null : $this->actionToken( 'revoke', $revoking ),
+            'keyFor'              => fn ( LicenseKey $key ): string => $this->displayKey( $key ),
         ] );
     }
 
@@ -295,6 +413,51 @@ class Index extends Component
         $name     = trim( (string) ( $customer->first_name ?? '' ) . ' ' . (string) ( $customer->last_name ?? '' ) );
 
         return '' !== $name ? $name : (string) ( $customer->email ?? $order->email ?? '' );
+    }
+
+    /**
+     * The activation `$id` of the key in the open drawer, or null when no
+     * drawer is open.
+     *
+     * @since 1.0.0
+     *
+     * @param  int  $id  The activation.
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException When it isn't one of that key's activations.
+     *
+     * @return LicenseActivation|null
+     */
+    protected function drawerActivation( int $id ): ?LicenseActivation
+    {
+        $license = null === $this->viewingId || ! $this->viewing ? null : LicenseKey::query()->find( $this->viewingId );
+
+        return $license?->activations()->whereKey( $id )->firstOrFail();
+    }
+
+    /**
+     * A machine as this user may see it: its fingerprint with
+     * `licenseKey.view`, otherwise a masked fingerprint and its activation
+     * date (revoke-only users don't see fingerprints or IP addresses).
+     *
+     * @since 1.0.0
+     *
+     * @param  LicenseActivation  $activation  The activation.
+     *
+     * @return string
+     */
+    protected function machineLabel( LicenseActivation $activation ): string
+    {
+        $fingerprint = (string) $activation->machine_fingerprint;
+
+        if ( $this->canViewKeys() ) {
+            return $fingerprint;
+        }
+
+        $masked = mb_strlen( $fingerprint ) > 4 ? '…' . mb_substr( $fingerprint, -4 ) : '…';
+
+        return null === $activation->activated_at
+            ? $masked
+            : __( ':machine, activated :date', [ 'machine' => $masked, 'date' => LocalizedDate::format( $activation->activated_at ) ] );
     }
 
     /**

@@ -27,6 +27,7 @@
     <x-artisanpack-drawer wire:model="viewing" :title="__( 'Activations' )" right separator with-close-button close-on-escape class="w-full max-w-xl">
         @if ( null !== $viewingKey )
             <div class="flex flex-col gap-4" data-activations="{{ $viewingKey->id }}">
+                @include( 'ecommerce-admin::partials.live-region', [ 'message' => $drawerStatus ] )
                 <p class="font-mono">{{ $keyFor( $viewingKey ) }}</p>
                 <p class="text-sm">
                     {{ null === $viewingKey->activations_limit
@@ -48,16 +49,36 @@
                                     <th scope="col">{{ __( 'Machine' ) }}</th>
                                     <th scope="col">{{ __( 'Activated' ) }}</th>
                                     <th scope="col">{{ __( 'Last seen' ) }}</th>
-                                    <th scope="col">{{ __( 'IP address' ) }}</th>
+                                    @if ( $canViewKeys )
+                                        <th scope="col">{{ __( 'IP address' ) }}</th>
+                                    @endif
+                                    @if ( $canRevoke )
+                                        <th scope="col"><span class="sr-only">{{ __( 'Actions' ) }}</span></th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ( $viewingKey->activations as $activation )
-                                    <tr wire:key="activation-{{ $activation->id }}">
-                                        <td class="font-mono text-xs break-all">{{ $activation->machine_fingerprint }}</td>
+                                    <tr wire:key="activation-{{ $activation->id }}" data-activation="{{ $activation->id }}">
+                                        <td class="font-mono text-xs break-all">{{ $canViewKeys ? $activation->machine_fingerprint : $machineFor( $activation ) }}</td>
                                         <td>{{ null === $activation->activated_at ? '' : \ArtisanPackUI\Ecommerce\Support\LocalizedDate::format( $activation->activated_at ) }}</td>
                                         <td>{{ null === $activation->last_seen_at ? '' : \ArtisanPackUI\Ecommerce\Support\LocalizedDate::format( $activation->last_seen_at ) }}</td>
-                                        <td>{{ $activation->ip_address }}</td>
+                                        @if ( $canViewKeys )
+                                            <td>{{ $activation->ip_address }}</td>
+                                        @endif
+                                        @if ( $canRevoke )
+                                            <td class="text-end">
+                                                <x-artisanpack-button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    icon="o-power"
+                                                    wire:click="startDeactivate( {{ (int) $activation->id }} )"
+                                                    wire:loading.attr="disabled"
+                                                    :label="__( 'Deactivate' )"
+                                                    :aria-label="__( 'Deactivate :machine', [ 'machine' => $machineFor( $activation ) ] )"
+                                                />
+                                            </td>
+                                        @endif
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -67,6 +88,17 @@
             </div>
         @endif
     </x-artisanpack-drawer>
+
+    @if ( null !== $deactivatingMachine )
+        <x-artisanpack-modal wire:model="deactivating" :title="__( 'Deactivate :machine?', [ 'machine' => $machineFor( $deactivatingMachine ) ] )" separator>
+            <p data-deactivate-confirm>{{ __( 'Free this activation slot? The software on that machine will stop validating.' ) }}</p>
+
+            <x-slot:actions>
+                <x-artisanpack-button variant="ghost" wire:click="closeDeactivate" :label="__( 'Keep it active' )" />
+                <x-artisanpack-button color="error" wire:click="deactivate( {{ \Illuminate\Support\Js::from( $deactivateToken ) }} )" wire:loading.attr="disabled" :label="__( 'Deactivate' )" />
+            </x-slot:actions>
+        </x-artisanpack-modal>
+    @endif
 
     @if ( null !== $revokingKey )
         @php

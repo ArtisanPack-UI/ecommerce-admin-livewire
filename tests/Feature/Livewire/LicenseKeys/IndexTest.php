@@ -2,6 +2,7 @@
 
 declare( strict_types=1 );
 
+use ArtisanPackUI\Ecommerce\Events\LicenseDeactivated;
 use ArtisanPackUI\Ecommerce\Events\LicenseRevoked;
 use ArtisanPackUI\Ecommerce\Models\Customer;
 use ArtisanPackUI\Ecommerce\Models\LicenseActivation;
@@ -119,6 +120,100 @@ it( 'lists the machines a key is active on', function (): void {
         ->assertSeeHtml( 'data-activations="' . $key->id . '"' )
         ->assertSee( 'studio-mac' )
         ->assertSee( '10.0.0.8' );
+} );
+
+it( 'hides fingerprints and IP addresses from a revoke-only user', function (): void {
+    Gate::define( 'ecommerce.licenseKey.view', static fn (): bool => false );
+    $key = licenseKeyOn( 'A100' );
+    LicenseActivation::factory()->create( [ 'license_key_id' => $key->id, 'machine_fingerprint' => 'studio-mac-0042', 'ip_address' => '10.0.0.8' ] );
+
+    Livewire::test( Index::class )
+        ->call( 'showActivations', $key->id )
+        ->assertSee( '…0042' )
+        ->assertDontSee( 'studio-mac-0042' )
+        ->assertDontSee( '10.0.0.8' )
+        ->assertDontSee( 'IP address' );
+} );
+
+it( 'frees an activation slot after confirmation, once per token', function (): void {
+    Event::fake( [ LicenseDeactivated::class ] );
+    $key    = licenseKeyOn( 'A100', [ 'activations_count' => 2, 'activations_limit' => 2 ] );
+    $studio = LicenseActivation::factory()->create( [ 'license_key_id' => $key->id, 'machine_fingerprint' => 'studio-mac' ] );
+    $laptop = LicenseActivation::factory()->create( [ 'license_key_id' => $key->id, 'machine_fingerprint' => 'laptop' ] );
+
+    $component = Livewire::test( Index::class )
+        ->call( 'showActivations', $key->id )
+        ->assertSeeHtml( 'aria-label="Deactivate studio-mac"' )
+        ->call( 'startDeactivate', $studio->id )
+        ->assertSet( 'deactivating', true )
+        ->assertSee( 'Free this activation slot? The software on that machine will stop validating.' );
+
+    $token = $component->viewData( 'deactivateToken' );
+
+    $component->call( 'deactivate', $token )
+        ->assertSet( 'deactivating', false )
+        ->assertSee( 'Activation slot freed.' )
+        ->assertSee( '1 of 2 activations used.' )
+        ->assertDontSee( 'studio-mac' )
+        ->assertSee( 'laptop' );
+
+    expect( $key->refresh()->activations_count )->toBe( 1 )
+        ->and( LicenseActivation::query()->whereKey( $studio->id )->exists() )->toBeFalse();
+
+    Event::assertDispatched( LicenseDeactivated::class, static fn ( LicenseDeactivated $event ): bool => 'studio-mac' === $event->fingerprint );
+
+    // The same token can't free a second slot.
+    $component->call( 'startDeactivate', $laptop->id )->call( 'deactivate', $token );
+
+    expect( $key->refresh()->activations_count )->toBe( 1 )
+        ->and( LicenseActivation::query()->whereKey( $laptop->id )->exists() )->toBeTrue();
+} );
+
+it( 'refuses an activation of another key', function (): void {
+    $key   = licenseKeyOn( 'A100' );
+    $other = LicenseActivation::factory()->create( [ 'license_key_id' => licenseKeyOn( 'B200' )->id ] );
+
+    Livewire::test( Index::class )
+        ->call( 'showActivations', $key->id )
+        ->call( 'startDeactivate', $other->id )
+        ->assertNotFound();
+} );
+
+it( 'refuses deactivation without licenseKey.revoke', function (): void {
+    Gate::define( 'ecommerce.licenseKey.revoke', static fn (): bool => false );
+    $key        = licenseKeyOn( 'A100' );
+    $activation = LicenseActivation::factory()->create( [ 'license_key_id' => $key->id ] );
+
+    Livewire::test( Index::class )
+        ->call( 'showActivations', $key->id )
+        ->assertDontSeeHtml( 'startDeactivate' )
+        ->call( 'startDeactivate', $activation->id )
+        ->assertForbidden();
+} );
+
+it( 'says when the machine was already deactivated', function (): void {
+    $key        = licenseKeyOn( 'A100', [ 'activations_count' => 1 ] );
+    $activation = LicenseActivation::factory()->create( [ 'license_key_id' => $key->id ] );
+
+    $component = Livewire::test( Index::class )
+        ->call( 'showActivations', $key->id )
+        ->call( 'startDeactivate', $activation->id );
+
+    $token = $component->viewData( 'deactivateToken' );
+    $activation->delete();
+
+    $component->call( 'deactivate', $token )
+        ->assertSee( 'That machine was already deactivated.' );
+} );
+
+it( 'deactivates on a revoked key too', function (): void {
+    $key        = licenseKeyOn( 'A100', [ 'is_revoked' => true, 'revoked_at' => now(), 'activations_count' => 1 ] );
+    $activation = LicenseActivation::factory()->create( [ 'license_key_id' => $key->id ] );
+
+    $component = Livewire::test( Index::class )->call( 'showActivations', $key->id )->call( 'startDeactivate', $activation->id );
+    $component->call( 'deactivate', $component->viewData( 'deactivateToken' ) );
+
+    expect( $key->refresh()->activations_count )->toBe( 0 );
 } );
 
 it( 'revokes a key with a reason, once per token', function (): void {
