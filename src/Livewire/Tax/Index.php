@@ -733,7 +733,17 @@ class Index extends Component
     {
         $this->authorizeTable();
 
-        $csv = TaxRateCsv::export( $this->filteredQuery()->reorder()->orderBy( ( new TaxRate() )->qualifyColumn( 'country_code' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'region_code' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'priority' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'id' ) ) );
+        $query = $this->filteredQuery()->reorder()->orderBy( ( new TaxRate() )->qualifyColumn( 'country_code' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'region_code' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'priority' ) )->orderBy( ( new TaxRate() )->qualifyColumn( 'id' ) );
+        $limit = max( 1, (int) config( 'artisanpack.ecommerce-admin-livewire.tables.export_max_rows', 10_000 ) );
+
+        if ( ( clone $query )->count() > $limit ) {
+            $this->toastWarning(
+                __( 'The export was cut short.' ),
+                trans_choice( 'Only the first :count row was exported.|Only the first :count rows were exported.', $limit, [ 'count' => $limit ] ),
+            );
+        }
+
+        $csv = TaxRateCsv::export( $query, $limit );
 
         return response()->streamDownload( static function () use ( $csv ): void {
             echo $csv;

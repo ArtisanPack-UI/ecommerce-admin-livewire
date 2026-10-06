@@ -319,6 +319,18 @@ it( 'exports rates in the import format', function (): void {
     expect( $csv )->toContain( 'tax_class_key,country_code,region_code' )->toContain( 'standard,US,NY,,8.875,"NY sales tax"' );
 } );
 
+it( 'cuts an export at tables.export_max_rows and says so', function (): void {
+    config()->set( 'artisanpack.ecommerce-admin-livewire.tables.export_max_rows', 2 );
+    TaxRate::factory()->count( 3 )->sequence( [ 'country_code' => 'US' ], [ 'country_code' => 'CA' ], [ 'country_code' => 'DE' ] )->create();
+
+    $component = Livewire::test( Index::class )->call( 'exportRates' );
+    $download  = $component->effects['download'] ?? null;
+    $lines     = array_values( array_filter( explode( "\n", trim( base64_decode( (string) $download['content'] ) ) ) ) );
+
+    expect( $lines )->toHaveCount( 3 )
+        ->and( sentToasts( $component ) )->toContain( 'The export was cut short.' );
+} );
+
 it( 'hides write controls without the abilities', function (): void {
     Gate::define( 'ecommerce.taxRate.create', static fn (): bool => false );
     Gate::define( 'ecommerce.taxRate.update', static fn (): bool => false );

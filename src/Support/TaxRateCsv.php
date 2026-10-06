@@ -219,12 +219,14 @@ final class TaxRateCsv
      * @since 1.0.0
      *
      * @param  Builder<TaxRate>  $query  Rates.
+     * @param  int|null          $limit  The most rows to write.
      *
      * @return string
      */
-    public static function export( Builder $query ): string
+    public static function export( Builder $query, ?int $limit = null ): string
     {
-        $rows = ( clone $query )->lazy( 500 )->map( static fn ( TaxRate $rate ): array => [
+        $rates = ( clone $query )->lazy( 500 );
+        $rows  = ( null === $limit ? $rates : $rates->take( $limit ) )->map( static fn ( TaxRate $rate ): array => [
             $rate->tax_class_key,
             $rate->country_code,
             (string) ( $rate->region_code ?? '' ),
