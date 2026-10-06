@@ -50,7 +50,9 @@
 
     <x-artisanpack-header :title="$label" :subtitle="$template->key . ' · ' . $channelLabel" :level="1" separator>
         <x-slot:actions>
-            <x-artisanpack-button variant="ghost" icon="o-arrow-left" :link="$indexUrl" :label="__( 'All notifications' )" />
+            @if ( null !== $indexUrl )
+                <x-artisanpack-button variant="ghost" icon="o-arrow-left" :link="$indexUrl" :label="__( 'All notifications' )" />
+            @endif
         </x-slot:actions>
     </x-artisanpack-header>
 

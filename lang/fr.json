@@ -1705,6 +1705,7 @@
     "Use only digits, spaces, and + ( ) . - / x in the phone number.": "Utilisez uniquement des chiffres, des espaces et + ( ) . - / x dans le numéro de téléphone.",
     "Use only letters, numbers, hyphens, and underscores, starting with a letter or number.": "Utilisez uniquement des lettres, des chiffres, des traits d’union et des tirets bas, en commençant par une lettre ou un chiffre.",
     "Use only letters, numbers, hyphens, and underscores.": "Utilisez uniquement des lettres, des chiffres, des traits d’union et des tirets bas.",
+    "Use region codes made of letters and digits, like CA or NSW.": "Utilisez des codes de région composés de lettres et de chiffres, comme CA ou NSW.",
     "Used for variations": "Utilisé pour les variantes",
     "User #:id": "Utilisateur #:id",
     "Uses": "Utilisations",

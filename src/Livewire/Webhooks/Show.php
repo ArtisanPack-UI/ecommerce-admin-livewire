@@ -23,6 +23,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithResourceTable;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Webhooks\Concerns\ManagesWebhookSubscriptions;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\WebhookDeliveriesQuery;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Webhooks;
 use Illuminate\Contracts\View\View;
@@ -181,7 +182,7 @@ class Show extends Component
         $subscription = WebhookSubscription::query()->findOrFail( $this->subscriptionId );
         $delivery     = null === $this->deliveryId || ! $this->viewingDelivery ? null : $this->delivery( $this->deliveryId );
         $rotating     = null === $this->rotatingId || ! $this->confirmingRotate ? null : WebhookSubscription::query()->find( $this->rotatingId );
-        $indexRoute   = 'artisanpack.ecommerce.admin.webhooks.index';
+        $indexRoute   = AdminNav::ROUTE_PREFIX . 'webhooks.index';
 
         return view( 'ecommerce-admin::livewire.webhooks.show', $this->resourceTableData() + [
             'subscription'     => $subscription,

@@ -345,7 +345,7 @@ class Index extends Component
                 'zoneForm.name'            => [ 'required', 'string', 'max:255' ],
                 'zoneForm.country_codes'   => [ 'required', 'array', 'min:1' ],
                 'zoneForm.country_codes.*' => [ 'string', 'size:2', Rule::in( Countries::CODES ) ],
-                'zoneForm.priority'        => [ 'required', 'integer' ],
+                'zoneForm.priority'        => [ 'required', 'integer', 'between:-1000000,1000000' ],
                 'zoneForm.is_active'       => [ 'boolean' ],
             ],
             [],
@@ -361,6 +361,13 @@ class Index extends Component
             foreach ( $values as $value ) {
                 if ( mb_strlen( $value ) > $max ) {
                     $this->addError( 'zoneForm.' . $field, __( 'Each entry may be at most :max characters.', [ 'max' => $max ] ) );
+
+                    return;
+                }
+
+                // Region codes are the subdivision part of ISO 3166-2 (CA, NSW, 75).
+                if ( 'region_codes' === $field && 1 !== preg_match( '/^[A-Z0-9]{1,10}$/D', $value ) ) {
+                    $this->addError( 'zoneForm.region_codes', __( 'Use region codes made of letters and digits, like CA or NSW.' ) );
 
                     return;
                 }

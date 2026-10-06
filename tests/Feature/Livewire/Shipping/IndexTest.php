@@ -323,3 +323,18 @@ it( 'caches the countries the coverage warning checks', function (): void {
 
     expect( Index::storeCountries() )->toEqualCanonicalizing( [ 'FR', 'IT' ] );
 } );
+
+it( 'refuses an overflowing zone priority and malformed region codes', function ( string $field, mixed $value, string $error ): void {
+    Livewire::test( Index::class )
+        ->call( 'createZone' )
+        ->set( 'zoneForm.name', 'US West' )
+        ->set( 'zoneForm.country_codes', [ 'US' ] )
+        ->set( 'zoneForm.' . $field, $value )
+        ->call( 'saveZone' )
+        ->assertHasErrors( $error );
+
+    expect( ShippingZone::query()->count() )->toBe( 0 );
+} )->with( [
+    'priority overflow'   => [ 'priority', '99999999999999999999', 'zoneForm.priority' ],
+    'region with symbols' => [ 'region_codes', 'CA, <b>', 'zoneForm.region_codes' ],
+] );

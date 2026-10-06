@@ -542,7 +542,7 @@ final class ReportPresenter
      */
     private static function lowStockTable( array $result ): array
     {
-        $route = 'artisanpack.ecommerce.admin.inventory.index';
+        $route = AdminNav::ROUTE_PREFIX . 'inventory.index';
 
         return [
             'columns' => [
