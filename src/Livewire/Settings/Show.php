@@ -24,6 +24,7 @@ use ArtisanPackUI\Ecommerce\Settings\SettingsRepository;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\SettingsTabRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
 use DateTimeZone;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Locked;
@@ -244,7 +245,7 @@ class Show extends Component
         $field = self::field( $key );
 
         if ( is_array( $this->form[ $field ] ?? null ) ) {
-            $this->form[ $field ][] = [ 'key' => '', 'value' => '' ];
+            $this->form[ $field ][] = [ RowKeys::KEY => RowKeys::make(), 'key' => '', 'value' => '' ];
         }
     }
 
@@ -419,7 +420,7 @@ class Show extends Component
                 'multiselect' => array_values( array_map( 'strval', (array) ( $value ?? [] ) ) ),
                 'list'        => implode( "\n", array_map( 'strval', (array) ( $value ?? [] ) ) ),
                 'map'         => array_map(
-                    static fn ( $mapKey, $mapValue ): array => [ 'key' => (string) $mapKey, 'value' => (string) $mapValue ],
+                    static fn ( $mapKey, $mapValue ): array => [ RowKeys::KEY => RowKeys::make(), 'key' => (string) $mapKey, 'value' => (string) $mapValue ],
                     array_keys( (array) ( $value ?? [] ) ),
                     array_values( (array) ( $value ?? [] ) ),
                 ),

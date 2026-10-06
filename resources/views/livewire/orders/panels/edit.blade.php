@@ -134,7 +134,7 @@
                                         </tr>
                                     @endforeach
                                     @foreach ( $newLines as $index => $line )
-                                        <tr wire:key="edit-new-item-{{ $index }}">
+                                        <tr wire:key="edit-new-item-{{ \ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys::of( $newItems[ $index ] ?? null, $index ) }}">
                                             @if ( null === $line )
                                                 <th scope="row" class="font-normal text-error" colspan="3">{{ __( 'This product is no longer available at a price in :currency.', [ 'currency' => $order->currency ] ) }}</th>
                                             @else

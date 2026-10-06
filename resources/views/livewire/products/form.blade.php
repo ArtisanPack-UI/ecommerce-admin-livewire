@@ -124,7 +124,7 @@
 
                     <div class="flex flex-col gap-4">
                         @foreach ( $prices as $index => $price )
-                            <fieldset wire:key="price-{{ $index }}-{{ $price['currency'] }}" class="rounded-box border border-base-300 p-3" data-price-row="{{ $index }}">
+                            <fieldset wire:key="price-{{ \ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys::of( $price, $index ) }}" class="rounded-box border border-base-300 p-3" data-price-row="{{ $index }}">
                                 <legend class="px-1 font-semibold">
                                     {{ $price['scheduled'] ? __( 'Scheduled price' ) : $price['currency'] }}
                                 </legend>

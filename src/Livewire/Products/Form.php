@@ -32,6 +32,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Registries\ProductTypePanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Html;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
 use Closure;
 use Illuminate\Contracts\View\View;
@@ -1785,6 +1786,7 @@ class Form extends Component
     protected static function priceRow( string $currency, ?ProductPrice $row, bool $scheduled ): array
     {
         return [
+            RowKeys::KEY        => RowKeys::make(),
             'currency'          => $currency,
             'price_amount'      => null === $row ? null : (int) $row->price_amount,
             'compare_at_amount' => null === $row?->compare_at_amount ? null : (int) $row->compare_at_amount,

@@ -130,10 +130,17 @@
                 </p>
 
                 @if ( [] !== $form['card_widgets'] )
+                    @php $widgetSeen = []; @endphp
                     <ol class="flex list-none flex-col gap-1" aria-label="{{ __( 'Card widgets' ) }}">
                         @foreach ( array_values( $form['card_widgets'] ) as $index => $widget )
-                            @php $widgetLabel = $widgetLabels[ $widget ] ?? __( 'Unavailable (:type)', [ 'type' => $widget ] ); @endphp
-                            <li wire:key="widget-{{ $widget }}-{{ $index }}" class="flex flex-wrap items-center gap-2 rounded-box border border-base-content/10 px-3 py-1" data-widget="{{ $widget }}">
+                            @php
+                                $widgetLabel = $widgetLabels[ $widget ] ?? __( 'Unavailable (:type)', [ 'type' => $widget ] );
+
+                                // Widgets are unique, so the widget is the row's key; a repeat
+                                // (only in stored data) is keyed by its occurrence.
+                                $widgetSeen[ $widget ] = ( $widgetSeen[ $widget ] ?? 0 ) + 1;
+                            @endphp
+                            <li wire:key="widget-{{ $widget }}-{{ $widgetSeen[ $widget ] }}" class="flex flex-wrap items-center gap-2 rounded-box border border-base-content/10 px-3 py-1" data-widget="{{ $widget }}">
                                 <span class="grow">{{ $widgetLabel }}</span>
                                 @error( 'form.card_widgets.' . $index )
                                     <span class="text-sm text-error">{{ $message }}</span>

@@ -111,7 +111,7 @@
                 @endif
 
                 @foreach ( $rows as $index => $row )
-                    <div class="flex flex-wrap items-end gap-3 border-b border-base-200 pb-3" role="group" aria-label="{{ __( ':field row :number', [ 'field' => $field['label'], 'number' => $index + 1 ] ) }}" wire:key="{{ $id }}-row-{{ $index }}">
+                    <div class="flex flex-wrap items-end gap-3 border-b border-base-200 pb-3" role="group" aria-label="{{ __( ':field row :number', [ 'field' => $field['label'], 'number' => $index + 1 ] ) }}" wire:key="{{ $id }}-row-{{ \ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys::of( $row, $index ) }}">
                         @foreach ( $field['fields'] as $column )
                             <div class="min-w-40 flex-1">
                                 @include( 'ecommerce-admin::components.config-form.field', [ 'field' => $column, 'path' => $path . '.' . $index . '.' . $column['name'], 'root' => $root, 'relative' => $relative ] )

@@ -7,6 +7,7 @@ use ArtisanPackUI\Ecommerce\Settings\SettingsRepository;
 use ArtisanPackUI\EcommerceAdminLivewire\EcommerceAdminLivewireServiceProvider;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Settings\Show;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\SettingsTabRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 use Tests\Fixtures\Livewire\LoyaltySettingsTab;
@@ -173,6 +174,24 @@ it( 'edits list and key/value settings', function (): void {
         ->call( 'save' );
 
     expect( settingsRepository()->get( 'localization.tax_labels' ) )->toBe( [] );
+} );
+
+it( 'keys key/value rows by a row id, so removing one keeps the others in place', function (): void {
+    $component = Livewire::test( Show::class, [ 'group' => 'tax' ] )
+        ->call( 'addMapRow', 'localization.tax_labels' )
+        ->call( 'addMapRow', 'localization.tax_labels' );
+
+    $kept = $component->get( 'form.localization__tax_labels.1' )[ RowKeys::KEY ];
+
+    $component->call( 'removeMapRow', 'localization.tax_labels', 0 )
+        ->assertSet( 'form.localization__tax_labels.0.' . RowKeys::KEY, $kept )
+        ->assertSeeHtml( '-row-' . $kept . '"' )
+        ->set( 'form.localization__tax_labels.0.key', 'en_US' )
+        ->set( 'form.localization__tax_labels.0.value', 'Sales Tax' )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( settingsRepository()->get( 'localization.tax_labels' ) )->toBe( [ 'en_US' => 'Sales Tax' ] );
 } );
 
 it( 'lists the registered satellites read-only', function (): void {

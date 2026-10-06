@@ -22,6 +22,7 @@ use ArtisanPackUI\Ecommerce\Registries\PromotionActionRegistry;
 use ArtisanPackUI\Ecommerce\Registries\PromotionConditionRegistry;
 use ArtisanPackUI\Ecommerce\Registries\ShippingMethodTypeRegistry;
 use ArtisanPackUI\Ecommerce\Support\ConfigSchema;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
 use Closure;
 use DateTimeZone;
@@ -369,6 +370,10 @@ class ConfigFormRegistry
             if ( 'json' === $field['type'] && array_key_exists( $field['name'], $config ) ) {
                 $values[ $field['name'] ] = (string) json_encode( $config[ $field['name'] ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
             }
+
+            if ( 'repeater' === $field['type'] && is_array( $values[ $field['name'] ] ?? null ) ) {
+                $values[ $field['name'] ] = RowKeys::tagAll( array_values( $values[ $field['name'] ] ) );
+            }
         }
 
         return $values;
@@ -413,7 +418,7 @@ class ConfigFormRegistry
      */
     public static function emptyRow( array $field ): array
     {
-        $row = [];
+        $row = [ RowKeys::KEY => RowKeys::make() ];
 
         foreach ( $field['fields'] as $column ) {
             $row[ $column['name'] ] = self::emptyValue( $column );

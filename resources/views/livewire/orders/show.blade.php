@@ -165,7 +165,7 @@
             @endif
 
             @foreach ( $mainPanels as $panel )
-                <div data-order-panel="{{ $panel['key'] }}">
+                <div data-order-panel="{{ $panel['key'] }}" wire:key="order-panel-wrap-{{ $panel['key'] }}">
                     @livewire( $panel['component'], [ 'order' => $order ], key( 'order-panel-' . $panel['key'] ) )
                 </div>
             @endforeach
@@ -267,7 +267,7 @@
             </x-artisanpack-card>
 
             @foreach ( $sidePanels as $panel )
-                <div data-order-panel="{{ $panel['key'] }}">
+                <div data-order-panel="{{ $panel['key'] }}" wire:key="order-panel-wrap-{{ $panel['key'] }}">
                     @livewire( $panel['component'], [ 'order' => $order ], key( 'order-panel-' . $panel['key'] ) )
                 </div>
             @endforeach
