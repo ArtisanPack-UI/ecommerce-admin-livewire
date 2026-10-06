@@ -140,15 +140,15 @@ class OrdersQuery extends ResourceQuery
             ),
             'placed'             => static function ( Builder $query, mixed $value ): void {
                 $range = (array) $value;
-                $from  = static::date( $range['from'] ?? null );
-                $to    = static::date( $range['to'] ?? null );
+                $from  = static::dayStart( $range['from'] ?? null );
+                $to    = static::dayEnd( $range['to'] ?? null );
 
                 if ( null !== $from ) {
-                    $query->where( static::column( Order::class, 'placed_at' ), '>=', $from->startOfDay() );
+                    $query->where( static::column( Order::class, 'placed_at' ), '>=', $from );
                 }
 
                 if ( null !== $to ) {
-                    $query->where( static::column( Order::class, 'placed_at' ), '<=', $to->endOfDay() );
+                    $query->where( static::column( Order::class, 'placed_at' ), '<=', $to );
                 }
             },
         ];

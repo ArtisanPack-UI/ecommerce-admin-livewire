@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Queries;
 
+use ArtisanPackUI\Ecommerce\Support\StoreTimezone;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -286,7 +287,8 @@ abstract class ResourceQuery
     }
 
     /**
-     * A `Y-m-d` date, or null when the value is not a real calendar date.
+     * A `Y-m-d` date in the store's time zone, or null when the value is not
+     * a real calendar date.
      *
      * @since 1.0.0
      *
@@ -304,6 +306,35 @@ abstract class ResourceQuery
             return null;
         }
 
-        return Carbon::createFromFormat( '!Y-m-d', $value );
+        return Carbon::createFromFormat( '!Y-m-d', $value, StoreTimezone::name() );
+    }
+
+    /**
+     * The start of a store-time-zone day, in the app time zone (the one
+     * timestamps are stored in), or null for an invalid date.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed  $value  A `Y-m-d` date.
+     *
+     * @return Carbon|null
+     */
+    protected static function dayStart( mixed $value ): ?Carbon
+    {
+        return static::date( $value )?->startOfDay()->setTimezone( (string) config( 'app.timezone', 'UTC' ) );
+    }
+
+    /**
+     * The end of a store-time-zone day, in the app time zone.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed  $value  A `Y-m-d` date.
+     *
+     * @return Carbon|null
+     */
+    protected static function dayEnd( mixed $value ): ?Carbon
+    {
+        return static::date( $value )?->endOfDay()->setTimezone( (string) config( 'app.timezone', 'UTC' ) );
     }
 }
