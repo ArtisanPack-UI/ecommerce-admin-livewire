@@ -178,9 +178,15 @@ class Index extends Component
     protected function setActive( Builder $selection, bool $active ): string
     {
         $changed = 0;
+        $denied  = 0;
 
-        DB::transaction( static function () use ( $selection, $active, &$changed ): void {
+        DB::transaction( function () use ( $selection, $active, &$changed, &$denied ): void {
             foreach ( ( clone $selection )->reorder()->get() as $promotion ) {
+                if ( ! $this->canEcommerce( 'update', $promotion ) ) {
+                    ++$denied;
+                    continue;
+                }
+
                 if ( $promotion->is_active !== $active ) {
                     $promotion->forceFill( [ 'is_active' => $active ] )->save();
                     ++$changed;
@@ -188,9 +194,9 @@ class Index extends Component
             }
         } );
 
-        return $active
+        return self::withDeniedNote( $active
             ? trans_choice( ':count promotion switched on.|:count promotions switched on.', $changed, [ 'count' => $changed ] )
-            : trans_choice( ':count promotion switched off.|:count promotions switched off.', $changed, [ 'count' => $changed ] );
+            : trans_choice( ':count promotion switched off.|:count promotions switched off.', $changed, [ 'count' => $changed ] ), $denied );
     }
 
     /**
@@ -206,9 +212,15 @@ class Index extends Component
     {
         $deleted = 0;
         $kept    = 0;
+        $denied  = 0;
 
-        DB::transaction( static function () use ( $selection, &$deleted, &$kept ): void {
+        DB::transaction( function () use ( $selection, &$deleted, &$kept, &$denied ): void {
             foreach ( ( clone $selection )->reorder()->withExists( 'usages' )->get() as $promotion ) {
+                if ( ! $this->canEcommerce( 'delete', $promotion ) ) {
+                    ++$denied;
+                    continue;
+                }
+
                 if ( $promotion->usages_exists ) {
                     ++$kept;
 
@@ -227,7 +239,11 @@ class Index extends Component
             );
         }
 
-        return 0 === $deleted ? null : trans_choice( ':count promotion deleted.|:count promotions deleted.', $deleted, [ 'count' => $deleted ] );
+        if ( 0 === $deleted && 0 === $denied ) {
+            return null;
+        }
+
+        return self::withDeniedNote( trans_choice( ':count promotion deleted.|:count promotions deleted.', $deleted, [ 'count' => $deleted ] ), $denied );
     }
 
     /**

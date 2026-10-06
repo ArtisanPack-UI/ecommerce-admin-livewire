@@ -80,6 +80,7 @@
     ":count row has an error and will be skipped.|:count rows have errors and will be skipped.": ":count row has an error and will be skipped.|:count rows have errors and will be skipped.",
     ":count row has errors and will be skipped.|:count rows have errors and will be skipped.": ":count row has errors and will be skipped.|:count rows have errors and will be skipped.",
     ":count row selected.|:count rows selected.": ":count row selected.|:count rows selected.",
+    ":count row skipped because you may not change it.|:count rows skipped because you may not change them.": ":count row skipped because you may not change it.|:count rows skipped because you may not change them.",
     ":count row was skipped.|:count rows were skipped.": ":count row was skipped.|:count rows were skipped.",
     ":count row will change stock.|:count rows will change stock.": ":count row will change stock.|:count rows will change stock.",
     ":count row with errors|:count rows with errors": ":count row with errors|:count rows with errors",

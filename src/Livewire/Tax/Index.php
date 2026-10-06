@@ -1040,12 +1040,39 @@ class Index extends Component
      */
     protected function setActive( Builder $selection, bool $active ): string
     {
-        $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
-        $changed = TaxRate::query()->whereKey( $ids )->where( 'is_active', ! $active )->update( [ 'is_active' => $active, 'updated_at' => Carbon::now() ] );
+        [ $ids, $denied ] = $this->allowedRateIds( $selection, 'update' );
+        $changed          = TaxRate::query()->whereKey( $ids )->where( 'is_active', ! $active )->update( [ 'is_active' => $active, 'updated_at' => Carbon::now() ] );
 
-        return $active
+        return self::withDeniedNote( $active
             ? trans_choice( ':count rate switched on.|:count rates switched on.', $changed, [ 'count' => $changed ] )
-            : trans_choice( ':count rate switched off.|:count rates switched off.', $changed, [ 'count' => $changed ] );
+            : trans_choice( ':count rate switched off.|:count rates switched off.', $changed, [ 'count' => $changed ] ), $denied );
+    }
+
+    /**
+     * The selected rate ids the user may `$ability`, checked against the
+     * policy on each rate, and how many were denied.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder<TaxRate>  $selection  Selected rates.
+     * @param  string            $ability    `update` or `delete`.
+     *
+     * @return array{0: array<int, int>, 1: int}
+     */
+    protected function allowedRateIds( Builder $selection, string $ability ): array
+    {
+        $ids    = [];
+        $denied = 0;
+
+        foreach ( ( clone $selection )->reorder()->get() as $rate ) {
+            if ( $this->canEcommerce( $ability, $rate ) ) {
+                $ids[] = (int) $rate->id;
+            } else {
+                ++$denied;
+            }
+        }
+
+        return [ $ids, $denied ];
     }
 
     /**
@@ -1059,14 +1086,14 @@ class Index extends Component
      */
     protected function deleteSelection( Builder $selection ): string
     {
-        $ids     = array_map( 'intval', ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all() );
-        $deleted = TaxRate::query()->whereKey( $ids )->delete();
+        [ $ids, $denied ] = $this->allowedRateIds( $selection, 'delete' );
+        $deleted          = TaxRate::query()->whereKey( $ids )->delete();
 
         if ( null !== $this->editingRateId && in_array( $this->editingRateId, $ids, true ) ) {
             $this->cancelRate();
         }
 
-        return trans_choice( ':count tax rate deleted.|:count tax rates deleted.', $deleted, [ 'count' => $deleted ] );
+        return self::withDeniedNote( trans_choice( ':count tax rate deleted.|:count tax rates deleted.', $deleted, [ 'count' => $deleted ] ), $denied );
     }
 
     /**

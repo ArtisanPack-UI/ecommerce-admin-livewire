@@ -286,18 +286,23 @@ class Index extends Component
         $service = app( ProductService::class );
         $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $deleted = 0;
+        $denied  = 0;
 
-        DB::transaction( function () use ( $ids, $service, &$deleted ): void {
+        DB::transaction( function () use ( $ids, $service, &$deleted, &$denied ): void {
             foreach ( array_chunk( $ids, 200 ) as $chunk ) {
                 foreach ( Product::query()->whereKey( $chunk )->get() as $product ) {
-                    $this->authorizeEcommerce( 'delete', $product );
+                    if ( ! $this->canEcommerce( 'delete', $product ) ) {
+                        ++$denied;
+                        continue;
+                    }
+
                     $service->delete( $product );
                     ++$deleted;
                 }
             }
         } );
 
-        return trans_choice( ':count product deleted.|:count products deleted.', $deleted, [ 'count' => $deleted ] );
+        return $this->summary( trans_choice( ':count product deleted.|:count products deleted.', $deleted, [ 'count' => $deleted ] ), 0, 0, $denied );
     }
 
     /**

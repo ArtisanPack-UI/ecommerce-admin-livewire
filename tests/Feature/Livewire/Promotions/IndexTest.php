@@ -149,3 +149,21 @@ it( 'refuses to delete without promotion.delete', function (): void {
         ->call( 'runBulkAction', 'delete' )
         ->assertForbidden();
 } );
+
+it( 'skips promotions a per-record policy denies and says so', function (): void {
+    $open   = Promotion::factory()->create( [ 'name' => 'Open', 'is_active' => false ] );
+    $locked = Promotion::factory()->create( [ 'name' => 'Locked', 'is_active' => false ] );
+
+    addFilter( 'ap.ecommerce.abilities.promotion.update', static fn ( bool $allowed, $user, $request, mixed $subject = null ): bool => $allowed && ! ( $subject instanceof Promotion && $subject->is( $locked ) ), 10, 4 );
+
+    $component = Livewire::test( Index::class )
+        ->set( 'selected', [ $open->id, $locked->id ] )
+        ->call( 'runBulkAction', 'activate' )
+        ->assertOk();
+
+    removeAllFilters( 'ap.ecommerce.abilities.promotion.update' );
+
+    expect( $open->refresh()->is_active )->toBeTrue()
+        ->and( $locked->refresh()->is_active )->toBeFalse()
+        ->and( sentToasts( $component ) )->toContain( '1 row skipped because you may not change it.' );
+} );

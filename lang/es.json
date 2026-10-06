@@ -80,6 +80,7 @@
     ":count row has an error and will be skipped.|:count rows have errors and will be skipped.": ":count fila tiene un error y se omitirá.|:count filas tienen errores y se omitirán.",
     ":count row has errors and will be skipped.|:count rows have errors and will be skipped.": ":count fila tiene errores y se omitirá.|:count filas tienen errores y se omitirán.",
     ":count row selected.|:count rows selected.": ":count fila seleccionada.|:count filas seleccionadas.",
+    ":count row skipped because you may not change it.|:count rows skipped because you may not change them.": "Se omitió :count fila porque no puedes modificarla.|Se omitieron :count filas porque no puedes modificarlas.",
     ":count row was skipped.|:count rows were skipped.": "Se omitió :count fila.|Se omitieron :count filas.",
     ":count row will change stock.|:count rows will change stock.": ":count fila cambiará el stock.|:count filas cambiarán el stock.",
     ":count row with errors|:count rows with errors": ":count fila con errores|:count filas con errores",

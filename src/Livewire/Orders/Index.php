@@ -224,11 +224,20 @@ class Index extends Component
         $machine = app( OrderStatusMachine::class );
         $actorId = auth()->id();
 
+        $allowed = [];
+        $denied  = 0;
+
         foreach ( array_chunk( $ids, 200 ) as $chunk ) {
             foreach ( Order::query()->whereKey( $chunk )->get() as $order ) {
-                $this->authorizeEcommerce( 'update', $order );
+                if ( $this->canEcommerce( 'update', $order ) ) {
+                    $allowed[] = (int) $order->id;
+                } else {
+                    ++$denied;
+                }
             }
         }
+
+        $ids = $allowed;
 
         try {
             DB::transaction( static function () use ( $ids, $substatus, $machine, $actorId ): void {
@@ -248,11 +257,11 @@ class Index extends Component
 
         $this->bulkSubstatusId = null;
 
-        return trans_choice(
+        return self::withDeniedNote( trans_choice(
             ':count order moved to ":substatus".|:count orders moved to ":substatus".',
             $moved,
             [ 'count' => $moved, 'substatus' => $substatus->label ],
-        );
+        ), $denied );
     }
 
     /**

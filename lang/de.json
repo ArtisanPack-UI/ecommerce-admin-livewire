@@ -80,6 +80,7 @@
     ":count row has an error and will be skipped.|:count rows have errors and will be skipped.": ":count Zeile enthält einen Fehler und wird übersprungen.|:count Zeilen enthalten Fehler und werden übersprungen.",
     ":count row has errors and will be skipped.|:count rows have errors and will be skipped.": ":count Zeile enthält Fehler und wird übersprungen.|:count Zeilen enthalten Fehler und werden übersprungen.",
     ":count row selected.|:count rows selected.": ":count Zeile ausgewählt.|:count Zeilen ausgewählt.",
+    ":count row skipped because you may not change it.|:count rows skipped because you may not change them.": ":count Zeile übersprungen, weil Sie sie nicht ändern dürfen.|:count Zeilen übersprungen, weil Sie sie nicht ändern dürfen.",
     ":count row was skipped.|:count rows were skipped.": ":count Zeile wurde übersprungen.|:count Zeilen wurden übersprungen.",
     ":count row will change stock.|:count rows will change stock.": ":count Zeile ändert den Bestand.|:count Zeilen ändern den Bestand.",
     ":count row with errors|:count rows with errors": ":count Zeile mit Fehlern|:count Zeilen mit Fehlern",

@@ -437,9 +437,13 @@ class Index extends Component
         $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $deleted = 0;
         $kept    = [];
+        $denied  = 0;
 
         foreach ( DigitalFile::query()->whereKey( $ids )->get() as $file ) {
-            $this->authorizeEcommerce( 'delete', $file );
+            if ( ! $this->canEcommerce( 'delete', $file ) ) {
+                ++$denied;
+                continue;
+            }
 
             try {
                 $service->delete( $file );
@@ -457,7 +461,7 @@ class Index extends Component
             $summary .= ' ' . trans_choice( ':count file has buyers and was kept. Archive it instead.|:count files have buyers and were kept. Archive them instead.', count( $kept ), [ 'count' => count( $kept ) ] );
         }
 
-        return $summary;
+        return self::withDeniedNote( $summary, $denied );
     }
 
     /**

@@ -80,6 +80,7 @@
     ":count row has an error and will be skipped.|:count rows have errors and will be skipped.": ":count ligne contient une erreur et sera ignorée.|:count lignes contiennent des erreurs et seront ignorées.",
     ":count row has errors and will be skipped.|:count rows have errors and will be skipped.": ":count ligne contient des erreurs et sera ignorée.|:count lignes contiennent des erreurs et seront ignorées.",
     ":count row selected.|:count rows selected.": ":count ligne sélectionnée.|:count lignes sélectionnées.",
+    ":count row skipped because you may not change it.|:count rows skipped because you may not change them.": ":count ligne ignorée, car vous ne pouvez pas la modifier.|:count lignes ignorées, car vous ne pouvez pas les modifier.",
     ":count row was skipped.|:count rows were skipped.": ":count ligne a été ignorée.|:count lignes ont été ignorées.",
     ":count row will change stock.|:count rows will change stock.": ":count ligne modifiera le stock.|:count lignes modifieront le stock.",
     ":count row with errors|:count rows with errors": ":count ligne avec des erreurs|:count lignes avec des erreurs",
