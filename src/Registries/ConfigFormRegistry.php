@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Registries;
 
+use ArtisanPackUI\Ecommerce\Contracts\DescribesConfig;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use ArtisanPackUI\Ecommerce\Registries\KanbanAutomationRegistry;
@@ -20,8 +21,12 @@ use ArtisanPackUI\Ecommerce\Registries\KanbanCardWidgetRegistry;
 use ArtisanPackUI\Ecommerce\Registries\PromotionActionRegistry;
 use ArtisanPackUI\Ecommerce\Registries\PromotionConditionRegistry;
 use ArtisanPackUI\Ecommerce\Registries\ShippingMethodTypeRegistry;
+use ArtisanPackUI\Ecommerce\Support\ConfigSchema;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
 use Closure;
+use DateTimeZone;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use stdClass;
 use Throwable;
@@ -43,14 +48,18 @@ use Throwable;
  *
  * A field is `name`, `type`, `label`, and optionally `hint`, `rules` (extra
  * Laravel rules), `options` (`select` / `multiselect`), `default`,
- * `multiple` (`product`, default true), `source` (`product` fields:
- * `product` or `variant`), and `fields` (`repeater` rows). A rule may name a
- * sibling field as `@name` (`required_without:@amount`). A schema may be a
- * closure, resolved on use, so labels and options follow the current locale.
+ * `multiple` (`product`, `category`, and `product-tag`, default true),
+ * `source` (`product` fields: `product` or `variant`), and `fields`
+ * (`repeater` rows). A rule may name a sibling field as `@name`
+ * (`required_without:@amount`). A schema may be a closure, resolved on use,
+ * so labels and options follow the current locale.
  *
- * When an engine entry declares its own schema (a `configSchema()` method,
- * engine issue #149), that wins. A key with no schema at all falls back to a
- * JSON editor.
+ * When an engine entry declares its own schema (it implements the engine's
+ * `DescribesConfig`), that wins: its fields are adapted to this shape (see
+ * {@see self::adaptEngineSchema()}), and the cast config is checked again
+ * with the engine's `ConfigSchema::validate()` before it is saved (see
+ * {@see self::validateDeclared()}). A key with no schema at all falls back
+ * to a JSON editor.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -62,8 +71,9 @@ class ConfigFormRegistry
     /**
      * The field types a schema may use.
      *
-     * `tag` is a free-form list of strings; `repeater` is a list of rows of
-     * other fields (for tiers).
+     * `tag` is a free-form list of strings; `product-tag` picks product tags
+     * by id; `json` is any JSON value, edited as text; `repeater` is a list of
+     * rows of other fields (for tiers).
      *
      * @since 1.0.0
      *
@@ -71,6 +81,7 @@ class ConfigFormRegistry
      */
     public const TYPES = [
         'text',
+        'textarea',
         'number',
         'money',
         'percent',
@@ -80,10 +91,12 @@ class ConfigFormRegistry
         'product',
         'category',
         'tag',
+        'product-tag',
         'date',
         'daterange',
         'weekday',
         'template',
+        'json',
         'repeater',
     ];
 
@@ -121,6 +134,34 @@ class ConfigFormRegistry
     private array $schemas = [];
 
     /**
+     * Extra rules per `{registry}:{key}`, keyed by field path.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, array<string, array<int, mixed>>>
+     */
+    private array $refinements = [];
+
+    /**
+     * Adapted engine schemas, keyed `{registry}:{key}:{locale}`; `false`
+     * when the entry declares none.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, array<int, array<string, mixed>>|false>
+     */
+    private array $declared = [];
+
+    /**
+     * `{registry}:{key}` names whose declared schema failed and was reported.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, true>
+     */
+    private array $reported = [];
+
+    /**
      * Registers (or replaces) the schema for a registry entry.
      *
      * An array schema is checked now; a closure is checked when resolved.
@@ -142,6 +183,36 @@ class ConfigFormRegistry
         }
 
         $this->schemas[ $registry . ':' . $key ] = $schema instanceof Closure ? $schema : self::normalize( $schema );
+    }
+
+    /**
+     * Adds rules to fields of an entry's schema, whether the schema is
+     * registered here or declared by the engine. Use it for checks the
+     * engine schema can't express, such as cross-field rules:
+     *
+     * ```php
+     * app( ConfigFormRegistry::class )->refine( 'promotion-action', 'tiered-discount', [
+     *     'tiers.percent' => [ 'required_without:@amount' ],
+     * ] );
+     * ```
+     *
+     * @since 1.0.0
+     *
+     * @param  string                            $registry  The registry name.
+     * @param  string                            $key       The entry key.
+     * @param  array<string, array<int, mixed>>  $rules     Rules keyed by field path; `tiers.percent` is the `percent` column of the `tiers` repeater.
+     *
+     * @return void
+     */
+    public function refine( string $registry, string $key, array $rules ): void
+    {
+        $name = $registry . ':' . $key;
+
+        foreach ( $rules as $path => $extra ) {
+            $this->refinements[ $name ][ (string) $path ] = [ ...( $this->refinements[ $name ][ (string) $path ] ?? [] ), ...array_values( (array) $extra ) ];
+        }
+
+        $this->declared = [];
     }
 
     /**
@@ -183,7 +254,7 @@ class ConfigFormRegistry
             $schema = self::normalize( (array) $schema() );
         }
 
-        return $schema;
+        return null === $schema ? null : self::applyRefinements( $schema, $this->refinements[ $registry . ':' . $key ] ?? [] );
     }
 
     /**
@@ -276,6 +347,59 @@ class ConfigFormRegistry
         }
 
         return $config;
+    }
+
+    /**
+     * A stored config as form state: the defaults, overlaid with the stored
+     * values, with `json` fields encoded as text for their editor.
+     *
+     * @since 1.0.0
+     *
+     * @param  string                $registry  The registry name.
+     * @param  string                $key       The entry key.
+     * @param  array<string, mixed>  $config    The stored config.
+     *
+     * @return array<string, mixed>
+     */
+    public function formValues( string $registry, string $key, array $config ): array
+    {
+        $values = array_replace( $this->defaults( $registry, $key ), $config );
+
+        foreach ( $this->schema( $registry, $key ) ?? [] as $field ) {
+            if ( 'json' === $field['type'] && array_key_exists( $field['name'], $config ) ) {
+                $values[ $field['name'] ] = (string) json_encode( $config[ $field['name'] ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Checks a cast config against the schema the engine entry declares,
+     * with the engine's own rules. The admin writes promotion, shipping, and
+     * kanban rows directly, so this is the engine-side check they would
+     * otherwise skip. Does nothing when the entry declares no schema.
+     *
+     * @since 1.0.0
+     *
+     * @param  string                $registry  The registry name.
+     * @param  string                $key       The entry key.
+     * @param  array<string, mixed>  $config    The cast config.
+     * @param  string                $prefix    The property path, e.g. `config`; errors are keyed under it.
+     *
+     * @throws ValidationException When the engine rejects the config.
+     *
+     * @return void
+     */
+    public function validateDeclared( string $registry, string $key, array $config, string $prefix ): void
+    {
+        $entry = $this->engineEntry( $registry, $key );
+
+        if ( ! $entry instanceof DescribesConfig ) {
+            return;
+        }
+
+        ConfigSchema::validate( $entry, $config, $prefix . '.' );
     }
 
     /**
@@ -381,7 +505,12 @@ class ConfigFormRegistry
     }
 
     /**
-     * The schema an engine entry declares itself, if any.
+     * The schema an engine entry declares itself, adapted to this registry's
+     * field shape, or null when it declares none.
+     *
+     * The result is memoized per locale. A schema that can't be adapted is
+     * reported once and treated as missing, so the form falls back to the
+     * JSON editor instead of failing.
      *
      * @since 1.0.0
      *
@@ -392,31 +521,209 @@ class ConfigFormRegistry
      */
     private function declaredSchema( string $registry, string $key ): ?array
     {
+        $name  = $registry . ':' . $key;
+        $cache = $name . ':' . app()->getLocale();
+
+        if ( array_key_exists( $cache, $this->declared ) ) {
+            return false === $this->declared[ $cache ] ? null : $this->declared[ $cache ];
+        }
+
+        $schema = null;
+
+        try {
+            $entry = $this->engineEntry( $registry, $key );
+
+            if ( $entry instanceof DescribesConfig ) {
+                $schema = self::applyRefinements(
+                    self::normalize( self::adaptEngineSchema( (array) $entry->configSchema() ) ),
+                    $this->refinements[ $name ] ?? [],
+                );
+            }
+        } catch ( Throwable $exception ) {
+            if ( ! isset( $this->reported[ $name ] ) ) {
+                $this->reported[ $name ] = true;
+
+                report( $exception );
+            }
+        }
+
+        $this->declared[ $cache ] = $schema ?? false;
+
+        return $schema;
+    }
+
+    /**
+     * Appends refinement rules to the fields they name.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<int, array<string, mixed>>  $schema       The normalized schema.
+     * @param  array<string, array<int, mixed>>  $refinements  Rules keyed by field path.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function applyRefinements( array $schema, array $refinements ): array
+    {
+        if ( [] === $refinements ) {
+            return $schema;
+        }
+
+        foreach ( $schema as $index => $field ) {
+            $schema[ $index ]['rules'] = [ ...$field['rules'], ...( $refinements[ $field['name'] ] ?? [] ) ];
+
+            if ( [] !== $field['fields'] ) {
+                $nested = [];
+
+                foreach ( $refinements as $path => $rules ) {
+                    if ( str_starts_with( $path, $field['name'] . '.' ) ) {
+                        $nested[ substr( $path, strlen( $field['name'] ) + 1 ) ] = $rules;
+                    }
+                }
+
+                $schema[ $index ]['fields'] = self::applyRefinements( $field['fields'], $nested );
+            }
+        }
+
+        return $schema;
+    }
+
+    /**
+     * The engine registry entry under `$key`, or null.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $registry  The registry name.
+     * @param  string  $key       The entry key.
+     *
+     * @return object|null
+     */
+    private function engineEntry( string $registry, string $key ): ?object
+    {
         $class = self::REGISTRIES[ $registry ] ?? null;
 
         if ( null === $class || ! app()->bound( $class ) ) {
             return null;
         }
 
-        try {
-            $engine = app( $class );
+        $engine = app( $class );
 
-            if ( ! $engine->has( $key ) ) {
-                return null;
-            }
-
-            $entry = $engine->get( $key );
-
-            if ( ! is_object( $entry ) || ! method_exists( $entry, 'configSchema' ) ) {
-                return null;
-            }
-
-            return self::normalize( (array) $entry->configSchema() );
-        } catch ( Throwable $exception ) {
-            report( $exception );
-
+        if ( ! $engine->has( $key ) ) {
             return null;
         }
+
+        $entry = $engine->get( $key );
+
+        return is_object( $entry ) ? $entry : null;
+    }
+
+    /**
+     * Adapts fields in the engine's `ConfigSchema` format to this registry's
+     * shape:
+     *
+     * - `required: true` adds the `required` rule, and `help` becomes `hint`;
+     * - `{value, label}` options become `{id, name}`;
+     * - `multiple` defaults to `false`, as in the engine;
+     * - `variant` is a `product` field with the `variant` source, `url` is
+     *   `text` with the `url` rule, `list` is a free-form `tag` list, and the
+     *   engine's `tag` (product tag ids) is `product-tag`;
+     * - an unknown type is edited as `json`.
+     *
+     * Money fields without help get the store-currency hint, template fields
+     * list their tokens, and a `timezone` text field becomes a time-zone
+     * select.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<int, mixed>  $schema  The engine fields.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function adaptEngineSchema( array $schema ): array
+    {
+        $fields = [];
+
+        foreach ( $schema as $field ) {
+            $field = (array) $field;
+            $type  = (string) ( $field['type'] ?? 'json' );
+            $rules = array_values( array_filter( (array) ( $field['rules'] ?? [] ), 'is_string' ) );
+
+            if ( true === ( $field['required'] ?? false ) ) {
+                array_unshift( $rules, 'required' );
+            }
+
+            $adapted = [
+                'name'     => (string) ( $field['name'] ?? '' ),
+                'type'     => $type,
+                'label'    => (string) ( $field['label'] ?? '' ),
+                'hint'     => isset( $field['help'] ) ? (string) $field['help'] : null,
+                'rules'    => $rules,
+                'default'  => $field['default'] ?? null,
+                'multiple' => (bool) ( $field['multiple'] ?? false ),
+            ];
+
+            if ( isset( $field['options'] ) ) {
+                $adapted['options'] = array_values( array_filter( array_map(
+                    static fn ( mixed $option ): ?array => is_array( $option ) && is_scalar( $option['value'] ?? null )
+                        ? [ 'id' => (string) $option['value'], 'name' => (string) ( $option['label'] ?? $option['value'] ) ]
+                        : null,
+                    (array) $field['options'],
+                ) ) );
+            }
+
+            switch ( $type ) {
+                case 'variant':
+                    $adapted['type']   = 'product';
+                    $adapted['source'] = 'variant';
+                    break;
+
+                case 'url':
+                    $adapted['type']    = 'text';
+                    $adapted['rules'][] = 'url';
+                    break;
+
+                case 'list':
+                    $adapted['type'] = 'tag';
+                    break;
+
+                case 'tag':
+                    $adapted['type'] = 'product-tag';
+                    break;
+
+                case 'money':
+                    $adapted['hint'] ??= __( 'In the store currency (:currency); other currencies are converted.', [ 'currency' => StoreCurrencies::base() ] );
+                    break;
+
+                case 'template':
+                    $tokens = array_values( array_filter( (array) ( $field['tokens'] ?? [] ), 'is_string' ) );
+
+                    if ( null === $adapted['hint'] && [] !== $tokens ) {
+                        $adapted['hint'] = __( 'Placeholders: :placeholders', [ 'placeholders' => implode( ', ', $tokens ) ] );
+                    }
+                    break;
+
+                case 'text':
+                    if ( in_array( 'timezone', $rules, true ) ) {
+                        $zones              = DateTimeZone::listIdentifiers();
+                        $adapted['type']    = 'select';
+                        $adapted['options'] = array_map( static fn ( string $zone ): array => [ 'id' => $zone, 'name' => $zone ], $zones );
+                        $adapted['rules']   = array_values( array_diff( $rules, [ 'timezone' ] ) );
+                    }
+                    break;
+
+                case 'repeater':
+                    $adapted['fields'] = self::adaptEngineSchema( (array) ( $field['fields'] ?? [] ) );
+                    break;
+
+                default:
+                    if ( ! in_array( $type, self::TYPES, true ) ) {
+                        $adapted['type'] = 'json';
+                    }
+            }
+
+            $fields[] = $adapted;
+        }
+
+        return $fields;
     }
 
     /**
@@ -435,6 +742,12 @@ class ConfigFormRegistry
             return 'boolean' === $field['type'] ? false : null;
         }
 
+        if ( 'daterange' === $field['type'] ) {
+            $range = [ 'start' => ( (array) $value )['start'] ?? null, 'end' => ( (array) $value )['end'] ?? null ];
+
+            return self::isBlank( $range['start'] ) && self::isBlank( $range['end'] ) ? null : $range;
+        }
+
         $ids = static fn ( mixed $list ): array => array_values( array_unique( array_map( 'intval', array_filter( (array) $list, 'is_numeric' ) ) ) );
 
         return match ( $field['type'] ) {
@@ -447,11 +760,11 @@ class ConfigFormRegistry
 
                 return $days;
             } )(),
-            'category'                => $ids( $value ),
+            'category', 'product-tag',
             'product'                 => $field['multiple'] ? $ids( $value ) : ( is_numeric( $value ) ? (int) $value : null ),
+            'json'                    => is_string( $value ) ? json_decode( $value, true ) : $value,
             'multiselect'             => array_values( array_unique( array_map( 'strval', array_filter( (array) $value, 'is_scalar' ) ) ) ),
             'tag'                     => array_values( array_unique( array_filter( array_map( static fn ( mixed $tag ): string => trim( (string) $tag ), array_filter( (array) $value, 'is_scalar' ) ), static fn ( string $tag ): bool => '' !== $tag ) ) ),
-            'daterange'               => [ 'start' => ( (array) $value )['start'] ?? null, 'end' => ( (array) $value )['end'] ?? null ],
             'repeater'                => array_values( array_map( static fn ( mixed $row ): array => self::cast( $field['fields'], (array) $row ), array_filter( (array) $value, 'is_array' ) ) ),
             default                   => is_scalar( $value ) ? (string) $value : null,
         };
@@ -476,18 +789,21 @@ class ConfigFormRegistry
         $own       = [ ...$presence, ...self::resolveSiblings( $field['rules'], $path ) ];
 
         $rules = match ( $field['type'] ) {
-            'text'                  => [ $path => [ ...$own, 'string', 'max:1000' ] ],
-            'template'              => [ $path => [ ...$own, 'string', 'max:10000' ] ],
-            'number'                => [ $path => [ ...$own, 'numeric' ] ],
-            'money'                 => [ $path => [ ...$own, 'integer', 'min:0' ] ],
-            'percent'               => [ $path => [ ...$own, 'numeric', 'min:0', 'max:100' ] ],
-            'boolean'               => [ $path => [ ...$own, 'boolean' ] ],
-            'select'                => [ $path => [ ...$own, Rule::in( $optionIds ) ] ],
-            'date'                  => [ $path => [ ...$own, 'date_format:Y-m-d' ] ],
-            'multiselect'           => [ $path => [ ...$own, 'array' ], $path . '.*' => [ Rule::in( $optionIds ) ] ],
-            'weekday'               => [ $path => [ ...$own, 'array' ], $path . '.*' => [ 'integer', 'between:1,7' ] ],
-            'tag'                   => [ $path => [ ...$own, 'array', 'max:100' ], $path . '.*' => [ 'string', 'max:255' ] ],
-            'category'              => [ $path => [ ...$own, 'array' ], $path . '.*' => [ 'integer' ] ],
+            'text'                    => [ $path => [ ...$own, 'string', 'max:1000' ] ],
+            'template', 'textarea'    => [ $path => [ ...$own, 'string', 'max:10000' ] ],
+            'json'                    => [ $path => [ ...$own, 'string', 'max:65535', 'json' ] ],
+            'number'                  => [ $path => [ ...$own, 'numeric' ] ],
+            'money'                   => [ $path => [ ...$own, 'integer', 'min:0' ] ],
+            'percent'                 => [ $path => [ ...$own, 'numeric', 'min:0', 'max:100' ] ],
+            'boolean'                 => [ $path => [ ...$own, 'boolean' ] ],
+            'select'                  => [ $path => [ ...$own, Rule::in( $optionIds ) ] ],
+            'date'                    => [ $path => [ ...$own, 'date_format:Y-m-d' ] ],
+            'multiselect'             => [ $path => [ ...$own, 'array' ], $path . '.*' => [ Rule::in( $optionIds ) ] ],
+            'weekday'                 => [ $path => [ ...$own, 'array' ], $path . '.*' => [ 'integer', 'between:1,7' ] ],
+            'tag'                     => [ $path => [ ...$own, 'array', 'max:100' ], $path . '.*' => [ 'string', 'max:255' ] ],
+            'category', 'product-tag' => $field['multiple']
+                ? [ $path => [ ...$own, 'array', 'max:500' ], $path . '.*' => [ 'integer', 'min:1' ] ]
+                : [ $path => [ ...$own, 'integer', 'min:1' ] ],
             'product'               => self::pickerRules( $field, $path, $own ),
             'daterange'             => [
                 $path            => [ ...$own, 'array' ],
@@ -570,11 +886,25 @@ class ConfigFormRegistry
 
         return match ( $field['type'] ) {
             'boolean'                                                 => false,
-            'multiselect', 'weekday', 'tag', 'category', 'repeater'   => [],
-            'product'                                                 => $field['multiple'] ? [] : null,
+            'multiselect', 'weekday', 'tag', 'repeater'               => [],
+            'product', 'category', 'product-tag'                      => $field['multiple'] ? [] : null,
             'daterange'                                               => [ 'start' => null, 'end' => null ],
             default                                                   => null,
         };
+    }
+
+    /**
+     * Whether a value is null or a blank string.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed  $value  The value.
+     *
+     * @return bool
+     */
+    private static function isBlank( mixed $value ): bool
+    {
+        return null === $value || ( is_string( $value ) && '' === trim( $value ) );
     }
 
     /**

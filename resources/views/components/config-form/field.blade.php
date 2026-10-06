@@ -66,6 +66,17 @@
             <x-artisanpack-textarea :id="$id" :label="$field['label']" :hint="$field['hint']" rows="6" class="font-mono" wire:model="{{ $path }}" />
             @break
 
+        @case( 'textarea' )
+            <x-artisanpack-textarea :id="$id" :label="$field['label']" :hint="$field['hint']" rows="4" wire:model="{{ $path }}" />
+            @break
+
+        @case( 'json' )
+            <x-artisanpack-code :id="$id" :label="$field['label']" :hint="$field['hint']" language="json" height="6rem" wire:model="{{ $path }}" />
+            @error( $path )
+                <p class="text-sm text-error" role="alert">{{ $message }}</p>
+            @enderror
+            @break
+
         @case( 'product' )
             @if ( 'variant' === $field['source'] )
                 <x-artisanpack-ec-variant-picker :id="$id" :model="$path" :label="$field['label']" :hint="$field['hint']" :single="! $field['multiple']" :options="$pickerOptions( 'variant', $path )" />
@@ -75,7 +86,11 @@
             @break
 
         @case( 'category' )
-            <x-artisanpack-ec-category-picker :id="$id" :model="$path" :label="$field['label']" :hint="$field['hint']" />
+            <x-artisanpack-ec-category-picker :id="$id" :model="$path" :label="$field['label']" :hint="$field['hint']" :single="! $field['multiple']" :options="$pickerOptions( 'category', $path )" />
+            @break
+
+        @case( 'product-tag' )
+            <x-artisanpack-ec-tag-picker :id="$id" :model="$path" :label="$field['label']" :hint="$field['hint']" :single="! $field['multiple']" :options="$pickerOptions( 'tag', $path )" />
             @break
 
         @case( 'repeater' )

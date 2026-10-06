@@ -93,12 +93,12 @@ class ConfigForm extends Component
     }
 
     /**
-     * The picker options for a product or variant field, when the
+     * The picker options for a product, variant, category, or tag field, when the
      * surrounding component uses `WithPickers`.
      *
      * @since 1.0.0
      *
-     * @param  string  $source  `product` or `variant`.
+     * @param  string  $source  `product`, `variant`, `category`, or `tag`.
      * @param  string  $path    The property path.
      *
      * @return array<int, array<string, mixed>>

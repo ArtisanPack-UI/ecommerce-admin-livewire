@@ -322,6 +322,54 @@ describe( 'rule builder', function (): void {
             ->assertSee( 'buy 2 of Linen Shirt, get 1 free' );
     } );
 
+    it( 'saves a cart-contains-category condition with match any', function (): void {
+        $category = ArtisanPackUI\Ecommerce\Models\ProductCategory::factory()->create();
+
+        Livewire::test( Form::class )
+            ->set( 'name', 'Category sale' )
+            ->set( 'ruleToAdd.conditions', 'cart-contains-category' )->call( 'addRule', 'conditions' )
+            ->set( 'ruleRows.conditions.0.config.category_ids', [ $category->id ] )
+            ->set( 'ruleToAdd.actions', 'percent-off-cart' )->call( 'addRule', 'actions' )
+            ->set( 'ruleRows.actions.0.config.percent', 10 )
+            ->call( 'save' )
+            ->assertHasNoErrors();
+
+        expect( PromotionCondition::query()->sole()->config )->toBe( [ 'category_ids' => [ $category->id ], 'include_descendants' => true, 'match' => 'any' ] );
+    } );
+
+    it( 'requires a percent on percent-off-cart', function (): void {
+        Livewire::test( Form::class )
+            ->set( 'name', 'No percent' )
+            ->set( 'ruleToAdd.actions', 'percent-off-cart' )->call( 'addRule', 'actions' )
+            ->call( 'save' )
+            ->assertHasErrors( [ 'ruleRows.actions.0.config.percent' => 'required' ] );
+
+        expect( Promotion::query()->count() )->toBe( 0 );
+    } );
+
+    it( 'rejects an empty min-quantity quantity', function (): void {
+        Livewire::test( Form::class )
+            ->set( 'name', 'Bulk' )
+            ->set( 'ruleToAdd.conditions', 'min-quantity' )->call( 'addRule', 'conditions' )
+            ->set( 'ruleToAdd.actions', 'percent-off-cart' )->call( 'addRule', 'actions' )
+            ->set( 'ruleRows.actions.0.config.percent', 10 )
+            ->call( 'save' )
+            ->assertHasErrors( [ 'ruleRows.conditions.0.config.quantity' => 'required' ] );
+    } );
+
+    it( 'runs the engine schema check on a cast config', function (): void {
+        Livewire::test( Form::class )
+            ->set( 'name', 'Fractional' )
+            ->set( 'ruleToAdd.conditions', 'min-quantity' )->call( 'addRule', 'conditions' )
+            ->set( 'ruleRows.conditions.0.config.quantity', '2.5' )
+            ->set( 'ruleToAdd.actions', 'percent-off-cart' )->call( 'addRule', 'actions' )
+            ->set( 'ruleRows.actions.0.config.percent', 10 )
+            ->call( 'save' )
+            ->assertHasErrors( [ 'ruleRows.conditions.0.config.quantity' ] );
+
+        expect( Promotion::query()->count() )->toBe( 0 );
+    } );
+
     it( 'lets a satellite describe its own rows', function (): void {
         addFilter( 'ap.ecommerceAdminLivewire.ruleBuilder.describe', static fn ( ?string $text, string $registry, string $type ): ?string => 'free-shipping' === $type ? 'shipping on the house' : $text, 10, 3 );
 

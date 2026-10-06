@@ -175,11 +175,10 @@ it( 'validates the method', function (): void {
 
     Livewire::test( Index::class )
         ->call( 'createMethod', $zone->id )
-        ->set( 'methodForm.key', 'flat-rate' )
-        ->set( 'methodForm.label', 'Flat' )
-        ->set( 'methodForm.config.amount', null )
+        ->set( 'methodForm.key', 'weight-based' )
+        ->set( 'methodForm.label', 'By weight' )
         ->call( 'saveMethod' )
-        ->assertHasErrors( [ 'methodForm.config.amount' ] );
+        ->assertHasErrors( [ 'methodForm.config.tiers' ] );
 
     Livewire::test( Index::class )
         ->call( 'createMethod', $zone->id )
@@ -191,6 +190,27 @@ it( 'validates the method', function (): void {
         ->assertHasErrors( [ 'methodForm.tax_class_key' ] );
 
     expect( ShippingMethod::query()->count() )->toBe( 0 );
+} );
+
+it( 'saves a weight-based method with unit kg and tiers', function (): void {
+    $zone = ShippingZone::factory()->create();
+
+    Livewire::test( Index::class )
+        ->call( 'createMethod', $zone->id )
+        ->set( 'methodForm.key', 'weight-based' )
+        ->set( 'methodForm.label', 'By weight' )
+        ->set( 'methodForm.config.unit', 'kg' )
+        ->call( 'addConfigRow', 'shipping-method', 'weight-based', 'methodForm.config', 'tiers' )
+        ->call( 'addConfigRow', 'shipping-method', 'weight-based', 'methodForm.config', 'tiers' )
+        ->set( 'methodForm.config.tiers.0', [ 'max_weight' => '2', 'amount' => 500 ] )
+        ->set( 'methodForm.config.tiers.1', [ 'max_weight' => '', 'amount' => 1200 ] )
+        ->call( 'saveMethod' )
+        ->assertHasNoErrors();
+
+    expect( ShippingMethod::query()->sole()->config )->toBe( [
+        'unit'  => 'kg',
+        'tiers' => [ [ 'max_weight' => 2, 'amount' => 500 ], [ 'amount' => 1200 ] ],
+    ] );
 } );
 
 it( 'reorders methods within a zone', function (): void {

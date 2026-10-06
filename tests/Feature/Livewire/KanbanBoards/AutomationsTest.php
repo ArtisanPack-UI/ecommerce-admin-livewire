@@ -93,6 +93,20 @@ it( 'emails the customer when a card reaches Shipped, for first orders only', fu
         ->and( $automation->trigger_config['subject'] )->toBe( 'Your order shipped' );
 } );
 
+it( 'saves a dispatch-job trigger when jobs are configured', function (): void {
+    config()->set( 'artisanpack.ecommerce.kanban.dispatchable_jobs', [ Illuminate\Queue\CallQueuedClosure::class ] );
+
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->set( 'form.to_column_id', $this->shipped->id )
+        ->set( 'form.trigger_key', 'dispatch-job' )
+        ->set( 'form.trigger_config.job', Illuminate\Queue\CallQueuedClosure::class )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( KanbanAutomation::query()->sole()->trigger_config )->toBe( [ 'job' => Illuminate\Queue\CallQueuedClosure::class ] );
+} );
+
 it( 'edits an automation and keeps a stored signing secret', function (): void {
     $automation = KanbanAutomation::factory()->create( [
         'board_id'       => $this->board->id,
