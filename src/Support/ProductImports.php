@@ -186,8 +186,6 @@ final class ProductImports
 
         $latest = null;
 
-        $cutoff = Carbon::now()->subDays( self::KEEP_DAYS )->toIso8601String();
-
         foreach ( self::disk()->directories( self::DIRECTORY ) as $directory ) {
             $state = self::find( basename( $directory ) );
 
@@ -195,7 +193,9 @@ final class ProductImports
                 continue;
             }
 
-            if ( 'completed' === $state['status'] && (string) $state['updated_at'] < $cutoff ) {
+            // Tidies up as it goes, for hosts that don't schedule
+            // `ecommerce-admin:prune-imports`.
+            if ( self::isStale( $state ) ) {
                 self::delete( $state );
 
                 continue;
@@ -222,6 +222,47 @@ final class ProductImports
      *
      * @return array<string, mixed>
      */
+    /**
+     * Deletes every import that is not queued or running and was last
+     * touched more than {@see self::KEEP_DAYS} days ago: completed, failed,
+     * and abandoned ones (still at the mapping or dry-run step), with their
+     * uploaded files.
+     *
+     * @since 1.0.0
+     *
+     * @return int How many were deleted.
+     */
+    public static function prune(): int
+    {
+        $deleted = 0;
+
+        foreach ( self::disk()->directories( self::DIRECTORY ) as $directory ) {
+            $state = self::find( basename( $directory ) );
+
+            if ( null !== $state && self::isStale( $state ) ) {
+                self::delete( $state );
+                ++$deleted;
+            }
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Whether an import is inactive and older than {@see self::KEEP_DAYS} days.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<string, mixed>  $state  Import state.
+     *
+     * @return bool
+     */
+    public static function isStale( array $state ): bool
+    {
+        return ! in_array( $state['status'] ?? null, self::ACTIVE, true )
+            && (string) ( $state['updated_at'] ?? '' ) < Carbon::now()->subDays( self::KEEP_DAYS )->toIso8601String();
+    }
+
     public static function save( array $state ): array
     {
         $state['updated_at'] = Carbon::now()->toIso8601String();

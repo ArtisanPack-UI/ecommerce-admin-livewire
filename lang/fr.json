@@ -544,6 +544,7 @@
     "Delete this customer?": "Supprimer ce client ?",
     "Delete this note?": "Supprimer cette note ?",
     "Delete zone": "Supprimer la zone",
+    "Deleted :count old import.|Deleted :count old imports.": ":count ancienne importation supprimée.|:count anciennes importations supprimées.",
     "Deleted board": "Tableau supprimé",
     "Deleted file": "Fichier supprimé",
     "Deleted item #:id": "Article n° :id supprimé",

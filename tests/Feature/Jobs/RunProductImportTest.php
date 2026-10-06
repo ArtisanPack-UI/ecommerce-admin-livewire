@@ -110,3 +110,28 @@ it( 'refuses a new product without a SKU or a slug, in the dry run and the apply
         ->toMatchArray( [ 'action' => 'error', 'error' => 'A new product needs a SKU or a slug.' ] )
         ->and( ArtisanPackUI\EcommerceAdminLivewire\Support\ProductCsv::check( [ 'name' => 'Mug', 'slug' => 'mug' ], $context )['action'] )->toBe( 'create' );
 } );
+
+it( 'prunes old finished, failed, and abandoned imports, keeping active ones', function (): void {
+    $make = function ( string $status ): string {
+        $state           = queuedImport( "name,sku\nMug,MUG-1\n", 1, $this->user->id );
+        $state['status'] = $status;
+
+        return ProductImports::save( $state )['id'];
+    };
+
+    Illuminate\Support\Carbon::setTestNow( now()->subDays( ProductImports::KEEP_DAYS + 1 ) );
+
+    $old = array_map( $make, [ 'completed', 'failed', 'mapping', 'queued', 'running' ] );
+
+    Illuminate\Support\Carbon::setTestNow();
+
+    $recent = $make( 'failed' );
+
+    $this->artisan( 'ecommerce-admin:prune-imports' )
+        ->expectsOutputToContain( 'Deleted 3 old imports.' )
+        ->assertSuccessful();
+
+    expect( array_map( static fn ( string $id ): bool => null !== ProductImports::find( $id ), $old ) )->toBe( [ false, false, false, true, true ] )
+        ->and( ProductImports::find( $recent ) )->not->toBeNull()
+        ->and( ProductImports::disk()->exists( 'ecommerce-admin/imports/' . $old[2] . '/source.csv' ) )->toBeFalse();
+} );

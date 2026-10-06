@@ -544,6 +544,7 @@
     "Delete this customer?": "Diesen Kunden löschen?",
     "Delete this note?": "Diese Notiz löschen?",
     "Delete zone": "Zone löschen",
+    "Deleted :count old import.|Deleted :count old imports.": ":count alter Import gelöscht.|:count alte Importe gelöscht.",
     "Deleted board": "Gelöschtes Board",
     "Deleted file": "Gelöschte Datei",
     "Deleted item #:id": "Gelöschter Artikel #:id",

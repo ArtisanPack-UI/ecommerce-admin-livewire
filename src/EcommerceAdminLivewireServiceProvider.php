@@ -17,6 +17,7 @@ namespace ArtisanPackUI\EcommerceAdminLivewire;
 
 use ArtisanPackUI\Ecommerce\Registries\SatelliteRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
+use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\PruneImportsCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\SyncPermissionsCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\EnsureAdminAccess;
 use ArtisanPackUI\EcommerceAdminLivewire\Http\Middleware\ThrottleAdminMutations;
@@ -497,6 +498,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
         $this->commands( [
             InstallCommand::class,
+            PruneImportsCommand::class,
             SyncPermissionsCommand::class,
         ] );
     }
