@@ -21,7 +21,7 @@ use Livewire\Livewire;
 
 beforeEach( function (): void {
     grantAbilities( [
-        'order.viewAny', 'product.viewAny', 'product.create', 'product.update', 'product.delete',
+        'order.viewAny', 'product.viewAny', 'product.view', 'product.create', 'product.update', 'product.delete',
         'promotion.viewAny', 'promotion.create', 'promotion.update', 'settings.view', 'settings.update',
     ] );
     $this->actingAs( makeUser() );
