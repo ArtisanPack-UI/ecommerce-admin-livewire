@@ -108,6 +108,16 @@ final class ProductCsv
     public const DECIMAL_COLUMNS = [ 'weight', 'length', 'width', 'height' ];
 
     /**
+     * A decimal cell: up to 9 digits, then up to 4 decimals after a dot or
+     * a comma.
+     *
+     * @since 1.0.0
+     *
+     * @var string
+     */
+    public const DECIMAL_PATTERN = '/^\d{1,9}([.,]\d{1,4})?$/D';
+
+    /**
      * Every column, keyed by name, with its label.
      *
      * @since 1.0.0
@@ -587,7 +597,9 @@ final class ProductCsv
         foreach ( self::DECIMAL_COLUMNS as $column ) {
             $value = self::value( $row, $column );
 
-            if ( '' !== $value && ( ! is_numeric( $value ) || (float) $value < 0 ) ) {
+            // Up to 9 digits and 4 decimals, with a dot or a comma: no
+            // exponents ("1e308"), signs, or grouping.
+            if ( '' !== $value && 1 !== preg_match( self::DECIMAL_PATTERN, $value ) ) {
                 throw new InvalidArgumentException( __( 'Column ":column" must be a number.', [ 'column' => $column ] ) );
             }
         }
@@ -730,6 +742,7 @@ final class ProductCsv
             if ( '' !== $value ) {
                 $data[ $column ] = match ( true ) {
                     in_array( $column, self::BOOLEAN_COLUMNS, true ) => self::boolean( $value ),
+                    in_array( $column, self::DECIMAL_COLUMNS, true ) => str_replace( ',', '.', $value ),
                     'position' === $column                           => (int) $value,
                     default                                          => $value,
                 };
