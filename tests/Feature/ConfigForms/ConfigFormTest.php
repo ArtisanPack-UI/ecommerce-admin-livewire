@@ -195,6 +195,7 @@ it( 'says when an entry has no settings', function (): void {
 it( 'edits an entry with no schema as JSON, with a notice', function (): void {
     Livewire::test( ConfigFormHost::class, [ 'registry' => 'shipping-method', 'entry' => 'third-party-courier', 'stored' => [ 'account' => 'ACME', 'zones' => [ 1, 2 ] ] ] )
         ->assertSee( 'No form for these settings' )
+        ->assertDontSeeHtml( '<x-artisanpack-alert' )
         ->assertSee( 'Settings (JSON)' )
         ->assertSet( 'config', "{\n    \"account\": \"ACME\",\n    \"zones\": [\n        1,\n        2\n    ]\n}" )
         ->set( 'config', '{"account": "ACME", "express": true}' )
