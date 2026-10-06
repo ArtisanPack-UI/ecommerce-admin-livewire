@@ -24,7 +24,7 @@ Pin daisyUI to `~5.0`. Later 5.x releases hide `.tab-content`, so the component 
 
 ## 2. Add the admin to your Tailwind sources
 
-`php artisan ecommerce-admin:install` prints these lines. Add them to your Tailwind entry, for example `resources/css/app.css`:
+`php artisan ecommerce-admin:install` prints these lines, and the npm packages and script lines in steps 3 and 4. Add them to your Tailwind entry, for example `resources/css/app.css`:
 
 ```css
 @import 'tailwindcss';
@@ -113,6 +113,20 @@ addFilter( 'ap.ecommerceAdminLivewire.layout.viteEntries', function ( array $ent
 ```
 
 Return an empty array to load nothing, for example when your own layout already loads the build. See [Layout](Extending-Layout).
+
+## Content Security Policy
+
+If your application sends a Content Security Policy with a script nonce, the admin's inline scripts and the template editor's Ace scripts carry the same nonce: they read it from `Vite::cspNonce()`. Generate the nonce in a middleware that runs on admin pages (add it to `admin.middleware`):
+
+```php
+use Illuminate\Support\Facades\Vite;
+
+Vite::useCspNonce();
+
+$response->headers->set( 'Content-Security-Policy', "script-src 'nonce-" . Vite::cspNonce() . "' 'strict-dynamic'" );
+```
+
+Without a nonce, the scripts render without one, as before. The notification template editor loads Ace from `cdnjs.cloudflare.com` with Subresource Integrity, so a policy without `'strict-dynamic'` must allow that host.
 
 ## Checklist
 

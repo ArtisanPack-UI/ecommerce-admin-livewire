@@ -34,7 +34,8 @@ A product with variants is written as one product row followed by one row per va
 - Only one worker runs an import at a time. The job may run for up to an hour, so set the queue connection's
   `retry_after` above 3600 seconds, or the queue will hand the job out again while it is still running.
 - A leading apostrophe that the export added in front of `=`, `+`, `-`, or `@` is removed again on import.
-- Completed imports are pruned after seven days.
+- Imports untouched for seven days (completed, failed, or abandoned) are deleted by `ecommerce-admin:prune-imports`. Schedule it daily; see [Artisan Commands](Advanced-Artisan-Commands).
+- Up to 500 failed rows are listed per import; the report says when there were more.
 - The failed rows can be downloaded as CSV.
 - The uploaded file is deleted when the import completes or is discarded.
 - The screen needs `product.create`. Each row also needs `product.create` (new products) or `product.update` (existing
@@ -49,7 +50,7 @@ A product with variants is written as one product row followed by one row per va
   the same file.
 
 On an existing product or variant, **an empty cell leaves that value alone.** On a new product, empty cells use the
-defaults (`simple` type, `draft` status).
+defaults (`simple` type, `draft` status). A new product needs a `sku` or a `slug`, so a later import can find it again.
 
 ## Columns
 
@@ -64,10 +65,12 @@ defaults (`simple` type, `draft` status).
 | `barcode` | | Ignored | Text |
 | `categories` | Replaces the product's categories | Ignored | Category slugs separated by `\|` |
 | `tags` | Replaces the product's tags; new tags are created | Ignored | Tag names separated by `\|` |
-| `weight`, `length`, `width`, `height` | | Ignored | Decimal number |
+| `weight`, `length`, `width`, `height` | | Ignored | Decimal number, e.g. `1.25` or `1,25`, up to four decimals |
 | `weight_unit`, `dim_unit` | | Ignored | e.g. `kg`, `cm` |
 | `is_taxable` | | Ignored | Yes/no |
 | `tax_class_key` | | Ignored | An existing tax class key |
+| `is_featured` | Featured on storefronts | Ignored | Yes/no |
+| `position` | Manual catalog order; lower comes first | Ignored | Whole number |
 | `track_inventory`, `allow_backorder` | Stock settings | Stock settings | Yes/no |
 | `quantity_on_hand` | Sets the count; changes are logged as "CSV import" | Same | Whole number |
 | `low_stock_threshold` | | | Whole number |
@@ -76,6 +79,7 @@ defaults (`simple` type, `draft` status).
 | `price_{CUR}` | Price in that currency, e.g. `price_USD` | Same | Amount, e.g. `12.50` |
 | `compare_at_price_{CUR}` | Compare-at price; needs `price_{CUR}` in the same row | Same | Amount |
 
+- Linked products (upsells, cross-sells, related products) are not part of the CSV. Edit them on the product form.
 - Yes/no cells accept `1`/`0`, `yes`/`no`, `y`/`n`, and `true`/`false`.
 - There is one `price_{CUR}` / `compare_at_price_{CUR}` pair for each currency the store has enabled. An import sets
   the product's regular price in that currency; scheduled prices are left alone.

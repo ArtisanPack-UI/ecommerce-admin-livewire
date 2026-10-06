@@ -16,6 +16,11 @@ The admin targets **WCAG 2.2 AA**. Every flow is meant to work by keyboard and w
 - **Live regions.** Real-time updates, result counts, and reorder messages are announced through polite live regions.
 - **Charts.** Report charts are labelled and have the data table below them as their text equivalent. The dashboard sparkline has a text summary.
 - **Navigation.** A "Skip to content" link, a real button to open the navigation drawer on small screens, navigation badges with text descriptions ("7 low-stock items"), and `aria-keyshortcuts` on the command palette button.
+- **Linked products.** The upsell, cross-sell, and related lists on the product form reorder by keyboard the same way.
+- **Busy controls.** Move and remove buttons are disabled while their request runs, so a double press can't move or remove the wrong row.
+- **Unsaved changes.** The product, promotion, notification template, kanban board, and settings forms ask before you leave with unsaved changes.
+- **Format errors.** Money and percent fields announce a format error and point to it with `aria-describedby` while the value is invalid.
+- **New tabs.** Links that open a new tab (tracking links, review photos) say so to screen readers.
 - **Colour contrast warnings.** With `artisanpack-ui/accessibility` installed, the sub-status and kanban column editors warn when a chosen colour fails WCAG AA contrast.
 - **Automated checks.** The browser test suite runs axe on every admin screen against a seeded demo store. Any violation fails the build, except the known library issues listed below.
 
@@ -30,6 +35,7 @@ These come from `artisanpack-ui/livewire-ui-components` markup the admin cannot 
 - **Menu roles.** The navigation menu gives links `role="menuitem"` without a `role="menu"` parent and puts non-`<li>` children in its list.
 - **Low-contrast secondary text.** Header subtitles and stat titles use a 50% text colour (about 3.3:1).
 - **Pagination.** A disabled "Previous" control carries `aria-label` on a `<span>`.
+- **Single-select pickers.** livewire-ui-components 2.1.0's single-select `choices` reads its selection's length even while hidden, so a picker whose value starts empty (`null`) logs a console error. It works normally otherwise; the product form's linked-product pickers avoid it.
 - **Code editor.** The Ace editor used for notification templates captures the Tab key, so keyboard focus cannot leave it, and leaves its input unlabelled.
 
 Each is excluded from the automated check by rule and selector in `tests/Browser/Support/Accessibility.php` (`LIBRARY_ISSUES`), so nothing else can regress unnoticed. An exclusion is removed when the library fixes it.

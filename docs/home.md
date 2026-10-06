@@ -64,10 +64,10 @@ It renders inside the `cms-framework` admin when that package is installed, and 
 
 - **Every store screen**: Orders, reviews, products, categories, tags, inventory, digital files, license keys, customers, promotions and coupons, shipping, tax, notification templates, webhooks, order statuses, kanban boards, reports, and settings.
 - **Order work in one place**: Status and sub-status changes, shipments, refunds, order edits with a totals diff, cancellation, notes, and an activity timeline.
-- **Product form for every type**: Simple, variable, digital, grouped, and bundled products, with a panel registry for satellite types.
+- **Product form for every type**: Simple, variable, digital, grouped, and bundled products, with linked products (upsells, cross-sells, related), featured and catalog position, and a panel registry for satellite types.
 - **Dashboard**: Sales, orders to ship, low stock, and reviews to moderate, each linking to the filtered screen.
 - **Command palette**: Cmd+K search across orders, products, customers, promotions, and coupons, with contextual order actions.
-- **Real-time updates**: Optional live order and stock updates over Laravel Echo.
+- **Real-time updates**: Optional live order and stock updates over Laravel Echo (needs `rebing/graphql-laravel`).
 - **CSV import and export**: Catalog import with column mapping, a dry run, and a queued, resumable apply.
 - **Authorization on every action**: Each screen and each Livewire action checks its engine ability. Default is deny.
 - **cms-framework integration**: The CMS layout, the CMS menu, and RBAC permissions with a `shop-manager` role.

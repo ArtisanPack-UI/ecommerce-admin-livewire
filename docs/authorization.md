@@ -44,16 +44,19 @@ banner (`<x-artisanpack-ec-product-type-warning :product="$product" />`). This a
 
 ## With cms-framework
 
-When `artisanpack-ui/cms-framework` is installed, the admin:
+When `artisanpack-ui/cms-framework` is installed, the engine:
 
 - registers one RBAC permission per ability, with the slug `ecommerce.{resource}.{action}`;
 - creates a `shop-manager` role that holds all of them.
 
-Permissions are registered:
+The admin uses the engine's ability catalog, so the permissions always match the engine's abilities. They are registered:
 
-- by `php artisan ecommerce-admin:install`;
-- by `php artisan ecommerce-admin:sync-permissions`;
+- by the engine's `php artisan ecommerce:sync-permissions`;
+- by `php artisan ecommerce-admin:install`, which runs it;
 - after every `php artisan migrate`.
+
+`php artisan ecommerce-admin:sync-permissions` still works, but is deprecated: it prints a notice and runs
+`ecommerce:sync-permissions`.
 
 A user holding a permission is granted the matching ability through the engine's ability filter. The filter only ever
 adds access, so an `ecommerce.admin` gate keeps working alongside RBAC. When you define the
@@ -141,7 +144,8 @@ Viewing actions on every index screen (search, filter, sort, paginate, select ro
 only the screen's ability, as do Cancel and Close buttons. The tables below list everything else. Method names are the
 Livewire actions, for reference when you test or extend.
 
-A bulk action is shown only to users who hold its ability, and is checked again when it runs.
+A bulk action is shown only to users who hold its ability, and is checked again when it runs. Each selected record is
+also checked on its own: records the user may not change are skipped, and the result says how many were skipped.
 
 ### Orders
 
@@ -181,11 +185,11 @@ License keys on the order are shown in full only with `licenseKey.view`.
 | --- | --- | --- |
 | Save a new product | `save` | `product.create` |
 | Save an existing product | `save` | `product.update` |
-| Edit prices, gallery, featured image, and the type panel before saving | `addScheduledPrice`, `removePrice`, `addGalleryUrl`, `removeGalleryImage`, `moveGalleryImage`, `clearFeaturedImage`, `mediaSelected`, panel actions | `product.create` (new) or `product.view` (existing, and the form must not be read-only). Nothing is stored until Save. |
-| Search categories, tags, or child products | `searchPicker` | `product.viewAny` |
+| Edit prices, gallery, featured image, linked products, and the type panel before saving | `addScheduledPrice`, `removePrice`, `addGalleryUrl`, `removeGalleryImage`, `moveGalleryImage`, `clearFeaturedImage`, `mediaSelected`, `moveRelation`, `reorderRelations`, `removeRelation`, panel actions | `product.create` (new) or `product.view` (existing, and the form must not be read-only). Nothing is stored until Save. |
+| Search categories, tags, child products, or linked products | `searchPicker` | `product.viewAny` |
 | Export catalog CSV | `exportCatalog`, bulk `export-catalog` | `product.viewAny` |
-| Bulk: publish, archive, add or remove a category or tag | `runBulkAction` | `product.update` |
-| Bulk: delete | `runBulkAction( 'delete' )` | `product.delete` |
+| Bulk: publish, archive, mark or unmark featured, add or remove a category or tag | `runBulkAction` | `product.update` on each product |
+| Bulk: delete | `runBulkAction( 'delete' )` | `product.delete` on each product |
 
 ### Product import
 
@@ -223,8 +227,10 @@ License keys on the order are shown in full only with `licenseKey.view`.
 | Create a digital file | `create`, `save` | `digitalFile.create` |
 | Edit a digital file | `edit`, `save` | `digitalFile.update` |
 | Delete a digital file | `confirmDelete`, bulk `delete` | `digitalFile.delete` |
+| Archive a digital file | `save` (the Archived switch), bulk `archive`, `archiveKept` (files a delete kept) | `digitalFile.update` |
 | Search products for a file | `searchPicker` | `product.viewAny` |
-| Show a key's activations | `showActivations` | `licenseKey.view` |
+| Show a key's activations | `showActivations` | `licenseKey.view` or `licenseKey.revoke` (fingerprints masked and IP addresses hidden without `licenseKey.view`) |
+| Deactivate a machine | `startDeactivate`, `deactivate` | `licenseKey.revoke` |
 | Revoke a key | `startRevoke`, `revoke` | `licenseKey.revoke` |
 
 ### Customers
@@ -252,7 +258,8 @@ License keys on the order are shown in full only with `licenseKey.view`.
 | Add or generate codes | `addCode`, `generateCodes` | `coupon.create` |
 | Rename a code | `startRename`, `saveRename` | `coupon.update` |
 | Delete a code | `confirmDelete`, `deleteCode` | `coupon.delete` |
-| Export codes; see the Coupons and Usage tabs | `exportCodes` | `promotion.view` |
+| See the Coupons and Usage tabs | — | `promotion.view` |
+| Export codes | `exportCodes` | `promotion.update` |
 
 ### Shipping and tax
 

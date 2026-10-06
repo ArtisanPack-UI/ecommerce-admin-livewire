@@ -8,7 +8,7 @@ Commands, internals, and contributor tooling.
 
 ## In this section
 
-- [Artisan Commands](Advanced-Artisan-Commands) - `ecommerce-admin:install` and `ecommerce-admin:sync-permissions`
+- [Artisan Commands](Advanced-Artisan-Commands) - `ecommerce-admin:install`, `ecommerce-admin:prune-imports`, and the deprecated `ecommerce-admin:sync-permissions`
 - [Browser Tests](Advanced-Browser-Tests) - Running and writing the Playwright browser suite
 
 ## How a request flows

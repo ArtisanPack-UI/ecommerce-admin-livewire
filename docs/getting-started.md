@@ -16,8 +16,8 @@ php artisan ecommerce-admin:install
 The service provider is auto-discovered. The install command:
 
 - publishes `config/artisanpack/ecommerce-admin-livewire.php`;
-- prints the Tailwind `@source` lines and the npm package the admin needs;
-- registers RBAC permissions when `cms-framework` is installed;
+- prints the front-end steps: the Tailwind `@source` lines, the npm packages, and the script lines;
+- registers RBAC permissions (through the engine's `ecommerce:sync-permissions`) when `cms-framework` is installed;
 - warns when it finds neither RBAC support nor an `ecommerce.admin` gate (it does not check role assignments).
 
 ## 2. Set up the front end
@@ -29,17 +29,22 @@ The package ships no CSS or JavaScript build. Your application's Vite build styl
 @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/src/**/*.php";
 ```
 
-Install the drag-and-drop helper and import it in `resources/js/app.js`:
+Install the scripts the components need and load them in `resources/js/app.js` (the install command prints these too):
 
 ```bash
-npm install @artisanpack-ui/livewire-drag-and-drop
+npm install @artisanpack-ui/livewire-drag-and-drop apexcharts flatpickr
 ```
 
 ```js
 import '@artisanpack-ui/livewire-drag-and-drop';
+import ApexCharts from 'apexcharts';
+import flatpickr from 'flatpickr';
+
+window.ApexCharts = ApexCharts;
+window.flatpickr = flatpickr;
 ```
 
-Charts, date pickers, and the product description editor need a few more scripts. See [Front-End Setup](Installation-Front-End) for the full list, then build:
+The product description editor needs TinyMCE (`php artisan vendor:publish --tag=artisanpack-assets`), and daisyUI must stay on `~5.0`. See [Front-End Setup](Installation-Front-End) for every step, then build:
 
 ```bash
 npm run build

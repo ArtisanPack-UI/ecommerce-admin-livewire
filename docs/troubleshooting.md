@@ -65,7 +65,7 @@ Nothing grants access yet. The engine denies every ability by default. Define th
 Gate::define( 'ecommerce.admin', fn ( $user ) => $user->is_admin );
 ```
 
-With `cms-framework`, assign the `shop-manager` role or individual `ecommerce.*` permissions, and run `php artisan ecommerce-admin:sync-permissions` if the permissions are missing. See [Authorization](Authorization).
+With `cms-framework`, assign the `shop-manager` role or individual `ecommerce.*` permissions, and run `php artisan ecommerce:sync-permissions` if the permissions are missing. See [Authorization](Authorization).
 
 ## One screen returns 403
 
