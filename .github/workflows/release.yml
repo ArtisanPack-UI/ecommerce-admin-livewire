@@ -1,0 +1,140 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    name: Check no release exists for the tag
+
+    steps:
+      # This workflow must create the release itself, so Packagist is updated.
+      # A release created by hand for the tag skips that. Fail fast with the
+      # reason instead of after the tests.
+      - name: Refuse a tag that already has a release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::error::A release for $TAG already exists. It was not created by this workflow. Cut a new patch version; do not create releases by hand."
+            exit 1
+          fi
+
+  test:
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    name: Test before release
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, intl
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-release-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-release-composer-
+
+      # composer.lock is not committed (this is a library), so resolve the
+      # latest allowed versions, as CI does.
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist
+
+      - name: Run tests
+        env:
+          XDEBUG_MODE: off
+        run: vendor/bin/pest --testsuite=Unit,Feature --no-coverage
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: Create Release
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes from CHANGELOG
+        # Passed through `env:` rather than interpolated into the script: a
+        # workflow expression is substituted before the shell parses anything,
+        # and a git tag may contain `;`, `|`, `$` and backticks.
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          echo "Extracting notes for version $VERSION"
+
+          if [ ! -f "CHANGELOG.md" ]; then
+            echo "Release v$VERSION" > release_notes.txt
+            exit 0
+          fi
+
+          # The section between this version's header and the next one.
+          NOTES=$(awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]")) { found=1; next }
+            }
+            found { print }
+          ' CHANGELOG.md)
+
+          # Remove leading and trailing blank lines.
+          NOTES=$(echo "$NOTES" | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+
+          if [ -z "$NOTES" ]; then
+            NOTES="Release v$VERSION — see CHANGELOG.md for details."
+          fi
+
+          echo "$NOTES" > release_notes.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.version.outputs.version }}
+          body_path: release_notes.txt
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Packagist
+        if: success()
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_API_TOKEN: ${{ secrets.PACKAGIST_API_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          curl -sS --fail --max-time 30 -X POST \
+            "https://packagist.org/api/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_API_TOKEN}" \
+            -d "{\"repository\":{\"url\":\"https://github.com/${REPOSITORY}\"}}" \
+            -H "Content-Type: application/json"
