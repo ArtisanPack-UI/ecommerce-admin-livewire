@@ -53,7 +53,7 @@
                         @endif
 
                         @unless ( $readOnly )
-                            <x-artisanpack-button class="ms-auto" variant="ghost" size="sm" icon="o-trash" wire:click="removeFile( {{ $i }} )" wire:confirm="{{ __( 'Remove this file when you save? A file customers already bought can\'t be removed; archive it instead.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
+                            <x-artisanpack-button class="ms-auto" variant="ghost" size="sm" icon="o-trash" wire:click="removeFile( {{ $i }} )" wire:loading.attr="disabled" wire:confirm="{{ __( 'Remove this file when you save? A file customers already bought can\'t be removed; archive it instead.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
                         @endunless
                     </div>
                 </li>

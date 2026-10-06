@@ -121,7 +121,7 @@
                             variant="ghost"
                             size="sm"
                             icon="o-trash"
-                            wire:click="removeConfigRow( {{ $rowArguments }}, {{ (int) $index }} )"
+                            wire:click="removeConfigRow( {{ $rowArguments }}, {{ (int) $index }} )" wire:loading.attr="disabled"
                             :label="__( 'Remove' )"
                             :aria-label="__( 'Remove :field row :number', [ 'field' => $field['label'], 'number' => $index + 1 ] )"
                         />

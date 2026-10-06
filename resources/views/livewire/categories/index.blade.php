@@ -62,7 +62,7 @@
                                 variant="ghost"
                                 size="sm"
                                 icon="o-arrow-up"
-                                wire:click="move( {{ $category->id }}, -1 )" data-reorder="up" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
+                                wire:click="move( {{ $category->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
                                 :disabled="$row['first']"
                                 :aria-label="__( 'Move :name up', [ 'name' => $category->name ] )"
                             />
@@ -70,7 +70,7 @@
                                 variant="ghost"
                                 size="sm"
                                 icon="o-arrow-down"
-                                wire:click="move( {{ $category->id }}, 1 )" data-reorder="down" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
+                                wire:click="move( {{ $category->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
                                 :disabled="$row['last']"
                                 :aria-label="__( 'Move :name down', [ 'name' => $category->name ] )"
                             />

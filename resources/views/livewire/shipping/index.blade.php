@@ -136,7 +136,7 @@
                                                         variant="ghost"
                                                         size="sm"
                                                         icon="o-arrow-up"
-                                                        wire:click="moveMethod( {{ $method->id }}, -1 )" data-reorder="up" data-reorder-list="methods-{{ $zone->id }}" data-reorder-key="method-{{ $method->id }}" data-reorder-item="{{ $method->label }}"
+                                                        wire:click="moveMethod( {{ $method->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="methods-{{ $zone->id }}" data-reorder-key="method-{{ $method->id }}" data-reorder-item="{{ $method->label }}"
                                                         :disabled="$loop->first"
                                                         :aria-label="__( 'Move :name up', [ 'name' => $method->label ] )"
                                                     />
@@ -144,7 +144,7 @@
                                                         variant="ghost"
                                                         size="sm"
                                                         icon="o-arrow-down"
-                                                        wire:click="moveMethod( {{ $method->id }}, 1 )" data-reorder="down" data-reorder-list="methods-{{ $zone->id }}" data-reorder-key="method-{{ $method->id }}" data-reorder-item="{{ $method->label }}"
+                                                        wire:click="moveMethod( {{ $method->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="methods-{{ $zone->id }}" data-reorder-key="method-{{ $method->id }}" data-reorder-item="{{ $method->label }}"
                                                         :disabled="$loop->last"
                                                         :aria-label="__( 'Move :name down', [ 'name' => $method->label ] )"
                                                     />

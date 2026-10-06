@@ -148,7 +148,7 @@
                                         <x-artisanpack-input id="price-{{ $index }}-starts" type="datetime-local" :label="__( 'Starts' )" wire:model="prices.{{ $index }}.starts_at" />
                                         <x-artisanpack-input id="price-{{ $index }}-ends" type="datetime-local" :label="__( 'Ends (optional)' )" wire:model="prices.{{ $index }}.ends_at" />
                                         <div class="flex items-end">
-                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="removePrice( {{ $index }} )" :label="__( 'Remove' )" :aria-label="__( 'Remove scheduled price :number', [ 'number' => $index + 1 ] )" />
+                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="removePrice( {{ $index }} )" wire:loading.attr="disabled" :label="__( 'Remove' )" :aria-label="__( 'Remove scheduled price :number', [ 'number' => $index + 1 ] )" />
                                         </div>
                                     </div>
                                 @endif
@@ -377,9 +377,9 @@
                                     <x-artisanpack-input id="gallery-{{ $index }}-alt" class="min-w-64" :label="__( 'Alt text' )" :hint="__( 'Describe the image for people who can\'t see it.' )" wire:model="gallery.{{ $index }}.alt_text" />
                                     @unless ( $readOnly )
                                         <div class="flex gap-1">
-                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="moveGalleryImage( {{ $index }}, -1 )" data-reorder="up" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ '' !== ( $image['alt_text'] ?? '' ) ? $image['alt_text'] : __( 'Image :number', [ 'number' => $index + 1 ] ) }}" :disabled="$loop->first" :aria-label="__( 'Move image :number up', [ 'number' => $index + 1 ] )" />
-                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="moveGalleryImage( {{ $index }}, 1 )" data-reorder="down" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ '' !== ( $image['alt_text'] ?? '' ) ? $image['alt_text'] : __( 'Image :number', [ 'number' => $index + 1 ] ) }}" :disabled="$loop->last" :aria-label="__( 'Move image :number down', [ 'number' => $index + 1 ] )" />
-                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="removeGalleryImage( {{ $index }} )" :aria-label="__( 'Remove image :number', [ 'number' => $index + 1 ] )" />
+                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="moveGalleryImage( {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ '' !== ( $image['alt_text'] ?? '' ) ? $image['alt_text'] : __( 'Image :number', [ 'number' => $index + 1 ] ) }}" :disabled="$loop->first" :aria-label="__( 'Move image :number up', [ 'number' => $index + 1 ] )" />
+                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="moveGalleryImage( {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ '' !== ( $image['alt_text'] ?? '' ) ? $image['alt_text'] : __( 'Image :number', [ 'number' => $index + 1 ] ) }}" :disabled="$loop->last" :aria-label="__( 'Move image :number down', [ 'number' => $index + 1 ] )" />
+                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="removeGalleryImage( {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove image :number', [ 'number' => $index + 1 ] )" />
                                         </div>
                                     @endunless
                                 </li>

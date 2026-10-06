@@ -155,7 +155,7 @@
                                                         variant="ghost"
                                                         size="sm"
                                                         icon="o-trash"
-                                                        wire:click="removeMapRow( {{ \Illuminate\Support\Js::from( $definition->key ) }}, {{ (int) $index }} )"
+                                                        wire:click="removeMapRow( {{ \Illuminate\Support\Js::from( $definition->key ) }}, {{ (int) $index }} )" wire:loading.attr="disabled"
                                                         :label="__( 'Remove' )"
                                                         :aria-label="__( 'Remove :field row :number', [ 'field' => $definition->label, 'number' => $index + 1 ] )"
                                                     />

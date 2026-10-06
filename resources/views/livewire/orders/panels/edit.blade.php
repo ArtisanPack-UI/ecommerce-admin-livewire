@@ -150,7 +150,7 @@
                                                     variant="ghost"
                                                     size="xs"
                                                     icon="o-x-mark"
-                                                    wire:click="removeNewItem( {{ (int) $index }} )"
+                                                    wire:click="removeNewItem( {{ (int) $index }} )" wire:loading.attr="disabled"
                                                     :label="__( 'Remove' )"
                                                     :aria-label="__( 'Remove :item', [ 'item' => $line['snapshot']['name'] ?? __( 'Item' ) ] )"
                                                 />

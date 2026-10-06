@@ -58,7 +58,7 @@
                                     variant="ghost"
                                     size="sm"
                                     icon="o-arrow-up"
-                                    wire:click="move( {{ $substatus->id }}, -1 )" data-reorder="up" data-reorder-list="substatuses-{{ $group['status'] }}" data-reorder-key="substatus-{{ $substatus->id }}" data-reorder-item="{{ $substatus->label }}"
+                                    wire:click="move( {{ $substatus->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="substatuses-{{ $group['status'] }}" data-reorder-key="substatus-{{ $substatus->id }}" data-reorder-item="{{ $substatus->label }}"
                                     :disabled="$loop->first"
                                     :aria-label="__( 'Move :name up', [ 'name' => $substatus->label ] )"
                                 />
@@ -66,7 +66,7 @@
                                     variant="ghost"
                                     size="sm"
                                     icon="o-arrow-down"
-                                    wire:click="move( {{ $substatus->id }}, 1 )" data-reorder="down" data-reorder-list="substatuses-{{ $group['status'] }}" data-reorder-key="substatus-{{ $substatus->id }}" data-reorder-item="{{ $substatus->label }}"
+                                    wire:click="move( {{ $substatus->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="substatuses-{{ $group['status'] }}" data-reorder-key="substatus-{{ $substatus->id }}" data-reorder-item="{{ $substatus->label }}"
                                     :disabled="$loop->last"
                                     :aria-label="__( 'Move :name down', [ 'name' => $substatus->label ] )"
                                 />

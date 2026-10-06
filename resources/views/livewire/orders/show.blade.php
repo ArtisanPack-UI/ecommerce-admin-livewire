@@ -240,7 +240,7 @@
                                         size="xs"
                                         icon="o-x-mark"
                                         class="ms-auto"
-                                        wire:click="removeFromBoard( {{ (int) $assignment->board_id }} )"
+                                        wire:click="removeFromBoard( {{ (int) $assignment->board_id }} )" wire:loading.attr="disabled"
                                         wire:loading.attr="disabled"
                                         :label="__( 'Remove' )"
                                         :aria-label="__( 'Remove from :board', [ 'board' => $assignment->board?->name ?? '' ] )"
