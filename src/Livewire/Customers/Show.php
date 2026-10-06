@@ -264,18 +264,15 @@ class Show extends Component
             ],
         );
 
-        $data = [
-            'first_name' => '' === trim( $this->firstName ) ? null : trim( $this->firstName ),
-            'last_name'  => '' === trim( $this->lastName ) ? null : trim( $this->lastName ),
-            'phone'      => '' === trim( $this->phone ) ? null : trim( $this->phone ),
-        ];
-
-        if ( $this->acceptsMarketing !== (bool) $customer->accepts_marketing ) {
-            $data['accepts_marketing']    = $this->acceptsMarketing;
-            $data['accepts_marketing_at'] = $this->acceptsMarketing ? Carbon::now() : null;
-        }
-
-        $customer->fill( $data )->save();
+        // The engine locks the row, stamps the consent time, and fires
+        // ap.ecommerce.customer.updated after commit for satellites and
+        // webhooks.
+        app( CustomerService::class )->updateProfile( $customer, [
+            'first_name'        => $this->firstName,
+            'last_name'         => $this->lastName,
+            'phone'             => $this->phone,
+            'accepts_marketing' => $this->acceptsMarketing,
+        ] );
 
         $this->editing        = false;
         $this->loadedCustomer = null;

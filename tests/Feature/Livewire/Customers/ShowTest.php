@@ -139,6 +139,28 @@ it( 'edits the name and phone', function (): void {
         ->phone->toBe( '+44 20 7946 0000' );
 } );
 
+it( 'tells satellites and webhooks about the edit through the engine hook', function (): void {
+    $customer = Customer::factory()->create( [ 'first_name' => 'Ada', 'accepts_marketing' => false ] );
+    $heard    = [];
+
+    addAction( 'ap.ecommerce.customer.updated', static function ( Customer $updated, array $changes ) use ( &$heard ): void {
+        $heard[] = [ $updated->id, $changes ];
+    }, 10, 2 );
+
+    Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->call( 'startEdit' )
+        ->set( 'firstName', 'Augusta' )
+        ->set( 'acceptsMarketing', true )
+        ->call( 'saveDetails' )
+        ->assertHasNoErrors();
+
+    removeAllActions( 'ap.ecommerce.customer.updated' );
+
+    expect( $heard )->toHaveCount( 1 )
+        ->and( $heard[0][0] )->toBe( $customer->id )
+        ->and( $heard[0][1] )->toContain( 'first_name', 'accepts_marketing', 'accepts_marketing_at' );
+} );
+
 it( 'records when marketing consent is given and clears it when withdrawn', function (): void {
     Carbon::setTestNow( '2026-10-01 12:00:00' );
 
