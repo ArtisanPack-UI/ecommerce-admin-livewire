@@ -420,3 +420,34 @@ it( 'lets only one worker run an import at a time', function (): void {
     expect( importState( $component )['status'] )->toBe( 'completed' )
         ->and( Product::query()->count() )->toBe( 1 );
 } );
+
+it( 'dry-runs 500 rows in a handful of queries', function (): void {
+    ArtisanPackUI\Ecommerce\Models\TaxClass::query()->firstOrCreate( [ 'key' => 'reduced' ], [ 'label' => 'Reduced' ] );
+    ProductCategory::factory()->create( [ 'slug' => 'kitchen' ] );
+    Product::factory()->create( [ 'sku' => 'MUG-1', 'slug' => 'mug-1' ] );
+
+    $rows = array_map( static fn ( int $n ): array => [
+        'name'          => "Mug {$n}",
+        'sku'           => "MUG-{$n}",
+        'slug'          => "mug-{$n}",
+        'categories'    => 'kitchen',
+        'tax_class_key' => 'reduced',
+        'price_USD'     => '12.50',
+    ], range( 1, 500 ) );
+
+    $context = [];
+
+    Illuminate\Support\Facades\DB::flushQueryLog();
+    Illuminate\Support\Facades\DB::enableQueryLog();
+
+    ArtisanPackUI\EcommerceAdminLivewire\Support\ProductCsv::preload( $rows, $context );
+
+    $actions = array_map( static fn ( array $row ): string => ArtisanPackUI\EcommerceAdminLivewire\Support\ProductCsv::check( $row, $context )['action'], $rows );
+
+    $queries = count( Illuminate\Support\Facades\DB::getQueryLog() );
+    Illuminate\Support\Facades\DB::disableQueryLog();
+
+    expect( $queries )->toBeLessThan( 20 )
+        ->and( $actions[0] )->toBe( 'update' )
+        ->and( array_count_values( $actions ) )->toBe( [ 'update' => 1, 'create' => 499 ] );
+} );

@@ -242,8 +242,11 @@ class Import extends Component
             $context = [];
             $rows    = [];
             $counts  = [ 'create' => 0, 'update' => 0, 'error' => 0 ];
+            $read    = Csv::read( $path, self::maxRows() )['rows'];
 
-            foreach ( Csv::read( $path, self::maxRows() )['rows'] as $row ) {
+            ProductCsv::preload( array_map( static fn ( array $row ): array => ProductImports::mapRow( $row, $mapping ), $read ), $context );
+
+            foreach ( $read as $row ) {
                 $result = ProductCsv::check( ProductImports::mapRow( $row, $mapping ), $context );
                 $kind   = 'error' === $result['action'] ? 'error' : ( str_starts_with( $result['action'], 'create' ) ? 'create' : 'update' );
 
