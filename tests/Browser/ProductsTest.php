@@ -61,3 +61,38 @@ it( 'edits a product', function (): void {
 
     expect( $product->fresh()->name )->toBe( 'Renamed In The Browser' );
 } );
+
+it( 'selects only the current page\'s rows after paging, keeping earlier pages\' selection', function (): void {
+    $selectedCount = '( () => { const root = document.querySelector( "[data-select-page]" ).closest( "[wire\\\\:id]" ); return Livewire.find( root.getAttribute( "wire:id" ) ).selected.length } )()';
+
+    $page = visit( route( 'artisanpack.ecommerce.admin.products.index' ) )
+        ->select( Locators::field( 'resource-table-per-page' ), '10' )
+        ->assertScript( 'document.querySelectorAll( "[data-resource-table] tbody tr" ).length', 10 )
+        ->check( '[data-select-page]' )
+        ->assertScript( $selectedCount, 10 )
+        ->click( 'button[wire\\:click^="gotoPage(2"], button[wire\\:click^="nextPage"]' )
+        ->assertScript( 'document.querySelectorAll( "[data-resource-table] tbody tr" ).length', Product::query()->count() - 10 )
+        ->assertScript( 'document.querySelector( "[data-select-page]" ).checked', false );
+
+    $page->check( '[data-select-page]' )
+        ->assertScript( $selectedCount, Product::query()->count() )
+        ->assertNoJavaScriptErrors();
+} );
+
+it( 'reorders an upsell list from the keyboard', function (): void {
+    $product = Product::query()->where( 'type', 'simple' )->firstOrFail();
+    $others  = Product::query()->whereKeyNot( $product->id )->orderBy( 'id' )->limit( 2 )->get();
+
+    app( ArtisanPackUI\Ecommerce\Services\ProductService::class )->syncProductRelations( $product, 'upsell', $others->pluck( 'id' )->all() );
+
+    visit( route( 'artisanpack.ecommerce.admin.products.edit', [ 'product' => $product->id ] ) )
+        ->click( Locators::role( 'Linked products', 'tab' ) )
+        ->click( Locators::role( 'Move ' . $others[1]->name . ' up' ) )
+        ->assertScript( 'document.getElementById( "ecommerce-admin-announcer" ).textContent', 'Moved ' . $others[1]->name . ' to position 1 of 2.' )
+        ->click( '[data-save]' )
+        ->assertSee( 'Product saved.' )
+        ->assertNoJavaScriptErrors();
+
+    expect( ArtisanPackUI\Ecommerce\Models\ProductRelation::query()->where( 'product_id', $product->id )->where( 'type', 'upsell' )->orderBy( 'position' )->pluck( 'related_product_id' )->map( static fn ( $id ): int => (int) $id )->all() )
+        ->toBe( [ (int) $others[1]->id, (int) $others[0]->id ] );
+} );
