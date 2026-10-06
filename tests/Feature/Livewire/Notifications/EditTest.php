@@ -141,6 +141,23 @@ it( 'resets to the default copy after confirmation', function (): void {
         ->body->toBe( $default->defaultBody() );
 } );
 
+it( 'resets a translation to the default copy in its own locale', function (): void {
+    $english = catalogTemplate();
+    $german  = $english->replicate();
+    $german->fill( [ 'locale' => 'de', 'subject' => 'Eigener Betreff', 'body' => '<p>Eigener Text</p>' ] )->save();
+
+    $default = $german->definition();
+
+    Livewire::test( Edit::class, [ 'template' => $german->id ] )
+        ->call( 'confirmReset' )
+        ->call( 'resetToDefault' );
+
+    expect( $german->refresh() )
+        ->subject->toBe( $default->defaultSubject( 'de' ) )
+        ->body->toBe( $default->defaultBody( 'de' ) )
+        ->and( $default->defaultSubject( 'de' ) )->not->toBe( $default->defaultSubject( 'en' ) );
+} );
+
 it( 'has no reset for a template without a default', function (): void {
     $template = NotificationTemplate::factory()->create();
 

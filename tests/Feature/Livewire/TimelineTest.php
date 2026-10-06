@@ -128,6 +128,19 @@ it( 'falls back to the raw type and a collapsible payload for unknown events', f
         ->assertSee( '"points": 120' );
 } );
 
+it( 'describes refund and payment problems in words', function ( string $type, array $payload, string $sentence ): void {
+    timelineEntry( $this->order, $type, $payload );
+
+    Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
+        ->assertSee( $sentence )
+        ->assertDontSeeHtml( '<details' );
+} )->with( [
+    'refund failed'           => [ 'refund.failed', [ 'refund_id' => 1, 'amount' => 1_500, 'currency' => 'USD', 'gateway' => 'fake', 'error' => 'Card expired' ], 'Refund of $15.00 failed: Card expired' ],
+    'refund amount mismatch'  => [ 'refund.amount_mismatch', [ 'refund_id' => 1, 'requested' => '1500', 'refunded' => '1000', 'requested_currency' => 'USD', 'refunded_currency' => 'USD' ], 'The gateway reported $10.00 but $15.00 was requested. Needs reconciliation.' ],
+    'payment amount mismatch' => [ 'payment.amount_mismatch', [ 'reference' => 'pi_1', 'expected' => '4500', 'actual' => '4000', 'currency' => 'USD' ], 'The gateway reported $40.00 but $45.00 was requested. Needs reconciliation.' ],
+    'payment action required' => [ 'payment.action_required', [ 'gateway' => 'fake', 'reference' => 'pi_2' ], 'Payment action required' ],
+] );
+
 it( 'lets a satellite describe its own events', function (): void {
     timelineEntry( $this->order, 'subscription.renewed', [ 'period' => 'October' ] );
 

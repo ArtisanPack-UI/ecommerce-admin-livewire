@@ -410,10 +410,11 @@ class Edit extends Component
             return;
         }
 
-        $attributes = [ 'body' => $definition->defaultBody() ];
+        $locale     = (string) $template->locale;
+        $attributes = [ 'body' => $definition->defaultBody( $locale ) ];
 
         if ( $this->hasSubject() ) {
-            $attributes['subject'] = $definition->defaultSubject();
+            $attributes['subject'] = $definition->defaultSubject( $locale );
         }
 
         try {
