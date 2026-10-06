@@ -28,7 +28,7 @@
                 <li wire:key="column-{{ $column->id }}" class="flex flex-wrap items-center gap-3 p-3" data-column="{{ $column->substatus?->key }}">
                     <span
                         class="size-5 shrink-0 rounded border border-base-300"
-                        style="background-color: {{ $column->color_override ?? $column->substatus?->color ?? 'transparent' }}"
+                        style="background-color: {{ \ArtisanPackUI\EcommerceAdminLivewire\Support\ColorContrast::safeHex( $column->color_override ?? $column->substatus?->color ) }}"
                         aria-hidden="true"
                     ></span>
 

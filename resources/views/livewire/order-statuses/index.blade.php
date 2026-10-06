@@ -21,7 +21,7 @@
                         size="sm"
                         variant="outline"
                         icon="o-plus"
-                        wire:click="create( '{{ $group['status'] }}' )"
+                        wire:click="create( {{ \Illuminate\Support\Js::from( $group['status'] ) }} )"
                         :label="__( 'Add sub-status' )"
                         :aria-label="__( 'Add sub-status to :status', [ 'status' => $group['label'] ] )"
                     />
@@ -34,7 +34,7 @@
                     <li wire:key="substatus-{{ $substatus->id }}" class="flex flex-wrap items-center gap-3 p-3" data-substatus="{{ $substatus->key }}">
                         <span
                             class="size-5 shrink-0 rounded border border-base-300"
-                            style="background-color: {{ $substatus->color ?? 'transparent' }}"
+                            style="background-color: {{ \ArtisanPackUI\EcommerceAdminLivewire\Support\ColorContrast::safeHex( $substatus->color ) }}"
                             aria-hidden="true"
                         ></span>
 
