@@ -6,6 +6,7 @@
 /.coderabbit.yaml   export-ignore
 /.php-cs-fixer.dist.php export-ignore
 /.idea              export-ignore
+/docs/images        export-ignore
 /docs/plans         export-ignore
 /tests              export-ignore
 /phpcs.xml          export-ignore
