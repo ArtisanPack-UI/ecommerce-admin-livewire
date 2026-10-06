@@ -216,6 +216,7 @@ class Index extends Component
 
         return view( 'ecommerce-admin::livewire.license-keys.index', $this->resourceTableData() + [
             'canRevoke'   => Authorization::allows( auth()->user(), 'licenseKey.revoke' ),
+            'searchHint'  => $this->canViewKeys() ? __( 'Search by order, customer, or a full license key.' ) : __( 'Search by order or customer.' ),
             'viewingKey'  => $viewing,
             'revokingKey' => $revoking,
             'revokeToken' => null === $revoking ? null : $this->actionToken( 'revoke', $revoking ),

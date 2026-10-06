@@ -1309,6 +1309,8 @@
     "Scheduled price": "Scheduled price",
     "Search": "Search",
     "Search and run commands (:shortcut)": "Search and run commands (:shortcut)",
+    "Search by order or customer.": "Search by order or customer.",
+    "Search by order, customer, or a full license key.": "Search by order, customer, or a full license key.",
     "Search orders, products, customers, or type a command…": "Search orders, products, customers, or type a command…",
     "Secret": "Secret",
     "Secret rotated for \":name\".": "Secret rotated for \":name\".",

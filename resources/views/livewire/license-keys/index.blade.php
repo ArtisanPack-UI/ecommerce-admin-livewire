@@ -21,6 +21,7 @@
         'emptyDescription' => __( 'Keys issued with digital products appear here.' ),
         'rowLabel'         => static fn ( \ArtisanPackUI\Ecommerce\Models\LicenseKey $key ): string => $keyFor( $key ),
         'cellContext'      => [ 'keyFor' => $keyFor, 'canRevoke' => $canRevoke ],
+        'searchHint'       => $searchHint,
     ] )
 
     <x-artisanpack-drawer wire:model="viewing" :title="__( 'Activations' )" right separator with-close-button close-on-escape class="w-full max-w-xl">

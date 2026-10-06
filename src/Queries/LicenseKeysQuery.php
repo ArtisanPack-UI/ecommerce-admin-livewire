@@ -24,9 +24,10 @@ use Illuminate\Support\Carbon;
  * Search, filters, and sorts for the license keys table (spec §7.2).
  *
  * Search matches the order number, the order email, and the customer's
- * name; it matches the key itself only when the query is built with
+ * name. It matches the key itself only when the query is built with
  * `$searchKeys` (users who may see keys in full), so a masked list cannot
- * be used to confirm a guessed key.
+ * be used to confirm a guessed key. Keys are encrypted at rest, so a key
+ * matches only when it is entered in full (compared by its `key_hash`).
  *
  * The `status` filter is `active`, `revoked`, or `expired`.
  *
@@ -98,8 +99,10 @@ class LicenseKeysQuery extends ResourceQuery
         $number     = ltrim( $search, '#' );
 
         $query->where( static function ( Builder $where ) use ( $search, $number, $searchKeys ): void {
+            // Keys are stored encrypted, so they match only in full, through
+            // their HMAC (case and surrounding spaces don't matter).
             if ( $searchKeys ) {
-                static::orWhereContains( $where, static::column( LicenseKey::class, 'key' ), $search );
+                $where->orWhereIn( static::column( LicenseKey::class, 'key_hash' ), LicenseKey::hashCandidates( $search ) );
             }
 
             $where->orWhereHas( 'orderItem.order', static function ( Builder $order ) use ( $search, $number ): void {

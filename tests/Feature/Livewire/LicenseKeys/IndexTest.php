@@ -71,10 +71,31 @@ it( 'searches by key, order, and customer', function (): void {
     licenseKeyOn( 'B200', [ 'key' => 'BBBBB-BBBBB-BBBBB-BBBBB-BBBBB' ] );
 
     Livewire::test( Index::class )
-        ->set( 'search', 'bbbbb' )->assertSee( 'BBBBB-BBBBB' )->assertDontSee( 'AAAAA-AAAAA' )
+        ->set( 'search', 'BBBBB-BBBBB-BBBBB-BBBBB-BBBBB' )->assertSee( 'BBBBB-BBBBB' )->assertDontSee( 'AAAAA-AAAAA' )
         ->set( 'search', '#A100' )->assertSee( 'AAAAA-AAAAA' )->assertDontSee( 'BBBBB-BBBBB' )
         ->set( 'search', 'lovelace' )->assertSee( 'AAAAA-AAAAA' )->assertDontSee( 'BBBBB-BBBBB' )
         ->set( 'search', 'b200@example' )->assertSee( 'BBBBB-BBBBB' );
+} );
+
+it( 'matches a key only in full, in any case and with surrounding spaces', function (): void {
+    licenseKeyOn( 'A100', [ 'key' => 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2' ] );
+    licenseKeyOn( 'B200', [ 'key' => 'BBBBB-BBBBB-BBBBB-BBBBB-BBBBB' ] );
+
+    $matches = static fn ( string $search ): array => Livewire::test( Index::class )->set( 'search', $search )->viewData( 'tableRows' )->pluck( 'key' )->all();
+
+    expect( $matches( '  abcde-fghjk-lmnpq-rstuv-wxyz2 ' ) )->toBe( [ 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2' ] )
+        ->and( $matches( 'ABCDE-FGHJK' ) )->toBe( [] )
+        ->and( $matches( 'q2' ) )->toBe( [] );
+} );
+
+it( 'does not let a revoke-only user find a key by searching it', function (): void {
+    Gate::define( 'ecommerce.licenseKey.view', static fn (): bool => false );
+    licenseKeyOn( 'A100', [ 'key' => 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2' ] );
+
+    Livewire::test( Index::class )
+        ->set( 'search', 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2' )
+        ->assertSee( 'Search by order or customer.' )
+        ->assertDontSee( 'WXYZ2' );
 } );
 
 it( 'filters by status', function (): void {

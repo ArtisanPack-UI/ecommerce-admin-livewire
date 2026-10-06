@@ -1309,6 +1309,8 @@
     "Scheduled price": "Geplanter Preis",
     "Search": "Suchen",
     "Search and run commands (:shortcut)": "Suchen und Befehle ausführen (:shortcut)",
+    "Search by order or customer.": "Suche nach Bestellung oder Kunde.",
+    "Search by order, customer, or a full license key.": "Suche nach Bestellung, Kunde oder einem vollständigen Lizenzschlüssel.",
     "Search orders, products, customers, or type a command…": "Bestellungen, Produkte, Kunden suchen oder Befehl eingeben…",
     "Secret": "Geheimnis",
     "Secret rotated for \":name\".": "Geheimnis für „:name“ erneuert.",
