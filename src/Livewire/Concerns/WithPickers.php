@@ -67,10 +67,10 @@ trait WithPickers
     {
         $source = $this->authorizedPickerSource( $type );
 
-        $this->pickerOptions[ $type . ':' . $field ] = $this->mergePickerOptions(
+        $this->pickerOptions[ $type . ':' . $field ] = $this->withoutExcluded( $type, $field, $this->mergePickerOptions(
             $source->find( $this->pickerSelection( $field ) ),
             $source->search( mb_substr( $search, 0, 100 ), self::pickerLimit() ),
-        );
+        ) );
     }
 
     /**
@@ -101,10 +101,26 @@ trait WithPickers
             return $this->pickerOptions[ $type . ':' . $field ];
         }
 
-        return $this->mergePickerOptions(
+        return $this->withoutExcluded( $type, $field, $this->mergePickerOptions(
             $source->find( $this->pickerSelection( $field ) ),
             $source->search( '', self::pickerLimit() ),
-        );
+        ) );
+    }
+
+    /**
+     * Ids a picker must not offer, such as the product being edited in its
+     * own related-products picker. Components override it.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $type   The source key.
+     * @param  string  $field  The property path.
+     *
+     * @return array<int, int|string>
+     */
+    protected function pickerExcludedIds( string $type, string $field ): array
+    {
+        return [];
     }
 
     /**
@@ -173,6 +189,28 @@ trait WithPickers
      *
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * The options minus the ids {@see self::pickerExcludedIds()} names.
+     *
+     * @since 1.0.0
+     *
+     * @param  string                            $type     The source key.
+     * @param  string                            $field    The property path.
+     * @param  array<int, array<string, mixed>>  $options  The options.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function withoutExcluded( string $type, string $field, array $options ): array
+    {
+        $excluded = array_map( 'strval', $this->pickerExcludedIds( $type, $field ) );
+
+        if ( [] === $excluded ) {
+            return $options;
+        }
+
+        return array_values( array_filter( $options, static fn ( array $option ): bool => ! in_array( (string) $option['id'], $excluded, true ) ) );
+    }
+
     private function mergePickerOptions( array $selected, array $results ): array
     {
         $merged = [];

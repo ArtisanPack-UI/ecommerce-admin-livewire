@@ -78,7 +78,7 @@
         <x-artisanpack-alert color="error" icon="o-exclamation-circle" class="mb-4" role="alert">
             {{ __( 'Fix the errors in: :tabs.', [ 'tabs' => implode( ', ', array_map( static fn ( string $tab ): string => match ( $tab ) {
                 'general' => __( 'General' ), 'pricing' => __( 'Pricing' ), 'inventory' => __( 'Inventory' ), 'shipping' => __( 'Shipping' ),
-                'tax' => __( 'Tax' ), 'organization' => __( 'Organization' ), 'media' => __( 'Media' ), 'panel' => $panelLabel ?? __( 'Type settings' ),
+                'tax' => __( 'Tax' ), 'organization' => __( 'Organization' ), 'linked' => __( 'Linked products' ), 'media' => __( 'Media' ), 'panel' => $panelLabel ?? __( 'Type settings' ),
                 default => $tab,
             }, $errorTabs ) ) ] ) }}
         </x-artisanpack-alert>
@@ -251,6 +251,82 @@
                         <x-artisanpack-tags id="product-tags" :label="__( 'Tags' )" :hint="__( 'Press Enter after each tag. New tags are created when you save.' )" wire:model="tagNames" />
                     </div>
                 </fieldset>
+            </x-artisanpack-tab>
+
+            {{-- Linked products --}}
+            <x-artisanpack-tab name="linked" :label="$tabLabel( 'linked', __( 'Linked products' ) )" icon="o-link">
+                <div class="flex flex-col gap-6" data-relations>
+                    @foreach ( $relationLists as $list )
+                        @php( $listId = 'relations-' . $list['type'] )
+                        <section aria-labelledby="{{ $listId }}-heading" data-relation-list="{{ $list['type'] }}">
+                            <h3 id="{{ $listId }}-heading" class="font-semibold">{{ $list['label'] }}</h3>
+                            <p id="{{ $listId }}-help" class="mb-2 text-sm opacity-75">
+                                {{ $list['hint'] }}
+                                @if ( $canWrite && count( $list['products'] ) > 1 )
+                                    {{ __( 'Drag a row, or use Move up and Move down, to change the order.' ) }}
+                                @endif
+                            </p>
+
+                            @error( 'relations.' . $list['type'] )
+                                <p class="mb-2 text-sm text-error" role="alert">{{ $message }}</p>
+                            @enderror
+
+                            @if ( [] === $list['products'] )
+                                <p class="mb-2 text-sm opacity-75" data-relation-empty>{{ __( 'None yet.' ) }}</p>
+                            @else
+                                <ol
+                                    class="mb-3 flex list-none flex-col gap-2"
+                                    aria-labelledby="{{ $listId }}-heading"
+                                    aria-describedby="{{ $listId }}-help"
+                                    @if ( $canWrite )
+                                        x-data
+                                        x-drag-context
+                                        x-on:drag:end="$wire.reorderRelations( {{ \Illuminate\Support\Js::from( $list['type'] ) }}, $event.detail.orderedIds )"
+                                    @endif
+                                >
+                                    @foreach ( $list['products'] as $index => $related )
+                                        @php( $rowError = $errors->first( 'relations.' . $list['type'] . '.' . $index ) )
+                                        <li
+                                            wire:key="relation-{{ $list['type'] }}-{{ $related['id'] }}"
+                                            @if ( $canWrite ) x-drag-item="{{ \Illuminate\Support\Js::from( (string) $related['id'] ) }}" @endif
+                                            @class( [ 'flex flex-wrap items-center gap-2 rounded-box border p-2', 'border-error' => '' !== $rowError, 'border-base-300' => '' === $rowError ] )
+                                            data-relation-row="{{ $related['id'] }}"
+                                        >
+                                            @if ( $canWrite )
+                                                <x-artisanpack-icon name="o-bars-3" class="h-4 w-4 cursor-grab opacity-50" aria-hidden="true" />
+                                            @endif
+                                            <span class="font-medium">{{ $related['name'] }}</span>
+                                            @if ( filled( $related['sku'] ) )
+                                                <span class="text-sm opacity-75">{{ $related['sku'] }}</span>
+                                            @endif
+                                            @if ( '' !== $rowError )
+                                                <span class="w-full text-sm text-error" role="alert">{{ $rowError }}</span>
+                                            @endif
+                                            @if ( $canWrite )
+                                                <div class="ms-auto flex gap-1">
+                                                    <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-up" wire:click="moveRelation( {{ \Illuminate\Support\Js::from( $list['type'] ) }}, {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="{{ $listId }}" data-reorder-key="relation-{{ $list['type'] }}-{{ $related['id'] }}" data-reorder-item="{{ $related['name'] }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $related['name'] ] )" />
+                                                    <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-down" wire:click="moveRelation( {{ \Illuminate\Support\Js::from( $list['type'] ) }}, {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="{{ $listId }}" data-reorder-key="relation-{{ $list['type'] }}-{{ $related['id'] }}" data-reorder-item="{{ $related['name'] }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $related['name'] ] )" />
+                                                    <x-artisanpack-button variant="ghost" size="xs" icon="o-trash" wire:click="removeRelation( {{ \Illuminate\Support\Js::from( $list['type'] ) }}, {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :name from :list', [ 'name' => $related['name'], 'list' => $list['label'] ] )" />
+                                                </div>
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                </ol>
+                            @endif
+
+                            @if ( $canWrite && count( $list['products'] ) < Form::MAX_RELATIONS )
+                                <x-artisanpack-ec-product-picker
+                                    id="relation-pick-{{ $list['type'] }}"
+                                    model="relationPick.{{ $list['type'] }}"
+                                    single
+                                    live
+                                    :label="__( 'Add to :list', [ 'list' => $list['label'] ] )"
+                                    :options="$this->optionsForPicker( 'product', 'relationPick.' . $list['type'] )"
+                                />
+                            @endif
+                        </section>
+                    @endforeach
+                </div>
             </x-artisanpack-tab>
 
             {{-- Media --}}

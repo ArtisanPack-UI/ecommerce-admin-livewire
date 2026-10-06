@@ -166,6 +166,9 @@ const MATRIX = [
             'removeGalleryImage' => [ 'args' => [ 0 ], 'ability' => 'product.create' ],
             'moveGalleryImage'   => [ 'args' => [ 0, 1 ], 'ability' => 'product.create' ],
             'clearFeaturedImage' => [ 'args' => [], 'ability' => 'product.create' ],
+            'moveRelation'       => [ 'args' => [ 'upsell', 0, 1 ], 'ability' => 'product.create' ],
+            'reorderRelations'   => [ 'args' => [ 'upsell', [] ], 'ability' => 'product.create' ],
+            'removeRelation'     => [ 'args' => [ 'upsell', 0 ], 'ability' => 'product.create' ],
             'mediaSelected'      => [ 'args' => [ [], 'other' ], 'ability' => 'product.create' ],
             'save'               => [ 'args' => [], 'ability' => 'product.create' ],
             // The form re-authorizes product.create on every request; the picker source then needs product.viewAny.
