@@ -41,6 +41,7 @@
                 @if ( $viewingKey->activations->isEmpty() )
                     <p class="opacity-75">{{ __( 'This key has not been activated on any machine.' ) }}</p>
                 @else
+                    {{-- A plain table, not x-artisanpack-table: see src/View/Components/ResourceTable.php for why. --}}
                     <div class="overflow-x-auto">
                         <table class="table table-sm">
                             <caption class="sr-only">{{ __( 'Machines this key is active on' ) }}</caption>
