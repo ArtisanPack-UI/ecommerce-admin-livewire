@@ -124,7 +124,8 @@ it( 'rejects an invalid range', function (): void {
     Livewire::test( Show::class, [ 'report' => 'sales' ] )
         ->set( 'from', '2020-01-01' )
         ->set( 'to', '2026-03-01' )
-        ->assertHasErrors( [ 'from' ] );
+        ->assertHasErrors( [ 'from' ] )
+        ->assertSee( 'Report ranges are limited to ' . ReportRange::MAX_DAYS . ' days.' );
 } );
 
 it( 'compares with the previous period in words', function (): void {
