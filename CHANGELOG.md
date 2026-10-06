@@ -6,6 +6,11 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Release assets:** the signed contract-verification report is attached as `ecommerce-verify-report.json`. v1.0.0's appears as `default.ecommerce-verify-report.json`, because GitHub renames asset names that start with a dot.
+- **CI:** satellite verification uses the engine's `verify-satellite.yml@v1.0.1`, and the release step's action is pinned to a commit SHA.
+
 ## [1.0.0] - 2026-10-06
 
 The first stable release of the Livewire store admin for the ArtisanPack UI
