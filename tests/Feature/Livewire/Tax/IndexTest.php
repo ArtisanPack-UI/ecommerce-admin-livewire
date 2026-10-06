@@ -191,6 +191,22 @@ it( 'validates a new tax class', function (): void {
         ->assertHasErrors( [ 'newClassKey' => 'regex' ] );
 } );
 
+it( 'asks the policy about the specific class before editing or deleting it', function (): void {
+    $locked = TaxClass::query()->where( 'key', 'reduced' )->sole();
+    $other  = TaxClass::query()->where( 'key', 'zero' )->sole();
+
+    foreach ( [ 'update', 'delete' ] as $action ) {
+        addFilter( 'ap.ecommerce.abilities.taxRate.' . $action, static fn ( bool $allowed, $user, $request, mixed $subject = null ): bool => $allowed && ! ( $subject instanceof TaxClass && $subject->is( $locked ) ), 10, 4 );
+    }
+
+    Livewire::test( Index::class )->call( 'editClass', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'confirmDeleteClass', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'editClass', $other->id )->assertSet( 'editingClassId', $other->id );
+
+    removeAllFilters( 'ap.ecommerce.abilities.taxRate.update' );
+    removeAllFilters( 'ap.ecommerce.abilities.taxRate.delete' );
+} );
+
 it( 'blocks deleting a class that rates or products use', function (): void {
     $class = TaxClass::query()->where( 'key', 'reduced' )->sole();
     TaxRate::factory()->create( [ 'tax_class_key' => 'reduced' ] );

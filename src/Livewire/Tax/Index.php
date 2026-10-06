@@ -443,9 +443,13 @@ class Index extends Component
      */
     public function editClass( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'taxRate.update' );
-
         $class = TaxClass::query()->find( $id );
+
+        // Through the TaxClass policy on the record, like createClass(), so
+        // a per-record decision applies.
+        null === $class
+            ? $this->authorizeEcommerceAbility( 'taxRate.update' )
+            : $this->authorizeEcommerce( 'update', $class );
 
         $this->resetErrorBag();
         $this->editingClassId    = null === $class ? null : (int) $class->id;
@@ -461,11 +465,10 @@ class Index extends Component
      */
     public function saveClass(): void
     {
-        $this->authorizeEcommerceAbility( 'taxRate.update' );
-
         $class = null === $this->editingClassId ? null : TaxClass::query()->find( $this->editingClassId );
 
         if ( null === $class ) {
+            $this->authorizeEcommerceAbility( 'taxRate.update' );
             $this->cancelClass();
 
             return;
@@ -509,9 +512,13 @@ class Index extends Component
      */
     public function confirmDeleteClass( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'taxRate.delete' );
+        $class = TaxClass::query()->find( $id );
 
-        $this->deletingClassId       = TaxClass::query()->whereKey( $id )->exists() ? $id : null;
+        null === $class
+            ? $this->authorizeEcommerceAbility( 'taxRate.delete' )
+            : $this->authorizeEcommerce( 'delete', $class );
+
+        $this->deletingClassId       = null === $class ? null : $id;
         $this->confirmingClassDelete = null !== $this->deletingClassId;
     }
 
@@ -540,11 +547,10 @@ class Index extends Component
      */
     public function deleteClass( string $token ): void
     {
-        $this->authorizeEcommerceAbility( 'taxRate.delete' );
-
         $class = null === $this->deletingClassId || ! $this->confirmingClassDelete ? null : TaxClass::query()->find( $this->deletingClassId );
 
         if ( null === $class ) {
+            $this->authorizeEcommerceAbility( 'taxRate.delete' );
             $this->cancelDeleteClass();
 
             return;
