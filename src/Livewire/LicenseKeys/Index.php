@@ -423,7 +423,7 @@ class Index extends Component
      *
      * @param  int  $id  The activation.
      *
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException When it isn't one of that key's activations.
+     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException When it isn't one of that key's activations.
      *
      * @return LicenseActivation|null
      */
@@ -431,7 +431,7 @@ class Index extends Component
     {
         $license = null === $this->viewingId || ! $this->viewing ? null : LicenseKey::query()->find( $this->viewingId );
 
-        return $license?->activations()->whereKey( $id )->firstOrFail();
+        return $license?->activations()->whereKey( $id )->firstOr( static fn () => abort( 404 ) );
     }
 
     /**

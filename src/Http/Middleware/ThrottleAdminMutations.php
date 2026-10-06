@@ -174,8 +174,9 @@ class ThrottleAdminMutations
      */
     /**
      * Whether every component in the update only reads: it sends no
-     * property updates, and makes at least one call, all of them
-     * {@see self::READ_CALLS}.
+     * property updates, and every call it makes is one of
+     * {@see self::READ_CALLS}. A commit with no calls at all is a read too:
+     * it is how Livewire 3 sends `wire:poll` and `$refresh`.
      *
      * @since 1.0.0
      *
@@ -191,8 +192,6 @@ class ThrottleAdminMutations
             return false;
         }
 
-        $calls = 0;
-
         foreach ( $components as $component ) {
             if ( ! is_array( $component ) || [] !== (array) ( $component['updates'] ?? [] ) ) {
                 return false;
@@ -202,12 +201,10 @@ class ThrottleAdminMutations
                 if ( ! is_array( $call ) || ! in_array( $call['method'] ?? null, self::READ_CALLS, true ) ) {
                     return false;
                 }
-
-                ++$calls;
             }
         }
 
-        return $calls > 0;
+        return true;
     }
 
     private static function limits( mixed $result ): array
