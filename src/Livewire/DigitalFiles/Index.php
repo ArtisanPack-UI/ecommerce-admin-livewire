@@ -219,7 +219,7 @@ class Index extends Component
                 'form.source'             => [ 'required', Rule::in( [ 'path', 'media' ] ) ],
                 'form.disk'               => [ 'nullable', 'required_if:form.source,path', Rule::in( DigitalDisks::allowed() ) ],
                 'form.path'               => [ 'nullable', 'required_if:form.source,path', 'string', 'max:1000', DigitalDisks::relativePath() ],
-                'form.media_id'           => [ 'nullable', 'required_if:form.source,media', 'integer', 'min:1' ],
+                'form.media_id'           => [ 'nullable', 'required_if:form.source,media', 'integer', 'min:1', DigitalDisks::privateMedia() ],
             ],
             [],
             [
@@ -681,7 +681,7 @@ class Index extends Component
             'version'            => '',
             'is_streaming_only'  => false,
             'is_archived'        => false,
-            'source'             => ProductMedia::libraryInstalled() ? 'media' : 'path',
+            'source'             => 'path',
             'disk'               => DigitalDisks::default(),
             'path'               => '',
             'media_id'           => null,

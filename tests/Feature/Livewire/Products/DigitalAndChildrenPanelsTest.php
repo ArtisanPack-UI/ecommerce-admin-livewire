@@ -12,6 +12,7 @@ use ArtisanPackUI\Ecommerce\Services\ProductService;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products\Form;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products\Panels\ChildrenPanel;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products\Panels\DigitalPanel;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -30,6 +31,7 @@ beforeEach( function (): void {
 
 afterEach( function (): void {
     ProductMedia::fake( null );
+    DigitalDisks::fakeMediaDisks( null );
 } );
 
 /**
@@ -183,7 +185,7 @@ it( 'adds and removes file rows and takes media-library files', function (): voi
     Livewire::test( DigitalPanel::class )
         ->set( 'state', DigitalPanel::initialState( null ) )
         ->call( 'addFile' )
-        ->assertSet( 'state.files.0.source', 'media' )
+        ->assertSet( 'state.files.0.source', 'path' )
         ->call( 'mediaSelected', [ [ 'id' => 12, 'title' => 'Guide.pdf' ] ], DigitalPanel::MEDIA_CONTEXT . '0' )
         ->assertSet( 'state.files.0.media_id', 12 )
         ->assertSet( 'state.files.0.label', 'Guide.pdf' )
@@ -296,4 +298,56 @@ it( 'leaves another product\'s digital files alone when their ids are sent', fun
 
     expect( $foreign->refresh()->label )->toBe( 'Theirs' )
         ->and( DigitalFile::query()->where( 'product_id', $product->id )->value( 'label' ) )->toBe( 'Hijacked' );
+} );
+
+it( 'keeps the meta keys it doesn\'t manage, such as licensing types', function (): void {
+    $product = Product::factory()->digital()->create( [ 'meta' => [
+        'licensing' => [ 'enabled' => true, 'activations_limit' => 3, 'types' => [ 'personal', 'team' ] ],
+        'digital'   => [ 'download_limit' => 5, 'foo' => 1 ],
+        'other'     => 'kept',
+    ] ] );
+
+    $state                      = DigitalPanel::initialState( $product );
+    $state['activations_limit'] = '';
+    $state['download_limit']    = '9';
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( $product->refresh()->meta['licensing'] )->toBe( [ 'enabled' => true, 'types' => [ 'personal', 'team' ] ] )
+        ->and( $product->meta['digital'] )->toBe( [ 'download_limit' => 9, 'foo' => 1 ] )
+        ->and( $product->meta['other'] )->toBe( 'kept' );
+} );
+
+it( 'does not let a saved file\'s version be cleared, which would email buyers', function (): void {
+    Event::fake( [ DigitalProductUpdated::class ] );
+
+    $product = Product::factory()->digital()->create();
+    $file    = DigitalFile::factory()->create( [ 'product_id' => $product->id, 'label' => 'Guide', 'version' => '1.0', 'disk' => 'local', 'path' => 'a.pdf' ] );
+
+    $state                          = DigitalPanel::initialState( $product );
+    $state['files'][0]['version']   = '';
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasErrors( 'panelState.files.0.version' );
+
+    expect( $file->refresh()->version )->toBe( '1.0' );
+    Event::assertNotDispatched( DigitalProductUpdated::class );
+} );
+
+it( 'refuses a media-library file on a public disk in the panel', function (): void {
+    DigitalDisks::fakeMediaDisks( [ 7 => 'public' ] );
+
+    Livewire::test( Form::class )
+        ->set( 'name', 'Field Guide' )
+        ->set( 'type', 'digital' )
+        ->set( 'panelState', [ 'files' => [ digitalRow( [ 'source' => 'media', 'media_id' => 7, 'disk' => null, 'path' => '' ] ) ], 'download_limit' => '', 'download_expiry_days' => '', 'licensing_enabled' => false, 'activations_limit' => '', 'license_expires_in_days' => '' ] )
+        ->call( 'save' )
+        ->assertHasErrors( 'panelState.files.0.media_id' );
+
+    expect( DigitalFile::query()->count() )->toBe( 0 );
 } );

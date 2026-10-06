@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
+use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use Closure;
 
 /**
@@ -26,6 +27,15 @@ use Closure;
  */
 final class DigitalDisks
 {
+    /**
+     * Media disks faked by {@see self::fakeMediaDisks()}.
+     *
+     * @since 1.0.0
+     *
+     * @var array<int, string>|null
+     */
+    private static ?array $fakeMediaDisks = null;
+
     /**
      * The engine's allowed digital disks.
      *
@@ -77,6 +87,74 @@ final class DigitalDisks
         return static function ( string $attribute, mixed $value, Closure $fail ): void {
             if ( is_string( $value ) && ( str_contains( $value, '..' ) || str_starts_with( $value, '/' ) || str_contains( $value, "\0" ) ) ) {
                 $fail( __( 'The :attribute must be a relative path inside the disk.' ) );
+            }
+        };
+    }
+
+    /**
+     * Pretends media items live on these disks, in tests: `[ id => disk ]`.
+     * Pass null to look them up again.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<int, string>|null  $disks  Disk by media id.
+     *
+     * @return void
+     */
+    public static function fakeMediaDisks( ?array $disks ): void
+    {
+        self::$fakeMediaDisks = $disks;
+    }
+
+    /**
+     * The disk a media-library item is stored on (the library's default is
+     * `public`), or null when the item, or the library, is missing.
+     *
+     * @since 1.0.0
+     *
+     * @param  int  $id  The media id.
+     *
+     * @return string|null
+     */
+    public static function mediaDisk( int $id ): ?string
+    {
+        if ( null !== self::$fakeMediaDisks ) {
+            return self::$fakeMediaDisks[ $id ] ?? null;
+        }
+
+        $model = DigitalFile::MEDIA_MODEL;
+
+        if ( ! class_exists( $model ) ) {
+            return null;
+        }
+
+        $media = $model::query()->find( $id );
+
+        return null === $media ? null : (string) ( $media->disk ?? 'public' );
+    }
+
+    /**
+     * A rule requiring a media item that exists and is stored on one of the
+     * allowed (private) disks, so a paid file is never served from a
+     * guessable public URL that skips download limits and signing.
+     *
+     * @since 1.0.0
+     *
+     * @return Closure(string, mixed, Closure): void
+     */
+    public static function privateMedia(): Closure
+    {
+        return static function ( string $attribute, mixed $value, Closure $fail ): void {
+            if ( ! is_numeric( $value ) ) {
+                return;
+            }
+
+            $disk = self::mediaDisk( (int) $value );
+
+            if ( null === $disk ) {
+                $fail( __( 'That media item can\'t be found.' ) );
+            } elseif ( ! in_array( $disk, self::allowed(), true ) ) {
+                $fail( __( 'That media item is on a public disk. Digital products must live on a private disk.' ) );
             }
         };
     }

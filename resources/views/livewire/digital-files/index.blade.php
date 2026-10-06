@@ -103,7 +103,7 @@
 
                 <x-artisanpack-toggle id="digital-file-archived" :label="__( 'Archived' )" :hint="__( 'Existing buyers keep their downloads; the file is no longer offered.' )" wire:model="form.is_archived" />
 
-                <x-artisanpack-radio id="digital-file-source" :label="__( 'File' )" :options="$sourceOptions" wire:model.live="form.source" inline />
+                <x-artisanpack-radio id="digital-file-source" :label="__( 'File' )" :hint="__( 'A media-library file must be stored on a private disk (:disks), or buyers could download it without a link.', [ 'disks' => implode( ', ', \ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::allowed() ) ] )" :options="$sourceOptions" wire:model.live="form.source" inline />
 
                 @if ( 'media' === $form['source'] )
                     <div class="flex flex-wrap items-center gap-3">
