@@ -38,6 +38,12 @@ it( 'binds live when the model is live', function (): void {
         ->toContain( "\$wire.entangle( 'amount', true )" );
 } );
 
+it( 'points the input at its format error while the value is invalid', function (): void {
+    expect( Blade::render( '<x-artisanpack-ec-money-input id="price" wire:model="amount" currency="USD" />' ) )
+        ->toContain( 'id="price-format-error"' )
+        ->toContain( 'x-bind:aria-describedby="invalid ? \'price-format-error\' : null"' );
+} );
+
 it( 'renders the percent input on rate_ubps', function (): void {
     expect( Blade::render( '<x-artisanpack-ec-percent-input wire:model="rateUbps" />' ) )
         ->toContain( 'data-scale="7"' )

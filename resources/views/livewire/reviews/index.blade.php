@@ -62,6 +62,7 @@
                                     @if ( null !== $media['url'] )
                                         <a href="{{ $media['url'] }}" target="_blank" rel="noopener noreferrer">
                                             <img src="{{ $media['url'] }}" alt="{{ __( 'Photo :number from the review', [ 'number' => $loop->iteration ] ) }}" class="size-24 rounded object-cover" />
+                                            <span class="sr-only">{{ __( '(opens in a new tab)' ) }}</span>
                                         </a>
                                     @else
                                         <span class="text-sm">{{ __( 'Media library file #:id', [ 'id' => $media['id'] ] ) }}</span>
