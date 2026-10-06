@@ -21,7 +21,6 @@ use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use ArtisanPackUI\Ecommerce\Reports\LowStockReport;
 use ArtisanPackUI\Ecommerce\Reports\ReportRange;
 use ArtisanPackUI\Ecommerce\Reports\SalesReport;
-use ArtisanPackUI\Ecommerce\Reports\SummaryReport;
 use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 use ArtisanPackUI\Ecommerce\Support\MoneyFormatter;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
@@ -31,9 +30,11 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\DashboardWidgets;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Livewire\Component;
 
@@ -105,6 +106,15 @@ class Dashboard extends Component
     ];
 
     /**
+     * This request's sales report.
+     *
+     * @since 1.0.0
+     *
+     * @var array<string, mixed>|null
+     */
+    protected ?array $salesReportResult = null;
+
+    /**
      * Authorizes the screen.
      *
      * @since 1.0.0
@@ -137,6 +147,13 @@ class Dashboard extends Component
      */
     public function orderBroadcast(): void
     {
+        // Only re-render when something on screen shows orders.
+        if ( ! $this->showsOrders() ) {
+            $this->skipRender();
+
+            return;
+        }
+
         $this->liveAnnouncement = __( 'Orders changed. The dashboard has been updated.' );
     }
 
@@ -174,13 +191,8 @@ class Dashboard extends Component
     public function render(): View
     {
         $user    = auth()->user();
-        $kpiKeys = array_keys( array_filter( self::KPI_ABILITIES, static fn ( string $ability ): bool => Authorization::allows( $user, $ability ) ) );
-
-        // The KPI row has no ability of its own; it shows when any KPI does.
-        $widgets = array_values( array_filter(
-            DashboardWidgets::visible( $user ),
-            static fn ( array $widget ): bool => DashboardWidgets::KPIS !== $widget['key'] || [] !== $kpiKeys,
-        ) );
+        $kpiKeys = $this->kpiKeys();
+        $widgets = $this->widgetsFor( $kpiKeys );
 
         $firstRun = [] !== $widgets && $this->storeIsEmpty();
 
@@ -243,9 +255,20 @@ class Dashboard extends Component
      */
     protected function kpis( array $keys ): array
     {
-        $summary  = app( SummaryReport::class )->run( null );
-        $totals   = array_map( 'intval', (array) $summary['totals'] );
-        $currency = (string) $summary['currency'];
+        // The engine's SummaryReport runs the same 30-day SalesReport the
+        // sparkline needs; run it once (cached) and add the three counts.
+        $month    = $this->salesReport();
+        $today    = $month['series'][ array_key_last( (array) $month['series'] ) ] ?? [ 'total' => 0, 'orders' => 0 ];
+        $currency = (string) $month['currency'];
+        $totals   = [
+            'sales_today'          => (int) $today['total'],
+            'orders_today'         => (int) $today['orders'],
+            'sales_30_days'        => (int) $month['totals']['total'],
+            'orders_30_days'       => (int) $month['totals']['orders'],
+            'awaiting_fulfillment' => in_array( 'awaiting-fulfillment', $keys, true ) ? Order::query()->where( 'system_status', 'processing' )->whereIn( 'fulfillment_status', [ 'unfulfilled', 'partial' ] )->count() : 0,
+            'low_stock'            => in_array( 'low-stock', $keys, true ) ? LowStockReport::query()->count() : 0,
+            'pending_reviews'      => in_array( 'pending-reviews', $keys, true ) ? ProductReview::query()->where( 'status', ProductReview::STATUS_PENDING )->count() : 0,
+        ];
         $kpis     = [
             'sales-today' => [
                 'label'       => __( 'Sales today' ),
@@ -296,7 +319,7 @@ class Dashboard extends Component
      */
     protected function sales(): array
     {
-        $result   = app( SalesReport::class )->run( ReportRange::lastDays( 30 ) );
+        $result   = $this->salesReport();
         $currency = (string) $result['currency'];
         $series   = array_values( (array) $result['series'] );
         $best     = null;
@@ -321,6 +344,75 @@ class Dashboard extends Component
                 ] ),
             'url'     => self::url( 'reports.show', [ 'report' => 'sales' ] ),
         ];
+    }
+
+    /**
+     * The last 30 days of sales, run once per request and cached for a
+     * minute per store time zone and currency, so broadcasts and the KPI row
+     * and sparkline don't each re-run it.
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, mixed>
+     */
+    protected function salesReport(): array
+    {
+        if ( null !== $this->salesReportResult ) {
+            return $this->salesReportResult;
+        }
+
+        $key = 'ecommerce-admin.dashboard.sales.' . ReportRange::timezone() . '.' . StoreCurrencies::base();
+
+        return $this->salesReportResult = (array) Cache::remember( $key, 60, static fn (): array => app( SalesReport::class )->run( ReportRange::lastDays( 30 ) ) );
+    }
+
+    /**
+     * The KPI keys the user may see.
+     *
+     * @since 1.0.0
+     *
+     * @return array<int, string>
+     */
+    protected function kpiKeys(): array
+    {
+        $user = auth()->user();
+
+        return array_keys( array_filter( self::KPI_ABILITIES, static fn ( string $ability ): bool => Authorization::allows( $user, $ability ) ) );
+    }
+
+    /**
+     * The widgets the user sees; the KPI row has no ability of its own and
+     * shows when any KPI does.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<int, string>  $kpiKeys  The KPI keys the user may see.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function widgetsFor( array $kpiKeys ): array
+    {
+        return array_values( array_filter(
+            DashboardWidgets::visible( auth()->user() ),
+            static fn ( array $widget ): bool => DashboardWidgets::KPIS !== $widget['key'] || [] !== $kpiKeys,
+        ) );
+    }
+
+    /**
+     * Whether a widget on screen shows orders: the sales chart, recent
+     * orders, or an order-based KPI.
+     *
+     * @since 1.0.0
+     *
+     * @return bool
+     */
+    protected function showsOrders(): bool
+    {
+        $kpiKeys = $this->kpiKeys();
+        $keys    = array_column( $this->widgetsFor( $kpiKeys ), 'key' );
+
+        return [] !== array_intersect( $keys, [ DashboardWidgets::SALES, DashboardWidgets::RECENT_ORDERS ] )
+            || ( in_array( DashboardWidgets::KPIS, $keys, true ) && [] !== array_intersect( $kpiKeys, [ 'sales-today', 'sales-30-days', 'awaiting-fulfillment' ] ) );
     }
 
     /**
