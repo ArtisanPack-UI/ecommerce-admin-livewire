@@ -13,7 +13,10 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
+use ArtisanPackUI\Ecommerce\Http\Requests\Api\V1\WebhookSubscriptionRequest;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\ConfigFormRegistry;
+use Closure;
+use Illuminate\Support\Facades\Validator;
 
 /**
  * Extra form rules for core engine entries.
@@ -53,7 +56,7 @@ final class ConfigSchemas
      *
      * @since 1.0.0
      *
-     * @return array<string, array<string, array<string, array<int, string>>>>
+     * @return array<string, array<string, array<string, array<int, Closure|string>>>>
      */
     public static function refinements(): array
     {
@@ -65,6 +68,36 @@ final class ConfigSchemas
                     'tiers.amount'  => [ 'required_without:@percent' ],
                 ],
             ],
+            'kanban-trigger'   => [
+                // The same SSRF check as webhook subscriptions.
+                'webhook' => [
+                    'url' => [ self::webhookUrlRule() ],
+                ],
+            ],
         ];
+    }
+
+    /**
+     * A rule applying the engine's webhook subscription URL rules (allowed
+     * schemes, and a host that resolves to a public address), read when it
+     * runs so it follows the current config.
+     *
+     * @since 1.0.0
+     *
+     * @return Closure(string, mixed, Closure): void
+     */
+    public static function webhookUrlRule(): Closure
+    {
+        return static function ( string $attribute, mixed $value, Closure $fail ): void {
+            if ( null === $value || '' === $value ) {
+                return;
+            }
+
+            $validator = Validator::make( [ 'url' => $value ], [ 'url' => WebhookSubscriptionRequest::baseRules()['url'] ], [], [ 'url' => __( 'URL' ) ] );
+
+            if ( $validator->fails() ) {
+                $fail( (string) $validator->errors()->first( 'url' ) );
+            }
+        };
     }
 }

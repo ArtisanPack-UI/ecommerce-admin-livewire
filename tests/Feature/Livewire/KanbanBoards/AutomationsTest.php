@@ -6,11 +6,14 @@ use ArtisanPackUI\Ecommerce\Models\KanbanAutomation;
 use ArtisanPackUI\Ecommerce\Models\KanbanBoard;
 use ArtisanPackUI\Ecommerce\Models\KanbanColumn;
 use ArtisanPackUI\Ecommerce\Models\OrderSubstatus;
+use ArtisanPackUI\Ecommerce\Webhooks\WebhookUrlGuard;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\KanbanBoards\Automations;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 
 beforeEach( function (): void {
+    // Hosts resolve to a public address unless they are IP literals.
+    WebhookUrlGuard::resolveUsing( static fn ( string $host ): array => [ '93.184.216.34' ] );
     grantAbilities( [ 'kanbanBoard.viewAny', 'kanbanBoard.view', 'kanbanBoard.update', 'product.viewAny' ] );
     $this->actingAs( makeUser() );
 
@@ -292,4 +295,32 @@ it( 'still shows a stored secret after switching triggers and back', function ()
         ->assertSet( 'secretIsSet', false )
         ->set( 'form.trigger_key', 'webhook' )
         ->assertSet( 'secretIsSet', true );
+} );
+
+afterEach( function (): void {
+    WebhookUrlGuard::resolveUsing( null );
+} );
+
+it( 'refuses a webhook trigger URL that points at a private address', function ( string $url ): void {
+    config()->set( 'artisanpack.ecommerce.webhooks.allow_insecure_urls', true );
+
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->set( 'form.to_column_id', $this->shipped->id )
+        ->set( 'form.trigger_key', 'webhook' )
+        ->set( 'form.trigger_config.url', $url )
+        ->call( 'save' )
+        ->assertHasErrors( 'form.trigger_config.url' );
+
+    expect( KanbanAutomation::query()->count() )->toBe( 0 );
+} )->with( [ 'loopback' => 'http://127.0.0.1/', 'metadata' => 'http://169.254.169.254/latest' ] );
+
+it( 'refuses a plain-http webhook trigger URL unless insecure URLs are allowed', function (): void {
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->set( 'form.to_column_id', $this->shipped->id )
+        ->set( 'form.trigger_key', 'webhook' )
+        ->set( 'form.trigger_config.url', 'http://hooks.example.test/' )
+        ->call( 'save' )
+        ->assertHasErrors( 'form.trigger_config.url' );
 } );
