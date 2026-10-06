@@ -315,6 +315,7 @@ it( 'translates its strings', function (): void {
 
 it( 'exports the catalog with one row per product or variant and a price pair per currency', function (): void {
     config()->set( 'artisanpack.ecommerce.currency.rates.USD', [ 'EUR' => 92_000_000 ] );
+    config()->set( 'artisanpack.ecommerce.currency.enabled', [ 'EUR' ] );
     $mug = Product::factory()->create( [ 'name' => 'Blue Mug', 'sku' => 'MUG-1', 'status' => 'active' ] );
     ProductPrice::factory()->forPriceable( $mug )->create( [ 'currency' => 'USD', 'price_amount' => 1250, 'compare_at_amount' => 1500 ] );
     ProductPrice::factory()->forPriceable( $mug )->create( [ 'currency' => 'EUR', 'price_amount' => 1100 ] );

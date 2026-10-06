@@ -22,6 +22,7 @@ beforeEach( function (): void {
     config()->set( 'auth.providers.users.model', User::class );
     config()->set( 'artisanpack.ecommerce.base_currency', 'USD' );
     config()->set( 'artisanpack.ecommerce.currency.rates', [ 'USD' => [ 'EUR' => 92_500_000 ] ] );
+    config()->set( 'artisanpack.ecommerce.currency.enabled', [ 'EUR' ] );
     config()->set( 'artisanpack.ecommerce.features.scout', false );
     grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update' ] );
     ProductMedia::fake( false );

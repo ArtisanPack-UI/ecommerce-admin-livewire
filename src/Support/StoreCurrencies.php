@@ -15,15 +15,15 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductPrice;
+use ArtisanPackUI\Ecommerce\Services\StoreCurrencies as EngineStoreCurrencies;
 
 /**
  * The currencies the product form offers a price row for.
  *
- * The engine has no "enabled currencies" setting, so a store's currencies
- * are its base currency, the currencies its static rate table converts the
- * base currency into (`artisanpack.ecommerce.currency.rates.{BASE}`), and
- * any currency a product already has a price in. Hosts can change the list
- * with the `ap.ecommerceAdminLivewire.currencies` filter.
+ * A store's currencies are the engine's enabled currencies
+ * (`artisanpack.ecommerce.currency.enabled`, a store setting, base first)
+ * and any currency a product already has a price in. Hosts can change the
+ * list with the `ap.ecommerceAdminLivewire.currencies` filter.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -33,7 +33,7 @@ use ArtisanPackUI\Ecommerce\Models\ProductPrice;
 final class StoreCurrencies
 {
     /**
-     * The store's base currency.
+     * The store's base currency (the engine's).
      *
      * @since 1.0.0
      *
@@ -41,11 +41,14 @@ final class StoreCurrencies
      */
     public static function base(): string
     {
-        return strtoupper( (string) config( 'artisanpack.ecommerce.base_currency', 'USD' ) );
+        return app( EngineStoreCurrencies::class )->base();
     }
 
     /**
-     * Enabled currencies, base first.
+     * The currencies the store sells in (the engine's enabled list, base
+     * first), plus any currency `$product` already has prices in, through
+     * the `ap.ecommerceAdminLivewire.currencies` filter. Invalid codes are
+     * dropped.
      *
      * @since 1.0.0
      *
@@ -56,11 +59,7 @@ final class StoreCurrencies
     public static function enabled( ?Product $product = null ): array
     {
         $base       = self::base();
-        $currencies = [ $base ];
-
-        foreach ( array_keys( (array) config( 'artisanpack.ecommerce.currency.rates.' . $base, [] ) ) as $code ) {
-            $currencies[] = strtoupper( (string) $code );
-        }
+        $currencies = app( EngineStoreCurrencies::class )->enabled();
 
         if ( null !== $product ) {
             foreach ( ProductPrice::query()->where( 'priceable_type', $product->getMorphClass() )->where( 'priceable_id', $product->id )->distinct()->pluck( 'currency' ) as $code ) {
