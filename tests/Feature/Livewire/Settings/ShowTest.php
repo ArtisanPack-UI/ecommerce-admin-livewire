@@ -122,6 +122,19 @@ it( 'resets a changed value to its default', function (): void {
     expect( settingsRepository()->isStored( 'reviews.allow_guests' ) )->toBeFalse();
 } );
 
+it( 'resets one setting without discarding unsaved edits to the others', function (): void {
+    settingsRepository()->update( 'checkout', [ 'checkout.reservation_ttl_minutes' => 30 ] );
+
+    Livewire::test( Show::class, [ 'group' => 'checkout' ] )
+        ->set( 'form.cart__abandoned_after_minutes', 999 )
+        ->assertSeeHtml( 'wire:confirm=' )
+        ->call( 'resetToDefault', 'checkout.reservation_ttl_minutes' )
+        ->assertSet( 'form.cart__abandoned_after_minutes', 999 )
+        ->assertSet( 'form.checkout__reservation_ttl_minutes', settingsRepository()->get( 'checkout.reservation_ttl_minutes' ) );
+
+    expect( settingsRepository()->isStored( 'checkout.reservation_ttl_minutes' ) )->toBeFalse();
+} );
+
 it( 'shows whether each payment credential is configured without showing it', function (): void {
     config()->set( 'artisanpack.ecommerce.gateways.stripe.secret_key', 'sk_test_hidden' );
     config()->set( 'artisanpack.ecommerce.gateways.stripe.webhook_secret', null );

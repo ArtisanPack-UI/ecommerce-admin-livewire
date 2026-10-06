@@ -1243,6 +1243,7 @@
     "Requeue the review by :author for moderation": "Requeue the review by :author for moderation",
     "Reserved": "Reserved",
     "Reset": "Reset",
+    "Reset :setting to its default? This saves immediately.": "Reset :setting to its default? This saves immediately.",
     "Reset to default": "Reset to default",
     "Reset to default: :setting": "Reset to default: :setting",
     "Reset to the default copy?": "Reset to the default copy?",

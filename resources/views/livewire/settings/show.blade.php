@@ -210,6 +210,8 @@
                                             variant="link"
                                             size="xs"
                                             wire:click="resetToDefault( {{ \Illuminate\Support\Js::from( $definition->key ) }} )"
+                                            wire:confirm="{{ __( 'Reset :setting to its default? This saves immediately.', [ 'setting' => $definition->label ] ) }}"
+                                            wire:loading.attr="disabled"
                                             :label="__( 'Reset to default' )"
                                             :aria-label="__( 'Reset to default: :setting', [ 'setting' => $definition->label ] )"
                                         />

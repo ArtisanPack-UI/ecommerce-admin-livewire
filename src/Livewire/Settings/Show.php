@@ -217,8 +217,11 @@ class Show extends Component
             return;
         }
 
-        $this->resetErrorBag( 'form.' . self::field( $key ) );
-        $this->form = $this->formValues();
+        // Only this field: other unsaved edits on the form stay as they are.
+        $field = self::field( $key );
+
+        $this->resetErrorBag( 'form.' . $field );
+        $this->form[ $field ] = $this->formValues()[ $field ] ?? null;
 
         $definition = app( SettingsRegistry::class )->definition( $key );
 

@@ -1243,6 +1243,7 @@
     "Requeue the review by :author for moderation": "Volver a poner en cola la reseña de :author para moderación",
     "Reserved": "Reservado",
     "Reset": "Restablecer",
+    "Reset :setting to its default? This saves immediately.": "¿Restablecer :setting a su valor predeterminado? Se guardará de inmediato.",
     "Reset to default": "Restablecer valor predeterminado",
     "Reset to default: :setting": "Restablecer valor predeterminado: :setting",
     "Reset to the default copy?": "¿Restablecer el texto predeterminado?",
