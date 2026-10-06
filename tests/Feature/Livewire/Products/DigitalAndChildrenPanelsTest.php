@@ -3,6 +3,7 @@
 declare( strict_types=1 );
 
 use ArtisanPackUI\Ecommerce\Events\DigitalProductUpdated;
+use ArtisanPackUI\Ecommerce\Models\DigitalDownload;
 use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductChild;
@@ -118,6 +119,36 @@ it( 'loads, updates, and removes files, announcing a new version', function (): 
         ->and( $product->refresh()->meta['digital'] )->toBe( [ 'download_limit' => 0, 'download_expiry_days' => 7 ] );
 
     Event::assertDispatched( DigitalProductUpdated::class );
+} );
+
+it( 'keeps a purchased file when it is removed, and archives it instead', function (): void {
+    $product = Product::factory()->digital()->create();
+    $file    = DigitalFile::factory()->create( [ 'product_id' => $product->id, 'label' => 'Guide', 'disk' => 'local', 'path' => 'a.pdf' ] );
+    DigitalDownload::factory()->create( [ 'digital_file_id' => $file->id ] );
+
+    $state          = DigitalPanel::initialState( $product );
+    $state['files'] = [];
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasErrors( 'panelState.files' );
+
+    expect( $file->refresh()->exists )->toBeTrue();
+
+    $state = DigitalPanel::initialState( $product );
+
+    expect( $state['files'][0]['is_archived'] )->toBeFalse();
+
+    $state['files'][0]['is_archived'] = true;
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( $file->refresh()->archived_at )->not->toBeNull()
+        ->and( DigitalPanel::initialState( $product )['files'][0]['is_archived'] )->toBeTrue();
 } );
 
 it( 'validates digital files and limits', function ( array $file, array $extra, string $error ): void {

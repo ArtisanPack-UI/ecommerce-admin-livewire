@@ -19,6 +19,10 @@
             <p class="mb-3 text-sm opacity-75">{{ __( 'Attach the files buyers can download or stream.' ) }}</p>
         @endif
 
+        @error( 'state.files' )
+            <p class="mb-3 text-sm text-error" role="alert">{{ $message }}</p>
+        @enderror
+
         <ul class="flex list-none flex-col gap-3">
             @foreach ( $files as $i => $file )
                 @php( $fileLabel = $file['label'] ?: __( 'File :number', [ 'number' => $i + 1 ] ) )
@@ -26,8 +30,9 @@
                     <div class="grid gap-3 md:grid-cols-3">
                         <x-artisanpack-input id="digital-{{ $i }}-label" :label="__( 'Label of file :number', [ 'number' => $i + 1 ] )" wire:model.blur="state.files.{{ $i }}.label" :disabled="$readOnly" />
                         <x-artisanpack-input id="digital-{{ $i }}-version" :label="__( 'Version of :file', [ 'file' => $fileLabel ] )" :hint="__( 'Changing it on a saved file emails past buyers.' )" wire:model.blur="state.files.{{ $i }}.version" :disabled="$readOnly" />
-                        <div class="flex items-end">
+                        <div class="flex flex-col justify-end gap-2">
                             <x-artisanpack-toggle id="digital-{{ $i }}-streaming" :label="__( 'Streaming only' )" :hint="__( 'Can be played but never downloaded.' )" wire:model="state.files.{{ $i }}.is_streaming_only" :disabled="$readOnly" />
+                            <x-artisanpack-toggle id="digital-{{ $i }}-archived" :label="__( 'Archived' )" :hint="__( 'Existing buyers keep their downloads; the file is no longer offered.' )" wire:model="state.files.{{ $i }}.is_archived" :disabled="$readOnly" />
                         </div>
                     </div>
 
@@ -48,7 +53,7 @@
                         @endif
 
                         @unless ( $readOnly )
-                            <x-artisanpack-button class="ms-auto" variant="ghost" size="sm" icon="o-trash" wire:click="removeFile( {{ $i }} )" wire:confirm="{{ __( 'Remove this file? Buyers lose access to it when you save.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
+                            <x-artisanpack-button class="ms-auto" variant="ghost" size="sm" icon="o-trash" wire:click="removeFile( {{ $i }} )" wire:confirm="{{ __( 'Remove this file when you save? A file customers already bought can\'t be removed; archive it instead.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
                         @endunless
                     </div>
                 </li>

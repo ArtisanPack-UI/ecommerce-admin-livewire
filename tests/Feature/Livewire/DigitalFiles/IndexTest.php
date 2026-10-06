@@ -3,6 +3,7 @@
 declare( strict_types=1 );
 
 use ArtisanPackUI\Ecommerce\Events\DigitalProductUpdated;
+use ArtisanPackUI\Ecommerce\Models\DigitalDownload;
 use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
@@ -176,6 +177,45 @@ it( 'deletes a file after confirmation', function (): void {
     $component->call( 'confirmBulkAction', $component->viewData( 'tableConfirmToken' ) );
 
     expect( DigitalFile::query()->find( $file->id ) )->toBeNull();
+} );
+
+it( 'keeps files customers bought when deleting, and offers to archive them', function (): void {
+    $bought = DigitalFile::factory()->create( [ 'label' => 'Bought' ] );
+    $unsold = DigitalFile::factory()->create( [ 'label' => 'Unsold' ] );
+    DigitalDownload::factory()->create( [ 'digital_file_id' => $bought->id ] );
+
+    $component = Livewire::test( Index::class )
+        ->set( 'selected', [ $bought->id, $unsold->id ] )
+        ->call( 'runBulkAction', 'delete' );
+    $component->call( 'confirmBulkAction', $component->viewData( 'tableConfirmToken' ) )
+        ->assertSet( 'keptIds', [ $bought->id ] )
+        ->assertSeeHtml( 'data-kept-files' )
+        ->assertSee( '1 file has buyers and was kept.' );
+
+    expect( DigitalFile::query()->pluck( 'id' )->all() )->toBe( [ $bought->id ] );
+
+    $component->call( 'archiveKept' )->assertSet( 'keptIds', [] );
+
+    expect( $bought->refresh()->archived_at )->not->toBeNull();
+} );
+
+it( 'archives the selected files and edits the archive flag in the drawer', function (): void {
+    $file = DigitalFile::factory()->create();
+
+    Livewire::test( Index::class )
+        ->set( 'selected', [ $file->id ] )
+        ->call( 'runBulkAction', 'archive' );
+
+    expect( $file->refresh()->archived_at )->not->toBeNull();
+
+    Livewire::test( Index::class )
+        ->call( 'edit', $file->id )
+        ->assertSet( 'form.is_archived', true )
+        ->set( 'form.is_archived', false )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( $file->refresh()->archived_at )->toBeNull();
 } );
 
 it( 'does not let a saved version be cleared, which would notify customers', function (): void {

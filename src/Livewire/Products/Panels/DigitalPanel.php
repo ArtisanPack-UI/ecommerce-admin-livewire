@@ -13,6 +13,8 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products\Panels;
 
+use ArtisanPackUI\Ecommerce\Exceptions\DigitalFileInUseException;
+use ArtisanPackUI\Ecommerce\Exceptions\ProductWriteException;
 use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Services\DigitalFileService;
@@ -88,6 +90,7 @@ class DigitalPanel extends ProductTypePanel
                     'label'             => (string) $file->label,
                     'version'           => (string) ( $file->version ?? '' ),
                     'is_streaming_only' => (bool) $file->is_streaming_only,
+                    'is_archived'       => null !== $file->archived_at,
                     'source'            => null === $file->media_id ? 'path' : 'media',
                     'disk'              => (string) ( $file->disk ?? self::defaultDisk() ),
                     'path'              => (string) ( $file->path ?? '' ),
@@ -117,6 +120,7 @@ class DigitalPanel extends ProductTypePanel
             'files.*.label'             => [ 'required', 'string', 'max:255' ],
             'files.*.version'           => [ 'nullable', 'string', 'max:60' ],
             'files.*.is_streaming_only' => [ 'boolean' ],
+            'files.*.is_archived'       => [ 'boolean' ],
             'files.*.source'            => [ 'required', Rule::in( [ 'path', 'media' ] ) ],
             'files.*.disk'              => [ 'nullable', 'required_if:files.*.source,path', Rule::in( self::allowedDisks() ) ],
             'files.*.path'              => [ 'nullable', 'required_if:files.*.source,path', 'string', 'max:1000', self::relativePath() ],
@@ -168,6 +172,7 @@ class DigitalPanel extends ProductTypePanel
                 'label'             => trim( sanitizeText( (string) $row['label'] ) ),
                 'version'           => '' === trim( (string) ( $row['version'] ?? '' ) ) ? null : trim( sanitizeText( (string) $row['version'] ) ),
                 'is_streaming_only' => (bool) ( $row['is_streaming_only'] ?? false ),
+                'is_archived'       => (bool) ( $row['is_archived'] ?? false ),
                 'media_id'          => $media ? (int) $row['media_id'] : null,
                 'disk'              => $media ? null : (string) $row['disk'],
                 'path'              => $media ? null : ltrim( (string) $row['path'], '/' ),
@@ -183,12 +188,15 @@ class DigitalPanel extends ProductTypePanel
             $keep[] = (int) $file->id;
         }
 
-        DigitalFile::query()
-            ->where( 'product_id', $product->id )
-            ->whereNull( 'product_variant_id' )
-            ->whereNotIn( 'id', $keep )
-            ->get()
-            ->each( static fn ( DigitalFile $file ) => $file->delete() );
+        // The engine refuses to delete a file customers bought; the whole
+        // save rolls back and the panel says to archive it instead.
+        foreach ( DigitalFile::query()->where( 'product_id', $product->id )->whereNull( 'product_variant_id' )->whereNotIn( 'id', $keep )->get() as $file ) {
+            try {
+                $files->delete( $file );
+            } catch ( DigitalFileInUseException $exception ) {
+                throw ProductWriteException::field( 'files', 'file-in-use', __( 'Customers bought ":file", so it can\'t be removed. Keep it and turn on Archived instead.', [ 'file' => (string) $file->label ] ) );
+            }
+        }
 
         app( ProductService::class )->update( $product, [ 'meta' => [
             'digital'   => array_filter( [
@@ -219,6 +227,7 @@ class DigitalPanel extends ProductTypePanel
             'label'             => '',
             'version'           => '',
             'is_streaming_only' => false,
+            'is_archived'       => false,
             'source'            => ProductMedia::libraryInstalled() ? 'media' : 'path',
             'disk'              => self::defaultDisk(),
             'path'              => '',
