@@ -290,7 +290,8 @@ it( 'neutralizes spreadsheet formulas in exported cells', function (): void {
 
     $rows = downloadedCsv( Livewire::test( Index::class )->call( 'exportCsv' ) );
 
-    expect( $rows[1][2] )->toStartWith( "'=HYPERLINK" );
+    // The engine stores emails lowercased; the guard is what matters.
+    expect( strtolower( $rows[1][2] ) )->toStartWith( "'=hyperlink" );
 } );
 
 it( 'caps an export at tables.export_max_rows and says so', function (): void {
