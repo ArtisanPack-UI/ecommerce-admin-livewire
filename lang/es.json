@@ -1602,6 +1602,7 @@
     "This product type has no stock of its own.": "Este tipo de producto no tiene stock propio.",
     "This product's type is not installed, so it is read-only.": "El tipo de este producto no está instalado, así que es de solo lectura.",
     "This product's type is not installed, so its stock cannot be changed here.": "El tipo de este producto no está instalado, así que su stock no se puede cambiar aquí.",
+    "This promotion applies automatically, so it has no codes. Make it a coupon promotion first.": "Esta promoción se aplica automáticamente, así que no tiene códigos. Conviértela primero en una promoción con cupón.",
     "This promotion still has coupon codes. Delete them before changing the source.": "Esta promoción todavía tiene códigos de cupón. Elimínalos antes de cambiar el origen.",
     "This quarter": "Este trimestre",
     "This rate already exists and you are not allowed to change existing rates.": "Este tipo ya existe y no tienes permiso para cambiar los tipos existentes.",

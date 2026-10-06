@@ -514,7 +514,7 @@ const MATRIX = [
             'cancelDelete'                 => [ 'args' => [], 'ability' => 'promotion.view' ],
             'deleteCode'                   => [ 'args' => [ 'token' ], 'ability' => 'coupon.delete' ],
             'generateCodes'                => [ 'args' => [], 'ability' => 'coupon.create' ],
-            'exportCodes'                  => [ 'args' => [], 'ability' => 'promotion.view' ],
+            'exportCodes'                  => [ 'args' => [], 'ability' => 'promotion.update' ],
             'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'promotion.view' ],
             'getPage'                      => [ 'args' => [], 'ability' => 'promotion.view' ],
             'previousPage'                 => [ 'args' => [], 'ability' => 'promotion.view' ],

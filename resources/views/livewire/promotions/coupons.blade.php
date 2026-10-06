@@ -47,7 +47,7 @@
     <div class="flex flex-wrap items-end gap-3">
         <x-artisanpack-input id="coupon-search" class="min-w-64" type="search" icon="o-magnifying-glass" :label="__( 'Find a code' )" wire:model.live.debounce.300ms="search" />
         <p class="text-sm opacity-75">{{ trans_choice( ':count code in all|:count codes in all', $total, [ 'count' => $total ] ) }}</p>
-        @if ( $total > 0 )
+        @if ( $total > 0 && $canExport )
             <x-artisanpack-button class="ms-auto" variant="outline" size="sm" icon="o-arrow-down-tray" wire:click="exportCodes" wire:loading.attr="disabled" :label="__( 'Export codes (CSV)' )" />
         @endif
     </div>

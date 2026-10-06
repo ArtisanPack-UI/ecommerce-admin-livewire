@@ -156,6 +156,7 @@ it( 'validates the generate settings', function (): void {
 } );
 
 it( 'exports the codes to CSV', function (): void {
+    grantAbilities( [ 'promotion.update' ] );
     Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'B-CODE' ] );
     Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'A-CODE' ] );
 
@@ -168,6 +169,27 @@ it( 'exports the codes to CSV', function (): void {
 
     expect( strpos( $content, 'A-CODE' ) )->toBeLessThan( strpos( $content, 'B-CODE' ) )
         ->and( $content )->toContain( 'Code' );
+} );
+
+it( 'does not let a user who may only view the promotion export its codes', function (): void {
+    Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'SECRET' ] );
+
+    Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )
+        ->call( 'exportCodes' )
+        ->assertForbidden();
+} );
+
+it( 'refuses to add codes to an automatic promotion', function (): void {
+    $automatic = Promotion::factory()->create( [ 'source_type' => Promotion::SOURCE_AUTOMATIC ] );
+
+    Livewire::test( CouponsPanel::class, [ 'promotion' => $automatic ] )
+        ->set( 'newCode', 'SPRING' )
+        ->call( 'addCode' )
+        ->assertHasErrors( 'newCode' )
+        ->set( 'generateCount', 5 )
+        ->call( 'generateCodes' );
+
+    expect( Coupon::query()->where( 'promotion_id', $automatic->id )->count() )->toBe( 0 );
 } );
 
 it( 'searches codes', function (): void {

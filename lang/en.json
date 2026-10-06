@@ -1602,6 +1602,7 @@
     "This product type has no stock of its own.": "This product type has no stock of its own.",
     "This product's type is not installed, so it is read-only.": "This product's type is not installed, so it is read-only.",
     "This product's type is not installed, so its stock cannot be changed here.": "This product's type is not installed, so its stock cannot be changed here.",
+    "This promotion applies automatically, so it has no codes. Make it a coupon promotion first.": "This promotion applies automatically, so it has no codes. Make it a coupon promotion first.",
     "This promotion still has coupon codes. Delete them before changing the source.": "This promotion still has coupon codes. Delete them before changing the source.",
     "This quarter": "This quarter",
     "This rate already exists and you are not allowed to change existing rates.": "This rate already exists and you are not allowed to change existing rates.",
