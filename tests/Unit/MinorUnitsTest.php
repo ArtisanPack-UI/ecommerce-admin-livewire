@@ -50,6 +50,8 @@ it( 'converts major units to minor units without floats', function ( string $maj
     'USD leading zero comma'   => [ '0,50', 'USD', 50 ],
     'JPY dotted thousands'     => [ '1.234.567', 'JPY', 1234567 ],
     'KWD grouped twice'        => [ '1,234,567', 'KWD', 1234567000 ],
+    'JPY zero fraction'        => [ '1000.00', 'JPY', 1000 ],
+    'EUR grouped, comma'       => [ '1.234,50', 'EUR', 123450 ],
 ] );
 
 it( 'rejects input it cannot convert exactly', function ( string $major, string $currency ): void {
@@ -65,6 +67,10 @@ it( 'rejects input it cannot convert exactly', function ( string $major, string 
     'exponent'                  => [ '1e5', 'USD' ],
     'separators only'           => [ '.,', 'USD' ],
     'too large'                 => [ '99999999999999999999', 'USD' ],
+    'double minus'              => [ '--5', 'USD' ],
+    'minus inside'              => [ '5-0', 'USD' ],
+    'broken grouping'           => [ '1,2.34', 'USD' ],
+    'mixed grouping'            => [ '1.234,567.89', 'USD' ],
 ] )->throws( InvalidArgumentException::class );
 
 it( 'converts percent to rate_ubps the same way TaxRateMath does', function ( string $percent ): void {
