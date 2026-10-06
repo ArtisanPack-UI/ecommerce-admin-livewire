@@ -397,7 +397,7 @@ it( 'lets only one worker run an import at a time', function (): void {
     Queue::fake();
 
     $component = Livewire::test( Import::class )
-        ->set( 'csv', importUpload( "name\nMug\n" ) )
+        ->set( 'csv', importUpload( "name,sku\nMug,MUG-1\n" ) )
         ->call( 'upload' )
         ->call( 'check' );
 

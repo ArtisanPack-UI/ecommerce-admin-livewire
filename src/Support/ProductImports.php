@@ -326,7 +326,7 @@ final class ProductImports
     public static function dispatch( array $state ): array
     {
         // The dry-run report is not needed once rows are being written, and
-        // the state is saved after every row.
+        // the state is saved every few rows.
         $state['status']  = 'queued';
         $state['message'] = null;
         $state['report']  = null;
@@ -355,13 +355,18 @@ final class ProductImports
      */
     public static function errorsCsv( array $state ): string
     {
-        return Csv::build(
-            [ __( 'Line' ), __( 'Row' ), __( 'Problem' ) ],
-            array_map(
-                static fn ( array $error ): array => [ $error['line'] ?? '', $error['label'] ?? '', $error['message'] ?? '' ],
-                (array) ( $state['errors'] ?? [] ),
-            ),
+        $rows = array_map(
+            static fn ( array $error ): array => [ $error['line'] ?? '', $error['label'] ?? '', $error['message'] ?? '' ],
+            (array) ( $state['errors'] ?? [] ),
         );
+
+        $truncated = (int) ( $state['errors_truncated'] ?? 0 );
+
+        if ( $truncated > 0 ) {
+            $rows[] = [ '', '', trans_choice( ':count more row failed; only the first :max problems are listed.|:count more rows failed; only the first :max problems are listed.', $truncated, [ 'count' => $truncated, 'max' => RunProductImport::MAX_ERRORS ] ) ];
+        }
+
+        return Csv::build( [ __( 'Line' ), __( 'Row' ), __( 'Problem' ) ], $rows );
     }
 
     /**

@@ -127,7 +127,7 @@ it( 'keeps the featured flag and position through a CSV round trip', function ()
 
 it( 'rejects a malformed position in the CSV dry run', function ( string $position ): void {
     $context = [];
-    $result  = ProductCsv::check( [ 'name' => 'Mug', 'position' => $position ], $context );
+    $result  = ProductCsv::check( [ 'name' => 'Mug', 'sku' => 'MUG-9', 'position' => $position ], $context );
 
     expect( $result['action'] )->toBe( 'error' )
         ->and( $result['error'] )->toContain( 'position' );

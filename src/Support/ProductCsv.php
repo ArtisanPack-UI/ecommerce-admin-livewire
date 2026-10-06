@@ -458,6 +458,12 @@ final class ProductCsv
             return [ 'action' => 'update', 'product' => null, 'variant' => null ];
         }
 
+        // Without either, a resumed import (which can replay a few rows)
+        // couldn't tell it had already created the product.
+        if ( [] === $pending ) {
+            throw new InvalidArgumentException( __( 'A new product needs a SKU or a slug.' ) );
+        }
+
         return [ 'action' => 'create', 'product' => null, 'variant' => null ];
     }
 
