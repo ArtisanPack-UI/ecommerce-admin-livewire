@@ -59,6 +59,25 @@ final class AdminSpotlight
     public const COMMANDS_FILTER = 'ap.livewireUiComponents.spotlightCommands';
 
     /**
+     * The component library's shared spotlight route, which gets no admin
+     * results.
+     *
+     * @since 1.0.0
+     *
+     * @var string
+     */
+    public const SHARED_ROUTE = 'artisanpack.spotlight';
+
+    /**
+     * The admin's own spotlight route (under the admin middleware).
+     *
+     * @since 1.0.0
+     *
+     * @var string
+     */
+    public const ADMIN_ROUTE = AdminNav::ROUTE_PREFIX . 'spotlight';
+
+    /**
      * The provider extension filter.
      *
      * @since 1.0.0
@@ -177,7 +196,10 @@ final class AdminSpotlight
         $user ??= auth()->user();
         $search   = request()->query( 'search' );
 
-        if ( ! self::enabled() || ! $user instanceof Authenticatable || ! is_string( $search ) ) {
+        // The component library's shared route runs only the `web`
+        // middleware, so it would skip the host's 2FA or verified checks;
+        // admin results come only from the admin's own route.
+        if ( ! self::enabled() || ! $user instanceof Authenticatable || ! is_string( $search ) || request()->routeIs( self::SHARED_ROUTE ) ) {
             return $commands;
         }
 
@@ -221,7 +243,7 @@ final class AdminSpotlight
             }
 
             foreach ( $provider->search( $search, $user, $limit ) as $result ) {
-                if ( ! is_array( $result ) || ! isset( $result['name'], $result['link'] ) ) {
+                if ( ! is_array( $result ) || ! isset( $result['name'], $result['link'] ) || ! self::safeLink( (string) $result['link'] ) ) {
                     continue;
                 }
 
@@ -246,6 +268,38 @@ final class AdminSpotlight
      *
      * @return array<string, SpotlightProvider>
      */
+    /**
+     * Whether a result link may be bound to the palette's `href`: a
+     * relative path (not `//host`), or an http(s) URL on the app's host.
+     * Anything else (`javascript:`, other hosts) is dropped.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $link  The link.
+     *
+     * @return bool
+     */
+    public static function safeLink( string $link ): bool
+    {
+        if ( str_starts_with( $link, '/' ) ) {
+            return ! str_starts_with( $link, '//' ) && ! str_starts_with( $link, '/\\' );
+        }
+
+        $scheme = strtolower( (string) parse_url( $link, PHP_URL_SCHEME ) );
+        $host   = strtolower( (string) parse_url( $link, PHP_URL_HOST ) );
+
+        if ( ! in_array( $scheme, [ 'http', 'https' ], true ) || '' === $host ) {
+            return false;
+        }
+
+        $hosts = array_filter( [
+            strtolower( (string) parse_url( (string) config( 'app.url' ), PHP_URL_HOST ) ),
+            strtolower( request()->getHost() ),
+        ] );
+
+        return in_array( $host, $hosts, true );
+    }
+
     public static function providers( ?Authenticatable $user = null ): array
     {
         $providers = (array) applyFilters( self::PROVIDERS_FILTER, [

@@ -10,6 +10,7 @@
 --}}
 @if ( \ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::mountable() )
     <x-artisanpack-spotlight
+        :url="\Illuminate\Support\Facades\Route::has( \ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::ADMIN_ROUTE ) ? route( \ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::ADMIN_ROUTE, absolute: false ) : null"
         :shortcut="\ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::shortcut()"
         :search-text="__( 'Search orders, products, customers, or type a command…' )"
         :no-results-text="__( 'Nothing found.' )"

@@ -21,9 +21,13 @@ return [
     |--------------------------------------------------------------------------
     |
     | `middleware` wraps every admin route. The engine does not apply 2FA, so
-    | add the host's 2FA / `verified` middleware here. Set `routes_enabled` to
-    | false to register the routes yourself. `auto_register_cms_nav` injects
-    | the admin's navigation into the cms-framework admin menu when present.
+    | add the host's 2FA / `verified` middleware here. Every entry except a
+    | middleware group (such as `web`) is also made Livewire persistent
+    | middleware, so it runs again on each Livewire update from an admin page.
+    | The command palette searches through its own admin route, so it runs
+    | this stack too. Set `routes_enabled` to false to register the routes
+    | yourself. `auto_register_cms_nav` injects the admin's navigation into
+    | the cms-framework admin menu when present.
     |
     */
 

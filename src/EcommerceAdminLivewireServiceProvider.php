@@ -355,6 +355,63 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     }
 
     /**
+     * Makes the configured `admin.middleware` persistent: class names as
+     * given, aliases resolved to their classes. Middleware groups (`web`)
+     * are left out; Livewire's update route has its own.
+     *
+     * @since 1.0.0
+     *
+     * @return void
+     */
+    public function registerPersistentMiddleware(): void
+    {
+        if ( ! class_exists( Livewire::class ) ) {
+            return;
+        }
+
+        $middleware = self::hostPersistentMiddleware();
+
+        if ( [] !== $middleware ) {
+            Livewire::addPersistentMiddleware( $middleware );
+        }
+    }
+
+    /**
+     * The middleware classes behind `admin.middleware`, without groups.
+     *
+     * @since 1.0.0
+     *
+     * @return array<int, class-string>
+     */
+    public static function hostPersistentMiddleware(): array
+    {
+        $router  = app( 'router' );
+        $aliases = $router->getMiddleware();
+        $groups  = $router->getMiddlewareGroups();
+        $classes = [];
+
+        foreach ( (array) config( 'artisanpack.ecommerce-admin-livewire.admin.middleware', [] ) as $entry ) {
+            if ( ! is_string( $entry ) || '' === $entry ) {
+                continue;
+            }
+
+            $name = explode( ':', $entry, 2 )[0];
+
+            if ( isset( $groups[ $name ] ) ) {
+                continue;
+            }
+
+            $class = $aliases[ $name ] ?? $name;
+
+            if ( is_string( $class ) && class_exists( $class ) ) {
+                $classes[] = $class;
+            }
+        }
+
+        return array_values( array_unique( $classes ) );
+    }
+
+    /**
      * Registers the package with the engine's `SatelliteRegistry`.
      *
      * @since 1.0.0
@@ -474,6 +531,8 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * The route middleware only guards the initial page load. Registering the
      * access check and the `ecommerce.admin.mutate` limiter as persistent
      * makes Livewire re-run them on every update request from an admin page.
+     * So do the host's own `admin.middleware` entries (2FA, `verified`,
+     * `password.confirm`, ...), once every alias is known.
      *
      * @since 1.0.0
      *
@@ -490,6 +549,8 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         }
 
         Livewire::addPersistentMiddleware( [ EnsureAdminAccess::class, ThrottleAdminMutations::class ] );
+
+        $this->app->booted( fn () => $this->registerPersistentMiddleware() );
     }
 
     /**

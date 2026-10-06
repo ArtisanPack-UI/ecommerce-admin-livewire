@@ -24,13 +24,20 @@ afterEach( function (): void {
 } );
 
 /**
- * The palette results for a search, through the component library's route.
+ * The palette results for a search, through the admin's spotlight route.
+ * A user the admin middleware turns away gets none.
  *
  * @return array<int, array<string, mixed>>
  */
 function spotlightResults( string $search ): array
 {
-    return test()->getJson( route( 'artisanpack.spotlight', [ 'search' => $search ] ) )->assertOk()->json();
+    $response = test()->getJson( route( AdminSpotlight::ADMIN_ROUTE, [ 'search' => $search ] ) );
+
+    if ( 403 === $response->status() ) {
+        return [];
+    }
+
+    return $response->assertOk()->json();
 }
 
 it( 'finds orders by number and email and links to the order', function (): void {
@@ -163,6 +170,41 @@ it( 'returns nothing to guests', function (): void {
     auth()->logout();
 
     $this->getJson( route( 'artisanpack.spotlight', [ 'search' => 'mug' ] ) )->assertOk()->assertExactJson( [] );
+    $this->getJson( route( AdminSpotlight::ADMIN_ROUTE, [ 'search' => 'mug' ] ) )->assertUnauthorized();
+} );
+
+it( 'adds nothing to the component library\'s shared route, which skips the admin middleware', function (): void {
+    grantAbilities( [ 'product.viewAny', 'product.view' ] );
+    Product::factory()->create( [ 'name' => 'Mug' ] );
+
+    $this->getJson( route( 'artisanpack.spotlight', [ 'search' => 'mug' ] ) )->assertOk()->assertExactJson( [] );
+
+    expect( array_column( spotlightResults( 'mug' ), 'name' ) )->toContain( 'Mug' );
+} );
+
+it( 'runs the host\'s 2FA / verified middleware before answering', function (): void {
+    config()->set( 'artisanpack.ecommerce-admin-livewire.admin.middleware', [ 'web', 'auth', Tests\Fixtures\Http\RequireVerifiedName::class ] );
+    require __DIR__ . '/../../../routes/admin.php';
+    Illuminate\Support\Facades\Route::getRoutes()->refreshNameLookups();
+
+    grantAbilities( [ 'order.viewAny', 'order.view' ] );
+    Order::factory()->create( [ 'order_number' => 'SECRET01' ] );
+
+    $this->actingAs( makeUser( [ 'name' => 'Unverified' ] ) );
+    $this->getJson( route( AdminSpotlight::ADMIN_ROUTE, [ 'search' => 'SECRET01' ] ) )->assertForbidden();
+    $this->getJson( route( 'artisanpack.spotlight', [ 'search' => 'SECRET01' ] ) )->assertOk()->assertExactJson( [] );
+
+    $this->actingAs( makeUser( [ 'name' => 'Verified Admin' ] ) );
+
+    expect( array_column( spotlightResults( 'SECRET01' ), 'name' ) )->not->toBeEmpty();
+} );
+
+it( 'points the admin palette at the admin route', function (): void {
+    grantAbilities( [ 'order.viewAny' ] );
+
+    $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
+        ->assertOk()
+        ->assertSee( route( AdminSpotlight::ADMIN_ROUTE, absolute: false ), false );
 } );
 
 it( 'truncates an over-long search instead of failing', function (): void {
@@ -322,4 +364,31 @@ it( 'lists a coupon only when the user may view its promotion', function (): voi
     Coupon::query()->create( [ 'promotion_id' => Promotion::factory()->create( [ 'name' => 'Hidden sale' ] )->id, 'code' => 'HIDE10' ] );
 
     expect( array_column( spotlightResults( '10' ), 'name' ) )->toBe( [ 'OPEN10' ] );
+} );
+
+it( 'drops result links that are not relative or on the app\'s host', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+    config()->set( 'app.url', 'https://shop.example.test' );
+
+    addFilter( AdminSpotlight::PROVIDERS_FILTER, static fn ( array $providers ): array => [ 'links' => new class implements SpotlightProvider {
+        public function ability(): ?string
+        {
+            return null;
+        }
+
+        public function search( string $search, Authenticatable $user, int $limit ): array
+        {
+            return [
+                [ 'name' => 'Script', 'link' => 'javascript:alert(1)' ],
+                [ 'name' => 'Data', 'link' => 'data:text/html,hi' ],
+                [ 'name' => 'Elsewhere', 'link' => 'https://evil.example/' ],
+                [ 'name' => 'Protocol-relative', 'link' => '//evil.example/' ],
+                [ 'name' => 'Backslash', 'link' => '/\\evil.example/' ],
+                [ 'name' => 'Relative', 'link' => '/ecommerce-admin/orders' ],
+                [ 'name' => 'App URL', 'link' => 'https://shop.example.test/ecommerce-admin/orders' ],
+            ];
+        }
+    } ] );
+
+    expect( array_column( AdminSpotlight::search( 'x', $this->user ), 'name' ) )->toBe( [ 'Relative', 'App URL' ] );
 } );
