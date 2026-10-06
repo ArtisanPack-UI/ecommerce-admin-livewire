@@ -69,7 +69,16 @@ final class ProductCsv
      *
      * @var array<int, string>
      */
-    public const PRODUCT_COLUMNS = [ 'type', 'name', 'slug', 'sku', 'status', 'short_description', 'description', 'barcode', 'weight', 'weight_unit', 'length', 'width', 'height', 'dim_unit', 'is_taxable', 'tax_class_key' ];
+    public const PRODUCT_COLUMNS = [ 'type', 'name', 'slug', 'sku', 'status', 'short_description', 'description', 'barcode', 'weight', 'weight_unit', 'length', 'width', 'height', 'dim_unit', 'is_taxable', 'tax_class_key', 'is_featured', 'position' ];
+
+    /**
+     * The largest catalog position (the column is an unsigned int).
+     *
+     * @since 1.0.0
+     *
+     * @var int
+     */
+    public const MAX_POSITION = 4294967295;
 
     /**
      * Stock columns.
@@ -87,7 +96,7 @@ final class ProductCsv
      *
      * @var array<int, string>
      */
-    public const BOOLEAN_COLUMNS = [ 'is_taxable', 'track_inventory', 'allow_backorder' ];
+    public const BOOLEAN_COLUMNS = [ 'is_taxable', 'track_inventory', 'allow_backorder', 'is_featured' ];
 
     /**
      * Columns read as decimal numbers.
@@ -126,6 +135,8 @@ final class ProductCsv
             'dim_unit'            => __( 'Dimension unit' ),
             'is_taxable'          => __( 'Taxable' ),
             'tax_class_key'       => __( 'Tax class' ),
+            'is_featured'         => __( 'Featured' ),
+            'position'            => __( 'Catalog position' ),
             'track_inventory'     => __( 'Track inventory' ),
             'quantity_on_hand'    => __( 'Quantity on hand' ),
             'allow_backorder'     => __( 'Allow backorders' ),
@@ -503,6 +514,12 @@ final class ProductCsv
             }
         }
 
+        $position = self::value( $row, 'position' );
+
+        if ( '' !== $position && ( 1 !== preg_match( '/^\d{1,10}$/', $position ) || (int) $position > self::MAX_POSITION ) ) {
+            throw new InvalidArgumentException( __( 'Column ":column" must be a whole number from 0 to :max.', [ 'column' => 'position', 'max' => self::MAX_POSITION ] ) );
+        }
+
         $taxClass = self::value( $row, 'tax_class_key' );
 
         if ( '' !== $taxClass && ! TaxClass::query()->where( 'key', $taxClass )->exists() ) {
@@ -606,7 +623,11 @@ final class ProductCsv
             $value = self::value( $row, $column );
 
             if ( '' !== $value ) {
-                $data[ $column ] = in_array( $column, self::BOOLEAN_COLUMNS, true ) ? self::boolean( $value ) : $value;
+                $data[ $column ] = match ( true ) {
+                    in_array( $column, self::BOOLEAN_COLUMNS, true ) => self::boolean( $value ),
+                    'position' === $column                           => (int) $value,
+                    default                                          => $value,
+                };
             }
         }
 

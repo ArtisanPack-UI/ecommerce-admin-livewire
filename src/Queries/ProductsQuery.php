@@ -92,12 +92,13 @@ class ProductsQuery extends ResourceQuery
     public function sorts(): array
     {
         return [
-            'name'    => static::column( Product::class, 'name' ),
-            'sku'     => static::column( Product::class, 'sku' ),
-            'type'    => static::column( Product::class, 'type' ),
-            'status'  => static::column( Product::class, 'status' ),
-            'stock'   => 'stock_available',
-            'updated' => static::column( Product::class, 'updated_at' ),
+            'name'     => static::column( Product::class, 'name' ),
+            'sku'      => static::column( Product::class, 'sku' ),
+            'type'     => static::column( Product::class, 'type' ),
+            'status'   => static::column( Product::class, 'status' ),
+            'stock'    => 'stock_available',
+            'position' => static::column( Product::class, 'position' ),
+            'updated'  => static::column( Product::class, 'updated_at' ),
         ];
     }
 
@@ -248,6 +249,7 @@ class ProductsQuery extends ResourceQuery
             'category' => static fn ( Builder $query, mixed $value ) => $query->whereHas( 'categories', static fn ( Builder $category ) => $category->whereKey( (int) $value ) ),
             'tag'      => static fn ( Builder $query, mixed $value ) => $query->whereHas( 'tags', static fn ( Builder $tag ) => $tag->whereKey( (int) $value ) ),
             'stock'    => fn ( Builder $query, mixed $value ) => $this->applyStockState( $query, (string) $value ),
+            'featured' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Product::class, 'is_featured' ), '1' === (string) $value ),
         ];
     }
 

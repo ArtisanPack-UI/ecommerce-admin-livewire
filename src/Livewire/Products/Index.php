@@ -224,7 +224,7 @@ class Index extends Component
     {
         $service = app( ProductService::class );
 
-        [ $changed, $skipped, $failed ] = $this->eachEditable( $selection, 'update', static function ( Product $product ) use ( $service, $status ): void {
+        [ $changed, $skipped, $failed, $denied ] = $this->eachEditable( $selection, 'update', static function ( Product $product ) use ( $service, $status ): void {
             if ( $status !== $product->status ) {
                 $service->update( $product, [ 'status' => $status ] );
             }
@@ -236,6 +236,7 @@ class Index extends Component
                 : trans_choice( ':count product archived.|:count products archived.', $changed, [ 'count' => $changed ] ),
             $skipped,
             $failed,
+            $denied,
         );
     }
 
@@ -248,6 +249,36 @@ class Index extends Component
      *
      * @return string|null
      */
+    /**
+     * Marks the selected products featured, or takes them out of featured.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder<Product>  $selection  Selected products.
+     * @param  bool              $featured   Whether they are featured.
+     *
+     * @return string|null
+     */
+    protected function setFeatured( Builder $selection, bool $featured ): ?string
+    {
+        $service = app( ProductService::class );
+
+        [ $changed, $skipped, $failed, $denied ] = $this->eachEditable( $selection, 'update', static function ( Product $product ) use ( $service, $featured ): void {
+            if ( $featured !== (bool) $product->is_featured ) {
+                $service->update( $product, [ 'is_featured' => $featured ] );
+            }
+        } );
+
+        return $this->summary(
+            $featured
+                ? trans_choice( ':count product marked featured.|:count products marked featured.', $changed, [ 'count' => $changed ] )
+                : trans_choice( ':count product removed from featured.|:count products removed from featured.', $changed, [ 'count' => $changed ] ),
+            $skipped,
+            $failed,
+            $denied,
+        );
+    }
+
     protected function deleteSelection( Builder $selection ): ?string
     {
         $service = app( ProductService::class );
@@ -288,7 +319,7 @@ class Index extends Component
         $category = ProductCategory::query()->findOrFail( (int) $this->bulkCategoryId );
         $service  = app( ProductService::class );
 
-        [ $changed, $skipped, $failed ] = $this->eachEditable( $selection, 'update', static fn ( Product $product ) => $service->setCategories( $product, [ $category->id ], $mode ) );
+        [ $changed, $skipped, $failed, $denied ] = $this->eachEditable( $selection, 'update', static fn ( Product $product ) => $service->setCategories( $product, [ $category->id ], $mode ) );
 
         $this->bulkCategoryId = null;
 
@@ -298,6 +329,7 @@ class Index extends Component
                 : trans_choice( 'Removed ":category" from :count product.|Removed ":category" from :count products.', $changed, [ 'count' => $changed, 'category' => $category->name ] ),
             $skipped,
             $failed,
+            $denied,
         );
     }
 
@@ -322,7 +354,7 @@ class Index extends Component
         $tag     = ProductTag::query()->findOrFail( (int) $this->bulkTagId );
         $service = app( ProductService::class );
 
-        [ $changed, $skipped, $failed ] = $this->eachEditable( $selection, 'update', static fn ( Product $product ) => $service->setTags( $product, [ $tag->id ], $mode ) );
+        [ $changed, $skipped, $failed, $denied ] = $this->eachEditable( $selection, 'update', static fn ( Product $product ) => $service->setTags( $product, [ $tag->id ], $mode ) );
 
         $this->bulkTagId = null;
 
@@ -332,12 +364,15 @@ class Index extends Component
                 : trans_choice( 'Removed ":tag" from :count product.|Removed ":tag" from :count products.', $changed, [ 'count' => $changed, 'tag' => $tag->name ] ),
             $skipped,
             $failed,
+            $denied,
         );
     }
 
     /**
-     * Runs `$write` on every selected product the user may `$ability`,
-     * skipping read-only (missing-type) ones, in one transaction.
+     * Runs `$write` on every selected product the user may `$ability`, in
+     * one transaction. Read-only (missing-type) products are skipped, and
+     * so are products a per-record policy denies, so one denied row
+     * doesn't fail the whole action.
      *
      * @since 1.0.0
      *
@@ -345,7 +380,7 @@ class Index extends Component
      * @param  string                   $ability    Policy ability.
      * @param  callable(Product): mixed $write      Write.
      *
-     * @return array{0: int, 1: int, 2: int} Changed, skipped (read-only), and refused counts.
+     * @return array{0: int, 1: int, 2: int, 3: int} Changed, skipped (read-only), refused, and denied counts.
      */
     protected function eachEditable( Builder $selection, string $ability, callable $write ): array
     {
@@ -354,8 +389,9 @@ class Index extends Component
         $changed = 0;
         $skipped = 0;
         $failed  = 0;
+        $denied  = 0;
 
-        DB::transaction( function () use ( $ids, $ability, $write, &$changed, &$skipped, &$failed ): void {
+        DB::transaction( function () use ( $ids, $ability, $write, &$changed, &$skipped, &$failed, &$denied ): void {
             foreach ( array_chunk( $ids, 200 ) as $chunk ) {
                 foreach ( Product::query()->whereKey( $chunk )->get() as $product ) {
                     if ( $product->typeIsMissing() ) {
@@ -363,7 +399,10 @@ class Index extends Component
                         continue;
                     }
 
-                    $this->authorizeEcommerce( $ability, $product );
+                    if ( ! $this->canEcommerce( $ability, $product ) ) {
+                        ++$denied;
+                        continue;
+                    }
 
                     try {
                         $write( $product );
@@ -375,7 +414,7 @@ class Index extends Component
             }
         } );
 
-        return [ $changed, $skipped, $failed ];
+        return [ $changed, $skipped, $failed, $denied ];
     }
 
     /**
@@ -386,11 +425,16 @@ class Index extends Component
      * @param  string  $message  Success message.
      * @param  int     $skipped  Read-only products skipped.
      * @param  int     $failed   Products the engine refused.
+     * @param  int     $denied   Products the user may not change.
      *
      * @return string
      */
-    protected function summary( string $message, int $skipped, int $failed = 0 ): string
+    protected function summary( string $message, int $skipped, int $failed = 0, int $denied = 0 ): string
     {
+        if ( $denied > 0 ) {
+            $message .= ' ' . trans_choice( ':count product skipped: you may not change it.|:count products skipped: you may not change them.', $denied, [ 'count' => $denied ] );
+        }
+
         if ( $skipped > 0 ) {
             $message .= ' ' . trans_choice( ':count read-only product was skipped.|:count read-only products were skipped.', $skipped, [ 'count' => $skipped ] );
         }
@@ -504,6 +548,19 @@ class Index extends Component
                 },
             ],
             [
+                'key'      => 'featured',
+                'label'    => __( 'Featured' ),
+                'view'     => $cells . 'featured',
+                'export'   => static fn ( Product $product ): int => $product->is_featured ? 1 : 0,
+            ],
+            [
+                'key'      => 'position',
+                'label'    => __( 'Position' ),
+                'sortable' => true,
+                'class'    => 'text-end',
+                'value'    => static fn ( Product $product ): string => (string) (int) $product->position,
+            ],
+            [
                 'key'      => 'stock',
                 'label'    => __( 'Stock' ),
                 'sortable' => true,
@@ -538,6 +595,7 @@ class Index extends Component
             [ 'key' => 'type', 'label' => __( 'Type' ), 'type' => 'select', 'options' => self::typeOptions() ],
             [ 'key' => 'category', 'label' => __( 'Category' ), 'type' => 'select', 'options' => self::categoryOptions() ],
             [ 'key' => 'tag', 'label' => __( 'Tag' ), 'type' => 'select', 'options' => self::tagOptions() ],
+            [ 'key' => 'featured', 'label' => __( 'Featured' ), 'type' => 'boolean' ],
             [
                 'key'     => 'stock',
                 'label'   => __( 'Stock' ),
@@ -573,6 +631,20 @@ class Index extends Component
                 'icon'    => 'o-archive-box',
                 'ability' => 'product.update',
                 'handler' => fn ( Builder $selection ): ?string => $this->setStatus( $selection, 'archived' ),
+            ],
+            [
+                'key'     => 'feature',
+                'label'   => __( 'Mark featured' ),
+                'icon'    => 'o-star',
+                'ability' => 'product.update',
+                'handler' => fn ( Builder $selection ): ?string => $this->setFeatured( $selection, true ),
+            ],
+            [
+                'key'     => 'unfeature',
+                'label'   => __( 'Remove from featured' ),
+                'icon'    => 'o-minus-circle',
+                'ability' => 'product.update',
+                'handler' => fn ( Builder $selection ): ?string => $this->setFeatured( $selection, false ),
             ],
             [
                 'key'     => 'add-category',
@@ -689,7 +761,7 @@ class Index extends Component
         return ProductTag::query()
             ->orderBy( 'name' )
             ->get( [ 'id', 'name' ] )
-            ->map( static fn ( ProductTag $tag ): array => [ 'id' => (string) $tag->id, 'name' => (string) $tag->name ] )
+            ->map( static fn ( ProductTag $tag): array => [ 'id' => (string) $tag->id, 'name' => (string) $tag->name ] )
             ->all();
     }
 }

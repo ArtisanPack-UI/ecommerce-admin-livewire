@@ -249,6 +249,10 @@
                     <div class="flex flex-col gap-4">
                         <x-artisanpack-ec-category-picker model="categoryIds" :options="$categoryOptions" :label="__( 'Categories' )" />
                         <x-artisanpack-tags id="product-tags" :label="__( 'Tags' )" :hint="__( 'Press Enter after each tag. New tags are created when you save.' )" wire:model="tagNames" />
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <x-artisanpack-toggle id="product-featured" :label="__( 'Featured' )" :hint="__( 'Storefronts can highlight featured products.' )" wire:model="isFeatured" />
+                            <x-artisanpack-input id="product-position" type="number" min="0" step="1" :label="__( 'Catalog position' )" :hint="__( 'Manual catalog order: lower numbers come first.' )" wire:model="catalogPosition" />
+                        </div>
                     </div>
                 </fieldset>
             </x-artisanpack-tab>

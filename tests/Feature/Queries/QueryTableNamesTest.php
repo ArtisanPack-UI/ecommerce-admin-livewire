@@ -47,6 +47,7 @@ function queryTableNameCases(): array
             'category' => [ 1 ],
             'tag'      => [ 1 ],
             'stock'    => [ 'out', 'low', 'in', 'untracked' ],
+            'featured' => [ '1', '0' ],
         ] ],
         'inventory'             => [ static fn (): ResourceQuery => new InventoryQuery(), [
             'stock'   => [ 'out', 'low', 'reorder' ],

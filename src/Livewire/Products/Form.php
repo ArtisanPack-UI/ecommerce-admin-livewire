@@ -368,6 +368,24 @@ class Form extends Component
     public array $tagNames = [];
 
     /**
+     * Whether the product is featured.
+     *
+     * @since 1.0.0
+     *
+     * @var bool
+     */
+    public bool $isFeatured = false;
+
+    /**
+     * The manual catalog order (lower first).
+     *
+     * @since 1.0.0
+     *
+     * @var int|string|null
+     */
+    public int|string|null $catalogPosition = 0;
+
+    /**
      * Featured media-library item.
      *
      * @since 1.0.0
@@ -916,7 +934,7 @@ class Form extends Component
             'sku', 'barcode', 'trackInventory', 'quantity', 'stockReason', 'allowBackorder', 'lowStockThreshold' => 'inventory',
             'weight', 'weightUnit', 'length', 'width', 'height', 'dimUnit'                                       => 'shipping',
             'isTaxable', 'taxClassKey'                                                                           => 'tax',
-            'categoryIds', 'tagNames'                                                                            => 'organization',
+            'categoryIds', 'tagNames', 'isFeatured', 'catalogPosition'                                           => 'organization',
             'relations'                                                                                          => 'linked',
             'featuredMediaId', 'featuredImageUrl', 'gallery'                                                     => 'media',
             'panelState'                                                                                         => 'panel',
@@ -1018,6 +1036,8 @@ class Form extends Component
             'categoryIds.*'                => [ 'integer', Rule::exists( ProductCategory::class, 'id' ) ],
             'tagNames'                     => [ 'array', 'max:50' ],
             'tagNames.*'                   => [ 'string', 'max:120' ],
+            'isFeatured'                   => [ 'boolean' ],
+            'catalogPosition'              => [ 'nullable', 'integer', 'min:0', 'max:4294967295' ],
             'featuredMediaId'              => [ 'nullable', 'integer', 'min:1' ],
             'featuredImageUrl'             => [ 'nullable', 'string', 'max:1000', 'url:http,https' ],
             'gallery'                      => [ 'array', 'max:50' ],
@@ -1089,6 +1109,7 @@ class Form extends Component
             'taxClassKey'                => __( 'tax class' ),
             'categoryIds.*'              => __( 'category' ),
             'tagNames.*'                 => __( 'tag' ),
+            'catalogPosition'            => __( 'catalog position' ),
             'featuredImageUrl'           => __( 'featured image URL' ),
             'gallery.*.image_url'        => __( 'image URL' ),
             'gallery.*.alt_text'         => __( 'alt text' ),
@@ -1186,6 +1207,8 @@ class Form extends Component
             'prices'                  => $this->priceRows(),
             'category_ids'            => array_map( 'intval', $this->categoryIds ),
             'tag_ids'                 => $this->tagIds(),
+            'is_featured'             => $this->isFeatured,
+            'position'                => is_numeric( $this->catalogPosition ) ? (int) $this->catalogPosition : 0,
             'featured_image_media_id' => $this->featuredMediaId,
             'featured_image_url'      => null === $this->featuredMediaId ? $this->featuredImageUrl : '',
             'relations'               => array_map(
@@ -1388,6 +1411,8 @@ class Form extends Component
             'featured_image_url'            => 'featuredImageUrl',
             'category_ids'                  => 'categoryIds',
             'tag_ids'                       => 'tagNames',
+            'is_featured'                   => 'isFeatured',
+            'position'                      => 'catalogPosition',
             'stock_adjustment.reason'       => 'stockReason',
             'inventory.low_stock_threshold' => 'lowStockThreshold',
             default                         => 'name',
@@ -1457,6 +1482,8 @@ class Form extends Component
         $this->taxClassKey       = (string) ( $product->tax_class_key ?? '' );
         $this->categoryIds       = $product->categories()->allRelatedIds()->map( static fn ( $id ): int => (int) $id )->all();
         $this->tagNames          = $product->tags()->orderBy( 'name' )->pluck( 'name' )->all();
+        $this->isFeatured        = (bool) $product->is_featured;
+        $this->catalogPosition   = (int) $product->position;
         $this->featuredMediaId   = $product->featured_image_media_id;
         $this->featuredImageUrl  = (string) ( $product->meta['featured_image_url'] ?? '' );
         $this->gallery           = $product->images()->get()->map( static fn ( ProductImage $image ): array => [
