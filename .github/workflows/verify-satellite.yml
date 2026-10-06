@@ -16,7 +16,7 @@ permissions:
 jobs:
   verify:
     # Pinned to an engine release tag: never point this at a moving branch.
-    uses: ArtisanPack-UI/ecommerce/.github/workflows/verify-satellite.yml@v1.0.0
+    uses: ArtisanPack-UI/ecommerce/.github/workflows/verify-satellite.yml@v1.0.1
     permissions:
       contents: read
     with:
