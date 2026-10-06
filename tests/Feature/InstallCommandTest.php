@@ -23,7 +23,20 @@ it( 'prints the Tailwind source lines and the npm dependency', function (): void
         $command->expectsOutputToContain( $source );
     }
 
-    $command->expectsOutputToContain( 'npm install @artisanpack-ui/livewire-drag-and-drop' )
+    $command->expectsOutputToContain( 'npm install @artisanpack-ui/livewire-drag-and-drop apexcharts flatpickr' )
+        ->assertSuccessful();
+} );
+
+it( 'prints the script globals, the asset publish command, the daisyUI pin, and the docs link', function (): void {
+    $command = $this->artisan( 'ecommerce-admin:install' );
+
+    foreach ( InstallCommand::JS_GLOBALS as $line ) {
+        $command->expectsOutputToContain( $line );
+    }
+
+    $command->expectsOutputToContain( 'php artisan vendor:publish --tag=artisanpack-assets' )
+        ->expectsOutputToContain( '~5.0' )
+        ->expectsOutputToContain( InstallCommand::FRONT_END_DOCS )
         ->assertSuccessful();
 } );
 
