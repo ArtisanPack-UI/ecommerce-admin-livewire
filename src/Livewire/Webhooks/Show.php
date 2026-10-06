@@ -185,6 +185,7 @@ class Show extends Component
         $indexRoute   = AdminNav::ROUTE_PREFIX . 'webhooks.index';
 
         return view( 'ecommerce-admin::livewire.webhooks.show', $this->resourceTableData() + [
+            'revealedSecret'   => $this->secretToShow,
             'subscription'     => $subscription,
             'disabledByEngine' => Webhooks::disabledByEngine( $subscription ),
             'canUpdate'        => Authorization::allows( auth()->user(), 'webhookSubscription.update', $subscription ),

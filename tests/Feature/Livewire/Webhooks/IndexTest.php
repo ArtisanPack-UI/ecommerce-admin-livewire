@@ -72,11 +72,10 @@ it( 'creates a subscription and shows its secret once', function (): void {
         ->and( $subscription->events )->toBe( [ 'order.refunded', 'order.cancelled' ] )
         ->and( (string) DB::table( ( new WebhookSubscription() )->getTable() )->value( 'secret' ) )->not->toContain( $secret );
 
-    $component->assertSet( 'revealedSecret', $secret )
-        ->assertSeeHtml( 'data-revealed-secret' )
+    $component->assertSeeHtml( 'data-revealed-secret' )
         ->assertSee( $secret )
         ->call( 'dismissSecret' )
-        ->assertSet( 'revealedSecret', null )
+        ->assertSet( 'showingSecret', false )
         ->assertDontSee( $secret );
 } );
 
@@ -88,7 +87,24 @@ it( 'forgets the secret when the notice is closed from the client', function ():
         ->set( 'form.events', [ '*' ] )
         ->call( 'save' )
         ->set( 'showingSecret', false )
-        ->assertSet( 'revealedSecret', null );
+        ->assertDontSeeHtml( 'data-revealed-secret' );
+} );
+
+it( 'keeps the revealed secret out of the component snapshot', function (): void {
+    $subscription = WebhookSubscription::factory()->create();
+
+    $component = Livewire::test( Index::class )->call( 'confirmRotate', $subscription->id );
+    $component->call( 'rotateSecret', $component->viewData( 'rotateToken' ) );
+
+    $secret = (string) $subscription->refresh()->secret;
+
+    expect( $component->html() )->toContain( $secret )
+        ->and( json_encode( $component->snapshot ) )->not->toContain( $secret );
+
+    $component->call( '$refresh' );
+
+    expect( json_encode( $component->snapshot ) )->not->toContain( $secret )
+        ->and( $component->get( 'showingSecret' ) )->toBeTrue();
 } );
 
 it( 'surfaces the engine URL rules as validation errors', function ( string $url ): void {
@@ -125,7 +141,7 @@ it( 'reports a create a store extension refused', function (): void {
         ->set( 'form.url', 'https://partner.example.test/hooks' )
         ->set( 'form.events', [ 'order.refunded' ] )
         ->call( 'save' )
-        ->assertSet( 'revealedSecret', null );
+        ->assertSet( 'showingSecret', false );
 
     removeAllFilters( 'ap.ecommerce.webhook.subscribing' );
 
@@ -143,7 +159,7 @@ it( 'edits a subscription without touching its secret', function (): void {
         ->set( 'form.events', [ '*' ] )
         ->call( 'save' )
         ->assertHasNoErrors()
-        ->assertSet( 'revealedSecret', null );
+        ->assertSet( 'showingSecret', false );
 
     $subscription->refresh();
 
@@ -182,7 +198,7 @@ it( 'rotates the secret after confirmation and shows the new one once', function
 
     expect( $secret )->not->toBe( 'whsec_leaked-secret-value-0000' )->toStartWith( 'whsec_' );
 
-    $component->assertSet( 'revealedSecret', $secret )->assertSet( 'confirmingRotate', false );
+    $component->assertSee( $secret )->assertSet( 'showingSecret', true )->assertSet( 'confirmingRotate', false );
 } );
 
 it( 'does not rotate twice with the same token', function (): void {

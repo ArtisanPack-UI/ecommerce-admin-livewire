@@ -450,6 +450,7 @@
     "Contract verified": "Contrato verificado",
     "Copied.": "Copiado.",
     "Copies held outside the store's records, such as the payment provider, sent emails, and server logs": "Copias guardadas fuera de los registros de la tienda, como el proveedor de pagos, los correos enviados y los registros del servidor",
+    "Copy failed. The secret is selected; press Ctrl+C.": "No se pudo copiar. El secreto está seleccionado; pulsa Ctrl+C.",
     "Copy secret": "Copiar secreto",
     "Copy this secret now": "Copia este secreto ahora",
     "Cost": "Coste",

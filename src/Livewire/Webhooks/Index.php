@@ -331,14 +331,15 @@ class Index extends Component
         $deleting = null === $this->deletingId || ! $this->confirmingDelete ? null : WebhookSubscription::query()->find( $this->deletingId );
 
         return view( 'ecommerce-admin::livewire.webhooks.index', $this->resourceTableData() + [
-            'canCreate'    => $this->canEcommerce( 'create', WebhookSubscription::class ),
-            'canUpdate'    => Authorization::allows( $user, 'webhookSubscription.update' ),
-            'canDelete'    => Authorization::allows( $user, 'webhookSubscription.delete' ),
-            'eventOptions' => Webhooks::eventOptions( (array) $this->form['events'] ),
-            'rotating'     => $rotating,
-            'rotateToken'  => null === $rotating ? null : $this->actionToken( 'rotate', $rotating ),
-            'deleting'     => $deleting,
-            'deleteToken'  => null === $deleting ? null : $this->actionToken( 'delete', $deleting ),
+            'revealedSecret'   => $this->secretToShow,
+            'canCreate'        => $this->canEcommerce( 'create', WebhookSubscription::class ),
+            'canUpdate'        => Authorization::allows( $user, 'webhookSubscription.update' ),
+            'canDelete'        => Authorization::allows( $user, 'webhookSubscription.delete' ),
+            'eventOptions'     => Webhooks::eventOptions( (array) $this->form['events'] ),
+            'rotating'         => $rotating,
+            'rotateToken'      => null === $rotating ? null : $this->actionToken( 'rotate', $rotating ),
+            'deleting'         => $deleting,
+            'deleteToken'      => null === $deleting ? null : $this->actionToken( 'delete', $deleting ),
         ] );
     }
 

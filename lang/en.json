@@ -450,6 +450,7 @@
     "Contract verified": "Contract verified",
     "Copied.": "Copied.",
     "Copies held outside the store's records, such as the payment provider, sent emails, and server logs": "Copies held outside the store's records, such as the payment provider, sent emails, and server logs",
+    "Copy failed. The secret is selected; press Ctrl+C.": "Copy failed. The secret is selected; press Ctrl+C.",
     "Copy secret": "Copy secret",
     "Copy this secret now": "Copy this secret now",
     "Cost": "Cost",
