@@ -17,7 +17,7 @@ beforeEach( function (): void {
     view()->share( 'errors', new ViewErrorBag() );
 } );
 
-it( 'renders the pickers on x-artisanpack-choices with server search', function (): void {
+it( 'renders the pickers on the design-system Combobox with server search', function (): void {
     grantAbilities( [ 'product.viewAny', 'customer.viewAny' ] );
     Product::factory()->create( [ 'name' => 'Blue Mug', 'sku' => 'MUG-BLUE' ] );
 
@@ -26,6 +26,53 @@ it( 'renders the pickers on x-artisanpack-choices with server search', function 
         ->assertSeeHtml( 'searchPicker&#039;, $event.detail.search, &#039;product&#039;, &#039;productIds&#039;)' )
         ->assertSeeHtml( 'searchPicker&#039;, $event.detail.search, &#039;customer&#039;, &#039;customerId&#039;)' )
         ->assertSee( 'Blue Mug' );
+} );
+
+it( 'shows multi picks as chips and a single pick as a clearable value', function (): void {
+    grantAbilities( [ 'product.viewAny', 'customer.viewAny' ] );
+
+    $html = Livewire::actingAs( makeUser() )->test( HelperForm::class )->html();
+
+    preg_match( '/<div[^>]*data-picker="product"[^>]*>/', $html, $product );
+    preg_match( '/<div[^>]*data-picker="customer"[^>]*>/', $html, $customer );
+
+    expect( $product[0] )->toContain( 'apui-combobox' )
+        ->toContain( 'data-multiple' )
+        ->toContain( 'x-on:search-change.debounce.300ms' )
+        ->and( $customer[0] )->not->toContain( 'data-multiple' )
+        ->and( $html )->toContain( 'Search products or SKUs' )
+        ->toContain( 'Search customers by name or email' )
+        ->toContain( 'Searching…' )
+        ->toContain( 'No results found.' )
+        ->not->toContain( 'x-artisanpack-choices' );
+} );
+
+it( 'lists results with their sub-label', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+    Product::factory()->create( [ 'name' => 'Blue Mug', 'sku' => 'MUG-BLUE' ] );
+
+    Livewire::actingAs( makeUser() )
+        ->test( HelperForm::class )
+        ->assertSee( 'Blue Mug' )
+        ->assertSee( 'SKU: MUG-BLUE' );
+} );
+
+it( 'becomes an info alert when no source is registered', function (): void {
+    app()->instance( PickerSourceRegistry::class, new PickerSourceRegistry() );
+
+    expect( Illuminate\Support\Facades\Blade::render( '<x-artisanpack-ec-variant-picker model="variantIds" label="Variants" />' ) )
+        ->toContain( 'data-picker-unavailable="variant"' )
+        ->toContain( 'This picker is not available yet.' )
+        ->toContain( 'role="status"' )
+        ->not->toContain( 'apui-combobox' );
+} );
+
+it( 'takes a placeholder override', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+
+    expect( Illuminate\Support\Facades\Blade::render( '<x-artisanpack-ec-product-picker model="productIds" label="Products" placeholder="Find a gift" />' ) )
+        ->toContain( 'Find a gift' )
+        ->not->toContain( 'Search products or SKUs' );
 } );
 
 it( 'searches products by name and SKU', function (): void {

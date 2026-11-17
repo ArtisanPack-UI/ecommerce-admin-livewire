@@ -38,10 +38,50 @@ it( 'binds live when the model is live', function (): void {
         ->toContain( "\$wire.entangle( 'amount', true )" );
 } );
 
-it( 'points the input at its format error while the value is invalid', function (): void {
-    expect( Blade::render( '<x-artisanpack-ec-money-input id="price" wire:model="amount" currency="USD" />' ) )
-        ->toContain( 'id="price-format-error"' )
-        ->toContain( 'x-bind:aria-describedby="invalid ? \'price-format-error\' : null"' );
+it( 'points the input at its hint and its format error', function (): void {
+    expect( Blade::render( '<x-artisanpack-ec-money-input id="price" wire:model="amount" currency="USD" label="Price" hint="Before tax." />' ) )
+        ->toContain( 'id="price-format-error" data-scope="input" data-part="error" data-format-error role="alert" hidden x-bind:hidden="! invalid"' )
+        ->toContain( 'aria-describedby="price-hint price-format-error"' )
+        ->toContain( 'x-bind:aria-invalid="invalid ? \'true\' : null"' )
+        ->toContain( 'x-bind:data-format-invalid="invalid ? \'\' : null"' );
+} );
+
+it( 'keeps a server error invalid and shows it in the same slot', function (): void {
+    view()->share( 'errors', ( new Illuminate\Support\ViewErrorBag() )->put( 'default', new Illuminate\Support\MessageBag( [ 'amount' => 'The refund is too large.' ] ) ) );
+
+    expect( Blade::render( '<x-artisanpack-ec-money-input id="refund" wire:model="amount" currency="USD" label="Refund" />' ) )
+        ->toContain( 'The refund is too large.' )
+        ->toContain( 'aria-describedby="refund-error refund-format-error"' )
+        ->toContain( 'x-bind:aria-invalid="invalid ? \'true\' : &#039;true&#039;"' );
+} );
+
+it( 'keys the Alpine root, not the inner input, so a new currency starts fresh', function (): void {
+    $html = Blade::render( '<x-artisanpack-ec-money-input wire:model="amount" currency="JPY" label="Price" wire:key="price-JPY" />' );
+
+    expect( $html )->toMatch( '/class="ec-scaled-input" wire:key="price-JPY"\s*>/' )
+        ->and( substr_count( $html, 'wire:key="price-JPY"' ) )->toBe( 1 );
+} );
+
+it( 'drops the hidden server error from the description while the format error shows', function (): void {
+    view()->share( 'errors', ( new Illuminate\Support\ViewErrorBag() )->put( 'default', new Illuminate\Support\MessageBag( [ 'amount' => 'Too large.' ] ) ) );
+
+    expect( Blade::render( '<x-artisanpack-ec-money-input id="refund" wire:model="amount" currency="USD" label="Refund" hint="Up to $5." />' ) )
+        ->toContain( 'x-bind:aria-describedby="invalid ? &#039;refund-hint refund-format-error&#039; : &#039;refund-hint refund-error refund-format-error&#039;"' );
+} );
+
+it( 'reads the currency or percent after the label', function (): void {
+    expect( Blade::render( '<x-artisanpack-ec-money-input wire:model="amount" currency="EUR" label="Price" />' ) )
+        ->toContain( 'Price<span class="apui-sr-only">, EUR</span>' )
+        ->toContain( 'data-part="prefix">EUR</span>' )
+        ->and( Blade::render( '<x-artisanpack-ec-percent-input wire:model="rateUbps" label="Rate" />' ) )
+        ->toContain( 'Rate<span class="apui-sr-only">, percent</span>' )
+        ->toContain( 'data-part="suffix">%</span>' );
+} );
+
+it( 'escapes the label', function (): void {
+    expect( Blade::render( '<x-artisanpack-ec-money-input wire:model="amount" currency="USD" label="<b>Price</b>" />' ) )
+        ->toContain( '&lt;b&gt;Price&lt;/b&gt;<span class="apui-sr-only">' )
+        ->not->toContain( '<b>Price</b>' );
 } );
 
 it( 'renders the percent input on rate_ubps', function (): void {

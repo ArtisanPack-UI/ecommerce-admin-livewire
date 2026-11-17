@@ -19,7 +19,7 @@
                 @include( 'ecommerce-admin::partials.error-summary' )
                 <x-artisanpack-input id="address.label" :label="__( 'Label' )" :hint="__( 'Optional, like Home or Office.' )" wire:model="address.label" />
 
-                <x-artisanpack-ec-address-form model="address" />
+                <x-artisanpack-ec-admin-address-form model="address" />
 
                 <div class="flex flex-wrap gap-4">
                     <x-artisanpack-toggle id="address.is_default_shipping" :label="__( 'Default shipping address' )" wire:model="address.is_default_shipping" />
@@ -54,7 +54,7 @@
                         @endif
                     </div>
 
-                    <x-artisanpack-ec-address :address="$savedAddress" />
+                    <x-artisanpack-ec-admin-address :address="$savedAddress" />
 
                     @if ( $canUpdate )
                         <div class="mt-3 flex flex-wrap gap-1">

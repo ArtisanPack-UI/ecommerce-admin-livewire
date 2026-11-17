@@ -15,6 +15,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire;
 
+use ArtisanPack\LivewireUiComponents\Support\IconRegistry;
 use ArtisanPackUI\Ecommerce\Registries\SatelliteRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\PruneImportsCommand;
@@ -112,19 +113,21 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * The composed Blade components, keyed by their name after the
      * `artisanpack-ec-` prefix.
      *
-     * `money` and `empty-state` share their names with ecommerce-storefront-
-     * livewire's components, so in an app with both, whichever registers last
-     * owns them. The admin's own views use the `admin-money` and
-     * `admin-empty-state` names, which only the admin registers.
+     * `money`, `empty-state`, `address` and `address-form` share their names
+     * with ecommerce-storefront-livewire's components, so in an app with
+     * both, whichever registers last owns them. The admin's own views use
+     * the `admin-` names, which only the admin registers.
      *
      * @since 1.0.0
-     * @since 2.0.0 Added `admin-money` and `admin-empty-state`.
+     * @since 2.0.0 Added `admin-money`, `admin-empty-state`, `admin-address` and `admin-address-form`.
      *
      * @var array<string, class-string>
      */
     public const BLADE_COMPONENTS = [
         'address'              => Components\Address::class,
         'address-form'         => Components\AddressForm::class,
+        'admin-address'        => Components\Address::class,
+        'admin-address-form'   => Components\AddressForm::class,
         'admin-empty-state'    => Components\EmptyState::class,
         'admin-money'          => Components\Money::class,
         'bulk-action-bar'      => Components\BulkActionBar::class,
@@ -230,6 +233,18 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     ];
 
     /**
+     * Lucide icons the admin uses that livewire-ui-components doesn't ship.
+     * A host's own registration of the same name wins.
+     *
+     * @since 2.0.0
+     *
+     * @var array<string, string>
+     */
+    public const ICONS = [
+        'phone' => '<path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/>',
+    ];
+
+    /**
      * Registers the package configuration and the extension registries.
      *
      * @since 1.0.0
@@ -331,6 +346,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $this->registerTranslations();
         $this->registerCommands();
         $this->registerBladeComponents();
+        $this->registerIcons();
         $this->registerLayoutResolver();
         $this->registerLivewireComponents();
         $this->registerRoutes();
@@ -613,6 +629,26 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
         if ( is_string( $class ) && '' !== $class && ! class_exists( $class ) && ! $this->app->bound( $class ) ) {
             $this->app->bind( $class, NullSpotlight::class );
+        }
+    }
+
+    /**
+     * Registers the admin's extra icons with livewire-ui-components.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    protected function registerIcons(): void
+    {
+        $missing = array_filter(
+            self::ICONS,
+            static fn ( string $body, string $name ): bool => ! IconRegistry::has( $name ),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
+        if ( [] !== $missing ) {
+            IconRegistry::register( $missing );
         }
     }
 

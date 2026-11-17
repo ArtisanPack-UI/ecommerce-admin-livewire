@@ -207,9 +207,9 @@
             {{-- Addresses --}}
             <x-artisanpack-card :title="__( 'Addresses' )">
                 <h2 class="font-semibold">{{ __( 'Shipping' ) }}</h2>
-                <x-artisanpack-ec-address :address="$order->shipping_address" class="mb-3" />
+                <x-artisanpack-ec-admin-address :address="$order->shipping_address" class="mb-3" />
                 <h2 class="font-semibold">{{ __( 'Billing' ) }}</h2>
-                <x-artisanpack-ec-address :address="$order->billing_address" />
+                <x-artisanpack-ec-admin-address :address="$order->billing_address" />
             </x-artisanpack-card>
 
             {{-- Payment --}}

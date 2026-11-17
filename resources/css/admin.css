@@ -261,4 +261,205 @@
         max-inline-size: 44ch;
         color: var(--apui-text-muted);
     }
+
+    /* Money and percent inputs (#83): tabular digits that stay LTR, and the
+       format error in the server error's place. */
+    .ec-scaled-input [data-scope="input"][data-part="control"] {
+        direction: ltr;
+        unicode-bidi: isolate;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* The number reads left to right but still sits at the field's start. */
+    .ec-scaled-input:dir(rtl) [data-scope="input"][data-part="control"] {
+        text-align: right;
+    }
+
+    .ec-scaled-input[data-format-invalid] [data-scope="input"][data-part="box"] {
+        border-color: var(--apui-color-error-border);
+    }
+
+    .ec-scaled-input[data-format-invalid] [data-scope="input"][data-part="error"]:not([data-format-error]) {
+        display: none;
+    }
+
+    .ec-scaled-input > [data-format-error] {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-block-start: 6px;
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-scaled-input > [data-format-error][hidden] {
+        display: none;
+    }
+
+    .ec-scaled-input > [data-format-error] > svg {
+        flex: none;
+        inline-size: var(--apui-icon-size-sm, 14px);
+        block-size: var(--apui-icon-size-sm, 14px);
+    }
+
+    /* Address (#85): plain text that takes the surface it sits on. */
+    .ec-address {
+        display: grid;
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        font-style: normal;
+        line-height: 22px;
+    }
+
+    .ec-address > span {
+        display: block;
+    }
+
+    .ec-address .ec-address-name {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-address .ec-address-phone {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-block-start: 6px;
+        color: var(--apui-text-muted);
+    }
+
+    .ec-address-empty {
+        margin: 0;
+        color: var(--apui-text-muted);
+    }
+
+    /* Field grid (#86, #87): two columns that collapse to one when the
+       container is too narrow for two 14rem fields. */
+    .ec-field-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, max(14rem, calc((100% - 24px) / 2))), 1fr));
+        gap: 20px 24px;
+        min-inline-size: 0;
+    }
+
+    .ec-field-grid > * {
+        min-inline-size: 0;
+    }
+
+    .ec-span-2 {
+        grid-column: 1 / -1;
+    }
+
+    /* Shared field text for the controls the admin draws itself. */
+    .ec-field-label {
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        font-weight: var(--apui-font-weight-medium, 500);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-field-hint {
+        margin: 0;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: var(--apui-type-caption-line-height, 16px);
+    }
+
+    .ec-field-error {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin: 0;
+        color: var(--apui-color-error-text);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: var(--apui-type-caption-line-height, 16px);
+    }
+
+    .ec-field-error > svg {
+        flex: none;
+        inline-size: var(--apui-icon-size-sm, 14px);
+        block-size: var(--apui-icon-size-sm, 14px);
+    }
+
+    /* Config form (#87) */
+    .ec-config-json {
+        display: grid;
+        gap: 16px;
+    }
+
+    .ec-config-empty {
+        padding: 0;
+    }
+
+    .ec-numeric [data-scope="input"][data-part="control"] {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ec-mono textarea {
+        font-family: var(--apui-font-family-mono);
+    }
+
+    .ec-weekdays {
+        display: grid;
+        gap: 6px;
+        align-content: start;
+    }
+
+    .ec-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .ec-chip-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-inline-size: 44px;
+        block-size: 32px;
+        padding-inline: 10px;
+        border: var(--apui-border-width) solid var(--apui-border-default);
+        border-radius: var(--apui-chip-radius, 9999px);
+        background: var(--apui-surface-default);
+        color: var(--apui-text-default);
+        font: inherit;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        font-weight: var(--apui-font-weight-medium, 500);
+        cursor: pointer;
+    }
+
+    .ec-chip-toggle:hover {
+        border-color: var(--apui-border-strong);
+    }
+
+    .ec-chip-toggle[aria-pressed="true"] {
+        border-color: var(--apui-color-primary);
+        background: var(--apui-color-primary-soft);
+        color: var(--apui-color-primary-soft-foreground);
+    }
+
+    .ec-chip-toggle:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid transparent;
+        box-shadow:
+            0 0 0 var(--apui-focus-ring-offset, 2px) var(--apui-focus-ring-offset-color),
+            0 0 0 calc(var(--apui-focus-ring-offset, 2px) + var(--apui-focus-ring-width, 2px)) var(--apui-focus-ring-color);
+    }
+
+    .ec-repeater {
+        background: var(--apui-surface-raised);
+    }
+
+    .ec-repeat-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 12px;
+        padding-block-end: 12px;
+        border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-repeat-cells {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+        gap: 12px;
+        min-inline-size: 0;
+    }
 }

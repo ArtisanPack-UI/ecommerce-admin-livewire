@@ -55,8 +55,8 @@ it( 'renders each field type with a library input', function ( string $type, str
     'product'     => [ 'product', 'searchPicker' ],
     'category'    => [ 'category', 'searchPicker' ],
     'tag'         => [ 'tag', 'Labels' ],
-    'date'        => [ 'date', 'type="date"' ],
-    'daterange'   => [ 'daterange', 'wire:model="config.window.end"' ],
+    'date'        => [ 'date', 'apui-date-picker' ],
+    'daterange'   => [ 'daterange', '<fieldset class="ec-range"' ],
     'weekday'     => [ 'weekday', 'Sunday' ],
     'template'    => [ 'template', '<textarea' ],
     'repeater'    => [ 'repeater', 'Add a row' ],
@@ -192,9 +192,74 @@ it( 'shows a money field for a minimum-subtotal condition', function (): void {
         ->assertSet( 'saved', [ 'amount' => 5000 ] );
 } );
 
+it( 'lays the fields out in a grid and spans the wide ones', function (): void {
+    $html = everyTypeForm()->html();
+
+    expect( $html )->toContain( '<div class="ec-field-grid">' )
+        ->toMatch( '/class="ec-span-2" wire:key="config-config-enabled"/' )
+        ->toMatch( '/class="ec-span-2" wire:key="config-config-tiers"/' )
+        ->toMatch( '/class="ec-span-2" wire:key="config-config-labels"/' )
+        ->not->toMatch( '/class="ec-span-2" wire:key="config-config-count"/' )
+        ->not->toContain( 'fieldset-legend' )
+        ->not->toContain( 'rounded-box' );
+} );
+
+it( 'renders weekdays as toggle chips in a labelled group', function (): void {
+    $html = everyTypeForm( [ 'days' => [ 1, 5 ] ] )->html();
+
+    expect( $html )->toContain( 'role="group" aria-labelledby="config-config-days-label"' )
+        ->toMatch( '/aria-label="Monday"\s+aria-pressed="true"/' )
+        ->toMatch( '/aria-label="Friday"\s+aria-pressed="true"/' )
+        ->toMatch( '/aria-label="Tuesday"\s+aria-pressed="false"/' )
+        ->toContain( '>Mon</button>' );
+} );
+
+it( 'binds the weekday chips by a path read on use and shows their error', function (): void {
+    $html = everyTypeForm( [ 'days' => [ 9 ] ] )->call( 'save' )->html();
+
+    expect( $html )->toContain( 'data-config-path="config.days"' )
+        ->toContain( '$wire.$set( this.$root.dataset.configPath' )
+        ->not->toContain( '$wire.entangle( &#039;config.days' )
+        ->toContain( 'aria-describedby="config-config-days-error"' )
+        ->toContain( 'id="config-config-days-error" role="alert"' );
+} );
+
+it( 'starts the week on the locale\'s first day', function ( string $locale, string $first ): void {
+    app()->setLocale( $locale );
+
+    $days = ( new ArtisanPackUI\EcommerceAdminLivewire\View\Components\ConfigForm( 'promotion-action', 'every-type', 'config' ) )->weekdays();
+
+    expect( $days )->toHaveCount( 7 )
+        ->and( $days[0]['name'] )->toBe( $first )
+        ->and( collect( $days )->pluck( 'id' )->sort()->values()->all() )->toBe( [ 1, 2, 3, 4, 5, 6, 7 ] );
+} )->with( [
+    'English (US week)' => [ 'en', 'Sunday' ],
+    'German'            => [ 'de', 'Montag' ],
+] );
+
+it( 'puts repeater rows in a fieldset with named groups and remove buttons', function (): void {
+    $html = everyTypeForm( [ 'tiers' => [ [ 'min_subtotal' => 1000 ], [ 'min_subtotal' => 2000 ] ] ] )->html();
+
+    expect( $html )->toContain( 'apui-fieldset ec-repeater' )
+        ->toContain( 'role="group" aria-label="Tiers row 2"' )
+        ->toContain( 'aria-label="Remove Tiers row 2"' )
+        ->toContain( 'data-icon-only' );
+} );
+
+it( 'uses date pickers for dates and both ends of a range', function (): void {
+    $html = everyTypeForm()->html();
+
+    expect( substr_count( $html, 'class="apui-date-picker' ) )->toBe( 3 )
+        ->and( $html )->toContain( '<fieldset class="ec-range"' )
+        ->toContain( '<legend>Window</legend>' )
+        ->toContain( 'config.window.end' );
+} );
+
 it( 'says when an entry has no settings', function (): void {
     Livewire::test( ConfigFormHost::class, [ 'registry' => 'promotion-action', 'entry' => 'free-shipping' ] )
         ->assertSeeHtml( 'data-config-form-empty' )
+        ->assertSeeHtml( 'apui-empty-state' )
+        ->assertSee( 'There are no settings for this.' )
         ->call( 'save' )
         ->assertSet( 'saved', [] );
 } );
@@ -216,7 +281,8 @@ it( 'refuses JSON that is not an object', function ( string $json ): void {
         ->set( 'config', $json )
         ->call( 'save' )
         ->assertHasErrors( [ 'config' ] )
-        ->assertSee( 'must be a JSON object' );
+        ->assertSee( 'must be a JSON object' )
+        ->assertDontSeeHtml( 'text-error' );
 } )->with( [
     'invalid JSON' => [ '{ not json' ],
     'array'        => [ '[1, 2, 3]' ],
