@@ -142,6 +142,25 @@ final class NavBadges
     }
 
     /**
+     * The badge's color: primary for orders to ship (the one call to
+     * action), warning for low stock (a risk), neutral otherwise.
+     *
+     * @since 2.0.0
+     *
+     * @param  string|null  $badge  The badge key.
+     *
+     * @return string
+     */
+    public static function tone( ?string $badge ): string
+    {
+        return match ( $badge ) {
+            self::ORDERS_AWAITING_FULFILLMENT => 'primary',
+            self::LOW_STOCK                   => 'warning',
+            default                           => 'neutral',
+        };
+    }
+
+    /**
      * Clears the cached counts.
      *
      * @since 1.0.0

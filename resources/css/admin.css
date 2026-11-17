@@ -716,4 +716,272 @@
             align-items: stretch;
         }
     }
+
+    /* Navigation (#93): toned count badges, and the collapsed rail's separators, dots and tooltips. */
+    .ec-admin-nav__item {
+        position: relative;
+    }
+
+    .ec-admin-nav__item[data-badge-tone="primary"] .ec-admin-nav__badge {
+        background: var(--apui-color-primary-soft);
+        color: var(--apui-color-primary-soft-foreground);
+    }
+
+    .ec-admin-nav__item[data-badge-tone="warning"] .ec-admin-nav__badge {
+        background: var(--apui-color-warning-soft);
+        color: var(--apui-color-warning-soft-foreground);
+    }
+
+    .ec-admin-nav .ec-admin-nav__rail-separator {
+        display: none;
+    }
+
+    .apui-app-shell[data-collapsed] .ec-admin-nav .ec-admin-nav__rail-separator {
+        display: block;
+    }
+
+    /* The count as a dot on the icon; the number stays in the link's name. */
+    .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item .ec-admin-nav__badge {
+        position: absolute;
+        inset-block-start: 6px;
+        inset-inline-end: 6px;
+        inline-size: 8px;
+        block-size: 8px;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        clip-path: none;
+        border-radius: var(--apui-radius-full, 9999px);
+        background: var(--apui-color-neutral, var(--apui-text-muted));
+        box-shadow: 0 0 0 2px var(--apui-surface-default);
+        color: transparent;
+        font-size: 0;
+    }
+
+    .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item[data-badge-tone="primary"] .ec-admin-nav__badge {
+        background: var(--apui-color-primary);
+    }
+
+    .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item[data-badge-tone="warning"] .ec-admin-nav__badge {
+        background: var(--apui-color-warning);
+    }
+
+    .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item[data-tooltip]:is(:hover, :focus-visible)::after {
+        position: absolute;
+        z-index: var(--apui-z-tooltip);
+        inset-block-start: 50%;
+        /* Starts at the item's edge: the 10px gap is a transparent border, so the
+           pointer can move onto the tooltip without leaving the item's hover. */
+        inset-inline-start: 100%;
+        border-inline-start: 10px solid transparent;
+        background-clip: padding-box;
+        padding-block: 5px;
+        padding-inline: 8px;
+        border-radius: var(--apui-tooltip-radius);
+        background: var(--apui-surface-inverse);
+        color: var(--apui-text-inverse);
+        content: attr(data-tooltip);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        font-weight: var(--apui-font-weight-medium, 500);
+        line-height: var(--apui-type-caption-line-height, 16px);
+        translate: 0 -50%;
+        white-space: nowrap;
+    }
+
+    /* Command palette trigger (#94): looks like a search field; an icon button on phones. */
+    .apui-button.ec-admin-search-trigger {
+        justify-content: flex-start;
+        gap: 8px;
+        min-inline-size: 260px;
+        padding-inline: 12px 6px;
+        border-color: var(--apui-border-default);
+        border-radius: var(--apui-input-radius);
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-muted);
+        font-weight: var(--apui-font-weight-regular, 400);
+    }
+
+    .ec-admin-search-trigger__label {
+        flex: 1;
+        text-align: start;
+    }
+
+    @media (max-width: 48rem) {
+        .apui-button.ec-admin-search-trigger {
+            justify-content: center;
+            min-inline-size: 0;
+            padding-inline: 8px;
+            border-color: transparent;
+            background: transparent;
+        }
+
+        .ec-admin-search-trigger__label,
+        .ec-admin-search-trigger [data-scope="spotlight"][data-part="shortcut"] {
+            position: absolute;
+            inline-size: 1px;
+            block-size: 1px;
+            margin: -1px;
+            padding: 0;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
+            border: 0;
+        }
+    }
+
+    .ec-admin-spotlight-legend {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Dashboard cards (#96, #97): the design-system Card with an h2 title. */
+    .ec-card-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+        font-weight: var(--apui-font-weight-medium, 500);
+        white-space: nowrap;
+    }
+
+    .ec-card-figure {
+        display: block;
+        margin-block-start: 4px;
+        font-family: var(--apui-type-stat-md-font-family);
+        font-size: var(--apui-type-stat-md-font-size);
+        font-weight: var(--apui-type-stat-md-font-weight);
+        letter-spacing: var(--apui-type-stat-md-letter-spacing);
+        line-height: var(--apui-type-stat-md-line-height);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Key figures (#95): an auto-fit grid of Stats, each one link. */
+    .ec-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+        gap: var(--apui-panel-gap, 16px);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-kpi {
+        position: relative;
+        display: grid;
+    }
+
+    .ec-kpi-link {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--apui-card-radius, var(--apui-radius-lg, 12px));
+        outline: none;
+    }
+
+    .ec-kpi-link:focus-visible {
+        box-shadow:
+            0 0 0 var(--apui-focus-ring-offset) var(--apui-focus-ring-offset-color),
+            0 0 0 calc(var(--apui-focus-ring-offset) + var(--apui-focus-ring-width)) var(--apui-focus-ring-color);
+    }
+
+    .ec-kpi:hover .apui-stat:not([data-emphasis]) {
+        background: var(--apui-state-hover);
+    }
+
+    /* Sales, last 30 days (#96): the chart stays left to right in RTL pages. */
+    .ec-sales-figure {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+    }
+
+    .ec-sales-chart {
+        direction: ltr;
+    }
+
+    .ec-sales-chart .apui-sparkline {
+        display: block;
+        inline-size: 100%;
+        block-size: auto;
+    }
+
+    .ec-sales-best {
+        fill: var(--apui-text-default);
+        font-family: var(--apui-font-family-sans);
+        font-size: 12px;
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    /* The label is in viewBox units, so it shrinks with the card: larger on phones. */
+    @media (max-width: 40rem) {
+        .ec-sales-best {
+            font-size: 22px;
+        }
+    }
+
+    .ec-sales-axis {
+        display: flex;
+        justify-content: space-between;
+        margin-block-start: 6px;
+        color: var(--apui-chart-axis);
+        font-size: 11px;
+        line-height: 16px;
+    }
+
+    .ec-sales-caption {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    /* Lowest stock (#97): the table flush inside the card, with a level bar. */
+    .apui-card .ec-card-body-flush {
+        padding-inline: 0;
+        padding-block-end: 4px;
+    }
+
+    .ec-card-body-flush [data-scope="table"][data-part="head-cell"]:first-child,
+    .ec-card-body-flush [data-scope="table"][data-part="cell"]:first-child {
+        padding-inline-start: var(--apui-card-padding, 20px);
+    }
+
+    .ec-card-body-flush [data-scope="table"][data-part="head-cell"]:last-child,
+    .ec-card-body-flush [data-scope="table"][data-part="cell"]:last-child {
+        padding-inline-end: var(--apui-card-padding, 20px);
+    }
+
+    .ec-low-stock-level {
+        inline-size: 96px;
+    }
+
+    .ec-low-stock-badge {
+        margin-inline-start: 6px;
+    }
+
+    .ec-w-0 [data-scope="progress"][data-part="bar"] { --apui-_v: 0%; }
+    .ec-w-10 [data-scope="progress"][data-part="bar"] { --apui-_v: 10%; }
+    .ec-w-20 [data-scope="progress"][data-part="bar"] { --apui-_v: 20%; }
+    .ec-w-30 [data-scope="progress"][data-part="bar"] { --apui-_v: 30%; }
+    .ec-w-40 [data-scope="progress"][data-part="bar"] { --apui-_v: 40%; }
+    .ec-w-50 [data-scope="progress"][data-part="bar"] { --apui-_v: 50%; }
+    .ec-w-60 [data-scope="progress"][data-part="bar"] { --apui-_v: 60%; }
+    .ec-w-70 [data-scope="progress"][data-part="bar"] { --apui-_v: 70%; }
+    .ec-w-80 [data-scope="progress"][data-part="bar"] { --apui-_v: 80%; }
+    .ec-w-90 [data-scope="progress"][data-part="bar"] { --apui-_v: 90%; }
+    .ec-w-100 [data-scope="progress"][data-part="bar"] { --apui-_v: 100%; }
+
+    @media (forced-colors: active) {
+        .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item .ec-admin-nav__badge {
+            background: CanvasText;
+        }
+
+        .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item[data-badge-tone] .ec-admin-nav__badge {
+            background: CanvasText;
+        }
+
+        .ec-kpi-link:focus-visible {
+            outline: var(--apui-focus-ring-width) solid Highlight;
+        }
+    }
 }

@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Http\Controllers;
 
 use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -40,23 +41,37 @@ class AdminScreenController extends Controller
      * @return View
      */
     /**
-     * The command palette's results: the host's own spotlight results, then
-     * the admin's (through the component library's results filter).
+     * The command palette's results, as groups: the host's own spotlight
+     * results (through the component library's results filter) in an
+     * unlabeled group, then one group per admin provider. The actions are
+     * left out when the palette lists them itself (see
+     * AdminSpotlight::actionGroup()), so they don't show twice.
      *
      * @since 1.0.0
+     * @since 2.0.0 Returns groups of results instead of one flat list.
      *
      * @param  Request  $request  The request (`search` query).
      *
-     * @return array<int, mixed>
+     * @return array<int, array{id: string, label: string|null, items: array<int, mixed>}>
      */
     public function spotlight( Request $request ): array
     {
         $class   = config( 'artisanpack.livewire-ui-components.components.spotlight.class' );
+        $user    = $request->user();
+        $search  = $request->query( 'search' );
         $results = is_string( $class ) && '' !== $class && ( class_exists( $class ) || app()->bound( $class ) )
             ? (array) app()->make( $class )->search( $request )
             : [];
+        $results = array_values( (array) applyFilters( AdminSpotlight::COMMANDS_FILTER, $results, $user ) );
+        $groups  = [] === $results ? [] : [ [ 'id' => 'results', 'label' => null, 'items' => $results ] ];
 
-        return array_values( (array) applyFilters( AdminSpotlight::COMMANDS_FILTER, $results, $request->user() ) );
+        if ( ! AdminSpotlight::enabled() || ! $user instanceof Authenticatable || ! is_string( $search ) ) {
+            return $groups;
+        }
+
+        $except = null === AdminSpotlight::actionsProvider( $user ) ? [] : [ 'actions' ];
+
+        return [ ...$groups, ...AdminSpotlight::groups( $search, $user, $except ) ];
     }
 
     public function dashboard(): View

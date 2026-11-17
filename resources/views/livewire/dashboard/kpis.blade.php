@@ -1,27 +1,31 @@
 {{--
-    Dashboard KPI row. Each KPI links to the screen filtered to match.
+    Dashboard key figures (#95): a design-system Stat per KPI, each linking to
+    the screen filtered to match. Only "Awaiting fulfillment" is emphasized,
+    and only while there are orders to ship. The whole Stat is one link
+    (stretched over it), named with the KPI, its value and its description;
+    the icons are decorative.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
 
     @since      1.0.0
 --}}
-<h2 id="dashboard-widget-{{ $widget['key'] }}" class="sr-only">{{ $widget['label'] }}</h2>
+<h2 id="dashboard-widget-{{ $widget['key'] }}" class="apui-sr-only">{{ $widget['label'] }}</h2>
 
-<ul class="grid grid-cols-[repeat(auto-fit,minmax(min(19rem,100%),1fr))] gap-4" data-kpis>
+<ul class="ec-kpis" data-kpis>
     @foreach ( $dashboard['kpis'] as $kpi )
-        <li wire:key="dashboard-kpi-{{ $kpi['key'] }}" data-kpi="{{ $kpi['key'] }}" class="relative">
+        <li wire:key="dashboard-kpi-{{ $kpi['key'] }}" data-kpi="{{ $kpi['key'] }}" class="ec-kpi">
             <x-artisanpack-stat
                 :label="$kpi['label']"
-                :value="$kpi['value']"
                 :description="$kpi['description']"
                 :icon="$kpi['icon']"
-                class="h-full shadow"
-            />
+                :emphasis="$kpi['emphasis']"
+                :color="$kpi['emphasis'] ? 'accent' : 'neutral'"
+                :aria-hidden="null !== $kpi['url'] ? 'true' : null"
+            ><bdi dir="ltr">{{ $kpi['value'] }}</bdi></x-artisanpack-stat>
             @if ( null !== $kpi['url'] )
-                {{-- Stretched link: the whole card is the target; its name is the KPI and its value. --}}
-                <a href="{{ $kpi['url'] }}" class="absolute inset-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" data-kpi-link>
-                    <span class="sr-only">{{ __( ':label: :value. :description', [ 'label' => $kpi['label'], 'value' => $kpi['value'], 'description' => $kpi['description'] ] ) }}</span>
+                <a href="{{ $kpi['url'] }}" class="ec-kpi-link" data-kpi-link>
+                    <span class="apui-sr-only">{{ __( ':label: :value. :description', [ 'label' => $kpi['label'], 'value' => $kpi['value'], 'description' => $kpi['description'] ] ) }}</span>
                 </a>
             @endif
         </li>

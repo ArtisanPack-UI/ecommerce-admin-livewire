@@ -82,6 +82,20 @@ class ActionsProvider implements SpotlightProvider
     }
 
     /**
+     * Every action the user may run, for the palette's Actions group.
+     *
+     * @since 2.0.0
+     *
+     * @param  Authenticatable  $user  The current user.
+     *
+     * @return array<int, array{name: string, description: string, link: string, icon: string, keywords: string}>
+     */
+    public function commands( Authenticatable $user ): array
+    {
+        return $this->actions( $user );
+    }
+
+    /**
      * Every action the user may run.
      *
      * @since 1.0.0
