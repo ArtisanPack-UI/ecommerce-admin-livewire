@@ -26,9 +26,13 @@ function throttledUpdate( $test, $user, ?array $calls = null, array $updates = [
 
     $page = $test->actingAs( $user )->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk();
 
-    // The dashboard's snapshot: the sidebar's navigation component renders first.
-    preg_match( '/wire:snapshot="([^"]+)"[^>]*wire:name="artisanpack-ecommerce-admin-dashboard"/', $page->getContent(), $matches );
-    $snapshot = htmlspecialchars_decode( $matches[1] );
+    // The dashboard's snapshot: the sidebar's navigation component renders
+    // first. Matched on the snapshot's own name, which Livewire 3 and 4 both
+    // carry (only Livewire 4 renders a wire:name attribute).
+    preg_match_all( '/wire:snapshot="([^"]+)"/', $page->getContent(), $matches );
+    $snapshot = collect( $matches[1] )
+        ->map( static fn ( string $encoded ): string => htmlspecialchars_decode( $encoded ) )
+        ->first( static fn ( string $decoded ): bool => 'artisanpack-ecommerce-admin-dashboard' === ( json_decode( $decoded, true )['memo']['name'] ?? null ) );
 
     return fn () => tap( $test, static fn () => app( 'livewire' )->flushState() )->actingAs( $user )->withHeaders( [ 'X-Livewire' => '1' ] )->postJson(
         app( 'livewire' )->getUpdateUri(),
