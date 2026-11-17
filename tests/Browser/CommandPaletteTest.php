@@ -16,3 +16,18 @@ it( 'opens the command palette and jumps to an order', function (): void {
         ->assertPathIs( '/ecommerce-admin/orders/' . $order->id )
         ->assertNoJavaScriptErrors();
 } );
+
+it( 'lists the actions on open and groups search results by provider', function (): void {
+    $order   = Order::query()->whereNotNull( 'placed_at' )->firstOrFail();
+    $palette = '[data-scope="spotlight"][data-part="content"][data-state="open"]';
+    $labels  = 'Array.from( document.querySelectorAll( \'' . $palette . ' [data-part="item-group"]:not([hidden]) [data-part="item-group-label"]\' ) ).filter( ( el ) => el.offsetParent !== null ).map( ( el ) => el.textContent.trim() )';
+
+    visit( route( 'artisanpack.ecommerce.admin.dashboard' ) )
+        ->click( '[data-spotlight-open] [data-scope="spotlight"][data-part="trigger"]' )
+        ->assertSeeIn( $palette, 'Go to Orders' )
+        ->assertScript( $labels . '.includes( "Actions" )', true )
+        ->type( $palette . ' input', (string) $order->order_number )
+        ->waitForText( 'Order #' . $order->order_number )
+        ->assertScript( $labels . '.includes( "Orders" )', true )
+        ->assertNoJavaScriptErrors();
+} );

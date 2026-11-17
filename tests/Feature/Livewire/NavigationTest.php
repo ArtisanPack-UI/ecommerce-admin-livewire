@@ -114,3 +114,53 @@ it( 'rejects tampering with the active entry', function (): void {
         ->test( Navigation::class )
         ->set( 'activeKey', 'orders' );
 } )->throws( \Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class );
+
+it( 'renders a design-system Menu named Store admin with section titles and rail separators', function (): void {
+    grantAbilities( [ 'order.viewAny', 'product.viewAny' ] );
+
+    $html = Livewire::actingAs( makeUser() )->test( Navigation::class )->html();
+
+    expect( $html )
+        ->toContain( 'class="apui-menu ec-admin-nav"' )
+        ->toContain( 'aria-label="Store admin"' )
+        ->toMatch( '/data-scope="menu" data-part="title">\s*Catalog/' )
+        ->toContain( 'class="ec-admin-nav__rail-separator"' )
+        ->toContain( 'data-tooltip="Products"' )
+        // Always named by aria-label, so the rail tooltip's generated text never joins the name.
+        ->toContain( 'aria-label="Products"' )
+        ->not->toContain( 'heroicon' );
+} );
+
+it( 'tones the badges: primary for orders to ship, warning for low stock, neutral for reviews', function (): void {
+    grantAbilities( [ 'order.viewAny', 'review.viewAny', 'inventory.viewAny' ] );
+
+    InventoryItem::factory()->create( [ 'quantity_on_hand' => 1, 'low_stock_threshold' => 5 ] );
+    ProductReview::factory()->create();
+    Order::factory()->create( [ 'system_status' => 'processing', 'fulfillment_status' => 'unfulfilled' ] );
+
+    $html = Livewire::actingAs( makeUser() )->test( Navigation::class )->html();
+
+    expect( $html )
+        ->toMatch( '/data-tooltip="Orders \(1 order awaiting fulfillment\)"\s+data-badge-tone="primary"/' )
+        ->toMatch( '/data-tooltip="Inventory \(1 low-stock item\)"\s+data-badge-tone="warning"/' )
+        ->toMatch( '/data-tooltip="Reviews \(1 review awaiting moderation\)"\s+data-badge-tone="neutral"/' )
+        ->toContain( 'class="ec-admin-nav__badge"' );
+} );
+
+it( 'leaves the badge tone off an entry with no count', function (): void {
+    grantAbilities( [ 'order.viewAny' ] );
+
+    $html = Livewire::actingAs( makeUser() )->test( Navigation::class )->html();
+
+    expect( $html )->not->toContain( 'data-badge-tone' )
+        ->and( $html )->not->toContain( 'ec-admin-nav__badge' );
+} );
+
+it( 'maps the core Heroicon names to the design system\'s Lucide icons and passes others through', function (): void {
+    expect( ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::icon( 'o-view-columns' ) )->toBe( 'columns-3' )
+        ->and( ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::icon( 'o-truck' ) )->toBe( 'truck' )
+        ->and( NavBadges::tone( NavBadges::ORDERS_AWAITING_FULFILLMENT ) )->toBe( 'primary' )
+        ->and( NavBadges::tone( NavBadges::LOW_STOCK ) )->toBe( 'warning' )
+        ->and( NavBadges::tone( NavBadges::PENDING_REVIEWS ) )->toBe( 'neutral' )
+        ->and( NavBadges::tone( null ) )->toBe( 'neutral' );
+} );

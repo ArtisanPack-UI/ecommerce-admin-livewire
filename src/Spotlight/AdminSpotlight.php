@@ -17,9 +17,11 @@ use ArtisanPack\LivewireUiComponents\Support\IconRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
+use Composer\InstalledVersions;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 /**
  * The admin's command palette (spec §8.1).
@@ -113,18 +115,37 @@ final class AdminSpotlight
      * @var array<string, string>
      */
     public const HEROICON_ICONS = [
+        'o-archive-box'               => 'archive',
+        'o-arrow-down-tray'           => 'file-down',
         'o-arrow-right'               => 'arrow-right',
+        'o-banknotes'                 => 'banknote',
+        'o-bell'                      => 'bell',
+        'o-bolt'                      => 'zap',
+        'o-chart-bar'                 => 'chart-column',
         'o-chat-bubble-left-ellipsis' => 'message-square',
         'o-cog-6-tooth'               => 'settings',
+        'o-cube'                      => 'box',
         'o-document-text'             => 'file-text',
         'o-envelope'                  => 'mail',
+        'o-folder'                    => 'folder',
         'o-home'                      => 'house',
+        'o-key'                       => 'key',
+        'o-megaphone'                 => 'megaphone',
         'o-pencil'                    => 'pencil',
         'o-plus'                      => 'plus',
+        'o-queue-list'                => 'list',
+        'o-receipt-percent'           => 'percent',
         'o-receipt-refund'            => 'rotate-ccw',
+        'o-shopping-bag'              => 'shopping-bag',
+        'o-squares-2x2'               => 'layout-grid',
         'o-star'                      => 'star',
+        'o-tag'                       => 'tag',
+        'o-ticket'                    => 'ticket',
         'o-trash'                     => 'trash',
+        'o-truck'                     => 'truck',
         'o-user'                      => 'user',
+        'o-users'                     => 'users',
+        'o-view-columns'              => 'columns-3',
     ];
 
     /**
@@ -243,8 +264,9 @@ final class AdminSpotlight
 
         // The component library's shared route runs only the `web`
         // middleware, so it would skip the host's 2FA or verified checks;
-        // admin results come only from the admin's own route.
-        if ( ! self::enabled() || ! $user instanceof Authenticatable || ! is_string( $search ) || request()->routeIs( self::SHARED_ROUTE ) ) {
+        // admin results come only from the admin's own route, which groups
+        // them by provider itself (see AdminScreenController::spotlight()).
+        if ( ! self::enabled() || ! $user instanceof Authenticatable || ! is_string( $search ) || request()->routeIs( self::SHARED_ROUTE, self::ADMIN_ROUTE ) ) {
             return $commands;
         }
 
@@ -263,45 +285,127 @@ final class AdminSpotlight
      */
     public static function search( string $search, Authenticatable $user ): array
     {
-        $search = trim( mb_substr( $search, 0, ResourceQuery::MAX_SEARCH_LENGTH ) );
+        return array_merge( [], ...array_values( self::resultsByProvider( $search, $user ) ) );
+    }
 
-        if ( '' === $search || ! AdminNav::canAccess( $user ) ) {
-            return [];
-        }
+    /**
+     * Every provider's results for a search, as the palette's groups: one
+     * per provider with results, labeled with what it finds, in provider
+     * order.
+     *
+     * @since 2.0.0
+     *
+     * @param  string              $search  The raw search text.
+     * @param  Authenticatable     $user    The current user.
+     * @param  array<int, string>  $except  Provider keys to leave out.
+     *
+     * @return array<int, array{id: string, label: string, items: array<int, array{name: string, description: string|null, link: string, icon: string|null}>}>
+     */
+    public static function groups( string $search, Authenticatable $user, array $except = [] ): array
+    {
+        $providers = self::providers( $user );
+        $groups    = [];
 
-        $throttle = 'ecommerce-admin-spotlight:' . $user->getAuthIdentifier();
-
-        if ( RateLimiter::tooManyAttempts( $throttle, self::SEARCHES_PER_MINUTE ) ) {
-            return [];
-        }
-
-        RateLimiter::hit( $throttle, 60 );
-
-        $limit   = self::limit();
-        $results = [];
-
-        foreach ( self::providers( $user ) as $provider ) {
-            $ability = $provider->ability();
-
-            if ( null !== $ability && ! Authorization::allows( $user, $ability ) ) {
+        foreach ( self::resultsByProvider( $search, $user, $except ) as $key => $results ) {
+            if ( [] === $results ) {
                 continue;
             }
 
-            foreach ( $provider->search( $search, $user, $limit ) as $result ) {
-                if ( ! is_array( $result ) || ! isset( $result['name'], $result['link'] ) || ! self::safeLink( (string) $result['link'] ) ) {
-                    continue;
-                }
-
-                $results[] = [
-                    'name'        => (string) $result['name'],
-                    'description' => isset( $result['description'] ) ? (string) $result['description'] : null,
-                    'link'        => (string) $result['link'],
-                    'icon'        => self::icon( isset( $result['icon'] ) ? (string) $result['icon'] : null ),
-                ];
-            }
+            $groups[] = [
+                'id'    => $key,
+                'label' => self::groupLabel( $key, $providers[ $key ] ),
+                'items' => $results,
+            ];
         }
 
-        return $results;
+        return $groups;
+    }
+
+    /**
+     * The palette's Actions group for an empty search: every action the
+     * user may run, filtered in the browser as they type. Null when the
+     * actions provider was replaced or removed, or there is no action.
+     *
+     * @since 2.0.0
+     *
+     * @param  Authenticatable  $user  The current user.
+     *
+     * @return array{id: string, label: string, items: array<int, array{name: string, description: string|null, link: string, icon: string|null, keywords: array<int, string>}>}|null
+     */
+    public static function actionGroup( Authenticatable $user ): ?array
+    {
+        $provider = self::actionsProvider( $user );
+
+        if ( null === $provider || ! AdminNav::canAccess( $user ) ) {
+            return null;
+        }
+
+        $items = [];
+
+        foreach ( $provider->commands( $user ) as $action ) {
+            if ( ! self::safeLink( $action['link'] ) ) {
+                continue;
+            }
+
+            $items[] = [
+                'name'        => $action['name'],
+                'description' => $action['description'],
+                'link'        => $action['link'],
+                'icon'        => self::icon( $action['icon'] ),
+                'keywords'    => array_values( array_filter( explode( ' ', $action['keywords'] ) ) ),
+            ];
+        }
+
+        return [] === $items ? null : [ 'id' => 'actions', 'label' => __( 'Actions' ), 'items' => $items ];
+    }
+
+    /**
+     * The core actions provider, when the extension filter kept it under its
+     * key and the user holds its ability. A subclass doesn't count: it may
+     * add results in its own search(), so it stays in the searched results.
+     *
+     * @since 2.0.0
+     *
+     * @param  Authenticatable  $user  The current user.
+     *
+     * @return ActionsProvider|null
+     */
+    public static function actionsProvider( Authenticatable $user ): ?ActionsProvider
+    {
+        $provider = self::providers( $user )['actions'] ?? null;
+
+        if ( ! $provider instanceof ActionsProvider || ActionsProvider::class !== $provider::class ) {
+            return null;
+        }
+
+        $ability = $provider->ability();
+
+        return null === $ability || Authorization::allows( $user, $ability ) ? $provider : null;
+    }
+
+    /**
+     * A provider's group label: what it finds.
+     *
+     * @since 2.0.0
+     *
+     * @param  string             $key       The provider key.
+     * @param  SpotlightProvider  $provider  The provider.
+     *
+     * @return string
+     */
+    public static function groupLabel( string $key, SpotlightProvider $provider ): string
+    {
+        return match ( $key ) {
+            'orders'     => __( 'Orders' ),
+            'products'   => __( 'Products' ),
+            'customers'  => __( 'Customers' ),
+            'promotions' => __( 'Promotions' ),
+            'coupons'    => __( 'Coupons' ),
+            'actions'    => __( 'Actions' ),
+            default      => method_exists( $provider, 'label' ) && is_string( $label = $provider->label() ) && '' !== $label
+                ? $label
+                : Str::headline( $key ),
+        };
     }
 
     /**
@@ -395,5 +499,108 @@ final class AdminSpotlight
         $name = self::HEROICON_ICONS[ $name ] ?? $name;
 
         return IconRegistry::has( $name ) ? $name : null;
+    }
+
+    /**
+     * A searched result's icon: as icon(), but only a name the design system
+     * ships. Searched results are drawn in the browser, whose icon registry
+     * holds only those; the admin's extra icons are registered in PHP, so
+     * they would draw an empty tile there.
+     *
+     * @since 2.0.0
+     *
+     * @param  string|null  $name  A Heroicon name (`o-user`) or a design-system icon name (`user`).
+     *
+     * @return string|null
+     */
+    public static function searchIcon( ?string $name ): ?string
+    {
+        $icon = self::icon( $name );
+
+        return null !== $icon && in_array( $icon, self::shippedIcons(), true ) ? $icon : null;
+    }
+
+    /**
+     * The icon names livewire-ui-components ships to the browser.
+     *
+     * @since 2.0.0
+     *
+     * @return array<int, string>
+     */
+    private static function shippedIcons(): array
+    {
+        static $names = null;
+
+        if ( null === $names ) {
+            $path  = InstalledVersions::isInstalled( 'artisanpack-ui/livewire-ui-components' ) ? InstalledVersions::getInstallPath( 'artisanpack-ui/livewire-ui-components' ) : null;
+            $file  = null === $path ? null : $path . '/resources/design-system/icons/lucide.json';
+            $data  = null !== $file && is_file( $file ) ? json_decode( (string) file_get_contents( $file ), true ) : null;
+            $names = is_array( $data )
+                ? array_values( array_filter( array_map( 'strval', array_keys( $data ) ), static fn ( string $key ): bool => ! str_starts_with( $key, '$' ) ) )
+                : [];
+        }
+
+        return $names;
+    }
+
+    /**
+     * Each provider's results for a search, keyed by provider, after the
+     * access check and the per-user throttle (one hit per search).
+     *
+     * @since 2.0.0
+     *
+     * @param  string              $search  The raw search text.
+     * @param  Authenticatable     $user    The current user.
+     * @param  array<int, string>  $except  Provider keys to leave out.
+     *
+     * @return array<string, array<int, array{name: string, description: string|null, link: string, icon: string|null}>>
+     */
+    private static function resultsByProvider( string $search, Authenticatable $user, array $except = [] ): array
+    {
+        $search = trim( mb_substr( $search, 0, ResourceQuery::MAX_SEARCH_LENGTH ) );
+
+        if ( '' === $search || ! AdminNav::canAccess( $user ) ) {
+            return [];
+        }
+
+        $throttle = 'ecommerce-admin-spotlight:' . $user->getAuthIdentifier();
+
+        if ( RateLimiter::tooManyAttempts( $throttle, self::SEARCHES_PER_MINUTE ) ) {
+            return [];
+        }
+
+        RateLimiter::hit( $throttle, 60 );
+
+        $limit   = self::limit();
+        $results = [];
+
+        foreach ( self::providers( $user ) as $key => $provider ) {
+            if ( in_array( $key, $except, true ) ) {
+                continue;
+            }
+
+            $ability = $provider->ability();
+
+            if ( null !== $ability && ! Authorization::allows( $user, $ability ) ) {
+                continue;
+            }
+
+            $results[ $key ] = [];
+
+            foreach ( $provider->search( $search, $user, $limit ) as $result ) {
+                if ( ! is_array( $result ) || ! isset( $result['name'], $result['link'] ) || ! self::safeLink( (string) $result['link'] ) ) {
+                    continue;
+                }
+
+                $results[ $key ][] = [
+                    'name'        => (string) $result['name'],
+                    'description' => isset( $result['description'] ) ? (string) $result['description'] : null,
+                    'link'        => (string) $result['link'],
+                    'icon'        => self::searchIcon( isset( $result['icon'] ) ? (string) $result['icon'] : null ),
+                ];
+            }
+        }
+
+        return $results;
     }
 }
