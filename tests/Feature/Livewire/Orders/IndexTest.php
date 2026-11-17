@@ -56,7 +56,7 @@ it( 'renders the orders table with a caption, sortable headers, and aria-sort', 
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">Orders</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Orders</caption>' )
         ->assertSeeHtml( 'aria-sort="descending"' )
         ->assertSeeHtml( 'wire:click="sort( \'number\' )"' )
         ->assertSee( '#A1B2C3D4' )

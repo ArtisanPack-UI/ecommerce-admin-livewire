@@ -1,7 +1,8 @@
 {{--
     Turns a rate-limited Livewire update (HTTP 429 from the
     `ecommerce-admin.throttle` middleware) into a toast with the retry time,
-    instead of Livewire's error modal.
+    instead of Livewire's error modal. The toast is the design system's
+    `toast` browser event, which the page's `<x-artisanpack-toaster>` shows.
 
     Uses Livewire's `request` hook, which Livewire 3 and 4 both support.
 
@@ -39,9 +40,7 @@
 
                     preventDefault();
 
-                    if ( 'function' === typeof window.toast ) {
-                        window.toast( { toast: { type: 'warning', title, description: message, icon: '', css: 'alert-warning' } } );
-                    }
+                    window.dispatchEvent( new CustomEvent( 'toast', { detail: { title, description: message, color: 'warning' } } ) );
                 } );
             } );
         };

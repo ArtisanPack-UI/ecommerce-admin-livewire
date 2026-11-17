@@ -49,7 +49,7 @@ it( 'renders one row per stock record with on hand, reserved, and available', fu
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">Inventory</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Inventory</caption>' )
         ->assertSee( 'Blue Mug' )
         ->assertSee( 'MUG-1' )
         ->assertSee( 'Tee — Large' )

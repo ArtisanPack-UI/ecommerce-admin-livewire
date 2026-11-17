@@ -11,19 +11,19 @@
 @endphp
 <div class="flex flex-col gap-8" data-kanban-board-form x-data="{ {!! UnsavedChanges::members() !!} }" {!! UnsavedChanges::attributes() !!}>
     <div class="flex flex-col gap-4">
-        <x-artisanpack-header :title="__( 'Edit :name', [ 'name' => $board->name ] )" :level="1" separator>
+        <x-artisanpack-page-header :title="__( 'Edit :name', [ 'name' => $board->name ] )" :level="1">
             <x-slot:actions>
                 @if ( null !== $indexUrl )
-                    <x-artisanpack-button variant="ghost" icon="o-arrow-left" :link="$indexUrl" :label="__( 'All boards' )" />
+                    <x-artisanpack-button variant="ghost" leading-icon="o-arrow-left" :href="$indexUrl">{{ __( 'All boards' ) }}</x-artisanpack-button>
                 @endif
                 @if ( null !== $boardUrl )
-                    <x-artisanpack-button variant="outline" icon="o-arrow-top-right-on-square" :link="$boardUrl" :label="__( 'Open board' )" data-open-board />
+                    <x-artisanpack-button variant="outline" leading-icon="o-arrow-top-right-on-square" :href="$boardUrl" data-open-board>{{ __( 'Open board' ) }}</x-artisanpack-button>
                 @endif
                 @unless ( $readOnly )
-                    <x-artisanpack-button color="primary" icon="o-check" wire:click="save" wire:loading.attr="disabled" spinner="save" :label="__( 'Save board' )" data-save />
+                    <x-artisanpack-button color="primary" leading-icon="o-check" wire:click="save" wire:loading.attr="disabled" data-save>{{ __( 'Save board' ) }}</x-artisanpack-button>
                 @endunless
             </x-slot:actions>
-        </x-artisanpack-header>
+        </x-artisanpack-page-header>
 
         @if ( $readOnly )
             <x-artisanpack-alert color="info" icon="o-eye" :title="__( 'You can view this board but not change it.' )" role="status" />
@@ -44,7 +44,7 @@
                     <x-artisanpack-textarea id="board-description" :label="__( 'Description' )" rows="2" wire:model="form.description" />
                 </div>
 
-                <x-artisanpack-toggle id="board-active" :label="__( 'Switched on' )" :hint="__( 'Orders are only routed onto active boards.' )" wire:model="form.is_active" />
+                <x-artisanpack-toggle id="board-active" :label="__( 'Switched on' )" :description="__( 'Orders are only routed onto active boards.' )" wire:model="form.is_active" />
 
                 @if ( $board->is_default )
                     <div class="flex flex-col gap-1" data-board-is-default>
@@ -52,7 +52,7 @@
                         <span class="text-sm opacity-75">{{ __( 'To change the default, make another board the default from the boards list.' ) }}</span>
                     </div>
                 @else
-                    <x-artisanpack-toggle id="board-default" :label="__( 'Make this the default board' )" :hint="__( 'The default board catches orders no other board took. The current default stops being one.' )" wire:model="form.is_default" />
+                    <x-artisanpack-toggle id="board-default" :label="__( 'Make this the default board' )" :description="__( 'The default board catches orders no other board took. The current default stops being one.' )" wire:model="form.is_default" />
                 @endif
             </fieldset>
         </section>
@@ -75,7 +75,7 @@
                     <pre class="overflow-x-auto rounded-box bg-base-200 p-3 text-sm"><code>{{ $complexJson }}</code></pre>
                     @unless ( $readOnly )
                         <div>
-                            <x-artisanpack-button variant="outline" size="sm" wire:click="replaceComplexRules" :label="__( 'Replace with simple rules' )" />
+                            <x-artisanpack-button variant="outline" size="sm" wire:click="replaceComplexRules">{{ __( 'Replace with simple rules' ) }}</x-artisanpack-button>
                         </div>
                     @endunless
                 </div>

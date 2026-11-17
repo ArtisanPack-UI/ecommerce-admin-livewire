@@ -37,7 +37,9 @@ it( 'lists keys in full for users with licenseKey.view', function (): void {
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">License keys</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">License keys</caption>' )
+        ->assertSeeHtml( 'aria-describedby="resource-table-search-hint"' )
+        ->assertSeeHtml( '<span id="resource-table-search-hint" class="apui-sr-only">' )
         ->assertSee( 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2' )
         ->assertSee( 'Photo Editor' )
         ->assertSee( '#A100' )

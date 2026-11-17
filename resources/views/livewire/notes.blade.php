@@ -10,7 +10,7 @@
     use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 @endphp
 <div>
-    <x-artisanpack-card :title="__( 'Notes' )" shadow data-notes>
+    <x-artisanpack-card :title="__( 'Notes' )" data-notes>
         @if ( $canAdd )
             <form wire:submit="addNote" class="mb-4 flex flex-col gap-2" data-note-form>
                 <x-artisanpack-textarea
@@ -26,17 +26,17 @@
                     <x-artisanpack-toggle
                         id="note-visible-{{ $this->getId() }}"
                         :label="__( 'Visible to customer' )"
-                        :hint="__( 'Shown in the customer\'s order history.' )"
+                        :description="__( 'Shown in the customer\'s order history.' )"
                         wire:model="isCustomerVisible"
                     />
                 @endif
 
-                <x-artisanpack-button type="submit" size="sm" class="self-start" wire:loading.attr="disabled" :label="__( 'Add note' )" />
+                <x-artisanpack-button type="submit" size="sm" class="self-start" wire:loading.attr="disabled">{{ __( 'Add note' ) }}</x-artisanpack-button>
             </form>
         @endif
 
         @if ( [] === $notes )
-            <x-artisanpack-ec-empty-state icon="o-chat-bubble-left-ellipsis" :title="__( 'No notes yet' )" :description="__( 'Notes from your team appear here.' )" />
+            <x-artisanpack-ec-admin-empty-state size="sm" :heading-level="4" icon="o-chat-bubble-left-ellipsis" :title="__( 'No notes yet' )" :description="__( 'Notes from your team appear here.' )" />
         @else
             <ul class="flex list-none flex-col gap-3" aria-label="{{ __( 'Notes, newest first' ) }}">
                 @foreach ( $notes as $note )
@@ -52,9 +52,9 @@
                     >
                         <div class="mb-1 flex flex-wrap items-center gap-2 text-sm">
                             @if ( $note['visible'] )
-                                <x-artisanpack-badge :value="__( 'Visible to customer' )" icon="o-eye" class="badge-sm" color="info" />
+                                <x-artisanpack-badge :value="__( 'Visible to customer' )" leading-icon="o-eye" size="sm" color="info" />
                             @elseif ( $isOrder )
-                                <x-artisanpack-badge :value="__( 'Internal' )" icon="o-lock-closed" class="badge-sm" color="neutral" />
+                                <x-artisanpack-badge :value="__( 'Internal' )" leading-icon="o-lock-closed" size="sm" color="neutral" />
                             @endif
                             <span class="font-semibold">{{ $note['author'] }}</span>
                             @if ( null !== $note['time'] )
@@ -68,14 +68,12 @@
                                 <x-artisanpack-button
                                     variant="ghost"
                                     size="xs"
-                                    icon="o-trash"
+                                    leading-icon="o-trash"
                                     class="ms-auto"
                                     wire:click="deleteNote( {{ $note['id'] }} )"
                                     wire:confirm="{{ __( 'Delete this note?' ) }}"
                                     wire:loading.attr="disabled"
-                                    :label="__( 'Delete' )"
-                                    :aria-label="__( 'Delete note by :author', [ 'author' => $note['author'] ] )"
-                                />
+                                    :aria-label="__( 'Delete note by :author', [ 'author' => $note['author'] ] )">{{ __( 'Delete' ) }}</x-artisanpack-button>
                             @endif
                         </div>
                         <p class="whitespace-pre-line break-words">{{ $note['body'] }}</p>

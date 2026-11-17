@@ -7,24 +7,24 @@
     @since      1.0.0
 --}}
 <div class="flex flex-col gap-6">
-    <x-artisanpack-header :title="__( 'Dashboard' )" :level="1" separator />
+    <x-artisanpack-page-header :title="__( 'Dashboard' )" :level="1" />
 
     @include( 'ecommerce-admin::partials.live-region', [ 'message' => $liveAnnouncement ] )
 
     @if ( $firstRun )
-        <x-artisanpack-card shadow data-first-run>
-            <x-artisanpack-ec-empty-state
+        <x-artisanpack-card data-first-run>
+            <x-artisanpack-ec-admin-empty-state
                 icon="o-building-storefront"
                 :title="__( 'Welcome to your store' )"
                 :description="__( 'Your store has no products or orders yet. Add your first product to get started.' )"
             >
                 @if ( null !== $createUrl )
-                    <x-artisanpack-button :link="$createUrl" color="primary" icon="o-plus" :label="__( 'Add your first product' )" />
+                    <x-artisanpack-button :href="$createUrl" color="primary" leading-icon="o-plus">{{ __( 'Add your first product' ) }}</x-artisanpack-button>
                 @endif
                 @if ( null !== $importUrl )
-                    <x-artisanpack-button :link="$importUrl" icon="o-arrow-up-tray" :label="__( 'Import products' )" />
+                    <x-artisanpack-button :href="$importUrl" leading-icon="o-arrow-up-tray">{{ __( 'Import products' ) }}</x-artisanpack-button>
                 @endif
-            </x-artisanpack-ec-empty-state>
+            </x-artisanpack-ec-admin-empty-state>
         </x-artisanpack-card>
     @endif
 
@@ -52,7 +52,7 @@
         @else
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-dashboard-sections>
                 @foreach ( $sections as $sectionKey => $section )
-                    <x-artisanpack-card :title="$section['label']" shadow wire:key="ecommerce-admin-dashboard-{{ $sectionKey }}">
+                    <x-artisanpack-card :title="$section['label']" wire:key="ecommerce-admin-dashboard-{{ $sectionKey }}">
                         <ul class="flex flex-col gap-2">
                             @foreach ( $section['items'] as $item )
                                 <li wire:key="ecommerce-admin-dashboard-link-{{ $item['key'] }}">

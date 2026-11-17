@@ -31,8 +31,8 @@
                         <x-artisanpack-input id="digital-{{ $i }}-label" :label="__( 'Label of file :number', [ 'number' => $i + 1 ] )" wire:model.blur="state.files.{{ $i }}.label" :disabled="$readOnly" />
                         <x-artisanpack-input id="digital-{{ $i }}-version" :label="__( 'Version of :file', [ 'file' => $fileLabel ] )" :hint="__( 'Changing it on a saved file emails past buyers.' )" wire:model.blur="state.files.{{ $i }}.version" :disabled="$readOnly" />
                         <div class="flex flex-col justify-end gap-2">
-                            <x-artisanpack-toggle id="digital-{{ $i }}-streaming" :label="__( 'Streaming only' )" :hint="__( 'Can be played but never downloaded.' )" wire:model="state.files.{{ $i }}.is_streaming_only" :disabled="$readOnly" />
-                            <x-artisanpack-toggle id="digital-{{ $i }}-archived" :label="__( 'Archived' )" :hint="__( 'Existing buyers keep their downloads; the file is no longer offered.' )" wire:model="state.files.{{ $i }}.is_archived" :disabled="$readOnly" />
+                            <x-artisanpack-toggle id="digital-{{ $i }}-streaming" :label="__( 'Streaming only' )" :description="__( 'Can be played but never downloaded.' )" wire:model="state.files.{{ $i }}.is_streaming_only" :disabled="$readOnly" />
+                            <x-artisanpack-toggle id="digital-{{ $i }}-archived" :label="__( 'Archived' )" :description="__( 'Existing buyers keep their downloads; the file is no longer offered.' )" wire:model="state.files.{{ $i }}.is_archived" :disabled="$readOnly" />
                         </div>
                     </div>
 
@@ -45,15 +45,15 @@
                                 <span class="text-sm text-error" role="alert">{{ $message }}</span>
                             @enderror
                             @if ( $mediaLibrary && ! $readOnly )
-                                <x-artisanpack-button variant="outline" size="sm" icon="o-paper-clip" x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( DigitalPanel::MEDIA_CONTEXT . $i ) }} } )" :label="__( 'Choose file' )" :aria-label="__( 'Choose file for :file', [ 'file' => $fileLabel ] )" />
+                                <x-artisanpack-button variant="outline" size="sm" leading-icon="o-paper-clip" x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( DigitalPanel::MEDIA_CONTEXT . $i ) }} } )" :aria-label="__( 'Choose file for :file', [ 'file' => $fileLabel ] )">{{ __( 'Choose file' ) }}</x-artisanpack-button>
                             @endif
                         @else
-                            <x-artisanpack-select id="digital-{{ $i }}-disk" :label="__( 'Disk' )" :options="$diskOptions" wire:model="state.files.{{ $i }}.disk" :disabled="$readOnly" />
+                            <x-artisanpack-select placeholder="" id="digital-{{ $i }}-disk" :label="__( 'Disk' )" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $diskOptions )" wire:model="state.files.{{ $i }}.disk" :disabled="$readOnly" />
                             <x-artisanpack-input id="digital-{{ $i }}-path" class="min-w-72" :label="__( 'Path of :file on the disk', [ 'file' => $fileLabel ] )" :placeholder="__( 'downloads/guide.pdf' )" wire:model.blur="state.files.{{ $i }}.path" :disabled="$readOnly" />
                         @endif
 
                         @unless ( $readOnly )
-                            <x-artisanpack-button class="ms-auto" variant="ghost" size="sm" icon="o-trash" wire:click="removeFile( {{ $i }} )" wire:loading.attr="disabled" wire:confirm="{{ __( 'Remove this file when you save? A file customers already bought can\'t be removed; archive it instead.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
+                            <x-artisanpack-button class="ms-auto" variant="ghost" size="sm" leading-icon="o-trash" wire:click="removeFile( {{ $i }} )" wire:loading.attr="disabled" wire:confirm="{{ __( 'Remove this file when you save? A file customers already bought can\'t be removed; archive it instead.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
                         @endunless
                     </div>
                 </li>
@@ -61,7 +61,7 @@
         </ul>
 
         @unless ( $readOnly )
-            <x-artisanpack-button class="mt-3" variant="outline" size="sm" icon="o-plus" wire:click="addFile" :label="__( 'Add file' )" />
+            <x-artisanpack-button class="mt-3" variant="outline" size="sm" leading-icon="o-plus" wire:click="addFile">{{ __( 'Add file' ) }}</x-artisanpack-button>
         @endunless
     </section>
 

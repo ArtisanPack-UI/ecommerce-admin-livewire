@@ -2,9 +2,7 @@
     <x-artisanpack-button
         variant="ghost"
         size="sm"
-        icon="o-eye"
+        leading-icon="o-eye"
         wire:click="openDelivery( {{ $row->getKey() }} )"
-        :label="__( 'Details' )"
-        :aria-label="__( 'Details of delivery :id', [ 'id' => $row->getKey() ] )"
-    />
+        :aria-label="__( 'Details of delivery :id', [ 'id' => $row->getKey() ] )">{{ __( 'Details' ) }}</x-artisanpack-button>
 </div>

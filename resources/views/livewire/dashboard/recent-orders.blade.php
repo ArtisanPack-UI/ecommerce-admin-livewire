@@ -15,11 +15,11 @@
     $indexRoute = AdminNav::ROUTE_PREFIX . 'orders.index';
     $canLink    = \Illuminate\Support\Facades\Route::has( $showRoute );
 @endphp
-<x-artisanpack-card shadow>
+<x-artisanpack-card>
     <h2 id="dashboard-widget-{{ $widget['key'] }}" class="text-lg font-semibold">{{ $widget['label'] }}</h2>
 
     @if ( $dashboard['recentOrders']->isEmpty() )
-        <x-artisanpack-ec-empty-state icon="o-shopping-bag" :title="__( 'No orders yet' )" :description="__( 'Orders appear here as soon as customers check out.' )" />
+        <x-artisanpack-ec-admin-empty-state size="sm" :heading-level="3" icon="o-shopping-bag" :title="__( 'No orders yet' )" :description="__( 'Orders appear here as soon as customers check out.' )" />
     @else
         <div class="overflow-x-auto">
             <table class="table table-sm" data-recent-orders>
@@ -48,7 +48,7 @@
                             <td>{{ OrdersIndex::customerName( $order ) ?? $order->email ?? '—' }}</td>
                             <td><x-artisanpack-ec-status-badge type="system" :value="$order->system_status" /></td>
                             <td><x-artisanpack-ec-status-badge type="fulfillment" :value="$order->fulfillment_status" /></td>
-                            <td class="text-end"><x-artisanpack-ec-money :amount="$order->total_amount" :currency="$order->total_currency" /></td>
+                            <td class="text-end"><x-artisanpack-ec-admin-money :amount="$order->total_amount" :currency="$order->total_currency" /></td>
                         </tr>
                     @endforeach
                 </tbody>

@@ -11,7 +11,7 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 @endphp
 <div class="flex flex-col gap-6" x-data="{ {!! UnsavedChanges::members() !!} }" {!! UnsavedChanges::attributes() !!}>
-    <x-artisanpack-header :title="__( 'Settings' )" :subtitle="$tab['description']" :level="1" separator />
+    <x-artisanpack-page-header :title="__( 'Settings' )" :description="$tab['description']" :level="1" />
 
     <nav aria-label="{{ __( 'Settings sections' ) }}">
         <x-artisanpack-menu class="menu-horizontal flex-wrap gap-1 rounded-box bg-base-200 p-1">
@@ -19,11 +19,11 @@
                 <x-artisanpack-menu-item
                     wire:key="settings-tab-{{ $navTab['key'] }}"
                     :title="$navTab['label']"
-                    :link="route( 'artisanpack.ecommerce.admin.settings.show', [ 'group' => $navTab['key'] ] )"
-                    :active="$navTab['key'] === $tab['key']"
+                    :href="route( 'artisanpack.ecommerce.admin.settings.show', [ 'group' => $navTab['key'] ] )"
+                    :current="$navTab['key'] === $tab['key']"
                     :aria-current="$navTab['key'] === $tab['key'] ? 'page' : null"
                     role="link"
-                    no-wire-navigate
+                    :navigate="false"
                 />
             @endforeach
         </x-artisanpack-menu>
@@ -97,7 +97,7 @@
                         <div wire:key="setting-{{ $definition->key }}" class="flex flex-col gap-1" data-setting="{{ $definition->key }}" data-setting-type="{{ $definition->type }}">
                             @switch ( $definition->type )
                                 @case( 'boolean' )
-                                    <x-artisanpack-toggle :id="$id" :label="$definition->label" :hint="$definition->description" wire:model="{{ $path }}" />
+                                    <x-artisanpack-toggle :id="$id" :label="$definition->label" :description="$definition->description" wire:model="{{ $path }}" />
                                     @break
 
                                 @case( 'integer' )
@@ -117,9 +117,8 @@
                                         :id="$id"
                                         :label="$definition->label"
                                         :hint="$definition->description"
-                                        :options="collect( $definition->options() )->map( fn ( $label, $value ) => [ 'id' => (string) $value, 'name' => $label ] )->values()->all()"
+                                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( collect( $definition->options() )->map( fn ( $label, $value ) => [ 'id' => (string) $value, 'name' => $label ] )->values()->all() )"
                                         :placeholder="__( 'Choose…' )"
-                                        placeholder-value=""
                                         wire:model="{{ $path }}"
                                     />
                                     @break
@@ -129,7 +128,7 @@
                                         :id="$id"
                                         :label="$definition->label"
                                         :hint="$definition->description"
-                                        :options="collect( $definition->options() )->map( fn ( $label, $value ) => [ 'id' => (string) $value, 'name' => $label ] )->values()->all()"
+                                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( collect( $definition->options() )->map( fn ( $label, $value ) => [ 'id' => (string) $value, 'name' => $label ] )->values()->all() )"
                                         wire:model="{{ $path }}"
                                     />
                                     @break
@@ -155,18 +154,16 @@
                                                     <x-artisanpack-button
                                                         variant="ghost"
                                                         size="sm"
-                                                        icon="o-trash"
+                                                        leading-icon="o-trash"
                                                         wire:click="removeMapRow( {{ \Illuminate\Support\Js::from( $definition->key ) }}, {{ (int) $index }} )" wire:loading.attr="disabled"
-                                                        :label="__( 'Remove' )"
-                                                        :aria-label="__( 'Remove :field row :number', [ 'field' => $definition->label, 'number' => $index + 1 ] )"
-                                                    />
+                                                        :aria-label="__( 'Remove :field row :number', [ 'field' => $definition->label, 'number' => $index + 1 ] )">{{ __( 'Remove' ) }}</x-artisanpack-button>
                                                 @endif
                                             </div>
                                         @endforeach
 
                                         @if ( $canUpdate )
                                             <div class="mt-2">
-                                                <x-artisanpack-button size="sm" variant="outline" icon="o-plus" wire:click="addMapRow( {{ \Illuminate\Support\Js::from( $definition->key ) }} )" :label="__( 'Add row' )" />
+                                                <x-artisanpack-button size="sm" variant="outline" leading-icon="o-plus" wire:click="addMapRow( {{ \Illuminate\Support\Js::from( $definition->key ) }} )">{{ __( 'Add row' ) }}</x-artisanpack-button>
                                             </div>
                                         @endif
                                     </fieldset>
@@ -181,9 +178,8 @@
                                         :id="$id"
                                         :label="$definition->label"
                                         :hint="$definition->description"
-                                        :options="collect( $timezones )->map( fn ( $zone ) => [ 'id' => $zone, 'name' => $zone ] )->all()"
+                                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( collect( $timezones )->map( fn ( $zone ) => [ 'id' => $zone, 'name' => $zone ] )->all() )"
                                         :placeholder="__( 'Application time zone' )"
-                                        placeholder-value=""
                                         wire:model="{{ $path }}"
                                     />
                                     @break
@@ -213,9 +209,7 @@
                                             wire:click="resetToDefault( {{ \Illuminate\Support\Js::from( $definition->key ) }} )"
                                             wire:confirm="{{ __( 'Reset :setting to its default? This saves immediately.', [ 'setting' => $definition->label ] ) }}"
                                             wire:loading.attr="disabled"
-                                            :label="__( 'Reset to default' )"
-                                            :aria-label="__( 'Reset to default: :setting', [ 'setting' => $definition->label ] )"
-                                        />
+                                            :aria-label="__( 'Reset to default: :setting', [ 'setting' => $definition->label ] )">{{ __( 'Reset to default' ) }}</x-artisanpack-button>
                                     @endif
                                 </div>
                             @endif
@@ -263,12 +257,12 @@
 
                 @if ( $canUpdate )
                     <div class="flex justify-end">
-                        <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Save settings' )" />
+                        <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save settings' ) }}</x-artisanpack-button>
                     </div>
                 @endif
             </form>
 
-            <x-artisanpack-modal wire:model="confirmingBaseCurrency" :title="__( 'Change the base currency?' )" separator>
+            <x-artisanpack-dialog wire:model="confirmingBaseCurrency" :title="__( 'Change the base currency?' )">
                 <div class="flex flex-col gap-3" data-base-currency-warning>
                     <p>{{ __( 'The base currency is changing from :from to :to.', [ 'from' => $baseCurrency, 'to' => strtoupper( (string) ( $form[ Show::field( \ArtisanPackUI\Ecommerce\Settings\SettingsRepository::BASE_CURRENCY_KEY ) ] ?? '' ) ) ] ) }}</p>
                     <ul class="list-disc ps-5">
@@ -279,10 +273,10 @@
                     </ul>
                 </div>
 
-                <x-slot:actions>
-                    <x-artisanpack-button variant="ghost" wire:click="$set( 'confirmingBaseCurrency', false )" :label="__( 'Cancel' )" />
-                    <x-artisanpack-button color="warning" wire:click="confirmBaseCurrencyChange" wire:loading.attr="disabled" :label="__( 'Change base currency' )" data-confirm-base-currency />
-                </x-slot:actions>
-            </x-artisanpack-modal>
+                <x-slot:footer>
+                    <x-artisanpack-button variant="ghost" wire:click="$set( 'confirmingBaseCurrency', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                    <x-artisanpack-button color="warning" wire:click="confirmBaseCurrencyChange" wire:loading.attr="disabled" data-confirm-base-currency>{{ __( 'Change base currency' ) }}</x-artisanpack-button>
+                </x-slot:footer>
+            </x-artisanpack-dialog>
     @endswitch
 </div>

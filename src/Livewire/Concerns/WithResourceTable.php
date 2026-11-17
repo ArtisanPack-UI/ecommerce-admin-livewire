@@ -41,7 +41,9 @@ use Throwable;
  * `ap.ecommerceAdminLivewire.table.{screen}.columns`, `.filters`, and
  * `.bulkActions` (spec §8.5).
  *
- * Column definition: `key`, `label`, `sortable` (bool), `class`, and one of
+ * Column definition: `key`, `label`, `sortable` (bool), `class`, `numeric`
+ * (bool: aligned to the inline end; defaults to true when `class` has
+ * `text-end`), and one of
  * `view` (a Blade view rendered with `$row` and `$column`), `value`
  * (callable returning text), or neither (the row attribute named `key`).
  * `export` (callable) overrides the CSV value; `exportable` false leaves the
@@ -546,6 +548,7 @@ trait WithResourceTable
             'tableDirection'      => $order,
             'tablePerPageValues'  => $this->perPageValues(),
             'tableFiltersActive'  => $this->filtersActive(),
+            'tableFilterCount'    => count( $this->normalizedFilters() ),
             'tableSelectionCount' => $this->selectionCount( $rows ),
             'tableAllMatching'    => $this->selectAllMatching,
             'tableSelectable'     => [] !== $bulkActions,
@@ -619,7 +622,10 @@ trait WithResourceTable
      *
      * @since 1.0.0
      *
-     * @return array<int, array{key: string, label: string, sortable: bool, class: string, view: string|null, value: callable|null, export: callable|null, exportable: bool}>
+     * A column is `numeric` (aligned to the inline end) when it says so, or,
+     * as in 1.x, when its class has `text-end`.
+     *
+     * @return array<int, array{key: string, label: string, sortable: bool, class: string, numeric: bool, view: string|null, value: callable|null, export: callable|null, exportable: bool}>
      */
     protected function tableColumnDefinitions(): array
     {
@@ -639,6 +645,7 @@ trait WithResourceTable
                 'label'      => (string) $column['label'],
                 'sortable'   => (bool) ( $column['sortable'] ?? false ) && $query->canSortBy( $key ),
                 'class'      => (string) ( $column['class'] ?? '' ),
+                'numeric'    => (bool) ( $column['numeric'] ?? str_contains( (string) ( $column['class'] ?? '' ), 'text-end' ) ),
                 'view'       => isset( $column['view'] ) ? (string) $column['view'] : null,
                 'value'      => isset( $column['value'] ) && is_callable( $column['value'] ) ? $column['value'] : null,
                 'export'     => isset( $column['export'] ) && is_callable( $column['export'] ) ? $column['export'] : null,
@@ -743,7 +750,7 @@ trait WithResourceTable
         return [
             'key'     => 'export',
             'label'   => __( 'Export selection' ),
-            'icon'    => 'o-arrow-down-tray',
+            'icon'    => 'download',
             'handler' => fn (): mixed => $this->runExport( true ),
         ];
     }

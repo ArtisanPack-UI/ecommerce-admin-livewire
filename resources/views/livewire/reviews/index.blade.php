@@ -12,7 +12,7 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reviews\Index;
 @endphp
 <div>
-    <x-artisanpack-header :title="__( 'Reviews' )" :level="1" separator />
+    <x-artisanpack-page-header :title="__( 'Reviews' )" :level="1" />
 
     @include( 'ecommerce-admin::partials.resource-table', [
         'emptyIcon'        => 'o-star',
@@ -23,13 +23,13 @@
         'cellContext'      => [ 'canModerate' => $canModerate, 'canDelete' => $canDelete, 'canView' => $canView ],
     ] )
 
-    <x-artisanpack-drawer wire:model="viewing" :title="__( 'Review' )" right separator with-close-button close-on-escape class="w-full max-w-xl">
+    <x-artisanpack-drawer wire:model="viewing" :title="__( 'Review' )" side="end" class="w-full max-w-xl">
         @if ( null !== $reviewing )
             <article class="flex flex-col gap-4" data-review-detail="{{ $reviewing->id }}">
                 <div class="flex flex-wrap items-center gap-2">
                     <x-artisanpack-ec-status-badge type="review" :value="$reviewing->status" />
                     @if ( $reviewing->is_verified_purchase )
-                        <x-artisanpack-badge :value="__( 'Verified purchase' )" color="success" class="badge-sm" />
+                        <x-artisanpack-badge :value="__( 'Verified purchase' )" color="success" size="sm" />
                     @endif
                 </div>
 
@@ -83,15 +83,15 @@
     </x-artisanpack-drawer>
 
     @if ( $rejecting )
-        <x-artisanpack-modal wire:model="rejecting" :title="__( 'Reject review' )" separator>
+        <x-artisanpack-dialog wire:model="rejecting" :title="__( 'Reject review' )">
             <form wire:submit="reject" id="review-reject-form" data-reject-form>
                 <x-artisanpack-textarea id="review-reject-reason" :label="__( 'Reason' )" :hint="__( 'For your team. The reviewer is not told.' )" wire:model="rejectReason" rows="3" required />
             </form>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="closeReject" :label="__( 'Cancel' )" />
-                <x-artisanpack-button type="submit" form="review-reject-form" color="error" wire:loading.attr="disabled" :label="__( 'Reject review' )" />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="closeReject">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" form="review-reject-form" color="error" wire:loading.attr="disabled">{{ __( 'Reject review' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

@@ -3,11 +3,11 @@
     use Illuminate\Support\Js;
 @endphp
 <div>
-    <x-artisanpack-card :title="__( 'Fulfillment' )" shadow>
+    <x-artisanpack-card :title="__( 'Fulfillment' )">
         <div class="flex flex-wrap items-center gap-3">
             <x-artisanpack-ec-status-badge type="fulfillment" :value="$order->fulfillment_status" />
             @if ( $canShip )
-                <x-artisanpack-button size="sm" icon="o-truck" class="ms-auto" wire:click="startShipment" wire:loading.attr="disabled" :label="__( 'Create shipment' )" />
+                <x-artisanpack-button size="sm" leading-icon="o-truck" class="ms-auto" wire:click="startShipment" wire:loading.attr="disabled">{{ __( 'Create shipment' ) }}</x-artisanpack-button>
             @endif
         </div>
 
@@ -29,7 +29,7 @@
                             <span class="font-semibold">{{ __( 'Shipment #:id', [ 'id' => $shipment->id ] ) }}</span>
                             <x-artisanpack-ec-status-badge type="shipment" :value="$shipment->status" />
                             @if ( null !== $shipment->label_id )
-                                <x-artisanpack-badge :value="__( 'Label printed' )" class="badge-sm" color="neutral" />
+                                <x-artisanpack-badge :value="__( 'Label printed' )" size="sm" color="neutral" />
                             @endif
                         </div>
 
@@ -63,12 +63,12 @@
                         @if ( $canUpdate )
                             @if ( $editingShipmentId === (int) $shipment->id )
                                 <form wire:submit="updateTracking" class="mt-3 grid gap-2 sm:grid-cols-3" data-tracking-form>
-                                    <x-artisanpack-select id="shipment-{{ $shipment->id }}-status" :label="__( 'Status' )" :options="$statusOptions" wire:model="editStatus" />
+                                    <x-artisanpack-select placeholder="" id="shipment-{{ $shipment->id }}-status" :label="__( 'Status' )" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $statusOptions )" wire:model="editStatus" />
                                     <x-artisanpack-input id="shipment-{{ $shipment->id }}-tracking-number" :label="__( 'Tracking number' )" wire:model="editTrackingNumber" />
                                     <x-artisanpack-input id="shipment-{{ $shipment->id }}-tracking-url" type="url" :label="__( 'Tracking link' )" wire:model="editTrackingUrl" />
                                     <div class="flex gap-2 sm:col-span-3">
-                                        <x-artisanpack-button type="submit" size="sm" wire:loading.attr="disabled" :label="__( 'Save tracking' )" />
-                                        <x-artisanpack-button variant="ghost" size="sm" wire:click="$set( 'editingShipmentId', null )" :label="__( 'Cancel' )" />
+                                        <x-artisanpack-button type="submit" size="sm" wire:loading.attr="disabled">{{ __( 'Save tracking' ) }}</x-artisanpack-button>
+                                        <x-artisanpack-button variant="ghost" size="sm" wire:click="$set( 'editingShipmentId', null )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                                     </div>
                                 </form>
                             @else
@@ -76,30 +76,25 @@
                                     <x-artisanpack-button
                                         variant="ghost"
                                         size="sm"
-                                        icon="o-pencil-square"
+                                        leading-icon="o-pencil-square"
                                         wire:click="editTracking( {{ (int) $shipment->id }} )"
-                                        :label="__( 'Update tracking' )"
-                                        :aria-label="__( 'Update tracking for shipment #:id', [ 'id' => $shipment->id ] )"
-                                    />
+                                        :aria-label="__( 'Update tracking for shipment #:id', [ 'id' => $shipment->id ] )">{{ __( 'Update tracking' ) }}</x-artisanpack-button>
                                     @if ( isset( $labelTokens[ (int) $shipment->id ] ) )
                                         @if ( count( $labelProviders ) > 1 )
                                             <x-artisanpack-select
                                                 id="shipment-{{ $shipment->id }}-label-provider"
                                                 :label="__( 'Label provider' )"
-                                                :options="collect( $labelProviders )->map( fn ( $label, $key ) => [ 'id' => $key, 'name' => $label ] )->values()->all()"
+                                                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( collect( $labelProviders )->map( fn ( $label, $key ) => [ 'id' => $key, 'name' => $label ] )->values()->all() )"
                                                 :placeholder="__( 'Choose a provider' )"
-                                                placeholder-value=""
                                                 wire:model="labelProvider"
                                             />
                                         @endif
                                         <x-artisanpack-button
                                             size="sm"
-                                            icon="o-printer"
+                                            leading-icon="o-printer"
                                             wire:click="buyLabel( {{ (int) $shipment->id }}, {{ Js::from( $labelTokens[ (int) $shipment->id ] ) }} )"
                                             wire:loading.attr="disabled"
-                                            :label="__( 'Buy label' )"
-                                            :aria-label="__( 'Buy label for shipment #:id', [ 'id' => $shipment->id ] )"
-                                        />
+                                            :aria-label="__( 'Buy label for shipment #:id', [ 'id' => $shipment->id ] )">{{ __( 'Buy label' ) }}</x-artisanpack-button>
                                     @endif
                                 </div>
                             @endif
@@ -111,7 +106,7 @@
     </x-artisanpack-card>
 
     @if ( null !== $shipmentToken )
-        <x-artisanpack-modal wire:model="creating" :title="__( 'Create shipment' )" box-class="max-w-2xl" separator>
+        <x-artisanpack-dialog wire:model="creating" :title="__( 'Create shipment' )" :classes="['root' => 'max-w-2xl']">
             <div class="flex flex-col gap-4" data-shipment-form>
                 @error( 'shipment' )
                     <x-artisanpack-alert color="error" icon="o-exclamation-circle" role="alert">{{ $message }}</x-artisanpack-alert>
@@ -156,9 +151,8 @@
                     <x-artisanpack-select
                         id="shipment-method"
                         :label="__( 'Shipping method' )"
-                        :options="$methodOptions"
+                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $methodOptions )"
                         :placeholder="__( 'Choose a method' )"
-                        placeholder-value=""
                         wire:model="method"
                     />
                     <x-artisanpack-input id="shipment-carrier" :label="__( 'Carrier' )" wire:model="carrier" />
@@ -168,15 +162,13 @@
                 </div>
             </div>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'creating', false )" :label="__( 'Cancel' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'creating', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="primary"
                     wire:click="createShipment( {{ Js::from( $shipmentToken ) }} )"
-                    wire:loading.attr="disabled"
-                    :label="__( 'Create shipment' )"
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    wire:loading.attr="disabled">{{ __( 'Create shipment' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

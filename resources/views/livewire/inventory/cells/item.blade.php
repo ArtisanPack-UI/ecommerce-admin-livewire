@@ -12,7 +12,7 @@
     <span class="block text-xs opacity-75">{{ __( 'Variant' ) }}</span>
 @endif
 @if ( null !== $product && $product->typeIsMissing() )
-    <x-artisanpack-badge :value="__( 'Read-only' )" class="badge-sm" color="warning" data-read-only />
+    <x-artisanpack-badge :value="__( 'Read-only' )" size="sm" color="warning" data-read-only />
 @endif
 @unless ( $row->track_inventory )
     <span class="block text-xs opacity-75">{{ __( 'Not tracked' ) }}</span>

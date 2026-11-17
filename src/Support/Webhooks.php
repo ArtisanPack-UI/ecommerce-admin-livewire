@@ -186,21 +186,21 @@ final class Webhooks
     }
 
     /**
-     * A status's badge class.
+     * A status's design-system badge color.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
      * @param  string  $status  Status.
      *
      * @return string
      */
-    public static function statusClass( string $status ): string
+    public static function statusColor( string $status ): string
     {
         return match ( $status ) {
-            'delivered' => 'badge-success',
-            'pending'   => 'badge-ghost',
-            'retrying'  => 'badge-warning',
-            default     => 'badge-error',
+            'delivered' => 'success',
+            'pending'   => 'neutral',
+            'retrying'  => 'warning',
+            default     => 'error',
         };
     }
 

@@ -7,12 +7,12 @@
     @since      1.0.0
 --}}
 <div>
-    <x-artisanpack-header :title="__( 'Tags' )" :level="1" separator />
+    <x-artisanpack-page-header :title="__( 'Tags' )" :level="1" />
 
     @if ( $canCreate )
         <form wire:submit="createTag" class="mb-4 flex flex-wrap items-end gap-3" data-new-tag>
             <x-artisanpack-input id="new-tag-name" class="min-w-64" :label="__( 'New tag' )" wire:model="newTagName" />
-            <x-artisanpack-button type="submit" icon="o-plus" wire:loading.attr="disabled" :label="__( 'Add tag' )" />
+            <x-artisanpack-button type="submit" leading-icon="o-plus" wire:loading.attr="disabled">{{ __( 'Add tag' ) }}</x-artisanpack-button>
         </form>
     @endif
 

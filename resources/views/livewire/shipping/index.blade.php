@@ -13,13 +13,13 @@
     $countryList = static fn ( array $codes ): string => implode( ', ', array_map( static fn ( string $code ): string => Countries::name( $code ), $codes ) );
 @endphp
 <div class="flex flex-col gap-4">
-    <x-artisanpack-header :title="__( 'Shipping' )" :level="1" separator>
+    <x-artisanpack-page-header :title="__( 'Shipping' )" :level="1">
         @if ( $canCreate )
             <x-slot:actions>
-                <x-artisanpack-button color="primary" icon="o-plus" wire:click="createZone" :label="__( 'New zone' )" />
+                <x-artisanpack-button color="primary" leading-icon="o-plus" wire:click="createZone">{{ __( 'New zone' ) }}</x-artisanpack-button>
             </x-slot:actions>
         @endif
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     @if ( $zones->isNotEmpty() && 0 === $coverage['active'] )
         <x-artisanpack-alert
@@ -50,7 +50,7 @@
     @endif
 
     @if ( $zones->isEmpty() )
-        <x-artisanpack-ec-empty-state
+        <x-artisanpack-ec-admin-empty-state
             icon="o-truck"
             :title="__( 'No shipping zones yet' )"
             :description="__( 'A zone groups the countries you ship to and the shipping methods offered there.' )"
@@ -67,7 +67,7 @@
                         <x-artisanpack-button
                             variant="ghost"
                             size="sm"
-                            :icon="$open ? 'o-chevron-down' : 'o-chevron-right'"
+                            :leading-icon="$open ? 'o-chevron-down' : 'o-chevron-right'"
                             wire:click="toggleZone( {{ $zone->id }} )"
                             aria-expanded="{{ $open ? 'true' : 'false' }}"
                             aria-controls="zone-{{ $zone->id }}-methods"
@@ -89,19 +89,19 @@
                         <x-artisanpack-badge
                             :value="$zone->is_active ? __( 'Active' ) : __( 'Inactive' )"
                             :color="$zone->is_active ? 'success' : 'neutral'"
-                            class="badge-sm"
+                            size="sm"
                         />
                         <x-artisanpack-badge
                             :value="trans_choice( ':count method|:count methods', $methods->count(), [ 'count' => $methods->count() ] )"
-                            class="badge-ghost badge-sm"
+                            variant="ghost" size="sm"
                         />
 
                         <div class="flex items-center gap-1">
                             @if ( $canUpdate )
-                                <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="editZone( {{ $zone->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $zone->name ] )" />
+                                <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-pencil" wire:click="editZone( {{ $zone->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $zone->name ] )" />
                             @endif
                             @if ( $canDelete )
-                                <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDeleteZone( {{ $zone->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $zone->name ] )" />
+                                <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="confirmDeleteZone( {{ $zone->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $zone->name ] )" />
                             @endif
                         </div>
                     </div>
@@ -127,7 +127,7 @@
                                             <x-artisanpack-badge
                                                 :value="$method->is_active ? __( 'Active' ) : __( 'Inactive' )"
                                                 :color="$method->is_active ? 'success' : 'neutral'"
-                                                class="badge-sm"
+                                                size="sm"
                                             />
 
                                             @if ( $canUpdate )
@@ -135,7 +135,7 @@
                                                     <x-artisanpack-button
                                                         variant="ghost"
                                                         size="sm"
-                                                        icon="o-arrow-up"
+                                                        leading-icon="o-arrow-up"
                                                         wire:click="moveMethod( {{ $method->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="methods-{{ $zone->id }}" data-reorder-key="method-{{ $method->id }}" data-reorder-item="{{ $method->label }}"
                                                         :disabled="$loop->first"
                                                         :aria-label="__( 'Move :name up', [ 'name' => $method->label ] )"
@@ -143,13 +143,13 @@
                                                     <x-artisanpack-button
                                                         variant="ghost"
                                                         size="sm"
-                                                        icon="o-arrow-down"
+                                                        leading-icon="o-arrow-down"
                                                         wire:click="moveMethod( {{ $method->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="methods-{{ $zone->id }}" data-reorder-key="method-{{ $method->id }}" data-reorder-item="{{ $method->label }}"
                                                         :disabled="$loop->last"
                                                         :aria-label="__( 'Move :name down', [ 'name' => $method->label ] )"
                                                     />
-                                                    <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="editMethod( {{ $method->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $method->label ] )" />
-                                                    <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDeleteMethod( {{ $method->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $method->label ] )" />
+                                                    <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-pencil" wire:click="editMethod( {{ $method->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $method->label ] )" />
+                                                    <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="confirmDeleteMethod( {{ $method->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $method->label ] )" />
                                                 </div>
                                             @endif
                                         </li>
@@ -158,7 +158,7 @@
                             @endif
 
                             @if ( $canUpdate )
-                                <x-artisanpack-button class="mt-2" variant="outline" size="sm" icon="o-plus" wire:click="createMethod( {{ $zone->id }} )" :label="__( 'Add method' )" data-add-method />
+                                <x-artisanpack-button class="mt-2" variant="outline" size="sm" leading-icon="o-plus" wire:click="createMethod( {{ $zone->id }} )" data-add-method>{{ __( 'Add method' ) }}</x-artisanpack-button>
                             @endif
                         </div>
                     @endif
@@ -170,21 +170,17 @@
     <x-artisanpack-drawer
         wire:model="editingZone"
         :title="null === $zoneId ? __( 'New shipping zone' ) : __( 'Edit shipping zone' )"
-        right
-        separator
-        with-close-button
-        close-on-escape
+        side="end"
         class="w-full max-w-lg"
     >
         <form wire:submit="saveZone" class="flex flex-col gap-4" data-zone-form>
             @include( 'ecommerce-admin::partials.error-summary' )
             <x-artisanpack-input id="zone-name" :label="__( 'Name' )" wire:model="zoneForm.name" required />
-            <x-artisanpack-choices-offline
+            <x-artisanpack-combobox multiple
                 id="zone-countries"
                 :label="__( 'Countries' )"
-                :options="$countryOptions"
-                searchable
-                :no-result-text="__( 'No results found.' )"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $countryOptions )"
+                :empty-label="__( 'No results found.' )"
                 wire:model="zoneForm.country_codes"
             />
             @error( 'zoneForm.country_codes.*' )
@@ -208,8 +204,8 @@
             <x-artisanpack-toggle id="zone-active" :label="__( 'Active' )" wire:model="zoneForm.is_active" />
 
             <div class="flex justify-end gap-2">
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'editingZone', false )" :label="__( 'Cancel' )" />
-                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Save zone' )" />
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'editingZone', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save zone' ) }}</x-artisanpack-button>
             </div>
         </form>
     </x-artisanpack-drawer>
@@ -217,10 +213,7 @@
     <x-artisanpack-drawer
         wire:model="editingMethod"
         :title="null === $methodId ? __( 'New shipping method' ) : __( 'Edit shipping method' )"
-        right
-        separator
-        with-close-button
-        close-on-escape
+        side="end"
         class="w-full max-w-lg"
     >
         <form wire:submit="saveMethod" class="flex flex-col gap-4" data-method-form>
@@ -228,18 +221,16 @@
             <x-artisanpack-select
                 id="method-key"
                 :label="__( 'Type' )"
-                :options="$typeOptions"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $typeOptions )"
                 :placeholder="__( 'Choose a type' )"
-                placeholder-value=""
                 wire:model.live="methodForm.key"
             />
             <x-artisanpack-input id="method-label" :label="__( 'Label' )" :hint="__( 'Shown to shoppers at checkout.' )" wire:model="methodForm.label" required />
             <x-artisanpack-select
                 id="method-tax-class"
                 :label="__( 'Tax class' )"
-                :options="$taxClasses"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $taxClasses )"
                 :placeholder="__( 'Shipping default' )"
-                placeholder-value=""
                 wire:model="methodForm.tax_class_key"
             />
             <x-artisanpack-toggle id="method-active" :label="__( 'Active' )" wire:model="methodForm.is_active" />
@@ -252,8 +243,8 @@
             @endif
 
             <div class="flex justify-end gap-2">
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'editingMethod', false )" :label="__( 'Cancel' )" />
-                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Save method' )" />
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'editingMethod', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save method' ) }}</x-artisanpack-button>
             </div>
         </form>
     </x-artisanpack-drawer>
@@ -265,7 +256,7 @@
             $methodCount = $isZone ? $deleting->methods->count() : 0;
             $deleteTitle = __( 'Delete ":name"?', [ 'name' => $deleteName ] );
         @endphp
-        <x-artisanpack-modal wire:model="confirmingDelete" :title="$deleteTitle" separator>
+        <x-artisanpack-dialog wire:model="confirmingDelete" :title="$deleteTitle">
             <p data-delete-shipping="{{ $deletingType }}">
                 @if ( $isZone )
                     {{ trans_choice( 'The zone and its :count method are deleted. Shoppers in its countries lose these shipping options.|The zone and its :count methods are deleted. Shoppers in its countries lose these shipping options.', $methodCount, [ 'count' => $methodCount ] ) }}
@@ -274,15 +265,13 @@
                 @endif
             </p>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" :label="__( 'Keep it' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="cancelDelete">{{ __( 'Keep it' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
                     wire:click="delete( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"
-                    wire:loading.attr="disabled"
-                    :label="$isZone ? __( 'Delete zone' ) : __( 'Delete method' )"
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    wire:loading.attr="disabled">{{ $isZone ? __( 'Delete zone' ) : __( 'Delete method' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

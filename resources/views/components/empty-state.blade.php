@@ -1,22 +1,25 @@
 {{--
-    Empty state. See EmptyState.
+    Empty state (#80). See EmptyState.
+
+    The design-system EmptyState as a status region; actions passed in the
+    slot render in its actions part.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
 
     @since      1.0.0
 --}}
-<div {{ $attributes->class( [ 'flex flex-col items-center gap-3 px-4 py-12 text-center' ] ) }} role="status" data-empty-state>
-    <x-artisanpack-icon :name="$icon" class="w-10 h-10 opacity-50" aria-hidden="true" />
-    <p class="text-lg font-semibold">{{ $title }}</p>
-
-    @if ( null !== $description && '' !== $description )
-        <p class="max-w-prose opacity-75">{{ $description }}</p>
-    @endif
-
+<x-artisanpack-empty-state
+    {{ $attributes->class( [ 'ec-empty-state' ] ) }}
+    role="status"
+    data-empty-state
+    :icon="$icon"
+    :title="$title"
+    :description="null !== $description && '' !== $description ? $description : null"
+    :size="$size"
+    :heading-level="$headingLevel"
+>
     @if ( $slot->isNotEmpty() )
-        <div class="flex flex-wrap justify-center gap-2">
-            {{ $slot }}
-        </div>
+        <x-slot:actions>{{ $slot }}</x-slot:actions>
     @endif
-</div>
+</x-artisanpack-empty-state>

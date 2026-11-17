@@ -18,14 +18,14 @@
     ];
 @endphp
 <div @if ( in_array( $step, [ 'queued', 'running' ], true ) ) wire:poll.5s @endif>
-    <x-artisanpack-header :title="__( 'Import products' )" :level="1" separator>
+    <x-artisanpack-page-header :title="__( 'Import products' )" :level="1">
         <x-slot:actions>
-            <x-artisanpack-button variant="ghost" icon="o-document-arrow-down" wire:click="downloadSample" :label="__( 'Download a sample file' )" />
+            <x-artisanpack-button variant="ghost" leading-icon="o-document-arrow-down" wire:click="downloadSample">{{ __( 'Download a sample file' ) }}</x-artisanpack-button>
             @if ( \Illuminate\Support\Facades\Route::has( $indexRoute ) )
-                <x-artisanpack-button variant="outline" :link="route( $indexRoute )" :label="__( 'Back to products' )" />
+                <x-artisanpack-button variant="outline" :href="route( $indexRoute )">{{ __( 'Back to products' ) }}</x-artisanpack-button>
             @endif
         </x-slot:actions>
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     <ol class="steps mb-6 w-full" aria-label="{{ __( 'Import steps' ) }}">
         @foreach ( [ 'upload' => __( 'Upload' ), 'mapping' => __( 'Match columns' ), 'checked' => __( 'Check' ), 'running' => __( 'Import' ) ] as $key => $label )
@@ -43,7 +43,7 @@
             <p>{{ __( 'Upload a CSV of products. Rows match existing products on SKU, then slug; anything else is created. At most :count rows and :size MB.', [ 'count' => $maxRows, 'size' => $maxUploadMb ] ) }}</p>
             <x-artisanpack-file id="import-file" :label="__( 'CSV file' )" accept=".csv,text/csv,text/plain" wire:model="csv" />
             <div>
-                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Upload' )" />
+                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Upload' ) }}</x-artisanpack-button>
             </div>
         </form>
     @elseif ( 'mapping' === $step )
@@ -58,16 +58,15 @@
                         wire:key="import-map-{{ $index }}"
                         id="import-map-{{ $index }}"
                         :label="$header"
-                        :options="$columnOptions"
+                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $columnOptions )"
                         :placeholder="__( 'Ignore this column' )"
-                        placeholder-value=""
                         wire:model="mapping.{{ $index }}"
                     />
                 @endforeach
             </div>
             <div class="flex gap-2">
-                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Check the file' )" />
-                <x-artisanpack-button variant="ghost" wire:click="discard" :label="__( 'Start over' )" />
+                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Check the file' ) }}</x-artisanpack-button>
+                <x-artisanpack-button variant="ghost" wire:click="discard">{{ __( 'Start over' ) }}</x-artisanpack-button>
             </div>
         </form>
     @elseif ( 'checked' === $step )
@@ -108,10 +107,10 @@
 
             <div class="flex flex-wrap gap-2">
                 @if ( (int) ( $reportCounts['create'] ?? 0 ) + (int) ( $reportCounts['update'] ?? 0 ) > 0 )
-                    <x-artisanpack-button color="primary" wire:click="apply( {{ \Illuminate\Support\Js::from( $applyToken ) }} )" wire:loading.attr="disabled" :label="__( 'Import' )" />
+                    <x-artisanpack-button color="primary" wire:click="apply( {{ \Illuminate\Support\Js::from( $applyToken ) }} )" wire:loading.attr="disabled">{{ __( 'Import' ) }}</x-artisanpack-button>
                 @endif
-                <x-artisanpack-button variant="outline" wire:click="editMapping" :label="__( 'Change the column matching' )" />
-                <x-artisanpack-button variant="ghost" wire:click="discard" :label="__( 'Start over' )" />
+                <x-artisanpack-button variant="outline" wire:click="editMapping">{{ __( 'Change the column matching' ) }}</x-artisanpack-button>
+                <x-artisanpack-button variant="ghost" wire:click="discard">{{ __( 'Start over' ) }}</x-artisanpack-button>
             </div>
         </div>
     @else
@@ -137,13 +136,13 @@
 
             <div class="flex flex-wrap gap-2">
                 @if ( 'failed' === $step && $state['processed'] < $state['total'] )
-                    <x-artisanpack-button color="primary" icon="o-play" wire:click="resume" wire:loading.attr="disabled" :label="__( 'Resume import' )" />
+                    <x-artisanpack-button color="primary" leading-icon="o-play" wire:click="resume" wire:loading.attr="disabled">{{ __( 'Resume import' ) }}</x-artisanpack-button>
                 @endif
                 @if ( (int) $state['counts']['failed'] > 0 )
-                    <x-artisanpack-button variant="outline" icon="o-arrow-down-tray" wire:click="downloadErrors" :label="__( 'Download the error report' )" />
+                    <x-artisanpack-button variant="outline" leading-icon="o-arrow-down-tray" wire:click="downloadErrors">{{ __( 'Download the error report' ) }}</x-artisanpack-button>
                 @endif
                 @if ( in_array( $step, [ 'completed', 'failed' ], true ) )
-                    <x-artisanpack-button variant="ghost" wire:click="discard" :label="'completed' === $step ? __( 'Import another file' ) : __( 'Discard this import' )" />
+                    <x-artisanpack-button variant="ghost" wire:click="discard">{{ 'completed' === $step ? __( 'Import another file' ) : __( 'Discard this import' ) }}</x-artisanpack-button>
                 @endif
             </div>
         </div>

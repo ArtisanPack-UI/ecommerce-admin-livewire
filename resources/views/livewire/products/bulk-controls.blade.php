@@ -11,18 +11,16 @@
         id="products-bulk-category"
         class="select-sm"
         :label="__( 'Category to add or remove' )"
-        :options="$bulkCategoryOptions"
+        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $bulkCategoryOptions )"
         :placeholder="[] === $bulkCategoryOptions ? __( 'No categories yet' ) : __( 'Choose a category' )"
-        placeholder-value=""
         wire:model="bulkCategoryId"
     />
     <x-artisanpack-select
         id="products-bulk-tag"
         class="select-sm"
         :label="__( 'Tag to add or remove' )"
-        :options="$bulkTagOptions"
+        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $bulkTagOptions )"
         :placeholder="[] === $bulkTagOptions ? __( 'No tags yet' ) : __( 'Choose a tag' )"
-        placeholder-value=""
         wire:model="bulkTagId"
     />
 </div>

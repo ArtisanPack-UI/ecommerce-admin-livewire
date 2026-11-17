@@ -47,14 +47,14 @@
                                 <span class="font-semibold">{{ $row['label'] }}</span>
                                 <span class="text-sm opacity-75">{{ $row['description'] }}</span>
                                 @if ( $rowError )
-                                    <x-artisanpack-badge :value="__( 'Has errors' )" class="badge-sm" color="error" />
+                                    <x-artisanpack-badge :value="__( 'Has errors' )" size="sm" color="error" />
                                 @endif
 
                                 <div class="ms-auto flex flex-wrap gap-1">
                                     <x-artisanpack-button
                                         variant="ghost"
                                         size="xs"
-                                        icon="o-arrow-up"
+                                        leading-icon="o-arrow-up"
                                         wire:click="moveRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="rules-{{ $list['key'] }}" data-reorder-key="rule-{{ $row['id'] }}" data-reorder-item="{{ $row['label'] }}"
                                         :disabled="0 === $row['index']"
                                         :aria-label="__( 'Move :label up', [ 'label' => $row['label'] ] )"
@@ -62,7 +62,7 @@
                                     <x-artisanpack-button
                                         variant="ghost"
                                         size="xs"
-                                        icon="o-arrow-down"
+                                        leading-icon="o-arrow-down"
                                         wire:click="moveRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="rules-{{ $list['key'] }}" data-reorder-key="rule-{{ $row['id'] }}" data-reorder-item="{{ $row['label'] }}"
                                         :disabled="$row['index'] === count( $list['rows'] ) - 1"
                                         :aria-label="__( 'Move :label down', [ 'label' => $row['label'] ] )"
@@ -71,17 +71,15 @@
                                         <x-artisanpack-button
                                             variant="ghost"
                                             size="xs"
-                                            icon="o-adjustments-horizontal"
+                                            leading-icon="o-adjustments-horizontal"
                                             wire:click="toggleRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ \Illuminate\Support\Js::from( $row['id'] ) }} )"
                                             aria-expanded="{{ $row['open'] ? 'true' : 'false' }}"
-                                            aria-controls="{{ $prefix }}-settings-{{ $row['id'] }}"
-                                            :label="$row['open'] ? __( 'Close settings' ) : __( 'Settings' )"
-                                        />
+                                            aria-controls="{{ $prefix }}-settings-{{ $row['id'] }}">{{ $row['open'] ? __( 'Close settings' ) : __( 'Settings' ) }}</x-artisanpack-button>
                                     @endif
                                     <x-artisanpack-button
                                         variant="ghost"
                                         size="xs"
-                                        icon="o-trash"
+                                        leading-icon="o-trash"
                                         wire:click="removeRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }}, {{ $row['index'] }} )" wire:loading.attr="disabled"
                                         :aria-label="__( 'Remove :label', [ 'label' => $row['label'] ] )"
                                     />
@@ -108,12 +106,11 @@
                     <x-artisanpack-select
                         id="{{ $prefix }}-add-{{ $list['key'] }}"
                         :label="$list['add']"
-                        :options="$list['options']"
+                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $list['options'] )"
                         :placeholder="__( 'Choose…' )"
-                        placeholder-value=""
                         wire:model="ruleToAdd.{{ $list['key'] }}"
                     />
-                    <x-artisanpack-button icon="o-plus" wire:click="addRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }} )" wire:loading.attr="disabled" :label="__( 'Add' )" />
+                    <x-artisanpack-button leading-icon="o-plus" wire:click="addRule( {{ \Illuminate\Support\Js::from( $list['key'] ) }} )" wire:loading.attr="disabled">{{ __( 'Add' ) }}</x-artisanpack-button>
                 </div>
             @endif
         </section>

@@ -25,16 +25,20 @@ use Throwable;
 /**
  * `<x-artisanpack-ec-resource-table :columns="$tableColumns" :rows="$tableRows" … />`
  *
- * The table body of an index screen that uses `WithResourceTable`.
+ * The grid of an index screen that uses `WithResourceTable` (#79): the
+ * scroll part of a design-system Table, with a visually hidden caption,
+ * sortable headers and row selection.
  *
- * `x-artisanpack-table` (livewire-ui-components 2.1) has no caption, no
- * `aria-sort`, and sorts on a mouse-only header click, so this component
- * composes the table from daisyUI markup and library parts instead (spec
- * §11, livewire-ui-components#116). When the library table gains those,
- * this is the one file to swap.
+ * It renders the design system's Table markup itself rather than through
+ * `x-artisanpack-table`: that component sorts and selects in Alpine, while
+ * the admin's tables sort, filter, select and page on the server
+ * (`WithResourceTable`), so a selection survives paging and "select all
+ * matching" can reach rows that aren't on the page.
  *
- * Sortable headers are buttons that call `sort( key )` and carry
- * `aria-sort`; row checkboxes bind to `selected`.
+ * Sortable headers are buttons inside `th[aria-sort]` that call
+ * `sort( key )`. Row checkboxes bind to `selected` and name their row
+ * ("Select order #1048"); the header box selects the page and goes mixed
+ * while part of it is selected.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -54,6 +58,7 @@ class ResourceTable extends Component
      * @param  bool                              $selectable  Whether rows can be selected.
      * @param  Closure|null                      $rowLabel    Names a row for its checkbox, e.g. the order number.
      * @param  array<string, mixed>              $context     Screen state passed to cell views as `$context`.
+     * @param  array<int, int|string>            $selected    The selected row keys, for the checkboxes' first render.
      */
     public function __construct(
         public array $columns,
@@ -64,6 +69,7 @@ class ResourceTable extends Component
         public bool $selectable = false,
         public ?Closure $rowLabel = null,
         public array $context = [],
+        public array $selected = [],
     ) {
     }
 
@@ -97,10 +103,49 @@ class ResourceTable extends Component
     public function sortIcon( array $column ): string
     {
         if ( $column['key'] !== $this->sort ) {
-            return 'o-chevron-up-down';
+            return 'chevrons-up-down';
         }
 
-        return 'asc' === $this->direction ? 'o-chevron-up' : 'o-chevron-down';
+        return 'asc' === $this->direction ? 'arrow-up' : 'arrow-down';
+    }
+
+    /**
+     * Whether a row is selected.
+     *
+     * @since 2.0.0
+     *
+     * @param  Model  $row  The row.
+     *
+     * @return bool
+     */
+    public function isSelected( Model $row ): bool
+    {
+        return in_array( (string) $row->getKey(), array_map( 'strval', $this->selected ), true );
+    }
+
+    /**
+     * The page's select-all state: `checked` when every row on the page is
+     * selected, `indeterminate` when some are, else `unchecked`.
+     *
+     * @since 2.0.0
+     *
+     * @return string
+     */
+    public function pageSelectionState(): string
+    {
+        $keys = $this->pageKeys();
+
+        if ( [] === $keys ) {
+            return 'unchecked';
+        }
+
+        $selected = count( array_intersect( $keys, array_map( 'strval', $this->selected ) ) );
+
+        return match ( true ) {
+            0 === $selected              => 'unchecked',
+            count( $keys ) === $selected => 'checked',
+            default                      => 'indeterminate',
+        };
     }
 
     /**

@@ -15,12 +15,15 @@ it( 'renders inside the standalone layout when cms-framework is absent', functio
 
     $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
         ->assertOk()
+        ->assertSee( 'apui-app-shell', false )
+        ->assertSee( 'apui-navbar', false )
+        ->assertSee( 'data-ecommerce-admin-styles', false )
         ->assertSee( 'ecommerce-admin__sidebar', false )
         ->assertSee( 'ecommerce-admin-drawer', false )
         ->assertSee( '<title>Dashboard &middot;', false )
         ->assertSee( 'Store admin' )
         ->assertSee( 'Skip to content' )
-        ->assertSee( 'window.toast', false )
+        ->assertSee( 'apui-toaster', false )
         ->assertSee( 'livewire', false )
         ->assertDontSee( 'cms-admin-fixture', false );
 } );
@@ -36,7 +39,7 @@ it( 'renders inside the cms-framework layout when it is installed', function ():
         ->assertDontSee( 'ecommerce-admin__sidebar', false );
 
     // The CMS layout ships no Livewire assets or toasts, so the page pushes them onto its stacks.
-    expect( $response->getContent() )->toContain( 'window.toast' );
+    expect( $response->getContent() )->toContain( 'apui-toaster' );
 
     expect( substr_count( $response->getContent(), 'livewire.js' ) + substr_count( $response->getContent(), 'livewire.min.js' ) )
         ->toBe( 1 );

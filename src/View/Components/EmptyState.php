@@ -17,14 +17,21 @@ use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
 
 /**
- * `<x-artisanpack-ec-empty-state icon="o-shopping-bag" :title="…" :description="…">actions</x-artisanpack-ec-empty-state>`
+ * `<x-artisanpack-ec-admin-empty-state icon="inbox" :title="…" :description="…">actions</x-artisanpack-ec-admin-empty-state>`
  *
- * livewire-ui-components has no empty-state component yet (spec §10, U1,
- * livewire-ui-components#111), so this composes one from a card and an
- * icon. When the library ships one, this is the one file to swap.
+ * Also registered as `x-artisanpack-ec-empty-state`, a name
+ * ecommerce-storefront-livewire shares; the admin's views use
+ * `ec-admin-empty-state`, which is always this component.
  *
- * The block is a `status` region so a screen reader announces it when a
- * search empties the table.
+ * What a list, panel or tab shows when it has nothing in it (#80): the
+ * design-system EmptyState with an icon, a title that says what's missing,
+ * one sentence on why or what happens next, and up to two actions in the
+ * slot (one primary at most; a second is outline or ghost).
+ *
+ * `size="md"` (the default) stands in for a table; `size="sm"` sits inside a
+ * card, panel or tab. The root is a `status` region, so a list that empties
+ * after a search or filter is announced; the icon is decorative and the
+ * title carries the meaning.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -34,17 +41,32 @@ use Illuminate\View\Component;
 class EmptyState extends Component
 {
     /**
-     * @since 1.0.0
+     * The sizes the empty state takes.
      *
-     * @param  string       $title        The headline.
-     * @param  string|null  $description  The supporting text.
-     * @param  string       $icon         The icon name.
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const SIZES = [ 'md', 'sm' ];
+
+    /**
+     * @since 1.0.0
+     * @since 2.0.0 Added `$size` and `$headingLevel`; the default icon is the design system's `inbox`.
+     *
+     * @param  string       $title         The headline.
+     * @param  string|null  $description   The supporting text.
+     * @param  string       $icon          The icon name: a design-system icon, or a Heroicons `o-` name.
+     * @param  string       $size          `md` in place of a table, `sm` inside a card or panel.
+     * @param  int          $headingLevel  The title's heading level (2 by default, the level under a page's h1).
      */
     public function __construct(
         public string $title,
         public ?string $description = null,
-        public string $icon = 'o-inbox',
+        public string $icon = 'inbox',
+        public string $size = 'md',
+        public int $headingLevel = 2,
     ) {
+        $this->size = in_array( $this->size, self::SIZES, true ) ? $this->size : 'md';
     }
 
     /**

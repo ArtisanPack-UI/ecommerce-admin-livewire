@@ -10,13 +10,13 @@
     <div class="flex flex-wrap items-center gap-2">
         <h2 id="board-columns-heading" class="grow text-lg font-semibold">{{ __( 'Columns' ) }}</h2>
         @if ( $canUpdate )
-            <x-artisanpack-button size="sm" variant="outline" icon="o-plus" wire:click="create" :label="__( 'Add column' )" />
+            <x-artisanpack-button size="sm" variant="outline" leading-icon="o-plus" wire:click="create">{{ __( 'Add column' ) }}</x-artisanpack-button>
         @endif
     </div>
     <p class="text-sm opacity-75">{{ __( 'Each column shows the orders on one sub-status. Columns appear on the board from left to right in this order.' ) }}</p>
 
     @if ( $columns->isEmpty() )
-        <x-artisanpack-ec-empty-state icon="o-view-columns" :title="__( 'No columns yet' )" :description="__( 'Add a column for each sub-status you want to see on this board.' )" />
+        <x-artisanpack-ec-admin-empty-state icon="o-view-columns" :title="__( 'No columns yet' )" :description="__( 'Add a column for each sub-status you want to see on this board.' )" />
     @else
         <ol class="flex list-none flex-col divide-y divide-base-300 rounded-box border border-base-300" aria-label="{{ __( 'Columns' ) }}">
             @foreach ( $columns as $column )
@@ -58,10 +58,10 @@
 
                     @if ( $canUpdate )
                         <div class="flex items-center gap-1">
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="move( {{ $column->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="columns" data-reorder-key="column-{{ $column->id }}" data-reorder-item="{{ $label }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $label ] )" />
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="move( {{ $column->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="columns" data-reorder-key="column-{{ $column->id }}" data-reorder-item="{{ $label }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $label ] )" />
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="edit( {{ $column->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $label ] )" />
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $column->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $label ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-arrow-up" wire:click="move( {{ $column->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="columns" data-reorder-key="column-{{ $column->id }}" data-reorder-item="{{ $label }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $label ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-arrow-down" wire:click="move( {{ $column->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="columns" data-reorder-key="column-{{ $column->id }}" data-reorder-item="{{ $label }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $label ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-pencil" wire:click="edit( {{ $column->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $label ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="confirmDelete( {{ $column->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $label ] )" />
                         </div>
                     @endif
                 </li>
@@ -72,10 +72,7 @@
     <x-artisanpack-drawer
         wire:model="editing"
         :title="null === $columnId ? __( 'New column' ) : __( 'Edit column' )"
-        right
-        separator
-        with-close-button
-        close-on-escape
+        side="end"
         class="w-full max-w-lg"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-column-form>
@@ -84,16 +81,15 @@
                 id="column-substatus"
                 :label="__( 'Sub-status' )"
                 :hint="__( 'Cards in this column are orders on this sub-status.' )"
-                :options="$substatusOptions"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $substatusOptions )"
                 :placeholder="__( 'Choose a sub-status' )"
-                placeholder-value=""
                 wire:model="form.substatus_id"
                 required
             />
 
             <x-artisanpack-input id="column-label" :label="__( 'Label' )" :hint="__( 'Leave empty to use the sub-status label.' )" wire:model="form.label_override" maxlength="120" />
 
-            <x-artisanpack-colorpicker id="column-color" :label="__( 'Colour' )" :hint="__( 'A hex code like #3B82F6. Leave empty to use the sub-status colour.' )" wire:model.live.debounce.300ms="form.color_override" />
+            <x-artisanpack-color-picker id="column-color" :label="__( 'Colour' )" :hint="__( 'A hex code like #3B82F6. Leave empty to use the sub-status colour.' )" wire:model.live.debounce.300ms="form.color_override" />
 
             @if ( null !== $contrastWarning )
                 <x-artisanpack-alert color="warning" icon="o-exclamation-triangle" role="status" data-contrast-warning>
@@ -103,15 +99,14 @@
 
             @if ( $iconPicker )
                 <div data-icon-picker>
-                    <x-artisanpack-choices-offline
+                    <x-artisanpack-combobox
                         id="column-icon"
                         :label="__( 'Icon' )"
                         :hint="__( 'Leave empty to use the sub-status icon.' )"
-                        :options="$iconOptions"
-                        single
-                        searchable
+                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $iconOptions )"
+                        :multiple="false"
                         clearable
-                        :no-result-text="__( 'No results found.' )"
+                        :empty-label="__( 'No results found.' )"
                         wire:model="form.icon_override"
                     />
                 </div>
@@ -145,9 +140,9 @@
                                 @error( 'form.card_widgets.' . $index )
                                     <span class="text-sm text-error">{{ $message }}</span>
                                 @enderror
-                                <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-up" wire:click="moveWidget( {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="widgets" data-reorder-index="{{ $index }}" data-reorder-item="{{ $widgetLabel }}" :disabled="0 === $index" :aria-label="__( 'Move :label up', [ 'label' => $widgetLabel ] )" />
-                                <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-down" wire:click="moveWidget( {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="widgets" data-reorder-index="{{ $index }}" data-reorder-item="{{ $widgetLabel }}" :disabled="$loop->last" :aria-label="__( 'Move :label down', [ 'label' => $widgetLabel ] )" />
-                                <x-artisanpack-button variant="ghost" size="xs" icon="o-x-mark" wire:click="removeWidget( {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :label', [ 'label' => $widgetLabel ] )" />
+                                <x-artisanpack-button variant="ghost" size="xs" leading-icon="o-arrow-up" wire:click="moveWidget( {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="widgets" data-reorder-index="{{ $index }}" data-reorder-item="{{ $widgetLabel }}" :disabled="0 === $index" :aria-label="__( 'Move :label up', [ 'label' => $widgetLabel ] )" />
+                                <x-artisanpack-button variant="ghost" size="xs" leading-icon="o-arrow-down" wire:click="moveWidget( {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="widgets" data-reorder-index="{{ $index }}" data-reorder-item="{{ $widgetLabel }}" :disabled="$loop->last" :aria-label="__( 'Move :label down', [ 'label' => $widgetLabel ] )" />
+                                <x-artisanpack-button variant="ghost" size="xs" leading-icon="o-x-mark" wire:click="removeWidget( {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :label', [ 'label' => $widgetLabel ] )" />
                             </li>
                         @endforeach
                     </ol>
@@ -158,26 +153,25 @@
                         <x-artisanpack-select
                             id="column-widget-to-add"
                             :label="__( 'Add a widget' )"
-                            :options="$widgetOptions"
+                            :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $widgetOptions )"
                             :placeholder="__( 'Choose a widget' )"
-                            placeholder-value=""
                             wire:model="widgetToAdd"
                         />
                     </div>
-                    <x-artisanpack-button variant="outline" icon="o-plus" wire:click="addWidget" :label="__( 'Add' )" />
+                    <x-artisanpack-button variant="outline" leading-icon="o-plus" wire:click="addWidget">{{ __( 'Add' ) }}</x-artisanpack-button>
                 </div>
             </fieldset>
 
             <div class="flex justify-end gap-2">
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )" :label="__( 'Cancel' )" />
-                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Save column' )" />
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save column' ) }}</x-artisanpack-button>
             </div>
         </form>
     </x-artisanpack-drawer>
 
     @if ( null !== $deleting )
         @php $deleteTitle = __( 'Delete ":name"?', [ 'name' => $deleting->displayLabel() ] ); @endphp
-        <x-artisanpack-modal wire:model="confirmingDelete" :title="$deleteTitle" separator>
+        <x-artisanpack-dialog wire:model="confirmingDelete" :title="$deleteTitle">
             <div class="flex flex-col gap-3" data-delete-column="{{ $deleting->id }}">
                 @if ( $deletingCards > 0 )
                     <x-artisanpack-alert color="warning" icon="o-exclamation-triangle" role="status" data-delete-in-use>
@@ -191,17 +185,15 @@
                 @endif
             </div>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" :label="__( 'Keep column' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="cancelDelete">{{ __( 'Keep column' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
                     wire:click="delete( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"
                     wire:loading.attr="disabled"
                     :disabled="$deletingCards > 0"
-                    :label="__( 'Delete column' )"
-                    data-delete-button
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    data-delete-button>{{ __( 'Delete column' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </section>

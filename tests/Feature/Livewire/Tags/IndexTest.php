@@ -20,7 +20,7 @@ it( 'renders tags with product counts', function (): void {
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">Tags</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Tags</caption>' )
         ->assertSeeInOrder( [ 'New', 'Sale', '3' ] );
 } );
 

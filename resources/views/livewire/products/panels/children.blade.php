@@ -35,9 +35,8 @@
                         <x-artisanpack-select
                             id="child-{{ $i }}-variant"
                             :label="__( 'Variant' )"
-                            :options="$variantOptions[ $i ]"
+                            :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $variantOptions[ $i ] )"
                             :placeholder="__( 'Shopper chooses' )"
-                            placeholder-value=""
                             wire:model="state.children.{{ $i }}.variant_id"
                             :disabled="$readOnly"
                         />
@@ -45,9 +44,9 @@
                     <x-artisanpack-input id="child-{{ $i }}-quantity" type="number" min="1" step="1" :label="__( 'Quantity' )" wire:model="state.children.{{ $i }}.quantity" :disabled="$readOnly" />
                     @unless ( $readOnly )
                         <div class="flex gap-1">
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="moveChild( {{ $i }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="children" data-reorder-key="child-{{ $child['uid'] ?? $i }}" data-reorder-item="{{ __( 'Product :number', [ 'number' => $i + 1 ] ) }}" :disabled="$loop->first" :aria-label="__( 'Move product :number up', [ 'number' => $i + 1 ] )" />
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="moveChild( {{ $i }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="children" data-reorder-key="child-{{ $child['uid'] ?? $i }}" data-reorder-item="{{ __( 'Product :number', [ 'number' => $i + 1 ] ) }}" :disabled="$loop->last" :aria-label="__( 'Move product :number down', [ 'number' => $i + 1 ] )" />
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="removeChild( {{ $i }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove product :number', [ 'number' => $i + 1 ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-arrow-up" wire:click="moveChild( {{ $i }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="children" data-reorder-key="child-{{ $child['uid'] ?? $i }}" data-reorder-item="{{ __( 'Product :number', [ 'number' => $i + 1 ] ) }}" :disabled="$loop->first" :aria-label="__( 'Move product :number up', [ 'number' => $i + 1 ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-arrow-down" wire:click="moveChild( {{ $i }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="children" data-reorder-key="child-{{ $child['uid'] ?? $i }}" data-reorder-item="{{ __( 'Product :number', [ 'number' => $i + 1 ] ) }}" :disabled="$loop->last" :aria-label="__( 'Move product :number down', [ 'number' => $i + 1 ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="removeChild( {{ $i }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove product :number', [ 'number' => $i + 1 ] )" />
                         </div>
                     @endunless
                 </li>
@@ -56,6 +55,6 @@
     @endif
 
     @unless ( $readOnly )
-        <x-artisanpack-button class="self-start" variant="outline" size="sm" icon="o-plus" wire:click="addChild" :label="__( 'Add product' )" />
+        <x-artisanpack-button class="self-start" variant="outline" size="sm" leading-icon="o-plus" wire:click="addChild">{{ __( 'Add product' ) }}</x-artisanpack-button>
     @endunless
 </div>

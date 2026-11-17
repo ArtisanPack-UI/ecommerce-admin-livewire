@@ -13,7 +13,7 @@
     @if ( ! $canList )
         <p class="opacity-75">{{ __( 'You are not allowed to see orders.' ) }}</p>
     @elseif ( 0 === $orders->total() )
-        <x-artisanpack-ec-empty-state icon="o-shopping-bag" :title="__( 'No orders yet' )" :description="__( 'This customer has not placed an order.' )" />
+        <x-artisanpack-ec-admin-empty-state icon="o-shopping-bag" :title="__( 'No orders yet' )" :description="__( 'This customer has not placed an order.' )" />
     @else
         <div class="overflow-x-auto">
             <table class="table table-sm" data-customer-orders>
@@ -44,13 +44,13 @@
                             <td><x-artisanpack-ec-status-badge type="payment" :value="$order->payment_status" /></td>
                             <td><x-artisanpack-ec-status-badge type="fulfillment" :value="$order->fulfillment_status" /></td>
                             <td class="text-end tabular-nums">{{ $order->items_count }}</td>
-                            <td class="text-end"><x-artisanpack-ec-money :amount="(int) $order->total_amount" :currency="$order->currency" /></td>
+                            <td class="text-end"><x-artisanpack-ec-admin-money :amount="(int) $order->total_amount" :currency="$order->currency" /></td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         </div>
 
-        <x-artisanpack-pagination :rows="$orders" hide-per-page :page-info-template="__( 'Showing {from} to {to} of {total} results' )" />
+        <x-artisanpack-pagination :rows="$orders" :summary-label="__( 'Showing {from} to {to} of {total} results' )" />
     @endif
 </div>

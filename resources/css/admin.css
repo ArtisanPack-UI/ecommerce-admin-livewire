@@ -1,0 +1,264 @@
+/*
+ * ecommerce-admin-livewire: the few styles the design system has no
+ * component for. Tokens only (--apui-*), logical properties throughout so
+ * the admin mirrors in right-to-left layouts, and no Tailwind or DaisyUI.
+ *
+ * Inlined by resources/views/partials/styles.blade.php, so a host needs no
+ * build step for them.
+ */
+
+@layer apui.components {
+    /* Layout */
+    .ecommerce-admin {
+        margin: 0;
+        min-block-size: 100vh;
+        background: var(--apui-surface-page);
+        color: var(--apui-text-default);
+        font-family: var(--apui-font-family-sans);
+    }
+
+    .ecommerce-admin__shell {
+        min-block-size: 100vh;
+        box-sizing: border-box;
+    }
+
+    .ecommerce-admin__brand {
+        color: var(--apui-text-default);
+        font-weight: var(--apui-font-weight-semibold, 600);
+        text-decoration: none;
+    }
+
+    .ecommerce-admin__content {
+        display: grid;
+        gap: var(--apui-panel-gap, 16px);
+        min-inline-size: 0;
+    }
+
+    /* Money (#82): tabular figures that never wrap. */
+    .ec-money-group {
+        white-space: nowrap;
+    }
+
+    .ec-money {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .ec-money[data-tone="negative"] {
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-money[data-tone="muted"] {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-money-was {
+        margin-inline-start: 6px;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        text-decoration: line-through;
+    }
+
+    .ec-money-code {
+        margin-inline-start: 4px;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    /* Status badge (#81): a merchant hex as the dot of a neutral badge. */
+    .ec-hex-dot {
+        flex: none;
+        inline-size: 8px;
+        block-size: 8px;
+        border-radius: var(--apui-radius-full, 9999px);
+        box-shadow: 0 0 0 1px var(--apui-border-default);
+    }
+
+    /* Small layout helpers, as classes so a nonce-only style CSP keeps them. */
+    .ec-push-end {
+        margin-inline-start: auto;
+    }
+
+    .ec-spotlight-bar {
+        display: flex;
+        justify-content: flex-end;
+        margin-block-end: 8px;
+    }
+
+    .ec-payload {
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    /* Resource table (#79) */
+    .ec-table-section {
+        display: grid;
+        gap: 8px;
+        min-inline-size: 0;
+    }
+
+    .ec-table-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .ec-table-search {
+        flex: 1 1 240px;
+        max-inline-size: 320px;
+    }
+
+    .ec-table-toolbar-end {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px;
+        margin-inline-start: auto;
+    }
+
+    .ec-filter-count {
+        display: inline-grid;
+        place-items: center;
+        min-inline-size: 18px;
+        block-size: 18px;
+        padding-inline: 5px;
+        border-radius: var(--apui-radius-full, 9999px);
+        background: var(--apui-color-primary);
+        color: var(--apui-color-primary-foreground);
+        font-size: 11px;
+        line-height: 1;
+    }
+
+    .ec-filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+        gap: 12px;
+        padding: 12px var(--apui-cell-padding-x, 16px) 16px;
+        background: var(--apui-surface-sunken);
+        border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-filters[hidden] {
+        display: none;
+    }
+
+    .ec-filters-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .ec-range {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-inline-size: 0;
+    }
+
+    .ec-range > legend {
+        padding: 0;
+        margin-block-end: 6px;
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-label-md-font-size, 14px);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-range-fields {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ec-range-fields > [aria-hidden="true"] {
+        color: var(--apui-text-muted);
+        font-size: 12px;
+    }
+
+    .ec-bulkbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 8px var(--apui-cell-padding-x, 16px);
+        background: var(--apui-selected-bg, var(--apui-color-primary-soft));
+        color: var(--apui-color-primary-soft-foreground);
+        border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
+        font-size: 13px;
+        line-height: 18px;
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-bulkbar p {
+        margin: 0;
+    }
+
+    .ec-bulkbar .ec-spacer {
+        flex: 1;
+    }
+
+    .ec-confirm {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 4px 12px;
+        padding: 12px var(--apui-cell-padding-x, 16px);
+        background: var(--apui-color-warning-soft);
+        color: var(--apui-color-warning-soft-foreground);
+        border-block-end: var(--apui-border-width) solid var(--apui-color-warning-border);
+    }
+
+    .ec-confirm p {
+        margin: 0;
+    }
+
+    .ec-confirm-title {
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-confirm-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .ec-table [data-scope="table"][data-part="cell"] {
+        padding-block: 12px;
+        vertical-align: middle;
+    }
+
+    .ec-table [data-scope="table"][data-part="head-cell"] {
+        padding-block: 10px;
+    }
+
+    .ec-table [data-numeric] {
+        text-align: end;
+    }
+
+    @media (max-width: 40rem) {
+        .ec-table-search {
+            flex-basis: 100%;
+            max-inline-size: none;
+        }
+
+        .ec-table-toolbar-end {
+            margin-inline-start: 0;
+        }
+
+        .ec-confirm {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .ec-confirm-actions {
+            grid-column: 1 / -1;
+        }
+    }
+
+    /* Empty state (#80): the description stops at 44ch. */
+    .ec-empty-state [data-scope="empty-state"][data-part="description"] {
+        max-inline-size: 44ch;
+        color: var(--apui-text-muted);
+    }
+}

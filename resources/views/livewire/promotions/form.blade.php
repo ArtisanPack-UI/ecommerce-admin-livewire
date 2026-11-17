@@ -11,20 +11,19 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 @endphp
 <div class="flex flex-col gap-4" data-promotion-form x-data="{ {!! UnsavedChanges::members() !!} }" {!! UnsavedChanges::attributes() !!}>
-    <x-artisanpack-header
+    <x-artisanpack-page-header
         :title="$isCreate ? __( 'New promotion' ) : __( 'Edit :name', [ 'name' => $promotion->name ] )"
         :level="1"
-        separator
     >
         <x-slot:actions>
             @if ( null !== $indexUrl )
-                <x-artisanpack-button variant="ghost" icon="o-arrow-left" :link="$indexUrl" :label="__( 'All promotions' )" />
+                <x-artisanpack-button variant="ghost" leading-icon="o-arrow-left" :href="$indexUrl">{{ __( 'All promotions' ) }}</x-artisanpack-button>
             @endif
             @unless ( $readOnly )
-                <x-artisanpack-button color="primary" icon="o-check" wire:click="save" wire:loading.attr="disabled" spinner="save" :label="__( 'Save' )" data-save />
+                <x-artisanpack-button color="primary" leading-icon="o-check" wire:click="save" wire:loading.attr="disabled" data-save>{{ __( 'Save' ) }}</x-artisanpack-button>
             @endunless
         </x-slot:actions>
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     @if ( null !== $state )
         <div class="flex flex-wrap items-center gap-2">
@@ -58,15 +57,16 @@
                 </div>
 
                 <x-artisanpack-select
+                    placeholder=""
                     id="promotion-source"
                     :label="__( 'Source' )"
                     :hint="__( 'Automatic promotions apply on their own. Coupon promotions apply when the customer enters one of their codes.' )"
-                    :options="$sourceOptions"
+                    :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $sourceOptions )"
                     wire:model.live="sourceType"
                 />
 
                 <div class="flex items-end">
-                    <x-artisanpack-toggle id="promotion-active" :label="__( 'Switched on' )" :hint="__( 'Switch off to stop the promotion now, whatever its dates say.' )" wire:model="isActive" />
+                    <x-artisanpack-toggle id="promotion-active" :label="__( 'Switched on' )" :description="__( 'Switch off to stop the promotion now, whatever its dates say.' )" wire:model="isActive" />
                 </div>
 
                 <x-artisanpack-input
@@ -118,7 +118,7 @@
                             wire:model="priority"
                         />
                         <div class="flex items-end">
-                            <x-artisanpack-toggle id="promotion-exclusive" :label="__( 'Exclusive' )" :hint="__( 'Do not combine with other promotions.' )" wire:model="isExclusive" />
+                            <x-artisanpack-toggle id="promotion-exclusive" :label="__( 'Exclusive' )" :description="__( 'Do not combine with other promotions.' )" wire:model="isExclusive" />
                         </div>
                     </div>
                 </section>

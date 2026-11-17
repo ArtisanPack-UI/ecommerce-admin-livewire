@@ -12,11 +12,10 @@
     @foreach ( $dashboard['kpis'] as $kpi )
         <li wire:key="dashboard-kpi-{{ $kpi['key'] }}" data-kpi="{{ $kpi['key'] }}" class="relative">
             <x-artisanpack-stat
-                :title="$kpi['label']"
+                :label="$kpi['label']"
                 :value="$kpi['value']"
                 :description="$kpi['description']"
                 :icon="$kpi['icon']"
-                :animate="false"
                 class="h-full shadow"
             />
             @if ( null !== $kpi['url'] )

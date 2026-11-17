@@ -1,7 +1,7 @@
 {{--
-    Pushes the host's Vite build, the Livewire assets, the toast container,
-    and the command palette onto the layout stacks, and shows the palette's
-    Search button above the page.
+    Pushes the host's Vite build, the admin's inline styles, the Livewire
+    assets, the toaster, and the command palette onto the layout stacks, and
+    shows the palette's Search button above the page.
 
     cms-framework's admin layout ships none of them, so under it each page
     pushes them; the standalone layout includes them itself.
@@ -14,17 +14,17 @@
 @if ( $ecommerceAdminPushesAssets ?? false )
     @push( 'styles' )
         @include( 'ecommerce-admin::partials.vite-assets' )
+        @include( 'ecommerce-admin::partials.styles' )
         @livewireStyles
     @endpush
 
     {{-- cms-framework's layout has no top bar, so the palette's button sits above the page. --}}
-    <div class="mb-2 flex justify-end" data-cms-spotlight-bar>
+    <div class="ec-spotlight-bar" data-cms-spotlight-bar>
         @include( 'ecommerce-admin::partials.spotlight-button' )
     </div>
 
     @push( 'scripts' )
-        @include( 'ecommerce-admin::partials.spotlight' )
-        <x-artisanpack-toast />
+        <x-artisanpack-toaster />
         @livewireScripts
         @include( 'ecommerce-admin::partials.accessibility' )
         @include( 'ecommerce-admin::partials.rate-limit-notice' )

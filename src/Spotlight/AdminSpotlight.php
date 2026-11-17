@@ -13,14 +13,13 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Spotlight;
 
+use ArtisanPack\LivewireUiComponents\Support\IconRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
-use Throwable;
 
 /**
  * The admin's command palette (spec §8.1).
@@ -106,13 +105,27 @@ final class AdminSpotlight
     public const MAX_LIMIT = 20;
 
     /**
-     * Rendered icon markup, keyed by icon name.
+     * The design-system icon for each Heroicon the providers use. A Heroicon
+     * with no counterpart in the design system's registry gets no icon.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
      * @var array<string, string>
      */
-    private static array $icons = [];
+    public const HEROICON_ICONS = [
+        'o-arrow-right'               => 'arrow-right',
+        'o-chat-bubble-left-ellipsis' => 'message-square',
+        'o-cog-6-tooth'               => 'settings',
+        'o-document-text'             => 'file-text',
+        'o-envelope'                  => 'mail',
+        'o-home'                      => 'house',
+        'o-pencil'                    => 'pencil',
+        'o-plus'                      => 'plus',
+        'o-receipt-refund'            => 'rotate-ccw',
+        'o-star'                      => 'star',
+        'o-trash'                     => 'trash',
+        'o-user'                      => 'user',
+    ];
 
     /**
      * Whether the palette is enabled.
@@ -166,6 +179,38 @@ final class AdminSpotlight
     public static function ariaShortcut(): string
     {
         return implode( '+', array_map( static fn ( string $key ): string => ucfirst( $key ), explode( '.', self::shortcut() ) ) );
+    }
+
+    /**
+     * The shortcut in the design-system Spotlight's spelling (`mod+k`).
+     *
+     * The configured value keeps the 1.x Alpine form (`meta.k`, `ctrl.slash`).
+     * `meta` becomes `mod`, so the palette opens with ⌘ on Apple platforms and
+     * Ctrl elsewhere, and Alpine's named keys become the characters they name.
+     *
+     * @since 2.0.0
+     *
+     * @return string
+     */
+    public static function paletteShortcut(): string
+    {
+        $keys = [
+            'slash'  => '/',
+            'period' => '.',
+            'comma'  => ',',
+            'minus'  => '-',
+            'equal'  => '=',
+        ];
+
+        $parts = array_map(
+            static fn ( string $part ): string => match ( true ) {
+                in_array( $part, [ 'meta', 'cmd', 'super' ], true ) => 'mod',
+                default                                             => $keys[ $part ] ?? $part,
+            },
+            explode( '.', strtolower( self::shortcut() ) ),
+        );
+
+        return implode( '+', $parts );
     }
 
     /**
@@ -327,12 +372,17 @@ final class AdminSpotlight
     }
 
     /**
-     * The palette renders `icon` as HTML, so icons are rendered here from a
-     * Heroicon name and never taken as markup from a provider.
+     * The palette's icon for a result: a design-system icon name.
+     *
+     * The livewire-ui-components 3.0 palette draws result icons from the
+     * design system's icon registry by name, so a provider's Heroicon name
+     * (`o-user`) maps to its registry counterpart, a registry name passes
+     * through, and anything else (including markup) gets no icon.
      *
      * @since 1.0.0
+     * @since 2.0.0 Returns a design-system icon name instead of rendered SVG.
      *
-     * @param  string|null  $name  Heroicon name (`o-cube`).
+     * @param  string|null  $name  A Heroicon name (`o-user`) or a design-system icon name (`user`).
      *
      * @return string|null
      */
@@ -342,14 +392,8 @@ final class AdminSpotlight
             return null;
         }
 
-        if ( ! array_key_exists( $name, self::$icons ) ) {
-            try {
-                self::$icons[ $name ] = trim( Blade::render( '<x-artisanpack-icon :name="$name" class="w-5 h-5 opacity-70" aria-hidden="true" />', [ 'name' => $name ] ) );
-            } catch ( Throwable ) {
-                self::$icons[ $name ] = '';
-            }
-        }
+        $name = self::HEROICON_ICONS[ $name ] ?? $name;
 
-        return '' === self::$icons[ $name ] ? null : self::$icons[ $name ];
+        return IconRegistry::has( $name ) ? $name : null;
     }
 }

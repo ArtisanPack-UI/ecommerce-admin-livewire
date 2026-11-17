@@ -9,12 +9,12 @@
 <div class="flex flex-col gap-4">
     @if ( $canUpdate && ! $showForm )
         <div>
-            <x-artisanpack-button icon="o-plus" wire:click="startAdd" :label="__( 'Add address' )" data-add-address />
+            <x-artisanpack-button leading-icon="o-plus" wire:click="startAdd" data-add-address>{{ __( 'Add address' ) }}</x-artisanpack-button>
         </div>
     @endif
 
     @if ( $showForm )
-        <x-artisanpack-card :title="null === $editingId ? __( 'New address' ) : __( 'Edit address' )" shadow>
+        <x-artisanpack-card :title="null === $editingId ? __( 'New address' ) : __( 'Edit address' )">
             <form wire:submit="saveAddress" class="flex flex-col gap-4" data-address-form>
                 @include( 'ecommerce-admin::partials.error-summary' )
                 <x-artisanpack-input id="address.label" :label="__( 'Label' )" :hint="__( 'Optional, like Home or Office.' )" wire:model="address.label" />
@@ -31,15 +31,15 @@
                 @enderror
 
                 <div class="flex gap-2">
-                    <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" spinner="saveAddress" :label="__( 'Save address' )" />
-                    <x-artisanpack-button variant="ghost" wire:click="cancelForm" :label="__( 'Cancel' )" />
+                    <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save address' ) }}</x-artisanpack-button>
+                    <x-artisanpack-button variant="ghost" wire:click="cancelForm">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                 </div>
             </form>
         </x-artisanpack-card>
     @endif
 
     @if ( $addresses->isEmpty() )
-        <x-artisanpack-ec-empty-state icon="o-map-pin" :title="__( 'No saved addresses' )" :description="__( 'Addresses the customer saves at checkout, or that you add here, appear in this list.' )" />
+        <x-artisanpack-ec-admin-empty-state icon="o-map-pin" :title="__( 'No saved addresses' )" :description="__( 'Addresses the customer saves at checkout, or that you add here, appear in this list.' )" />
     @else
         <ul class="grid gap-4 sm:grid-cols-2" aria-label="{{ __( 'Saved addresses' ) }}">
             @foreach ( $addresses as $savedAddress )
@@ -47,10 +47,10 @@
                     <div class="mb-2 flex flex-wrap items-center gap-2">
                         <span class="font-semibold">{{ $savedAddress->label ?: __( 'Address' ) }}</span>
                         @if ( $savedAddress->is_default_shipping )
-                            <x-artisanpack-badge :value="__( 'Default shipping' )" class="badge-sm" color="primary" />
+                            <x-artisanpack-badge :value="__( 'Default shipping' )" size="sm" color="primary" />
                         @endif
                         @if ( $savedAddress->is_default_billing )
-                            <x-artisanpack-badge :value="__( 'Default billing' )" class="badge-sm" color="primary" />
+                            <x-artisanpack-badge :value="__( 'Default billing' )" size="sm" color="primary" />
                         @endif
                     </div>
 
@@ -58,14 +58,14 @@
 
                     @if ( $canUpdate )
                         <div class="mt-3 flex flex-wrap gap-1">
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="startEdit( {{ $savedAddress->id }} )" :label="__( 'Edit' )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-pencil" wire:click="startEdit( {{ $savedAddress->id }} )">{{ __( 'Edit' ) }}</x-artisanpack-button>
                             @unless ( $savedAddress->is_default_shipping )
-                                <x-artisanpack-button variant="ghost" size="sm" wire:click="makeDefault( {{ $savedAddress->id }}, 'shipping' )" wire:loading.attr="disabled" :label="__( 'Use for shipping' )" />
+                                <x-artisanpack-button variant="ghost" size="sm" wire:click="makeDefault( {{ $savedAddress->id }}, 'shipping' )" wire:loading.attr="disabled">{{ __( 'Use for shipping' ) }}</x-artisanpack-button>
                             @endunless
                             @unless ( $savedAddress->is_default_billing )
-                                <x-artisanpack-button variant="ghost" size="sm" wire:click="makeDefault( {{ $savedAddress->id }}, 'billing' )" wire:loading.attr="disabled" :label="__( 'Use for billing' )" />
+                                <x-artisanpack-button variant="ghost" size="sm" wire:click="makeDefault( {{ $savedAddress->id }}, 'billing' )" wire:loading.attr="disabled">{{ __( 'Use for billing' ) }}</x-artisanpack-button>
                             @endunless
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $savedAddress->id }} )" data-focus-key="address-delete-{{ $savedAddress->id }}" :label="__( 'Delete' )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="confirmDelete( {{ $savedAddress->id }} )" data-focus-key="address-delete-{{ $savedAddress->id }}">{{ __( 'Delete' ) }}</x-artisanpack-button>
                         </div>
                     @endif
 
@@ -78,10 +78,8 @@
                                     size="sm"
                                     data-confirm
                                     wire:click="deleteAddress( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"
-                                    wire:loading.attr="disabled"
-                                    :label="__( 'Delete address' )"
-                                />
-                                <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelDelete" data-focus-return="address-delete-{{ $savedAddress->id }}" :label="__( 'Cancel' )" />
+                                    wire:loading.attr="disabled">{{ __( 'Delete address' ) }}</x-artisanpack-button>
+                                <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelDelete" data-focus-return="address-delete-{{ $savedAddress->id }}">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                             </div>
                         </div>
                     @endif

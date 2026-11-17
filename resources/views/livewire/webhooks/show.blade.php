@@ -11,19 +11,19 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Support\Webhooks;
 @endphp
 <div class="flex flex-col gap-6">
-    <x-artisanpack-header :title="$subscription->name" :subtitle="$subscription->url" :level="1" separator>
+    <x-artisanpack-page-header :title="$subscription->name" :description="$subscription->url" :level="1">
         <x-slot:actions>
             @if ( null !== $indexUrl )
-                <x-artisanpack-button variant="ghost" icon="o-arrow-left" :link="$indexUrl" :label="__( 'All subscriptions' )" />
+                <x-artisanpack-button variant="ghost" leading-icon="o-arrow-left" :href="$indexUrl">{{ __( 'All subscriptions' ) }}</x-artisanpack-button>
             @endif
             @if ( $canUpdate )
                 @unless ( $subscription->is_active )
-                    <x-artisanpack-button color="primary" icon="o-play" wire:click="reEnable( {{ $subscription->id }} )" :label="__( 'Re-enable' )" />
+                    <x-artisanpack-button color="primary" leading-icon="o-play" wire:click="reEnable( {{ $subscription->id }} )">{{ __( 'Re-enable' ) }}</x-artisanpack-button>
                 @endunless
-                <x-artisanpack-button variant="outline" icon="o-key" wire:click="confirmRotate( {{ $subscription->id }} )" :label="__( 'Rotate secret' )" />
+                <x-artisanpack-button variant="outline" leading-icon="o-key" wire:click="confirmRotate( {{ $subscription->id }} )">{{ __( 'Rotate secret' ) }}</x-artisanpack-button>
             @endif
         </x-slot:actions>
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     @unless ( $subscription->is_active )
         <x-artisanpack-alert
@@ -43,7 +43,7 @@
             <dt class="text-sm opacity-75">{{ __( 'Events' ) }}</dt>
             <dd class="flex flex-wrap gap-1">
                 @foreach ( (array) $subscription->events as $event )
-                    <x-artisanpack-badge :value="Webhooks::eventLabel( (string) $event )" class="badge-ghost badge-sm" />
+                    <x-artisanpack-badge :value="Webhooks::eventLabel( (string) $event )" variant="ghost" size="sm" />
                 @endforeach
             </dd>
         </div>
@@ -75,10 +75,7 @@
     <x-artisanpack-drawer
         wire:model="viewingDelivery"
         :title="__( 'Delivery details' )"
-        right
-        separator
-        with-close-button
-        close-on-escape
+        side="end"
         class="w-full max-w-2xl"
     >
         @if ( null !== $delivery )
@@ -91,7 +88,7 @@
                     </div>
                     <div>
                         <dt class="text-sm opacity-75">{{ __( 'Status' ) }}</dt>
-                        <dd><x-artisanpack-badge :value="Webhooks::statusLabel( $status )" :class="'badge-sm ' . Webhooks::statusClass( $status )" /></dd>
+                        <dd><x-artisanpack-badge :value="Webhooks::statusLabel( $status )" size="sm" :color="Webhooks::statusColor( $status )" /></dd>
                     </div>
                     <div>
                         <dt class="text-sm opacity-75">{{ __( 'Attempts' ) }}</dt>
@@ -120,14 +117,12 @@
 
                 @if ( $canUpdate )
                     <div class="flex justify-end gap-2">
-                        <x-artisanpack-button variant="ghost" wire:click="closeDelivery" :label="__( 'Close' )" />
+                        <x-artisanpack-button variant="ghost" wire:click="closeDelivery">{{ __( 'Close' ) }}</x-artisanpack-button>
                         <x-artisanpack-button
                             color="primary"
-                            icon="o-arrow-path"
+                            leading-icon="o-arrow-path"
                             wire:click="replay( {{ \Illuminate\Support\Js::from( $replayToken ) }} )"
-                            wire:loading.attr="disabled"
-                            :label="__( 'Replay delivery' )"
-                        />
+                            wire:loading.attr="disabled">{{ __( 'Replay delivery' ) }}</x-artisanpack-button>
                     </div>
                 @endif
             </div>

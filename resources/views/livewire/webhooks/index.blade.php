@@ -7,13 +7,13 @@
     @since      1.0.0
 --}}
 <div>
-    <x-artisanpack-header :title="__( 'Webhooks' )" :subtitle="__( 'Send store events to other systems as signed HTTPS requests.' )" :level="1" separator>
+    <x-artisanpack-page-header :title="__( 'Webhooks' )" :description="__( 'Send store events to other systems as signed HTTPS requests.' )" :level="1">
         @if ( $canCreate )
             <x-slot:actions>
-                <x-artisanpack-button color="primary" icon="o-plus" wire:click="create" :label="__( 'New subscription' )" />
+                <x-artisanpack-button color="primary" leading-icon="o-plus" wire:click="create">{{ __( 'New subscription' ) }}</x-artisanpack-button>
             </x-slot:actions>
         @endif
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     @include( 'ecommerce-admin::partials.resource-table', [
         'emptyIcon'        => 'o-bolt',
@@ -26,10 +26,7 @@
     <x-artisanpack-drawer
         wire:model="editing"
         :title="null === $subscriptionId ? __( 'New subscription' ) : __( 'Edit subscription' )"
-        right
-        separator
-        with-close-button
-        close-on-escape
+        side="end"
         class="w-full max-w-lg"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-webhook-form>
@@ -44,44 +41,40 @@
                 wire:model="form.url"
                 required
             />
-            <x-artisanpack-choices-offline
+            <x-artisanpack-combobox multiple
                 id="webhook-events"
                 :label="__( 'Events' )"
                 :hint="__( 'Choose All events to receive every event, including ones added later.' )"
-                :options="$eventOptions"
-                values-as-string
-                searchable
-                :no-result-text="__( 'No results found.' )"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $eventOptions )"
+                :empty-label="__( 'No results found.' )"
                 wire:model="form.events"
             />
-            <x-artisanpack-toggle id="webhook-active" :label="__( 'Active' )" :hint="__( 'Turning a subscription back on resets its failure count.' )" wire:model="form.is_active" />
+            <x-artisanpack-toggle id="webhook-active" :label="__( 'Active' )" :description="__( 'Turning a subscription back on resets its failure count.' )" wire:model="form.is_active" />
 
             @if ( null === $subscriptionId )
                 <p class="text-sm opacity-75">{{ __( 'A signing secret is generated when you save. It is shown once.' ) }}</p>
             @endif
 
             <div class="flex justify-end gap-2">
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )" :label="__( 'Cancel' )" />
-                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Save subscription' )" />
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save subscription' ) }}</x-artisanpack-button>
             </div>
         </form>
     </x-artisanpack-drawer>
 
     @if ( null !== $deleting )
         @php( $deleteTitle = __( 'Delete ":name"?', [ 'name' => $deleting->name ] ) )
-        <x-artisanpack-modal wire:model="confirmingDelete" :title="$deleteTitle" separator>
+        <x-artisanpack-dialog wire:model="confirmingDelete" :title="$deleteTitle">
             <p data-delete-webhook>{{ __( 'The subscription and its deliveries log are deleted. Events stop being sent to this URL.' ) }}</p>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" :label="__( 'Keep subscription' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="cancelDelete">{{ __( 'Keep subscription' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
                     wire:click="delete( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"
-                    wire:loading.attr="disabled"
-                    :label="__( 'Delete subscription' )"
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    wire:loading.attr="disabled">{{ __( 'Delete subscription' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 
     @include( 'ecommerce-admin::livewire.webhooks.secret-dialogs' )

@@ -14,7 +14,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns;
 
 /**
- * Shows `<x-artisanpack-toast>` notices from an admin component.
+ * Shows design-system toasts (`<x-artisanpack-toaster>`) from an admin component.
  *
  * livewire-ui-components ships a `Toast` trait, but its methods are public,
  * which makes each of them a Livewire action any client could call. These
@@ -39,7 +39,7 @@ trait SendsToasts
      */
     protected function toastSuccess( string $title, ?string $description = null ): void
     {
-        $this->sendToast( 'success', $title, $description, 'alert-success' );
+        $this->sendToast( 'success', $title, $description );
     }
 
     /**
@@ -54,7 +54,7 @@ trait SendsToasts
      */
     protected function toastWarning( string $title, ?string $description = null ): void
     {
-        $this->sendToast( 'warning', $title, $description, 'alert-warning' );
+        $this->sendToast( 'warning', $title, $description );
     }
 
     /**
@@ -69,39 +69,26 @@ trait SendsToasts
      */
     protected function toastError( string $title, ?string $description = null ): void
     {
-        $this->sendToast( 'error', $title, $description, 'alert-error' );
+        $this->sendToast( 'error', $title, $description );
     }
 
     /**
      * Dispatches the toast to the browser.
      *
-     * The payload goes through `json_encode` with the HEX flags, so titles
-     * that contain quotes or markup cannot break out of the script.
+     * Sends the design system's `toast` browser event, which the page's
+     * `<x-artisanpack-toaster>` shows. The toaster renders the title and
+     * description as text, so neither can inject markup.
      *
      * @since 1.0.0
      *
-     * @param  string       $type         The toast type.
+     * @param  string       $color        The toast color: success, warning, or error.
      * @param  string       $title        The title.
      * @param  string|null  $description  The description.
-     * @param  string       $css          The alert class.
      *
      * @return void
      */
-    private function sendToast( string $type, string $title, ?string $description, string $css ): void
+    private function sendToast( string $color, string $title, ?string $description ): void
     {
-        $payload = json_encode(
-            [
-                'toast' => [
-                    'type'        => $type,
-                    'title'       => $title,
-                    'description' => $description,
-                    'icon'        => '',
-                    'css'         => $css,
-                ],
-            ],
-            JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_THROW_ON_ERROR,
-        );
-
-        $this->js( 'if ( typeof toast === "function" ) { toast( ' . $payload . ' ); }' );
+        $this->dispatch( 'toast', title: $title, description: $description, color: $color );
     }
 }

@@ -1,7 +1,12 @@
 {{--
-    Opens the command palette, for pointer users and anyone who does not
-    know the shortcut. The click stops here: if it reached the document, the
-    palette's own click-outside handler would close it straight away.
+    The command palette (spec §8.1) with its open button, for pointer users
+    and anyone who does not know the shortcut. The design-system Spotlight
+    renders both: the button where this partial sits, and the dialog,
+    teleported to the end of the page. Results open as plain links, as in
+    1.x: the admin's pages don't run under wire:navigate.
+
+    Mounted once per page: in the standalone layout's top bar, or above the
+    page under cms-framework's layout, which mounts none of its own.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -9,15 +14,14 @@
     @since      1.0.0
 --}}
 @if ( \ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::mountable() )
-    @php( $ecommerceAdminShortcut = \ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::ariaShortcut() )
-    <x-artisanpack-button
-        icon="o-magnifying-glass"
-        class="btn-ghost btn-sm"
-        :label="__( 'Search' )"
-        :tooltip-bottom="__( 'Search and run commands (:shortcut)', [ 'shortcut' => $ecommerceAdminShortcut ] )"
-        aria-keyshortcuts="{{ $ecommerceAdminShortcut }}"
-        x-data
-        x-on:click.stop="$dispatch( 'mary-search-open' )"
+    <x-artisanpack-spotlight
+        :url="\Illuminate\Support\Facades\Route::has( \ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::ADMIN_ROUTE ) ? route( \ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::ADMIN_ROUTE, absolute: false ) : null"
+        :shortcut="\ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::paletteShortcut()"
+        :navigate="false"
+        :trigger="__( 'Search' )"
+        :label="__( 'Search and run commands' )"
+        :placeholder="__( 'Search orders, products, customers, or type a command…' )"
+        :empty-text="__( 'Nothing found.' )"
         data-spotlight-open
     />
 @endif

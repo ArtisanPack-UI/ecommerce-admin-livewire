@@ -12,11 +12,11 @@
 
     $inventoryRoute = AdminNav::ROUTE_PREFIX . 'inventory.index';
 @endphp
-<x-artisanpack-card shadow class="h-full">
+<x-artisanpack-card class="h-full">
     <h2 id="dashboard-widget-{{ $widget['key'] }}" class="text-lg font-semibold">{{ $widget['label'] }}</h2>
 
     @if ( $dashboard['lowStock']->isEmpty() )
-        <x-artisanpack-ec-empty-state icon="o-check-circle" :title="__( 'Stock looks healthy' )" :description="__( 'No tracked item is at or below its low-stock threshold.' )" />
+        <x-artisanpack-ec-admin-empty-state size="sm" :heading-level="3" icon="o-check-circle" :title="__( 'Stock looks healthy' )" :description="__( 'No tracked item is at or below its low-stock threshold.' )" />
     @else
         <div class="overflow-x-auto">
             <table class="table table-sm" data-low-stock>
@@ -35,7 +35,7 @@
                             <td>
                                 <span class="font-semibold">{{ StockLevels::label( $item ) }}</span>
                                 @if ( (int) $item->quantity_available <= 0 )
-                                    <x-artisanpack-badge :value="__( 'Out of stock' )" class="badge-sm ms-1" color="error" />
+                                    <x-artisanpack-badge :value="__( 'Out of stock' )" class="ms-1" size="sm" color="error" />
                                 @endif
                             </td>
                             <td>{{ StockLevels::sku( $item ) ?: '—' }}</td>

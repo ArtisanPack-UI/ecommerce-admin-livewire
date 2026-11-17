@@ -10,16 +10,16 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Categories\Index;
 @endphp
 <div>
-    <x-artisanpack-header :title="__( 'Categories' )" :level="1" separator>
+    <x-artisanpack-page-header :title="__( 'Categories' )" :level="1">
         @if ( $canCreate )
             <x-slot:actions>
-                <x-artisanpack-button color="primary" icon="o-plus" wire:click="create" :label="__( 'New category' )" />
+                <x-artisanpack-button color="primary" leading-icon="o-plus" wire:click="create">{{ __( 'New category' ) }}</x-artisanpack-button>
             </x-slot:actions>
         @endif
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     @if ( 0 === $total )
-        <x-artisanpack-ec-empty-state
+        <x-artisanpack-ec-admin-empty-state
             icon="o-folder"
             :title="__( 'No categories yet' )"
             :description="__( 'Group products into categories so shoppers can browse them.' )"
@@ -52,7 +52,7 @@
 
                     <x-artisanpack-badge
                         :value="trans_choice( ':count product|:count products', (int) $category->products_count, [ 'count' => (int) $category->products_count ] )"
-                        class="badge-ghost"
+                        variant="ghost"
                         data-product-count="{{ (int) $category->products_count }}"
                     />
 
@@ -61,7 +61,7 @@
                             <x-artisanpack-button
                                 variant="ghost"
                                 size="sm"
-                                icon="o-arrow-up"
+                                leading-icon="o-arrow-up"
                                 wire:click="move( {{ $category->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
                                 :disabled="$row['first']"
                                 :aria-label="__( 'Move :name up', [ 'name' => $category->name ] )"
@@ -69,20 +69,20 @@
                             <x-artisanpack-button
                                 variant="ghost"
                                 size="sm"
-                                icon="o-arrow-down"
+                                leading-icon="o-arrow-down"
                                 wire:click="move( {{ $category->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="categories-{{ $category->parent_id ?? 'root' }}" data-reorder-key="category-{{ $category->id }}" data-reorder-item="{{ $category->name }}"
                                 :disabled="$row['last']"
                                 :aria-label="__( 'Move :name down', [ 'name' => $category->name ] )"
                             />
                         @endif
                         @if ( $canCreate )
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-plus" wire:click="create( {{ $category->id }} )" :aria-label="__( 'Add a subcategory to :name', [ 'name' => $category->name ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-plus" wire:click="create( {{ $category->id }} )" :aria-label="__( 'Add a subcategory to :name', [ 'name' => $category->name ] )" />
                         @endif
                         @if ( $canUpdate )
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="edit( {{ $category->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $category->name ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-pencil" wire:click="edit( {{ $category->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $category->name ] )" />
                         @endif
                         @if ( $canDelete )
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $category->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $category->name ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="confirmDelete( {{ $category->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $category->name ] )" />
                         @endif
                     </div>
                 </li>
@@ -93,10 +93,7 @@
     <x-artisanpack-drawer
         wire:model="editing"
         :title="null === $categoryId ? __( 'New category' ) : __( 'Edit category' )"
-        right
-        separator
-        with-close-button
-        close-on-escape
+        side="end"
         class="w-full max-w-lg"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-category-form>
@@ -106,9 +103,8 @@
             <x-artisanpack-select
                 id="category-parent"
                 :label="__( 'Parent' )"
-                :options="$parentOptions"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $parentOptions )"
                 :placeholder="__( 'None (top level)' )"
-                placeholder-value=""
                 :hint="null === $categoryId ? null : __( 'A category cannot sit under itself or one of its subcategories, so those are not listed.' )"
                 wire:model="form.parent_id"
             />
@@ -128,23 +124,21 @@
                         <x-artisanpack-button
                             variant="outline"
                             size="sm"
-                            icon="o-photo"
-                            x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Index::MEDIA_CONTEXT ) }} } )"
-                            :label="empty( $form['image_media_id'] ) ? __( 'Choose image' ) : __( 'Replace image' )"
-                        />
+                            leading-icon="o-photo"
+                            x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Index::MEDIA_CONTEXT ) }} } )">{{ empty( $form['image_media_id'] ) ? __( 'Choose image' ) : __( 'Replace image' ) }}</x-artisanpack-button>
                     @else
                         <x-artisanpack-input id="category-image" type="number" min="1" :label="__( 'Media id' )" :hint="__( 'Install the media library to pick images.' )" wire:model="form.image_media_id" />
                     @endif
 
                     @unless ( empty( $form['image_media_id'] ) )
-                        <x-artisanpack-button variant="ghost" size="sm" icon="o-x-mark" wire:click="clearImage" :label="__( 'Remove' )" />
+                        <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-x-mark" wire:click="clearImage">{{ __( 'Remove' ) }}</x-artisanpack-button>
                     @endunless
                 </div>
             </fieldset>
 
             <div class="flex justify-end gap-2">
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )" :label="__( 'Cancel' )" />
-                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Save category' )" />
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save category' ) }}</x-artisanpack-button>
             </div>
         </form>
     </x-artisanpack-drawer>
@@ -157,7 +151,7 @@
                 [ 'id' => 'other', 'name' => __( 'Under another category' ) ],
             ];
         @endphp
-        <x-artisanpack-modal wire:model="confirmingDelete" :title="$deleteTitle" separator>
+        <x-artisanpack-dialog wire:model="confirmingDelete" :title="$deleteTitle">
             <div class="flex flex-col gap-3" data-delete-category>
                 <p>
                     {{ trans_choice( 'Its :count product stays in the catalog but leaves this category.|Its :count products stay in the catalog but leave this category.', (int) $deleting->products_count, [ 'count' => (int) $deleting->products_count ] ) }}
@@ -168,18 +162,17 @@
                         <legend class="fieldset-legend">
                             {{ trans_choice( 'It has :count subcategory. Where should it go?|It has :count subcategories. Where should they go?', $deletingChildren, [ 'count' => $deletingChildren ] ) }}
                         </legend>
-                        <x-artisanpack-radio
+                        <x-artisanpack-radio-group
                             id="category-children-target"
-                            :options="$targetChoices"
+                            :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $targetChoices )"
                             wire:model.live="childrenTarget"
                         />
                         @if ( 'other' === $childrenTarget )
                             <x-artisanpack-select
                                 id="category-children-target-id"
                                 :label="__( 'New parent' )"
-                                :options="$targetOptions"
+                                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $targetOptions )"
                                 :placeholder="__( 'Choose a category' )"
-                                placeholder-value=""
                                 wire:model="childrenTargetId"
                             />
                         @endif
@@ -187,16 +180,14 @@
                 @endif
             </div>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" :label="__( 'Keep category' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="cancelDelete">{{ __( 'Keep category' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
                     wire:click="delete( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"
-                    wire:loading.attr="disabled"
-                    :label="__( 'Delete category' )"
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    wire:loading.attr="disabled">{{ __( 'Delete category' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 
     @if ( $mediaLibrary )

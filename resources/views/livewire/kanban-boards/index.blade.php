@@ -7,16 +7,16 @@
     @since      1.0.0
 --}}
 <div class="flex flex-col gap-6">
-    <x-artisanpack-header :title="__( 'Kanban boards' )" :subtitle="__( 'Boards group orders into columns by sub-status. Orders go onto every active board whose routing rules they match, in this order.' )" :level="1" separator>
+    <x-artisanpack-page-header :title="__( 'Kanban boards' )" :description="__( 'Boards group orders into columns by sub-status. Orders go onto every active board whose routing rules they match, in this order.' )" :level="1">
         @if ( $canCreate )
             <x-slot:actions>
-                <x-artisanpack-button color="primary" icon="o-plus" wire:click="create" :label="__( 'Add board' )" />
+                <x-artisanpack-button color="primary" leading-icon="o-plus" wire:click="create">{{ __( 'Add board' ) }}</x-artisanpack-button>
             </x-slot:actions>
         @endif
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     @if ( $boards->isEmpty() )
-        <x-artisanpack-ec-empty-state
+        <x-artisanpack-ec-admin-empty-state
             icon="o-view-columns"
             :title="__( 'No kanban boards yet' )"
             :description="__( 'Add a board to track orders through your own stages, like printing, packing, and shipping.' )"
@@ -35,13 +35,13 @@
                             @endif
                             <code class="text-sm opacity-75">{{ $board->key }}</code>
                             @if ( $board->is_default )
-                                <x-artisanpack-badge :value="__( 'Default' )" color="primary" class="badge-sm" data-default-board />
+                                <x-artisanpack-badge :value="__( 'Default' )" color="primary" size="sm" data-default-board />
                             @endif
                             @unless ( $board->is_active )
-                                <x-artisanpack-badge :value="__( 'Switched off' )" class="badge-sm badge-ghost" data-inactive-board />
+                                <x-artisanpack-badge :value="__( 'Switched off' )" size="sm" variant="ghost" data-inactive-board />
                             @endunless
                             @if ( $board->hasRoutingRules() )
-                                <x-artisanpack-badge :value="__( 'Has routing rules' )" class="badge-sm badge-outline" />
+                                <x-artisanpack-badge :value="__( 'Has routing rules' )" size="sm" variant="outline" />
                             @endif
                         </div>
                         @if ( filled( $board->description ) )
@@ -59,13 +59,13 @@
 
                     <div class="flex flex-wrap items-center gap-1">
                         @if ( null !== ( $boardUrls[ $board->id ] ?? null ) )
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-top-right-on-square" :link="$boardUrls[ $board->id ]" :label="__( 'Open board' )" data-open-board />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-arrow-top-right-on-square" :href="$boardUrls[ $board->id ]" data-open-board>{{ __( 'Open board' ) }}</x-artisanpack-button>
                         @endif
                         @if ( $canUpdate )
                             <x-artisanpack-button
                                 variant="ghost"
                                 size="sm"
-                                icon="o-arrow-up"
+                                leading-icon="o-arrow-up"
                                 wire:click="move( {{ $board->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="boards" data-reorder-key="board-{{ $board->id }}" data-reorder-item="{{ $board->name }}"
                                 :disabled="$loop->first"
                                 :aria-label="__( 'Move :name up', [ 'name' => $board->name ] )"
@@ -73,7 +73,7 @@
                             <x-artisanpack-button
                                 variant="ghost"
                                 size="sm"
-                                icon="o-arrow-down"
+                                leading-icon="o-arrow-down"
                                 wire:click="move( {{ $board->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="boards" data-reorder-key="board-{{ $board->id }}" data-reorder-item="{{ $board->name }}"
                                 :disabled="$loop->last"
                                 :aria-label="__( 'Move :name down', [ 'name' => $board->name ] )"
@@ -82,19 +82,17 @@
                                 <x-artisanpack-button
                                     variant="ghost"
                                     size="sm"
-                                    icon="o-star"
+                                    leading-icon="o-star"
                                     wire:click="makeDefault( {{ $board->id }} )"
                                     :disabled="! $board->is_active"
-                                    :label="__( 'Make default' )"
-                                    :aria-label="__( 'Make default: :name', [ 'name' => $board->name ] )"
-                                />
+                                    :aria-label="__( 'Make default: :name', [ 'name' => $board->name ] )">{{ __( 'Make default' ) }}</x-artisanpack-button>
                             @endunless
                         @endif
                         @if ( isset( $editUrls[ $board->id ] ) )
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" :link="$editUrls[ $board->id ]" :aria-label="__( 'Edit :name', [ 'name' => $board->name ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-pencil" :href="$editUrls[ $board->id ]" :aria-label="__( 'Edit :name', [ 'name' => $board->name ] )" />
                         @endif
                         @if ( $canDelete )
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $board->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $board->name ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="confirmDelete( {{ $board->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $board->name ] )" />
                         @endif
                     </div>
                 </li>
@@ -109,10 +107,7 @@
     <x-artisanpack-drawer
         wire:model="creating"
         :title="__( 'New board' )"
-        right
-        separator
-        with-close-button
-        close-on-escape
+        side="end"
         class="w-full max-w-lg"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-board-form>
@@ -120,19 +115,19 @@
             <x-artisanpack-input id="board-name" :label="__( 'Name' )" wire:model.blur="form.name" maxlength="255" required />
             <x-artisanpack-input id="board-key" :label="__( 'Key' )" :hint="__( 'A unique, permanent identifier, like production. Filled from the name until you change it.' )" wire:model.blur="form.key" maxlength="120" required />
             <x-artisanpack-textarea id="board-description" :label="__( 'Description' )" rows="2" wire:model="form.description" />
-            <x-artisanpack-toggle id="board-active" :label="__( 'Switched on' )" :hint="__( 'Orders are only routed onto active boards.' )" wire:model="form.is_active" />
-            <x-artisanpack-toggle id="board-default" :label="__( 'Default board' )" :hint="__( 'The default board catches orders no other board took. Only one board can be the default.' )" wire:model="form.is_default" />
+            <x-artisanpack-toggle id="board-active" :label="__( 'Switched on' )" :description="__( 'Orders are only routed onto active boards.' )" wire:model="form.is_active" />
+            <x-artisanpack-toggle id="board-default" :label="__( 'Default board' )" :description="__( 'The default board catches orders no other board took. Only one board can be the default.' )" wire:model="form.is_default" />
 
             <div class="flex justify-end gap-2">
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'creating', false )" :label="__( 'Cancel' )" />
-                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Create board' )" />
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'creating', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Create board' ) }}</x-artisanpack-button>
             </div>
         </form>
     </x-artisanpack-drawer>
 
     @if ( null !== $deleting )
         @php $deleteTitle = __( 'Delete ":name"?', [ 'name' => $deleting->name ] ); @endphp
-        <x-artisanpack-modal wire:model="confirmingDelete" :title="$deleteTitle" separator>
+        <x-artisanpack-dialog wire:model="confirmingDelete" :title="$deleteTitle">
             <div class="flex flex-col gap-3" data-delete-board="{{ $deleting->key }}">
                 <p>{{ __( 'Its columns and automations are deleted. Orders stay as they are, but lose their card on this board. This cannot be undone.' ) }}</p>
                 @if ( $deletingCards > 0 )
@@ -149,17 +144,15 @@
                 @endif
             </div>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" :label="__( 'Keep board' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="cancelDelete">{{ __( 'Keep board' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
                     wire:click="delete( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"
                     wire:loading.attr="disabled"
                     :disabled="$deleteBlocked"
-                    :label="__( 'Delete board' )"
-                    data-delete-button
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    data-delete-button>{{ __( 'Delete board' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

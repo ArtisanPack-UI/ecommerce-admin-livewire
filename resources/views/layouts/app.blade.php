@@ -6,10 +6,12 @@
     (plain text), a `content` section, and `styles` / `scripts` stacks, so a
     page extends whichever layout is resolved without a branch of its own.
 
-    The package ships no CSS build. The host's Vite entries (filterable with
-    `ap.ecommerceAdminLivewire.layout.viteEntries`) are loaded when a Vite
-    build or dev server is present; the host adds this package's views to its
-    Tailwind `@source` list (see `php artisan ecommerce-admin:install`).
+    It is a design-system AppShell: the navigation in the sidebar island and
+    a Navbar (the command palette's button and the theme toggle) above the
+    content. The design system's CSS and behavior come from the host's Vite
+    entries (filterable with `ap.ecommerceAdminLivewire.layout.viteEntries`),
+    loaded when a Vite build or dev server is present; the admin's own few
+    styles are inlined (see partials/styles).
 
     Publish with `php artisan vendor:publish --tag=ecommerce-admin-views`.
 
@@ -28,55 +30,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield( 'title', __( 'Store admin' ) ) &middot; {{ config( 'app.name' ) }}</title>
+    @apuiThemeScript
     @include( 'ecommerce-admin::partials.vite-assets' )
+    @include( 'ecommerce-admin::partials.styles' )
     @livewireStyles
     @stack( 'styles' )
 </head>
-<body class="min-h-screen font-sans antialiased bg-base-200">
-    <a href="#ecommerce-admin-content" class="sr-only focus:not-sr-only focus:absolute focus:start-2 focus:top-2 focus:z-50 btn btn-sm">
-        {{ __( 'Skip to content' ) }}
-    </a>
-
-    <header>
-    <x-artisanpack-nav sticky full-width class="ecommerce-admin__topbar">
+<body class="ecommerce-admin">
+    <x-artisanpack-app-shell
+        id="ecommerce-admin-shell"
+        class="ecommerce-admin__shell"
+        :label="__( 'Store admin' )"
+        :skip-label="__( 'Skip to content' )"
+    >
         <x-slot:brand>
-            {{-- A real, focusable button: the drawer's own toggle is a hidden checkbox. --}}
-            <button
-                type="button"
-                class="lg:hidden me-3 btn btn-ghost btn-sm btn-square"
-                aria-label="{{ __( 'Open navigation' ) }}"
-                aria-controls="ecommerce-admin-drawer"
-                x-data
-                x-on:click="document.getElementById( 'ecommerce-admin-drawer' )?.click()"
-                data-nav-toggle
-            >
-                <x-artisanpack-icon name="o-bars-3" aria-hidden="true" />
-            </button>
-            <a href="{{ route( AdminNav::ROUTE_PREFIX . 'dashboard' ) }}" class="font-bold">
+            <a href="{{ route( AdminNav::ROUTE_PREFIX . 'dashboard' ) }}" class="ecommerce-admin__brand">
                 {{ __( 'Store admin' ) }}
             </a>
         </x-slot:brand>
 
-        <x-slot:actions>
-            @include( 'ecommerce-admin::partials.spotlight-button' )
-            <x-artisanpack-theme-toggle aria-label="{{ __( 'Toggle dark mode' ) }}" />
-        </x-slot:actions>
-    </x-artisanpack-nav>
-    </header>
-
-    <x-artisanpack-main with-nav full-width>
-        <x-slot:sidebar drawer="ecommerce-admin-drawer" class="bg-base-100 lg:bg-inherit ecommerce-admin__sidebar">
-            <livewire:artisanpack-ecommerce-admin-navigation />
+        <x-slot:sidebar>
+            <div id="ecommerce-admin-drawer" class="ecommerce-admin__sidebar">
+                <livewire:artisanpack-ecommerce-admin-navigation />
+            </div>
         </x-slot:sidebar>
 
-        <x-slot:content id="ecommerce-admin-content">
+        <x-slot:header>
+            <x-artisanpack-navbar :sticky="false" :label="__( 'Store admin toolbar' )" class="ecommerce-admin__topbar">
+                <x-slot:actions>
+                    @include( 'ecommerce-admin::partials.spotlight-button' )
+                    <x-artisanpack-theme-toggle icon-only :label="__( 'Theme' )" />
+                </x-slot:actions>
+            </x-artisanpack-navbar>
+        </x-slot:header>
+
+        <div id="ecommerce-admin-content" class="ecommerce-admin__content">
             @yield( 'content' )
-        </x-slot:content>
-    </x-artisanpack-main>
+        </div>
+    </x-artisanpack-app-shell>
 
-    <x-artisanpack-toast />
-
-    @include( 'ecommerce-admin::partials.spotlight' )
+    <x-artisanpack-toaster />
 
     @livewireScripts
     @include( 'ecommerce-admin::partials.accessibility' )
