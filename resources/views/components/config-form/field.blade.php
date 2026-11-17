@@ -25,23 +25,23 @@
             @break
 
         @case( 'boolean' )
-            <x-artisanpack-toggle :id="$id" :label="$field['label']" :hint="$field['hint']" wire:model="{{ $path }}" />
+            <x-artisanpack-toggle :id="$id" :label="$field['label']" :description="$field['hint']" wire:model="{{ $path }}" />
             @break
 
         @case( 'select' )
-            <x-artisanpack-select :id="$id" :label="$field['label']" :hint="$field['hint']" :options="$field['options']" :placeholder="__( 'Choose…' )" placeholder-value="" wire:model="{{ $path }}" />
+            <x-artisanpack-select :id="$id" :label="$field['label']" :hint="$field['hint']" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $field['options'] )" :placeholder="__( 'Choose…' )" wire:model="{{ $path }}" />
             @break
 
         @case( 'multiselect' )
-            <x-artisanpack-checkbox-group :id="$id" :label="$field['label']" :hint="$field['hint']" :options="$field['options']" wire:model="{{ $path }}" />
+            <x-artisanpack-checkbox-group :id="$id" :label="$field['label']" :hint="$field['hint']" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $field['options'] )" wire:model="{{ $path }}" />
             @break
 
         @case( 'weekday' )
-            <x-artisanpack-checkbox-group :id="$id" :label="$field['label']" :hint="$field['hint']" :options="$weekdays()" horizontal wire:model="{{ $path }}" />
+            <x-artisanpack-checkbox-group :id="$id" :label="$field['label']" :hint="$field['hint']" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $weekdays() )" orientation="horizontal" wire:model="{{ $path }}" />
             @break
 
         @case( 'tag' )
-            <x-artisanpack-tags :id="$id" :label="$field['label']" :hint="$field['hint']" :custom-tags-text="__( 'Press Enter to add' )" wire:model="{{ $path }}" />
+            <x-artisanpack-combobox multiple allow-create :id="$id" :label="$field['label']" :hint="$field['hint']" :create-label="__( 'Press Enter to add' )" wire:model="{{ $path }}" />
             @break
 
         @case( 'date' )
@@ -71,7 +71,7 @@
             @break
 
         @case( 'json' )
-            <x-artisanpack-code :id="$id" :label="$field['label']" :hint="$field['hint']" language="json" height="6rem" wire:model="{{ $path }}" />
+            <x-artisanpack-code-editor :id="$id" :label="$field['label']" :hint="$field['hint']" language="json" :rows="5" wire:model="{{ $path }}" />
             @error( $path )
                 <p class="text-sm text-error" role="alert">{{ $message }}</p>
             @enderror
@@ -120,11 +120,9 @@
                         <x-artisanpack-button
                             variant="ghost"
                             size="sm"
-                            icon="o-trash"
+                            leading-icon="o-trash"
                             wire:click="removeConfigRow( {{ $rowArguments }}, {{ (int) $index }} )" wire:loading.attr="disabled"
-                            :label="__( 'Remove' )"
-                            :aria-label="__( 'Remove :field row :number', [ 'field' => $field['label'], 'number' => $index + 1 ] )"
-                        />
+                            :aria-label="__( 'Remove :field row :number', [ 'field' => $field['label'], 'number' => $index + 1 ] )">{{ __( 'Remove' ) }}</x-artisanpack-button>
                     </div>
                 @endforeach
 
@@ -133,7 +131,7 @@
                 @enderror
 
                 <div class="mt-2">
-                    <x-artisanpack-button variant="outline" size="sm" icon="o-plus" wire:click="addConfigRow( {{ $rowArguments }} )" :label="__( 'Add a row' )" />
+                    <x-artisanpack-button variant="outline" size="sm" leading-icon="o-plus" wire:click="addConfigRow( {{ $rowArguments }} )">{{ __( 'Add a row' ) }}</x-artisanpack-button>
                 </div>
             </fieldset>
             @break

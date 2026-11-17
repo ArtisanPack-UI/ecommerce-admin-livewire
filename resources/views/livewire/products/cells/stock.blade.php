@@ -3,6 +3,6 @@
 @else
     <span class="tabular-nums">{{ (int) $row->stock_available }}</span>
     @if ( (int) $row->stock_available <= 0 )
-        <x-artisanpack-badge :value="__( 'Out of stock' )" class="badge-sm" color="error" />
+        <x-artisanpack-badge :value="__( 'Out of stock' )" size="sm" color="error" />
     @endif
 @endif

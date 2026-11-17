@@ -1,5 +1,5 @@
 <div>
-    <x-artisanpack-header :title="__( 'Orders' )" :level="1" separator />
+    <x-artisanpack-page-header :title="__( 'Orders' )" :level="1" />
 
     @include( 'ecommerce-admin::partials.live-region', [ 'message' => $liveAnnouncement ] )
 
@@ -7,7 +7,7 @@
         <div class="mb-4 flex flex-wrap items-center gap-3 rounded-box border border-info/40 bg-info/10 px-4 py-2 text-sm" data-new-orders="{{ $newOrders }}">
             <x-artisanpack-icon name="o-bell-alert" class="w-5 h-5" aria-hidden="true" />
             <span>{{ trans_choice( ':count new order since you opened this page.|:count new orders since you opened this page.', $newOrders, [ 'count' => $newOrders ] ) }}</span>
-            <x-artisanpack-button size="sm" class="btn-ghost ms-auto" wire:click="dismissNewOrders" :label="__( 'Dismiss' )" />
+            <x-artisanpack-button variant="ghost" color="neutral" size="sm" class="ec-push-end" wire:click="dismissNewOrders">{{ __( 'Dismiss' ) }}</x-artisanpack-button>
         </div>
     @endif
 

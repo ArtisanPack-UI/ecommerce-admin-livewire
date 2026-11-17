@@ -7,13 +7,13 @@
     @since      1.0.0
 --}}
 <div>
-    <x-artisanpack-header :title="__( 'Promotions' )" :level="1" separator>
+    <x-artisanpack-page-header :title="__( 'Promotions' )" :level="1">
         @if ( null !== $createUrl )
             <x-slot:actions>
-                <x-artisanpack-button color="primary" icon="o-plus" :link="$createUrl" :label="__( 'New promotion' )" />
+                <x-artisanpack-button color="primary" leading-icon="o-plus" :href="$createUrl">{{ __( 'New promotion' ) }}</x-artisanpack-button>
             </x-slot:actions>
         @endif
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     @include( 'ecommerce-admin::partials.resource-table', [
         'emptyIcon'        => 'o-megaphone',

@@ -46,7 +46,7 @@ it( 'renders promotions with source, state, window, uses, priority, and exclusiv
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">Promotions</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Promotions</caption>' )
         ->assertSee( [ 'Black Friday', 'Automatic', 'Scheduled', 'November 27, 2026', '0 of 500', 'Yes' ] )
         ->assertSee( [ 'Welcome', 'Coupon code', 'Active', 'Always', '12 (no limit)' ] );
 } );

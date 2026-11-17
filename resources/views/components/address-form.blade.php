@@ -30,9 +30,8 @@
             <x-artisanpack-select
                 :id="$model . '.country_code'"
                 :label="__( 'Country' )"
-                :options="$countries()"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $countries() )"
                 :placeholder="__( 'Select a country' )"
-                placeholder-value=""
                 autocomplete="country"
                 required
                 wire:model.live="{{ $model }}.country_code"
@@ -41,9 +40,8 @@
             <x-artisanpack-select
                 :id="$model . '.country_code'"
                 :label="__( 'Country' )"
-                :options="$countries()"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $countries() )"
                 :placeholder="__( 'Select a country' )"
-                placeholder-value=""
                 autocomplete="country"
                 required
                 wire:model="{{ $model }}.country_code"

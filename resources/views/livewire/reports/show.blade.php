@@ -24,19 +24,17 @@
     };
 @endphp
 <div class="flex flex-col gap-6" data-report="{{ $report }}">
-    <x-artisanpack-header :title="$label" :subtitle="__( 'Amounts are in :currency, the store\'s base currency.', [ 'currency' => $currency ] )" :level="1" separator>
+    <x-artisanpack-page-header :title="$label" :description="__( 'Amounts are in :currency, the store\'s base currency.', [ 'currency' => $currency ] )" :level="1">
         <x-slot:actions>
             <x-artisanpack-button
-                icon="o-arrow-down-tray"
+                leading-icon="o-arrow-down-tray"
                 variant="outline"
                 wire:click="export"
                 wire:loading.attr="disabled"
                 :disabled="null === $result"
-                :label="__( 'Export CSV' )"
-                data-export
-            />
+                data-export>{{ __( 'Export CSV' ) }}</x-artisanpack-button>
         </x-slot:actions>
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     <nav aria-label="{{ __( 'Reports' ) }}">
         <x-artisanpack-menu class="menu-horizontal flex-wrap gap-1 rounded-box bg-base-200 p-1">
@@ -45,11 +43,11 @@
                 <x-artisanpack-menu-item
                     wire:key="report-tab-{{ $available['key'] }}"
                     :title="$available['label']"
-                    :link="route( 'artisanpack.ecommerce.admin.reports.show', [ 'report' => $available['key'] ] )"
-                    :active="$available['key'] === $report"
+                    :href="route( 'artisanpack.ecommerce.admin.reports.show', [ 'report' => $available['key'] ] )"
+                    :current="$available['key'] === $report"
                     :aria-current="$available['key'] === $report ? 'page' : null"
                     role="link"
-                    no-wire-navigate
+                    :navigate="false"
                 />
             @endforeach
         </x-artisanpack-menu>
@@ -58,17 +56,19 @@
     <form class="flex flex-wrap items-end gap-3" wire:submit.prevent aria-label="{{ __( 'Report options' ) }}" data-report-controls>
         @if ( $ranged )
             <x-artisanpack-select
+                placeholder=""
                 id="report-preset"
                 :label="__( 'Date range' )"
-                :options="collect( $presets )->map( fn ( $presetLabel, $key ) => [ 'id' => $key, 'name' => $presetLabel ] )->values()->all()"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( collect( $presets )->map( fn ( $presetLabel, $key ) => [ 'id' => $key, 'name' => $presetLabel ] )->values()->all() )"
                 wire:model.live="preset"
             />
             <x-artisanpack-input id="report-from" type="date" :label="__( 'From' )" wire:model.live.blur="from" />
             <x-artisanpack-input id="report-to" type="date" :label="__( 'To' )" wire:model.live.blur="to" />
             <x-artisanpack-select
+                placeholder=""
                 id="report-interval"
                 :label="__( 'Interval' )"
-                :options="[ [ 'id' => 'day', 'name' => __( 'Day' ) ], [ 'id' => 'week', 'name' => __( 'Week' ) ], [ 'id' => 'month', 'name' => __( 'Month' ) ] ]"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( [ [ 'id' => 'day', 'name' => __( 'Day' ) ], [ 'id' => 'week', 'name' => __( 'Week' ) ], [ 'id' => 'month', 'name' => __( 'Month' ) ] ] )"
                 wire:model.live="interval"
             />
             <div class="pb-2">
@@ -78,9 +78,10 @@
 
         @if ( 'sales' === $report )
             <x-artisanpack-select
+                placeholder=""
                 id="report-metric"
                 :label="__( 'Chart' )"
-                :options="collect( $metrics )->map( fn ( $metricLabel, $key ) => [ 'id' => $key, 'name' => $metricLabel ] )->values()->all()"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( collect( $metrics )->map( fn ( $metricLabel, $key ) => [ 'id' => $key, 'name' => $metricLabel ] )->values()->all() )"
                 wire:model.live="metric"
             />
         @endif
@@ -89,20 +90,18 @@
             <x-artisanpack-select
                 id="report-sort"
                 :label="__( 'Sort by' )"
-                :options="collect( $sorts )->map( fn ( $sortLabel, $key ) => [ 'id' => $key, 'name' => $sortLabel ] )->values()->all()"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( collect( $sorts )->map( fn ( $sortLabel, $key ) => [ 'id' => $key, 'name' => $sortLabel ] )->values()->all() )"
                 :placeholder="__( 'Default' )"
-                placeholder-value=""
                 wire:model.live="sort"
             />
         @endif
 
         @if ( [] !== $limits )
             <x-artisanpack-select
+                placeholder=""
                 id="report-limit"
                 :label="__( 'Rows' )"
-                :options="collect( $limits )->map( fn ( $count ) => [ 'id' => $count, 'name' => (string) $count ] )->all()"
-                :placeholder="__( 'Default' )"
-                placeholder-value="0"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( [ [ 'id' => 0, 'name' => __( 'Default' ) ], ...collect( $limits )->map( fn ( $count ) => [ 'id' => $count, 'name' => (string) $count ] )->all() ] )"
                 wire:model.live="limit"
             />
         @endif
@@ -156,7 +155,7 @@
                         @endphp
                         <x-artisanpack-stat
                             wire:key="kpi-{{ $kpi['key'] }}"
-                            :title="$kpi['label']"
+                            :label="$kpi['label']"
                             :value="$display( $kpi['value'], $kpi['type'] )"
                             :description="$description"
                             data-kpi="{{ $kpi['key'] }}"

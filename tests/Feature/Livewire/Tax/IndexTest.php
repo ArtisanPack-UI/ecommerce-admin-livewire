@@ -31,7 +31,7 @@ it( 'renders classes, rates, and the manual provider', function (): void {
         ->assertSee( 'Reduced rate' )
         ->assertSee( 'NY sales tax' )
         ->assertSee( '8.875%' )
-        ->assertSeeHtml( '<caption class="sr-only">Tax rates</caption>' );
+        ->assertSeeHtml( '<caption class="apui-sr-only">Tax rates</caption>' );
 } );
 
 it( 'labels the rates unused when another provider is active', function (): void {

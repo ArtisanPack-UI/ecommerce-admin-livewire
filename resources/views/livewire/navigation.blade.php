@@ -1,5 +1,5 @@
-<nav aria-label="{{ __( 'Store admin' ) }}">
-    <x-artisanpack-menu>
+<div data-ecommerce-admin-navigation>
+    <x-artisanpack-menu :label="__( 'Store admin navigation' )">
         @foreach ( $sections as $sectionKey => $section )
             @if ( null !== $section['label'] )
                 <x-artisanpack-menu-separator :title="$section['label']" wire:key="ecommerce-admin-nav-section-{{ $sectionKey }}" />
@@ -10,14 +10,12 @@
                     wire:key="ecommerce-admin-nav-{{ $item['key'] }}"
                     :title="$item['label']"
                     :icon="$item['icon']"
-                    :link="\ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav::url( $item )"
-                    :active="$item['active']"
+                    :href="\ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav::url( $item )"
+                    :current="$item['active']"
                     :badge="null === $item['badgeCount'] ? null : (string) $item['badgeCount']"
-                    badge-classes="badge-primary"
-                    :aria-current="$item['active'] ? 'page' : null"
                     :aria-label="null === $item['badgeLabel'] ? null : __( ':label (:badge)', [ 'label' => $item['label'], 'badge' => $item['badgeLabel'] ] )"
                 />
             @endforeach
         @endforeach
     </x-artisanpack-menu>
-</nav>
+</div>

@@ -3,11 +3,10 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders\Show;
 @endphp
 <div class="flex flex-col gap-4">
-    <x-artisanpack-header
+    <x-artisanpack-page-header
         :title="__( 'Order #:number', [ 'number' => $order->order_number ] )"
-        :subtitle="null === $order->placed_at ? null : __( 'Placed :date', [ 'date' => LocalizedDate::format( $order->placed_at ) ] )"
+        :description="null === $order->placed_at ? null : __( 'Placed :date', [ 'date' => LocalizedDate::format( $order->placed_at ) ] )"
         :level="1"
-        separator
     />
 
     @include( 'ecommerce-admin::partials.live-region', [ 'message' => $liveAnnouncement ] )
@@ -16,7 +15,7 @@
         <div class="flex flex-wrap items-center gap-3 rounded-box border border-warning/50 bg-warning/10 px-4 py-2 text-sm" data-changed-elsewhere>
             <x-artisanpack-icon name="o-arrow-path" class="w-5 h-5" aria-hidden="true" />
             <span>{{ __( 'This order was changed elsewhere. Reload it to see the latest details.' ) }}</span>
-            <x-artisanpack-button size="sm" class="ms-auto" icon="o-arrow-path" wire:click="reloadOrder" wire:loading.attr="disabled" :label="__( 'Reload order' )" />
+            <x-artisanpack-button size="sm" class="ms-auto" leading-icon="o-arrow-path" wire:click="reloadOrder" wire:loading.attr="disabled">{{ __( 'Reload order' ) }}</x-artisanpack-button>
         </div>
     @endif
 
@@ -29,10 +28,13 @@
         <x-artisanpack-ec-status-badge type="fulfillment" :value="$order->fulfillment_status" />
     </div>
 
+    {{-- The cards' titles are h3s; this keeps the outline from jumping from the page's h1. --}}
+    <h2 class="apui-sr-only">{{ __( 'Order details' ) }}</h2>
+
     <div class="grid gap-4 lg:grid-cols-3">
         <div class="flex flex-col gap-4 lg:col-span-2">
             {{-- Items --}}
-            <x-artisanpack-card :title="__( 'Items' )" shadow>
+            <x-artisanpack-card :title="__( 'Items' )">
                 <div class="overflow-x-auto">
                     <table class="table table-sm">
                         <caption class="sr-only">{{ __( 'Items in order #:number', [ 'number' => $order->order_number ] ) }}</caption>
@@ -57,15 +59,15 @@
                                             <span class="block text-xs opacity-75">{{ $option }}</span>
                                         @endforeach
                                         @if ( null === $item->product_id )
-                                            <x-artisanpack-badge :value="__( 'No longer in the catalog' )" class="badge-ghost badge-sm mt-1" />
+                                            <x-artisanpack-badge :value="__( 'No longer in the catalog' )" class="mt-1" variant="ghost" size="sm" />
                                         @endif
                                     </td>
                                     <td>{{ data_get( $item->product_snapshot, 'sku' ) ?: '—' }}</td>
                                     <td class="text-end tabular-nums">{{ $item->quantity }}</td>
-                                    <td class="text-end"><x-artisanpack-ec-money :amount="$item->unit_price_amount" :currency="$item->unit_price_currency" /></td>
-                                    <td class="text-end"><x-artisanpack-ec-money :amount="$item->discount_amount" :currency="$item->discount_currency" /></td>
-                                    <td class="text-end"><x-artisanpack-ec-money :amount="$item->tax_amount" :currency="$item->tax_currency" /></td>
-                                    <td class="text-end"><x-artisanpack-ec-money :amount="$item->total_amount" :currency="$item->total_currency" /></td>
+                                    <td class="text-end"><x-artisanpack-ec-admin-money :amount="$item->unit_price_amount" :currency="$item->unit_price_currency" /></td>
+                                    <td class="text-end"><x-artisanpack-ec-admin-money :amount="$item->discount_amount" :currency="$item->discount_currency" /></td>
+                                    <td class="text-end"><x-artisanpack-ec-admin-money :amount="$item->tax_amount" :currency="$item->tax_currency" /></td>
+                                    <td class="text-end"><x-artisanpack-ec-admin-money :amount="$item->total_amount" :currency="$item->total_currency" /></td>
                                     <td><x-artisanpack-ec-status-badge type="fulfillment" :value="$item->fulfillment_status" /></td>
                                 </tr>
                             @empty
@@ -79,7 +81,7 @@
             </x-artisanpack-card>
 
             {{-- Totals --}}
-            <x-artisanpack-card :title="__( 'Totals' )" shadow>
+            <x-artisanpack-card :title="__( 'Totals' )">
                 <div class="overflow-x-auto">
                     <table class="table table-sm" data-order-totals>
                         <caption class="sr-only">{{ __( 'Totals for order #:number', [ 'number' => $order->order_number ] ) }}</caption>
@@ -98,9 +100,9 @@
                             @foreach ( $totals['lines'] as $line )
                                 <tr wire:key="order-total-{{ $line['key'] }}" @class( [ 'font-semibold' => $line['emphasis'] ] ) data-total-line="{{ $line['key'] }}">
                                     <th scope="row" class="font-normal">{{ $line['label'] }}</th>
-                                    <td class="text-end"><x-artisanpack-ec-money :amount="$line['amount']" :currency="$totals['currency']" /></td>
+                                    <td class="text-end"><x-artisanpack-ec-admin-money :amount="$line['amount']" :currency="$totals['currency']" /></td>
                                     @if ( null !== $totals['baseCurrency'] )
-                                        <td class="text-end"><x-artisanpack-ec-money :amount="$line['base']" :currency="$totals['baseCurrency']" /></td>
+                                        <td class="text-end"><x-artisanpack-ec-admin-money :amount="$line['base']" :currency="$totals['baseCurrency']" /></td>
                                     @endif
                                 </tr>
                             @endforeach
@@ -115,7 +117,7 @@
 
             {{-- Digital --}}
             @if ( $downloads->isNotEmpty() || $licenseKeys->isNotEmpty() )
-                <x-artisanpack-card :title="__( 'Digital' )" shadow>
+                <x-artisanpack-card :title="__( 'Digital' )">
                     @if ( $downloads->isNotEmpty() )
                         <h2 class="font-semibold mb-2">{{ __( 'Downloads' ) }}</h2>
                         <ul class="flex flex-col gap-2 mb-4">
@@ -134,7 +136,7 @@
                                         {{ null === $download->expires_at ? __( 'Never expires' ) : __( 'Expires :date', [ 'date' => LocalizedDate::format( $download->expires_at ) ] ) }}
                                     </span>
                                     @if ( $download->isExpired() )
-                                        <x-artisanpack-badge :value="__( 'Expired' )" class="badge-sm" color="neutral" />
+                                        <x-artisanpack-badge :value="__( 'Expired' )" size="sm" color="neutral" />
                                     @endif
                                 </li>
                             @endforeach
@@ -153,9 +155,9 @@
                                             : __( ':used of :limit activations', [ 'used' => (int) $licenseKey->activations_count, 'limit' => (int) $licenseKey->activations_limit ] ) }}
                                     </span>
                                     @if ( $licenseKey->is_revoked )
-                                        <x-artisanpack-badge :value="__( 'Revoked' )" class="badge-sm" color="error" />
+                                        <x-artisanpack-badge :value="__( 'Revoked' )" size="sm" color="error" />
                                     @elseif ( $licenseKey->isExpired() )
-                                        <x-artisanpack-badge :value="__( 'Expired' )" class="badge-sm" color="neutral" />
+                                        <x-artisanpack-badge :value="__( 'Expired' )" size="sm" color="neutral" />
                                     @endif
                                 </li>
                             @endforeach
@@ -184,7 +186,7 @@
             @livewire( 'artisanpack-ecommerce-admin-order-status', [ 'order' => $order ], key( 'order-status' ) )
 
             {{-- Customer --}}
-            <x-artisanpack-card :title="__( 'Customer' )" shadow>
+            <x-artisanpack-card :title="__( 'Customer' )">
                 <p class="font-semibold">
                     @if ( null !== $customerUrl )
                         <a href="{{ $customerUrl }}" class="link link-hover">{{ $customerName ?? $order->email }}</a>
@@ -197,13 +199,13 @@
                     <p><span class="sr-only">{{ __( 'Phone:' ) }}</span> {{ $order->phone }}</p>
                 @endif
                 <div class="mt-2 flex flex-wrap gap-2">
-                    <x-artisanpack-badge :value="$isGuest ? __( 'Guest checkout' ) : __( 'Has an account' )" class="badge-sm" color="neutral" />
-                    <x-artisanpack-badge :value="$order->is_claimed ? __( 'Claimed' ) : __( 'Not claimed' )" class="badge-sm" :color="$order->is_claimed ? 'success' : 'warning'" />
+                    <x-artisanpack-badge :value="$isGuest ? __( 'Guest checkout' ) : __( 'Has an account' )" size="sm" color="neutral" />
+                    <x-artisanpack-badge :value="$order->is_claimed ? __( 'Claimed' ) : __( 'Not claimed' )" size="sm" :color="$order->is_claimed ? 'success' : 'warning'" />
                 </div>
             </x-artisanpack-card>
 
             {{-- Addresses --}}
-            <x-artisanpack-card :title="__( 'Addresses' )" shadow>
+            <x-artisanpack-card :title="__( 'Addresses' )">
                 <h2 class="font-semibold">{{ __( 'Shipping' ) }}</h2>
                 <x-artisanpack-ec-address :address="$order->shipping_address" class="mb-3" />
                 <h2 class="font-semibold">{{ __( 'Billing' ) }}</h2>
@@ -211,7 +213,7 @@
             </x-artisanpack-card>
 
             {{-- Payment --}}
-            <x-artisanpack-card :title="__( 'Payment' )" shadow>
+            <x-artisanpack-card :title="__( 'Payment' )">
                 <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                     <dt class="opacity-75">{{ __( 'Gateway' ) }}</dt>
                     <dd>{{ $paymentGateway ?? __( 'None' ) }}</dd>
@@ -223,7 +225,7 @@
             </x-artisanpack-card>
 
             {{-- Boards --}}
-            <x-artisanpack-card :title="__( 'Boards' )" shadow>
+            <x-artisanpack-card :title="__( 'Boards' )">
                 @if ( $assignments->isEmpty() )
                     <p class="opacity-75">{{ __( 'This order is not on any board.' ) }}</p>
                 @else
@@ -238,13 +240,11 @@
                                     <x-artisanpack-button
                                         variant="ghost"
                                         size="xs"
-                                        icon="o-x-mark"
+                                        leading-icon="o-x-mark"
                                         class="ms-auto"
                                         wire:click="removeFromBoard( {{ (int) $assignment->board_id }} )" wire:loading.attr="disabled"
                                         wire:loading.attr="disabled"
-                                        :label="__( 'Remove' )"
-                                        :aria-label="__( 'Remove from :board', [ 'board' => $assignment->board?->name ?? '' ] )"
-                                    />
+                                        :aria-label="__( 'Remove from :board', [ 'board' => $assignment->board?->name ?? '' ] )">{{ __( 'Remove' ) }}</x-artisanpack-button>
                                 @endif
                             </li>
                         @endforeach
@@ -256,12 +256,11 @@
                         <x-artisanpack-select
                             id="order-add-board"
                             :label="__( 'Add to board' )"
-                            :options="$boardOptions"
+                            :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $boardOptions )"
                             :placeholder="__( 'Choose a board' )"
-                            placeholder-value=""
                             wire:model="boardToAdd"
                         />
-                        <x-artisanpack-button type="submit" size="sm" wire:loading.attr="disabled" :label="__( 'Add' )" />
+                        <x-artisanpack-button type="submit" size="sm" wire:loading.attr="disabled">{{ __( 'Add' ) }}</x-artisanpack-button>
                     </form>
                 @endif
             </x-artisanpack-card>

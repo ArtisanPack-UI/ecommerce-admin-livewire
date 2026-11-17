@@ -17,11 +17,11 @@
             :description="$jsonNotice"
             role="status"
         />
-        <x-artisanpack-code
+        <x-artisanpack-code-editor
             :id="$fieldId( $model )"
             :label="__( 'Settings (JSON)' )"
             language="json"
-            height="12rem"
+            :rows="10"
             wire:model="{{ $model }}"
         />
         @error( $model )

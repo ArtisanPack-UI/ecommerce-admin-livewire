@@ -10,8 +10,7 @@
     id="tags-merge-target"
     class="select-sm"
     :label="__( 'Tag to merge into' )"
-    :options="$mergeOptions"
+    :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $mergeOptions )"
     :placeholder="__( 'Choose a tag' )"
-    placeholder-value=""
     wire:model="mergeTargetId"
 />

@@ -49,8 +49,9 @@ it( 'renders order entries newest first with actor, time, and descriptions', fun
     Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
         ->assertOk()
         ->assertSeeInOrder( [ 'Refunded $15.00', 'Reason: Damaged', 'Grace Hopper', 'Status changed from Pending to Processing', 'Order placed', '$45.00', 'System' ] )
-        ->assertSeeHtml( '<ol class="list-none"' )
-        ->assertSeeHtml( '<time datetime="' );
+        ->assertSeeHtml( 'class="apui-timeline"' )
+        ->assertSeeHtml( 'aria-label="Activity, newest first"' )
+        ->assertSeeHtml( 'data-part="time" datetime="' );
 } );
 
 it( 'describes cancellations, edits, notes, and board moves', function (): void {
@@ -216,3 +217,10 @@ it( 'does not let the client raise the page size', function (): void {
 
     Livewire::test( Timeline::class, [ 'subject' => $order ] )->set( 'limit', 10_000_000 );
 } )->throws( \Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class );
+
+it( 'shows the compact empty state under the card title when a filter leaves nothing', function (): void {
+    Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
+        ->set( 'filter', 'notes' )
+        ->assertSeeHtml( 'data-size="sm"' )
+        ->assertSeeHtml( '<h4 data-scope="empty-state" data-part="title">Nothing here yet</h4>' );
+} );

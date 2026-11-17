@@ -31,7 +31,7 @@
                         @foreach ( $channels as $channel )
                             <td>
                                 @if ( $category['locked'] )
-                                    <x-artisanpack-badge :value="__( 'Always on' )" class="badge-sm" color="neutral" />
+                                    <x-artisanpack-badge :value="__( 'Always on' )" size="sm" color="neutral" />
                                 @else
                                     <x-artisanpack-toggle
                                         id="preference-{{ $channel['key'] }}-{{ $category['key'] }}"
@@ -50,7 +50,7 @@
 
     @if ( $canUpdate )
         <div>
-            <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" spinner="savePreferences" :label="__( 'Save preferences' )" />
+            <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save preferences' ) }}</x-artisanpack-button>
         </div>
     @endif
 </form>

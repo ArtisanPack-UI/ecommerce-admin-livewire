@@ -7,11 +7,10 @@
         "test:browser": "vite build && vendor/bin/pest --group=browser"
     },
     "devDependencies": {
+        "@artisanpack-ui/behavior": "^1.0.0",
+        "@artisanpack-ui/css": "^1.0.0",
         "@artisanpack-ui/livewire-drag-and-drop": "^2.0.1",
         "@tailwindcss/vite": "^4.1.11",
-        "apexcharts": "^5.10.4",
-        "daisyui": "~5.0.48",
-        "flatpickr": "^4.6.13",
         "laravel-vite-plugin": "^3.2.0",
         "playwright": "^1.55.0",
         "tailwindcss": "^4.1.11",

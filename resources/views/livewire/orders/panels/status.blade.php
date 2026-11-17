@@ -1,5 +1,5 @@
 <div>
-    <x-artisanpack-card :title="__( 'Status' )" shadow>
+    <x-artisanpack-card :title="__( 'Status' )">
         <div class="flex flex-wrap gap-2" role="group" aria-label="{{ __( 'Current status' ) }}">
             <x-artisanpack-ec-status-badge type="system" :value="$order->system_status" />
             @if ( null !== $order->substatus )
@@ -30,9 +30,8 @@
                     <x-artisanpack-select
                         id="order-target-status"
                         :label="__( 'Move to' )"
-                        :options="$statusOptions"
+                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $statusOptions )"
                         :placeholder="__( 'Choose a status' )"
-                        placeholder-value=""
                         wire:model.live="targetStatus"
                     />
 
@@ -47,7 +46,7 @@
                     @endif
 
                     <x-artisanpack-input id="order-status-reason" :label="__( 'Reason (optional)' )" wire:model="statusReason" />
-                    <x-artisanpack-button type="submit" size="sm" class="self-start" wire:loading.attr="disabled" :label="__( 'Change status' )" />
+                    <x-artisanpack-button type="submit" size="sm" class="self-start" wire:loading.attr="disabled">{{ __( 'Change status' ) }}</x-artisanpack-button>
                 </form>
             @endif
 
@@ -55,13 +54,12 @@
                 <x-artisanpack-select
                     id="order-substatus"
                     :label="__( 'Sub-status' )"
-                    :options="$substatusOptions"
+                    :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $substatusOptions )"
                     :placeholder="__( 'Choose a sub-status' )"
-                    placeholder-value=""
                     :hint="$hasOtherSubstatus ? __( 'Greyed-out sub-statuses belong to another order status and become available once the order moves there.' ) : null"
                     wire:model="substatusId"
                 />
-                <x-artisanpack-button type="submit" size="sm" class="self-start" wire:loading.attr="disabled" :label="__( 'Set sub-status' )" />
+                <x-artisanpack-button type="submit" size="sm" class="self-start" wire:loading.attr="disabled">{{ __( 'Set sub-status' ) }}</x-artisanpack-button>
             </form>
         @endif
 
@@ -70,16 +68,14 @@
                 <x-artisanpack-button
                     variant="outline"
                     size="sm"
-                    icon="o-x-circle"
-                    wire:click="$set( 'confirmingCancel', true )"
-                    :label="__( 'Cancel order' )"
-                />
+                    leading-icon="o-x-circle"
+                    wire:click="$set( 'confirmingCancel', true )">{{ __( 'Cancel order' ) }}</x-artisanpack-button>
             </div>
         @endif
     </x-artisanpack-card>
 
     @if ( null !== $cancellation )
-        <x-artisanpack-modal wire:model="confirmingCancel" :title="__( 'Cancel order #:number?', [ 'number' => $order->order_number ] )" separator>
+        <x-artisanpack-dialog wire:model="confirmingCancel" :title="__( 'Cancel order #:number?', [ 'number' => $order->order_number ] )">
             <div class="flex flex-col gap-4" data-cancel-form>
                 <div>
                     <h3 class="font-semibold">{{ __( 'What happens' ) }}</h3>
@@ -110,15 +106,13 @@
                 <x-artisanpack-textarea id="order-cancel-reason" :label="__( 'Reason' )" wire:model="cancelReason" rows="3" required />
             </div>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'confirmingCancel', false )" :label="__( 'Keep order' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'confirmingCancel', false )">{{ __( 'Keep order' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
                     wire:click="cancelOrder( {{ \Illuminate\Support\Js::from( $cancelToken ) }} )"
-                    wire:loading.attr="disabled"
-                    :label="__( 'Cancel order' )"
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    wire:loading.attr="disabled">{{ __( 'Cancel order' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

@@ -7,7 +7,7 @@
     @since      1.0.0
 --}}
 <div>
-    <x-artisanpack-header :title="__( 'Customers' )" :level="1" separator />
+    <x-artisanpack-page-header :title="__( 'Customers' )" :level="1" />
 
     @include( 'ecommerce-admin::partials.resource-table', [
         'emptyIcon'        => 'o-users',

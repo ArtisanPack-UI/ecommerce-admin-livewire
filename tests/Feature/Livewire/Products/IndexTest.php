@@ -71,7 +71,7 @@ it( 'renders products with price, stock, categories, and type', function (): voi
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">Products</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Products</caption>' )
         ->assertSee( 'Price (USD)' )
         ->assertSee( 'Blue Mug' )
         ->assertSee( 'MUG-1' )

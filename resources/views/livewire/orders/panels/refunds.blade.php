@@ -2,14 +2,14 @@
     use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 @endphp
 <div>
-    <x-artisanpack-card :title="__( 'Refunds' )" shadow>
+    <x-artisanpack-card :title="__( 'Refunds' )">
         <div class="flex flex-wrap items-center gap-3">
             <p data-refundable>
                 {{ __( 'Refundable:' ) }}
-                <x-artisanpack-ec-money :amount="$refundable" :currency="$order->currency" class="font-semibold" />
+                <x-artisanpack-ec-admin-money :amount="$refundable" :currency="$order->currency" class="font-semibold" />
             </p>
             @if ( $canRefund )
-                <x-artisanpack-button size="sm" icon="o-receipt-refund" class="ms-auto" wire:click="startRefund" wire:loading.attr="disabled" :label="__( 'Issue refund' )" />
+                <x-artisanpack-button size="sm" leading-icon="o-receipt-refund" class="ms-auto" wire:click="startRefund" wire:loading.attr="disabled">{{ __( 'Issue refund' ) }}</x-artisanpack-button>
             @endif
         </div>
 
@@ -39,17 +39,17 @@
                         @foreach ( $refunds as $refund )
                             <tr wire:key="refund-{{ $refund->id }}">
                                 <td>{{ null === $refund->created_at ? '—' : LocalizedDate::format( $refund->created_at ) }}</td>
-                                <td class="text-end"><x-artisanpack-ec-money :amount="$refund->amount" :currency="$refund->currency" /></td>
+                                <td class="text-end"><x-artisanpack-ec-admin-money :amount="$refund->amount" :currency="$refund->currency" /></td>
                                 <td data-refund-status="{{ $refund->status }}">
                                     @switch ( $refund->status )
                                         @case( \ArtisanPackUI\Ecommerce\Models\Refund::STATUS_PENDING )
-                                            <x-artisanpack-badge :value="__( 'Pending' )" class="badge-sm" color="warning" />
+                                            <x-artisanpack-badge :value="__( 'Pending' )" size="sm" color="warning" />
                                             @break
                                         @case( \ArtisanPackUI\Ecommerce\Models\Refund::STATUS_FAILED )
-                                            <x-artisanpack-badge :value="__( 'Failed' )" class="badge-sm" color="error" />
+                                            <x-artisanpack-badge :value="__( 'Failed' )" size="sm" color="error" />
                                             @break
                                         @default
-                                            <x-artisanpack-badge :value="__( 'Refunded' )" class="badge-sm" color="success" />
+                                            <x-artisanpack-badge :value="__( 'Refunded' )" size="sm" color="success" />
                                     @endswitch
                                 </td>
                                 <td>
@@ -78,7 +78,7 @@
     </x-artisanpack-card>
 
     @if ( null !== $refundToken )
-        <x-artisanpack-modal wire:model="refunding" :title="__( 'Refund order #:number', [ 'number' => $order->order_number ] )" box-class="max-w-3xl" separator>
+        <x-artisanpack-dialog wire:model="refunding" :title="__( 'Refund order #:number', [ 'number' => $order->order_number ] )" :classes="['root' => 'max-w-3xl']">
             <div class="flex flex-col gap-4" data-refund-form>
                 <p>
                     {{ __( 'Up to :amount can be refunded.', [ 'amount' => \ArtisanPackUI\Ecommerce\Support\MoneyFormatter::format( $refundable, (string) $order->currency ) ] ) }}
@@ -90,11 +90,11 @@
                 @enderror
 
                 @if ( $supportsPartial )
-                    <x-artisanpack-radio
+                    <x-artisanpack-radio-group
                         id="refund-mode"
                         :label="__( 'Refund by' )"
-                        :options="[ [ 'id' => 'items', 'name' => __( 'Item' ) ], [ 'id' => 'amount', 'name' => __( 'Amount' ) ] ]"
-                        inline
+                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( [ [ 'id' => 'items', 'name' => __( 'Item' ) ], [ 'id' => 'amount', 'name' => __( 'Amount' ) ] ] )"
+                        orientation="horizontal"
                         wire:model.live="mode"
                     />
                 @endif
@@ -171,15 +171,13 @@
                 <x-artisanpack-input id="refund-reason" :label="__( 'Reason' )" maxlength="255" wire:model="reason" />
             </div>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'refunding', false )" :label="__( 'Cancel' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'refunding', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="primary"
                     wire:click="refund( {{ \Illuminate\Support\Js::from( $refundToken ) }} )"
-                    wire:loading.attr="disabled"
-                    :label="__( 'Refund' )"
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    wire:loading.attr="disabled">{{ __( 'Refund' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

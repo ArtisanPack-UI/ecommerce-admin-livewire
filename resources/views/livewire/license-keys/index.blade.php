@@ -13,7 +13,7 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\LicenseKeys\Index;
 @endphp
 <div>
-    <x-artisanpack-header :title="__( 'License keys' )" :level="1" separator />
+    <x-artisanpack-page-header :title="__( 'License keys' )" :level="1" />
 
     @include( 'ecommerce-admin::partials.resource-table', [
         'emptyIcon'        => 'o-key',
@@ -24,7 +24,7 @@
         'searchHint'       => $searchHint,
     ] )
 
-    <x-artisanpack-drawer wire:model="viewing" :title="__( 'Activations' )" right separator with-close-button close-on-escape class="w-full max-w-xl">
+    <x-artisanpack-drawer wire:model="viewing" :title="__( 'Activations' )" side="end" class="w-full max-w-xl">
         @if ( null !== $viewingKey )
             <div class="flex flex-col gap-4" data-activations="{{ $viewingKey->id }}">
                 @include( 'ecommerce-admin::partials.live-region', [ 'message' => $drawerStatus ] )
@@ -72,12 +72,10 @@
                                                 <x-artisanpack-button
                                                     variant="ghost"
                                                     size="sm"
-                                                    icon="o-power"
+                                                    leading-icon="o-power"
                                                     wire:click="startDeactivate( {{ (int) $activation->id }} )"
                                                     wire:loading.attr="disabled"
-                                                    :label="__( 'Deactivate' )"
-                                                    :aria-label="__( 'Deactivate :machine', [ 'machine' => $machineFor( $activation ) ] )"
-                                                />
+                                                    :aria-label="__( 'Deactivate :machine', [ 'machine' => $machineFor( $activation ) ] )">{{ __( 'Deactivate' ) }}</x-artisanpack-button>
                                             </td>
                                         @endif
                                     </tr>
@@ -91,30 +89,30 @@
     </x-artisanpack-drawer>
 
     @if ( null !== $deactivatingMachine )
-        <x-artisanpack-modal wire:model="deactivating" :title="__( 'Deactivate :machine?', [ 'machine' => $machineFor( $deactivatingMachine ) ] )" separator>
+        <x-artisanpack-dialog wire:model="deactivating" :title="__( 'Deactivate :machine?', [ 'machine' => $machineFor( $deactivatingMachine ) ] )">
             <p data-deactivate-confirm>{{ __( 'Free this activation slot? The software on that machine will stop validating.' ) }}</p>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="closeDeactivate" :label="__( 'Keep it active' )" />
-                <x-artisanpack-button color="error" wire:click="deactivate( {{ \Illuminate\Support\Js::from( $deactivateToken ) }} )" wire:loading.attr="disabled" :label="__( 'Deactivate' )" />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="closeDeactivate">{{ __( 'Keep it active' ) }}</x-artisanpack-button>
+                <x-artisanpack-button color="error" wire:click="deactivate( {{ \Illuminate\Support\Js::from( $deactivateToken ) }} )" wire:loading.attr="disabled">{{ __( 'Deactivate' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 
     @if ( null !== $revokingKey )
         @php
             $revokeTitle = __( 'Revoke :key?', [ 'key' => $keyFor( $revokingKey ) ] );
         @endphp
-        <x-artisanpack-modal wire:model="revoking" :title="$revokeTitle" separator>
+        <x-artisanpack-dialog wire:model="revoking" :title="$revokeTitle">
             <form wire:submit="revoke( {{ \Illuminate\Support\Js::from( $revokeToken ) }} )" id="license-revoke-form" class="flex flex-col gap-3" data-revoke-form>
                 <p>{{ __( 'The key stops validating on every machine at once. This cannot be undone.' ) }}</p>
                 <x-artisanpack-textarea id="license-revoke-reason" :label="__( 'Reason' )" :hint="__( 'E.g. a chargeback or a refund.' )" wire:model="revokeReason" rows="3" required />
             </form>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="closeRevoke" :label="__( 'Keep key' )" />
-                <x-artisanpack-button type="submit" form="license-revoke-form" color="error" wire:loading.attr="disabled" :label="__( 'Revoke key' )" />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="closeRevoke">{{ __( 'Keep key' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" form="license-revoke-form" color="error" wire:loading.attr="disabled">{{ __( 'Revoke key' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

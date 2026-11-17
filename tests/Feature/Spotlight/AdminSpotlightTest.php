@@ -51,7 +51,7 @@ it( 'finds orders by number and email and links to the order', function (): void
     expect( array_column( $byNumber, 'name' ) )->toContain( 'Order #50123' )->not->toContain( 'Order #70000' )
         ->and( $byNumber[0]['link'] )->toBe( route( 'artisanpack.ecommerce.admin.orders.show', [ 'order' => $order->id ] ) )
         ->and( $byNumber[0]['description'] )->toContain( 'ada@example.test' )
-        ->and( $byNumber[0]['icon'] )->toContain( '<svg' )
+        ->and( $byNumber[0]['icon'] )->toBeNull()
         ->and( array_column( $byEmail, 'name' ) )->toBe( [ 'Order #50123' ] );
 } );
 
@@ -204,7 +204,8 @@ it( 'points the admin palette at the admin route', function (): void {
 
     $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
         ->assertOk()
-        ->assertSee( route( AdminSpotlight::ADMIN_ROUTE, absolute: false ), false );
+        // The URL sits in the palette's JSON config, with its slashes escaped.
+        ->assertSee( str_replace( '/', '\\\\\\/', route( AdminSpotlight::ADMIN_ROUTE, absolute: false ) ), false );
 } );
 
 it( 'truncates an over-long search instead of failing', function (): void {
@@ -290,27 +291,30 @@ it( 'mounts the palette and its open button in the standalone layout', function 
 
     $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
         ->assertOk()
-        ->assertSee( 'marySpotlight', false )
-        ->assertSee( '@keydown.window.prevent.meta.k', false )
+        ->assertSee( 'apuiSpotlight(', false )
+        ->assertSee( 'data-scope="spotlight" data-part="trigger"', false )
         ->assertSee( 'data-spotlight-open', false )
-        ->assertSee( 'aria-keyshortcuts="Meta+K"', false );
+        ->assertSee( 'aria-keyshortcuts="Meta+K Control+K"', false );
 } );
 
 it( 'mounts the palette on a configured shortcut, and not at all when disabled', function (): void {
     grantAbilities( [ 'order.viewAny', 'order.view' ] );
     config()->set( 'artisanpack.ecommerce-admin-livewire.spotlight.shortcut', 'ctrl.slash' );
 
+    expect( AdminSpotlight::paletteShortcut() )->toBe( 'ctrl+/' );
+
     $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
-        ->assertSee( '@keydown.window.prevent.ctrl.slash', false );
+        ->assertSee( 'aria-keyshortcuts="Control+/"', false );
 
     config()->set( 'artisanpack.ecommerce-admin-livewire.spotlight.shortcut', 'meta.k" onclick="x' );
 
-    expect( AdminSpotlight::shortcut() )->toBe( 'meta.k' );
+    expect( AdminSpotlight::shortcut() )->toBe( 'meta.k' )
+        ->and( AdminSpotlight::paletteShortcut() )->toBe( 'mod+k' );
 
     config()->set( 'artisanpack.ecommerce-admin-livewire.spotlight.enabled', false );
 
     $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
-        ->assertDontSee( 'marySpotlight', false )
+        ->assertDontSee( 'apuiSpotlight(', false )
         ->assertDontSee( 'data-spotlight-open', false );
 } );
 
@@ -334,7 +338,7 @@ it( 'mounts the palette and its button under the cms-framework layout', function
         ->assertSee( 'data-spotlight-open', false )
         ->getContent();
 
-    expect( substr_count( $html, '@keydown.window.prevent.meta.k' ) )->toBe( 1 );
+    expect( substr_count( $html, 'apuiSpotlight(' ) )->toBe( 1 );
 } );
 
 it( 'drops records the user may not view, and coupons without promotion access', function (): void {
@@ -391,4 +395,12 @@ it( 'drops result links that are not relative or on the app\'s host', function (
     } ] );
 
     expect( array_column( AdminSpotlight::search( 'x', $this->user ), 'name' ) )->toBe( [ 'Relative', 'App URL' ] );
+} );
+
+it( 'names result icons from the design-system registry, never markup', function (): void {
+    expect( AdminSpotlight::icon( 'o-user' ) )->toBe( 'user' )
+        ->and( AdminSpotlight::icon( 'message-square' ) )->toBe( 'message-square' )
+        ->and( AdminSpotlight::icon( 'o-shopping-bag' ) )->toBeNull()
+        ->and( AdminSpotlight::icon( '<svg onload=x>' ) )->toBeNull()
+        ->and( AdminSpotlight::icon( null ) )->toBeNull();
 } );

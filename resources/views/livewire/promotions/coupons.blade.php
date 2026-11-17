@@ -26,7 +26,7 @@
                     autocomplete="off"
                     wire:model="newCode"
                 />
-                <x-artisanpack-button type="submit" icon="o-plus" wire:loading.attr="disabled" :label="__( 'Add code' )" />
+                <x-artisanpack-button type="submit" leading-icon="o-plus" wire:loading.attr="disabled">{{ __( 'Add code' ) }}</x-artisanpack-button>
             </form>
 
             <form wire:submit="generateCodes" class="flex flex-col gap-3 rounded-box border border-base-content/10 p-4" data-generate-codes>
@@ -38,17 +38,17 @@
                 </div>
                 <p class="text-sm opacity-75">{{ __( 'Generated codes leave out characters that are easy to confuse, like 0 and O or 1 and I.' ) }}</p>
                 <div>
-                    <x-artisanpack-button type="submit" icon="o-sparkles" wire:loading.attr="disabled" spinner="generateCodes" :label="__( 'Generate' )" />
+                    <x-artisanpack-button type="submit" leading-icon="o-sparkles" wire:loading.attr="disabled">{{ __( 'Generate' ) }}</x-artisanpack-button>
                 </div>
             </form>
         </div>
     @endif
 
     <div class="flex flex-wrap items-end gap-3">
-        <x-artisanpack-input id="coupon-search" class="min-w-64" type="search" icon="o-magnifying-glass" :label="__( 'Find a code' )" wire:model.live.debounce.300ms="search" />
+        <x-artisanpack-input id="coupon-search" class="min-w-64" type="search" leading-icon="o-magnifying-glass" :label="__( 'Find a code' )" wire:model.live.debounce.300ms="search" />
         <p class="text-sm opacity-75">{{ trans_choice( ':count code in all|:count codes in all', $total, [ 'count' => $total ] ) }}</p>
         @if ( $total > 0 && $canExport )
-            <x-artisanpack-button class="ms-auto" variant="outline" size="sm" icon="o-arrow-down-tray" wire:click="exportCodes" wire:loading.attr="disabled" :label="__( 'Export codes (CSV)' )" />
+            <x-artisanpack-button class="ms-auto" variant="outline" size="sm" leading-icon="o-arrow-down-tray" wire:click="exportCodes" wire:loading.attr="disabled">{{ __( 'Export codes (CSV)' ) }}</x-artisanpack-button>
         @endif
     </div>
 
@@ -59,7 +59,7 @@
     @endif
 
     @if ( 0 === $codes->total() )
-        <x-artisanpack-ec-empty-state
+        <x-artisanpack-ec-admin-empty-state
             icon="o-ticket"
             :title="'' === trim( $search ) ? __( 'No codes yet' ) : __( 'No matching codes' )"
             :description="'' === trim( $search ) ? __( 'Add a code, or generate a batch to send out.' ) : __( 'Try another search.' )"
@@ -85,8 +85,8 @@
                                 @if ( $editingId === (int) $coupon->id )
                                     <form wire:submit="saveRename" class="flex flex-wrap items-end gap-2" data-rename-code="{{ $coupon->id }}">
                                         <x-artisanpack-input id="coupon-{{ $coupon->id }}-code" class="input-sm" :label="__( 'Code' )" autocomplete="off" wire:model="editingCode" />
-                                        <x-artisanpack-button type="submit" size="sm" color="primary" :label="__( 'Save' )" />
-                                        <x-artisanpack-button size="sm" variant="ghost" wire:click="cancelRename" :label="__( 'Cancel' )" />
+                                        <x-artisanpack-button type="submit" size="sm" color="primary">{{ __( 'Save' ) }}</x-artisanpack-button>
+                                        <x-artisanpack-button size="sm" variant="ghost" wire:click="cancelRename">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                                     </form>
                                 @else
                                     <code class="font-mono font-semibold">{{ $coupon->code }}</code>
@@ -99,18 +99,18 @@
                             <td class="text-end">
                                 <div class="flex justify-end gap-1">
                                     @if ( $canUpdate && $editingId !== (int) $coupon->id )
-                                        <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="startRename( {{ $coupon->id }} )" :aria-label="__( 'Rename :code', [ 'code' => $coupon->code ] )" />
+                                        <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-pencil" wire:click="startRename( {{ $coupon->id }} )" :aria-label="__( 'Rename :code', [ 'code' => $coupon->code ] )" />
                                     @endif
                                     @if ( $canDelete )
-                                        <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $coupon->id }} )" data-focus-key="coupon-delete-{{ $coupon->id }}" :aria-label="__( 'Delete :code', [ 'code' => $coupon->code ] )" />
+                                        <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="confirmDelete( {{ $coupon->id }} )" data-focus-key="coupon-delete-{{ $coupon->id }}" :aria-label="__( 'Delete :code', [ 'code' => $coupon->code ] )" />
                                     @endif
                                 </div>
                                 @if ( $deletingId === (int) $coupon->id )
                                     <div role="alertdialog" aria-modal="false" aria-labelledby="coupon-delete-{{ $coupon->id }}" class="mt-2 rounded-box border border-warning p-3 text-start" x-data x-init="$nextTick( () => $el.querySelector( '[data-confirm]' )?.focus() )">
                                         <p id="coupon-delete-{{ $coupon->id }}" class="mb-2">{{ __( 'Delete :code? It stops working at checkout right away.', [ 'code' => $coupon->code ] ) }}</p>
                                         <div class="flex gap-2">
-                                            <x-artisanpack-button color="error" size="sm" data-confirm wire:click="deleteCode( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )" wire:loading.attr="disabled" :label="__( 'Delete code' )" />
-                                            <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelDelete" data-focus-return="coupon-delete-{{ $coupon->id }}" :label="__( 'Cancel' )" />
+                                            <x-artisanpack-button color="error" size="sm" data-confirm wire:click="deleteCode( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )" wire:loading.attr="disabled">{{ __( 'Delete code' ) }}</x-artisanpack-button>
+                                            <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelDelete" data-focus-return="coupon-delete-{{ $coupon->id }}">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                                         </div>
                                     </div>
                                 @endif
@@ -121,6 +121,6 @@
             </table>
         </div>
 
-        <x-artisanpack-pagination :rows="$codes" hide-per-page :page-info-template="__( 'Showing {from} to {to} of {total} results' )" />
+        <x-artisanpack-pagination :rows="$codes" :summary-label="__( 'Showing {from} to {to} of {total} results' )" />
     @endif
 </div>

@@ -1,9 +1,8 @@
 {{--
     Activity timeline. See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Timeline.
 
-    The list is composed here from x-artisanpack-timeline-item inside a
-    semantic <ol> until livewire-ui-components ships a timeline wrapper
-    (livewire-ui-components#112); swapping it in only touches this file.
+    The list is the design-system Timeline: an ordered list of events, each
+    with its actor, and the raw payload of an event the admin doesn't know.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -14,60 +13,56 @@
     use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 @endphp
 <div>
-    <x-artisanpack-card :title="__( 'Timeline' )" shadow data-timeline>
+    <x-artisanpack-card :title="__( 'Timeline' )" data-timeline>
         <div class="mb-4 flex flex-wrap gap-2" role="group" aria-label="{{ __( 'Filter the timeline' ) }}">
             @foreach ( $filters as $value => $label )
                 <x-artisanpack-button
                     wire:key="timeline-filter-{{ $value }}"
                     size="sm"
-                    :variant="$filter === $value ? 'primary' : 'ghost'"
-                    :label="$label"
+                    :variant="$filter === $value ? 'solid' : 'ghost'"
                     aria-pressed="{{ $filter === $value ? 'true' : 'false' }}"
-                    wire:click="$set( 'filter', {{ \Illuminate\Support\Js::from( $value ) }} )"
-                />
+                    wire:click="$set( 'filter', {{ \Illuminate\Support\Js::from( $value ) }} )">{{ $label }}</x-artisanpack-button>
             @endforeach
         </div>
 
         @if ( [] === $entries )
-            <x-artisanpack-ec-empty-state
+            <x-artisanpack-ec-admin-empty-state
+                size="sm"
+                :heading-level="4"
                 :title="__( 'Nothing here yet' )"
                 :description="'notes' === $filter ? __( 'No notes have been added.' ) : __( 'Activity will appear here as it happens.' )"
                 icon="o-clock"
             />
         @else
-            <ol class="list-none" aria-label="{{ __( 'Activity, newest first' ) }}">
+            <x-artisanpack-timeline :label="__( 'Activity, newest first' )">
                 @foreach ( $entries as $entry )
-                    <li wire:key="timeline-entry-{{ $entry['id'] }}" data-event-type="{{ $entry['type'] }}">
-                        <x-artisanpack-timeline-item
-                            :title="$entry['description']"
-                            :icon="$entry['icon']"
-                            :first="$loop->first"
-                            :last="$loop->last"
-                        >
-                        </x-artisanpack-timeline-item>
-                        <div class="-mt-2 ps-8 pb-3 text-sm opacity-75">
+                    <x-artisanpack-timeline-item
+                        wire:key="timeline-entry-{{ $entry['id'] }}"
+                        data-event-type="{{ $entry['type'] }}"
+                        :title="$entry['description']"
+                        :icon="$entry['icon']"
+                        :time="null !== $entry['time'] ? $entry['time']->diffForHumans() : null"
+                        :datetime="null !== $entry['time'] ? $entry['time']->toIso8601String() : null"
+                    >
+                        <x-slot:card>
                             <span>{{ $entry['actor'] }}</span>
                             @if ( null !== $entry['time'] )
-                                &middot;
-                                <time datetime="{{ $entry['time']->toIso8601String() }}" title="{{ LocalizedDate::format( $entry['time'] ) }}">
-                                    {{ $entry['time']->diffForHumans() }}
-                                    <span class="sr-only">({{ LocalizedDate::format( $entry['time'] ) }})</span>
-                                </time>
+                                <span class="apui-sr-only">({{ LocalizedDate::format( $entry['time'] ) }})</span>
                             @endif
-                        </div>
-                        @if ( ! $entry['known'] && null !== $entry['payload'] && '' !== $entry['payload'] )
-                            <details class="ps-8 pb-3 text-sm">
-                                <summary class="cursor-pointer">{{ __( 'Details' ) }}</summary>
-                                <pre class="mt-2 overflow-x-auto whitespace-pre-wrap break-all">{{ $entry['payload'] }}</pre>
-                            </details>
-                        @endif
-                    </li>
+                            @if ( ! $entry['known'] && null !== $entry['payload'] && '' !== $entry['payload'] )
+                                <details>
+                                    <summary>{{ __( 'Details' ) }}</summary>
+                                    <pre class="ec-payload">{{ $entry['payload'] }}</pre>
+                                </details>
+                            @endif
+                        </x-slot:card>
+                    </x-artisanpack-timeline-item>
                 @endforeach
-            </ol>
+            </x-artisanpack-timeline>
 
             @if ( $hasMore )
                 <div class="mt-2">
-                    <x-artisanpack-button size="sm" wire:click="loadMore" wire:loading.attr="disabled" :label="__( 'Load more' )" />
+                    <x-artisanpack-button size="sm" wire:click="loadMore" wire:loading.attr="disabled">{{ __( 'Load more' ) }}</x-artisanpack-button>
                 </div>
             @endif
         @endif

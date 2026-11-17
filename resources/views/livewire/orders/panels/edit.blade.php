@@ -5,7 +5,7 @@
     use Illuminate\Support\Js;
 @endphp
 <div>
-    <x-artisanpack-card :title="__( 'Edits' )" shadow>
+    <x-artisanpack-card :title="__( 'Edits' )">
         <div class="flex flex-wrap items-center gap-3">
             @if ( null !== $blockedReason )
                 <p class="text-sm opacity-75" role="status" data-edit-blocked>{{ $blockedReason }}</p>
@@ -14,7 +14,7 @@
             @endif
 
             @if ( $canEdit )
-                <x-artisanpack-button size="sm" icon="o-pencil-square" class="ms-auto" wire:click="startEdit" wire:loading.attr="disabled" :label="__( 'Edit order' )" />
+                <x-artisanpack-button size="sm" leading-icon="o-pencil-square" class="ms-auto" wire:click="startEdit" wire:loading.attr="disabled">{{ __( 'Edit order' ) }}</x-artisanpack-button>
             @endif
         </div>
 
@@ -42,14 +42,12 @@
                                 <x-artisanpack-button
                                     variant="ghost"
                                     size="xs"
-                                    icon="o-arrow-uturn-left"
+                                    leading-icon="o-arrow-uturn-left"
                                     class="ms-auto"
                                     wire:click="rollbackEdit( {{ (int) $edit->id }}, {{ Js::from( $rollbackToken ) }} )"
                                     wire:confirm="{{ __( 'Roll back edit #:id?', [ 'id' => $edit->id ] ) }}"
                                     wire:loading.attr="disabled"
-                                    :label="__( 'Roll back' )"
-                                    :aria-label="__( 'Roll back edit #:id', [ 'id' => $edit->id ] )"
-                                />
+                                    :aria-label="__( 'Roll back edit #:id', [ 'id' => $edit->id ] )">{{ __( 'Roll back' ) }}</x-artisanpack-button>
                             @endif
                         </div>
                         @if ( null !== $edit->reason && '' !== $edit->reason )
@@ -69,7 +67,7 @@
     </x-artisanpack-card>
 
     @if ( null !== $editToken )
-        <x-artisanpack-modal wire:model="editing" :title="__( 'Edit order #:number', [ 'number' => $order->order_number ] )" box-class="max-w-4xl" separator>
+        <x-artisanpack-dialog wire:model="editing" :title="__( 'Edit order #:number', [ 'number' => $order->order_number ] )" :classes="['root' => 'max-w-4xl']">
             <div class="flex flex-col gap-5" data-edit-form>
                 @error( 'edit' )
                     <x-artisanpack-alert color="error" icon="o-exclamation-circle" role="alert">{{ $message }}</x-artisanpack-alert>
@@ -100,14 +98,15 @@
                                             <th scope="row" class="font-normal">
                                                 {{ $itemNames[ (int) $itemId ] ?? __( 'Item #:id', [ 'id' => $itemId ] ) }}
                                                 @if ( $draft['remove'] ?? false )
-                                                    <x-artisanpack-badge :value="__( 'Will be removed' )" class="badge-sm ms-1" color="warning" data-will-remove />
+                                                    <x-artisanpack-badge :value="__( 'Will be removed' )" class="ms-1" size="sm" color="warning" data-will-remove />
                                                 @endif
                                             </th>
                                             <td>
                                                 @if ( isset( $variantOptions[ (int) $itemId ] ) )
                                                     <x-artisanpack-select
+                                                        placeholder=""
                                                         id="edit-item-{{ $itemId }}-variant"
-                                                        :options="$variantOptions[ (int) $itemId ]"
+                                                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $variantOptions[ (int) $itemId ] )"
                                                         :aria-label="__( 'Variant of :item', [ 'item' => $itemNames[ (int) $itemId ] ?? $itemId ] )"
                                                         wire:model.live="draftItems.{{ $itemId }}.variant_id"
                                                     />
@@ -140,7 +139,7 @@
                                             @else
                                                 <th scope="row" class="font-normal">
                                                     {{ $line['snapshot']['name'] }}
-                                                    <x-artisanpack-badge :value="__( 'New' )" class="badge-sm" color="info" />
+                                                    <x-artisanpack-badge :value="__( 'New' )" size="sm" color="info" />
                                                 </th>
                                                 <td>{{ implode( ', ', array_map( static fn ( $label, $value ) => $label . ': ' . $value, array_keys( (array) $line['snapshot']['options'] ), (array) $line['snapshot']['options'] ) ) ?: '—' }}</td>
                                                 <td class="tabular-nums">{{ $line['quantity'] }} &times; {{ MoneyFormatter::format( (int) $line['unit_price_amount'], (string) $order->currency ) }}</td>
@@ -149,11 +148,9 @@
                                                 <x-artisanpack-button
                                                     variant="ghost"
                                                     size="xs"
-                                                    icon="o-x-mark"
+                                                    leading-icon="o-x-mark"
                                                     wire:click="removeNewItem( {{ (int) $index }} )" wire:loading.attr="disabled"
-                                                    :label="__( 'Remove' )"
-                                                    :aria-label="__( 'Remove :item', [ 'item' => $line['snapshot']['name'] ?? __( 'Item' ) ] )"
-                                                />
+                                                    :aria-label="__( 'Remove :item', [ 'item' => $line['snapshot']['name'] ?? __( 'Item' ) ] )">{{ __( 'Remove' ) }}</x-artisanpack-button>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -174,25 +171,23 @@
                                 <x-artisanpack-select
                                     id="edit-add-variant"
                                     :label="__( 'Variant' )"
-                                    :options="$addVariantOptions"
+                                    :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $addVariantOptions )"
                                     :placeholder="__( 'Choose a variant' )"
-                                    placeholder-value=""
                                     wire:model="addVariantId"
                                 />
                             @else
                                 <div></div>
                             @endif
                             <x-artisanpack-input id="edit-add-quantity" type="number" min="1" :label="__( 'Quantity' )" wire:model="addQuantity" />
-                            <x-artisanpack-button size="sm" icon="o-plus" wire:click="addItem" wire:loading.attr="disabled" :label="__( 'Add' )" />
+                            <x-artisanpack-button size="sm" leading-icon="o-plus" wire:click="addItem" wire:loading.attr="disabled">{{ __( 'Add' ) }}</x-artisanpack-button>
                         </div>
                     </section>
 
                     <x-artisanpack-select
                         id="edit-shipping-method"
                         :label="__( 'Shipping method' )"
-                        :options="$methodOptions"
+                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $methodOptions )"
                         :placeholder="__( 'No shipping method' )"
-                        placeholder-value=""
                         wire:model.live="shippingMethod"
                     />
                 @endif
@@ -205,7 +200,7 @@
                 <section aria-labelledby="edit-preview-heading" aria-live="polite">
                     <div class="flex flex-wrap items-center gap-3">
                         <h3 id="edit-preview-heading" class="font-semibold">{{ __( 'Changes' ) }}</h3>
-                        <x-artisanpack-button size="sm" variant="outline" icon="o-eye" wire:click="previewEdit" wire:loading.attr="disabled" :label="__( 'Preview changes' )" />
+                        <x-artisanpack-button size="sm" variant="outline" leading-icon="o-eye" wire:click="previewEdit" wire:loading.attr="disabled">{{ __( 'Preview changes' ) }}</x-artisanpack-button>
                     </div>
 
                     @if ( null === $preview )
@@ -234,15 +229,13 @@
                 <x-artisanpack-input id="edit-reason" :label="__( 'Reason' )" maxlength="255" required wire:model="reason" />
             </div>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )" :label="__( 'Discard' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )">{{ __( 'Discard' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="primary"
                     wire:click="applyEdit( {{ Js::from( $editToken ) }} )"
-                    wire:loading.attr="disabled"
-                    :label="__( 'Save changes' )"
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    wire:loading.attr="disabled">{{ __( 'Save changes' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

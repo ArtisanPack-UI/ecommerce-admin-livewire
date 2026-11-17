@@ -33,7 +33,7 @@
     "artisanpack-ui/core": "^1.0",
     "artisanpack-ui/ecommerce": "^1.0",
     "artisanpack-ui/hooks": "^1.2",
-    "artisanpack-ui/livewire-ui-components": "^2.1",
+    "artisanpack-ui/livewire-ui-components": "^3.0",
     "artisanpack-ui/security": "^1.0.3|^2.0",
     "illuminate/support": "^12.0|^13.0",
     "livewire/livewire": "^3.6|^4.0"

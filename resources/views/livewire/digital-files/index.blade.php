@@ -15,13 +15,13 @@
     ];
 @endphp
 <div>
-    <x-artisanpack-header :title="__( 'Digital files' )" :level="1" separator>
+    <x-artisanpack-page-header :title="__( 'Digital files' )" :level="1">
         @if ( $canCreate )
             <x-slot:actions>
-                <x-artisanpack-button color="primary" icon="o-plus" wire:click="create" :label="__( 'New file' )" />
+                <x-artisanpack-button color="primary" leading-icon="o-plus" wire:click="create">{{ __( 'New file' ) }}</x-artisanpack-button>
             </x-slot:actions>
         @endif
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     @if ( $keptCount > 0 )
         <x-artisanpack-alert
@@ -35,9 +35,9 @@
         >
             <x-slot:actions>
                 @if ( $canUpdate )
-                    <x-artisanpack-button size="sm" color="primary" wire:click="archiveKept" wire:loading.attr="disabled" :label="__( 'Archive instead' )" />
+                    <x-artisanpack-button size="sm" color="primary" wire:click="archiveKept" wire:loading.attr="disabled">{{ __( 'Archive instead' ) }}</x-artisanpack-button>
                 @endif
-                <x-artisanpack-button size="sm" variant="ghost" wire:click="dismissKept" :label="__( 'Dismiss' )" />
+                <x-artisanpack-button size="sm" variant="ghost" wire:click="dismissKept">{{ __( 'Dismiss' ) }}</x-artisanpack-button>
             </x-slot:actions>
         </x-artisanpack-alert>
     @endif
@@ -53,10 +53,7 @@
     <x-artisanpack-drawer
         wire:model="editing"
         :title="null === $fileId ? __( 'New digital file' ) : __( 'Edit digital file' )"
-        right
-        separator
-        with-close-button
-        close-on-escape
+        side="end"
         class="w-full max-w-xl"
     >
         @if ( $editing )
@@ -78,9 +75,8 @@
                     <x-artisanpack-select
                         id="digital-file-variant"
                         :label="__( 'Variant' )"
-                        :options="$variantOptions"
+                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $variantOptions )"
                         :placeholder="__( 'All variants (the product itself)' )"
-                        placeholder-value=""
                         wire:model="form.product_variant_id"
                     />
                 @endif
@@ -99,11 +95,11 @@
                     />
                 @endif
 
-                <x-artisanpack-toggle id="digital-file-streaming" :label="__( 'Streaming only' )" :hint="__( 'Can be played but never downloaded.' )" wire:model="form.is_streaming_only" />
+                <x-artisanpack-toggle id="digital-file-streaming" :label="__( 'Streaming only' )" :description="__( 'Can be played but never downloaded.' )" wire:model="form.is_streaming_only" />
 
-                <x-artisanpack-toggle id="digital-file-archived" :label="__( 'Archived' )" :hint="__( 'Existing buyers keep their downloads; the file is no longer offered.' )" wire:model="form.is_archived" />
+                <x-artisanpack-toggle id="digital-file-archived" :label="__( 'Archived' )" :description="__( 'Existing buyers keep their downloads; the file is no longer offered.' )" wire:model="form.is_archived" />
 
-                <x-artisanpack-radio id="digital-file-source" :label="__( 'File' )" :hint="__( 'A media-library file must be stored on a private disk (:disks), or buyers could download it without a link.', [ 'disks' => implode( ', ', \ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::allowed() ) ] )" :options="$sourceOptions" wire:model.live="form.source" inline />
+                <x-artisanpack-radio-group id="digital-file-source" :label="__( 'File' )" :hint="__( 'A media-library file must be stored on a private disk (:disks), or buyers could download it without a link.', [ 'disks' => implode( ', ', \ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::allowed() ) ] )" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $sourceOptions )" wire:model.live="form.source" orientation="horizontal" />
 
                 @if ( 'media' === $form['source'] )
                     <div class="flex flex-wrap items-center gap-3">
@@ -111,7 +107,7 @@
                             {{ empty( $form['media_id'] ) ? __( 'No file chosen yet.' ) : __( 'Media library file #:id', [ 'id' => $form['media_id'] ] ) }}
                         </span>
                         @if ( $mediaLibrary )
-                            <x-artisanpack-button variant="outline" size="sm" icon="o-paper-clip" x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Index::MEDIA_CONTEXT ) }} } )" :label="__( 'Choose file' )" />
+                            <x-artisanpack-button variant="outline" size="sm" leading-icon="o-paper-clip" x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Index::MEDIA_CONTEXT ) }} } )">{{ __( 'Choose file' ) }}</x-artisanpack-button>
                         @else
                             <x-artisanpack-input id="digital-file-media" type="number" min="1" :label="__( 'Media id' )" wire:model="form.media_id" />
                         @endif
@@ -120,13 +116,13 @@
                         <span class="text-sm text-error" role="alert">{{ $message }}</span>
                     @enderror
                 @else
-                    <x-artisanpack-select id="digital-file-disk" :label="__( 'Disk' )" :options="$diskOptions" wire:model="form.disk" />
+                    <x-artisanpack-select placeholder="" id="digital-file-disk" :label="__( 'Disk' )" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $diskOptions )" wire:model="form.disk" />
                     <x-artisanpack-input id="digital-file-path" :label="__( 'Path on the disk' )" :placeholder="__( 'downloads/guide.pdf' )" wire:model="form.path" />
                 @endif
 
                 <div class="flex justify-end gap-2">
-                    <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )" :label="__( 'Cancel' )" />
-                    <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="$versionBumped ? __( 'Save and notify customers' ) : __( 'Save file' )" />
+                    <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                    <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ $versionBumped ? __( 'Save and notify customers' ) : __( 'Save file' ) }}</x-artisanpack-button>
                 </div>
             </form>
         @endif

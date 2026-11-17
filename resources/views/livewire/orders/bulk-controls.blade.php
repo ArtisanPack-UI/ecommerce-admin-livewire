@@ -14,9 +14,8 @@
         id="orders-bulk-substatus"
         class="select-sm"
         :label="__( 'Move to sub-status' )"
-        :options="$bulkSubstatusOptions"
+        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $bulkSubstatusOptions )"
         :placeholder="__( 'Choose a sub-status' )"
-        placeholder-value=""
         wire:model="bulkSubstatusId"
     />
 @endif

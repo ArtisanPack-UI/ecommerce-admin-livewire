@@ -94,7 +94,7 @@ it( 'lists totals with promotion names, refunds, and net', function (): void {
     PromotionUsage::factory()->create( [ 'order_id' => $order->id, 'promotion_id' => Promotion::factory()->create( [ 'name' => 'First order' ] )->id, 'amount_discounted' => 500 ] );
 
     Livewire::test( Show::class, [ 'order' => $order->id ] )
-        ->assertSeeInOrder( [ 'Subtotal', '$100.00', 'Discount: Spring sale', '-$10.00', 'Discount: First order', '-$5.00', 'Shipping', '$8.00', 'Tax', '$7.44', 'Total', '$100.44', 'Refunded', '-$20.00', 'Net', '$80.44' ] )
+        ->assertSeeInOrder( [ 'Subtotal', '$100.00', 'Discount: Spring sale', '−$10.00', 'Discount: First order', '−$5.00', 'Shipping', '$8.00', 'Tax', '$7.44', 'Total', '$100.44', 'Refunded', '−$20.00', 'Net', '$80.44' ] )
         ->assertDontSee( 'store currency' );
 } );
 

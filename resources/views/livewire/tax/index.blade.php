@@ -7,7 +7,7 @@
     @since      1.0.0
 --}}
 <div class="flex flex-col gap-6">
-    <x-artisanpack-header :title="__( 'Tax' )" :level="1" separator />
+    <x-artisanpack-page-header :title="__( 'Tax' )" :level="1" />
 
     <div data-tax-provider="{{ $provider['key'] }}">
         @if ( $provider['manual'] )
@@ -41,8 +41,8 @@
                     @if ( $editingClassId === (int) $class->id )
                         <form wire:submit="saveClass" class="flex grow flex-wrap items-end gap-2" data-edit-class="{{ $class->key }}">
                             <x-artisanpack-input id="tax-class-{{ $class->id }}-label" class="input-sm" :label="__( 'Label' )" wire:model="editingClassLabel" />
-                            <x-artisanpack-button type="submit" size="sm" color="primary" :label="__( 'Save' )" />
-                            <x-artisanpack-button size="sm" variant="ghost" wire:click="cancelClass" :label="__( 'Cancel' )" />
+                            <x-artisanpack-button type="submit" size="sm" color="primary">{{ __( 'Save' ) }}</x-artisanpack-button>
+                            <x-artisanpack-button size="sm" variant="ghost" wire:click="cancelClass">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                         </form>
                     @else
                         <div class="min-w-0 grow">
@@ -58,10 +58,10 @@
                         </span>
                         <div class="flex gap-1">
                             @if ( $canUpdate )
-                                <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="editClass( {{ $class->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $class->label ] )" />
+                                <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-pencil" wire:click="editClass( {{ $class->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $class->label ] )" />
                             @endif
                             @if ( $canDelete )
-                                <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDeleteClass( {{ $class->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $class->label ] )" />
+                                <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="confirmDeleteClass( {{ $class->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $class->label ] )" />
                             @endif
                         </div>
                     @endif
@@ -73,7 +73,7 @@
             <form wire:submit="createClass" class="flex flex-wrap items-end gap-3" data-new-class>
                 <x-artisanpack-input id="new-tax-class-key" :label="__( 'Key' )" :hint="__( 'Lowercase, like reduced-rate. It cannot be changed later.' )" wire:model="newClassKey" maxlength="60" />
                 <x-artisanpack-input id="new-tax-class-label" :label="__( 'Label' )" wire:model="newClassLabel" maxlength="120" />
-                <x-artisanpack-button type="submit" icon="o-plus" wire:loading.attr="disabled" :label="__( 'Add class' )" />
+                <x-artisanpack-button type="submit" leading-icon="o-plus" wire:loading.attr="disabled">{{ __( 'Add class' ) }}</x-artisanpack-button>
             </form>
         @endif
     </section>
@@ -81,24 +81,24 @@
     <section class="flex flex-col gap-3" aria-labelledby="tax-rates-heading" data-tax-rates>
         <div class="flex flex-wrap items-center gap-2">
             <h2 id="tax-rates-heading" class="grow text-lg font-semibold">{{ __( 'Tax rates' ) }}</h2>
-            <x-artisanpack-button variant="outline" size="sm" icon="o-arrow-down-tray" wire:click="exportRates" :label="__( 'Download rates CSV' )" />
+            <x-artisanpack-button variant="outline" size="sm" leading-icon="o-arrow-down-tray" wire:click="exportRates">{{ __( 'Download rates CSV' ) }}</x-artisanpack-button>
             @if ( $canCreate )
-                <x-artisanpack-button variant="outline" size="sm" icon="o-arrow-up-tray" wire:click="openImport" :label="__( 'Import CSV' )" />
-                <x-artisanpack-button color="primary" size="sm" icon="o-plus" wire:click="createRate" :label="__( 'New rate' )" />
+                <x-artisanpack-button variant="outline" size="sm" leading-icon="o-arrow-up-tray" wire:click="openImport">{{ __( 'Import CSV' ) }}</x-artisanpack-button>
+                <x-artisanpack-button color="primary" size="sm" leading-icon="o-plus" wire:click="createRate">{{ __( 'New rate' ) }}</x-artisanpack-button>
             @endif
         </div>
 
         @if ( $creatingRate )
             <form wire:submit="saveRate" class="grid gap-3 rounded-box border border-base-300 p-4 sm:grid-cols-2 lg:grid-cols-5" data-new-rate>
-                <x-artisanpack-select id="new-rate-class" :label="__( 'Tax class' )" :options="$classOptions" wire:model="rateForm.tax_class_key" />
-                <x-artisanpack-select id="new-rate-country" :label="__( 'Country' )" :options="$countryOptions" :placeholder="__( 'Choose a country' )" placeholder-value="" wire:model="rateForm.country_code" />
+                <x-artisanpack-select placeholder="" id="new-rate-class" :label="__( 'Tax class' )" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $classOptions )" wire:model="rateForm.tax_class_key" />
+                <x-artisanpack-select id="new-rate-country" :label="__( 'Country' )" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $countryOptions )" :placeholder="__( 'Choose a country' )" wire:model="rateForm.country_code" />
                 <x-artisanpack-input id="new-rate-region" :label="__( 'Region' )" :hint="__( 'A state or province code, like NY. Leave empty for the whole country.' )" maxlength="10" wire:model="rateForm.region_code" />
                 <x-artisanpack-input id="new-rate-postal" :label="__( 'Postal codes' )" :hint="__( 'Comma-separated; * matches anything and 10001...10099 is a range. Leave empty for all.' )" maxlength="60" wire:model="rateForm.postal_pattern" />
                 <x-artisanpack-ec-percent-input id="new-rate-rate" :label="__( 'Rate' )" wire:model="rateForm.rate_ubps" />
                 <x-artisanpack-input id="new-rate-label" :label="__( 'Label' )" :hint="__( 'Shown to shoppers, like Sales tax or VAT.' )" maxlength="120" wire:model="rateForm.label" />
                 <x-artisanpack-input id="new-rate-priority" type="number" step="1" :label="__( 'Priority' )" :hint="__( 'Rates with different priorities for the same place stack.' )" wire:model="rateForm.priority" />
                 <div class="self-center">
-                    <x-artisanpack-toggle id="new-rate-compound" :label="__( 'Compound' )" :hint="__( 'Charged on top of the other taxes.' )" wire:model="rateForm.is_compound" />
+                    <x-artisanpack-toggle id="new-rate-compound" :label="__( 'Compound' )" :description="__( 'Charged on top of the other taxes.' )" wire:model="rateForm.is_compound" />
                 </div>
                 <div class="self-center">
                     <x-artisanpack-toggle id="new-rate-shipping" :label="__( 'Taxes shipping' )" wire:model="rateForm.is_shipping_taxable" />
@@ -107,8 +107,8 @@
                     <x-artisanpack-toggle id="new-rate-active" :label="__( 'Active' )" wire:model="rateForm.is_active" />
                 </div>
                 <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-5">
-                    <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Save rate' )" />
-                    <x-artisanpack-button variant="ghost" wire:click="cancelRate" :label="__( 'Cancel' )" />
+                    <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save rate' ) }}</x-artisanpack-button>
+                    <x-artisanpack-button variant="ghost" wire:click="cancelRate">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                 </div>
             </form>
         @endif
@@ -130,7 +130,7 @@
 
     @if ( null !== $deletingClass )
         @php $deleteClassTitle = __( 'Delete ":name"?', [ 'name' => $deletingClass->label ] ); @endphp
-        <x-artisanpack-modal wire:model="confirmingClassDelete" :title="$deleteClassTitle" separator>
+        <x-artisanpack-dialog wire:model="confirmingClassDelete" :title="$deleteClassTitle">
             <div data-delete-class="{{ $deletingClass->key }}">
                 @if ( null !== $deletingBlocker )
                     <x-artisanpack-alert color="warning" icon="o-exclamation-triangle" :title="__( 'This class cannot be deleted yet.' )" :description="$deletingBlocker" role="status" data-class-blocked />
@@ -139,22 +139,20 @@
                 @endif
             </div>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="cancelDeleteClass" :label="__( 'Keep class' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="cancelDeleteClass">{{ __( 'Keep class' ) }}</x-artisanpack-button>
                 @if ( null === $deletingBlocker )
                     <x-artisanpack-button
                         color="error"
                         wire:click="deleteClass( {{ \Illuminate\Support\Js::from( $deleteClassToken ) }} )"
-                        wire:loading.attr="disabled"
-                        :label="__( 'Delete class' )"
-                    />
+                        wire:loading.attr="disabled">{{ __( 'Delete class' ) }}</x-artisanpack-button>
                 @endif
-            </x-slot:actions>
-        </x-artisanpack-modal>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 
     @if ( $importing )
-        <x-artisanpack-modal wire:model="importing" :title="__( 'Import tax rates' )" box-class="max-w-4xl" separator>
+        <x-artisanpack-dialog wire:model="importing" :title="__( 'Import tax rates' )" :classes="['root' => 'max-w-4xl']">
             <div class="flex flex-col gap-4" data-rates-import>
                 <p class="text-sm">
                     {{ __( 'Upload a CSV with these columns: :columns. Only tax_class_key, country_code, rate_percent, and label are required. A row with the same class, country, region, postal codes, and priority as an existing rate updates it; any other row adds a rate. At most :count rows.', [ 'columns' => implode( ', ', $csvColumns ), 'count' => $maxRows ] ) }}
@@ -162,7 +160,7 @@
 
                 <div class="flex flex-wrap items-end gap-3">
                     <x-artisanpack-file id="tax-rates-file" :label="__( 'CSV file' )" accept=".csv,text/csv,text/plain" wire:model="ratesCsv" />
-                    <x-artisanpack-button variant="ghost" size="sm" icon="o-document-arrow-down" wire:click="downloadSample" :label="__( 'Download a sample' )" />
+                    <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-document-arrow-down" wire:click="downloadSample">{{ __( 'Download a sample' ) }}</x-artisanpack-button>
                 </div>
 
                 @if ( null !== $importReport )
@@ -204,18 +202,16 @@
                 @endif
             </div>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="closeImport" :label="__( 'Cancel' )" />
-                <x-artisanpack-button variant="outline" wire:click="checkImport" wire:loading.attr="disabled" :label="__( 'Check file' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="closeImport">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button variant="outline" wire:click="checkImport" wire:loading.attr="disabled">{{ __( 'Check file' ) }}</x-artisanpack-button>
                 @if ( null !== $importReport && $importReport['create'] + $importReport['update'] > 0 )
                     <x-artisanpack-button
                         color="primary"
                         wire:click="applyImport( {{ \Illuminate\Support\Js::from( $importToken ) }} )"
-                        wire:loading.attr="disabled"
-                        :label="trans_choice( 'Import :count rate|Import :count rates', $importReport['create'] + $importReport['update'], [ 'count' => $importReport['create'] + $importReport['update'] ] )"
-                    />
+                        wire:loading.attr="disabled">{{ trans_choice( 'Import :count rate|Import :count rates', $importReport['create'] + $importReport['update'], [ 'count' => $importReport['create'] + $importReport['update'] ] ) }}</x-artisanpack-button>
                 @endif
-            </x-slot:actions>
-        </x-artisanpack-modal>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

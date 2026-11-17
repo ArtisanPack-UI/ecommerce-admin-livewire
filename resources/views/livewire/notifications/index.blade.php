@@ -11,10 +11,10 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notifications\Index;
 @endphp
 <div>
-    <x-artisanpack-header :title="__( 'Notifications' )" :subtitle="__( 'Edit the emails and messages the store sends.' )" :level="1" separator />
+    <x-artisanpack-page-header :title="__( 'Notifications' )" :description="__( 'Edit the emails and messages the store sends.' )" :level="1" />
 
     @if ( 0 === $total )
-        <x-artisanpack-ec-empty-state
+        <x-artisanpack-ec-admin-empty-state
             icon="o-bell"
             :title="__( 'No notification templates' )"
             :description="__( 'No notifications are registered with the store yet.' )"
@@ -24,26 +24,24 @@
             <x-artisanpack-select
                 id="notifications-channel"
                 :label="__( 'Channel' )"
-                :options="$channelOptions"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $channelOptions )"
                 :placeholder="__( 'Any' )"
-                placeholder-value=""
                 wire:model.live="channel"
             />
             <x-artisanpack-select
                 id="notifications-locale"
                 :label="__( 'Language' )"
-                :options="$localeOptions"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $localeOptions )"
                 :placeholder="__( 'Any' )"
-                placeholder-value=""
                 wire:model.live="locale"
             />
             @if ( $filtersActive )
-                <x-artisanpack-button variant="ghost" size="sm" icon="o-x-mark" wire:click="resetFilters" :label="__( 'Clear filters' )" />
+                <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-x-mark" wire:click="resetFilters">{{ __( 'Clear filters' ) }}</x-artisanpack-button>
             @endif
         </div>
 
         @if ( $groups->isEmpty() )
-            <x-artisanpack-ec-empty-state
+            <x-artisanpack-ec-admin-empty-state
                 icon="o-magnifying-glass"
                 :title="__( 'No matches' )"
                 :description="__( 'No templates match these filters.' )"
@@ -78,9 +76,9 @@
                                         <td>{{ Index::localeLabel( (string) $template->locale ) }}</td>
                                         <td>
                                             @if ( $template->is_active )
-                                                <x-artisanpack-badge :value="__( 'Active' )" color="success" class="badge-sm" />
+                                                <x-artisanpack-badge :value="__( 'Active' )" color="success" size="sm" />
                                             @else
-                                                <x-artisanpack-badge :value="__( 'Off' )" class="badge-sm badge-ghost" />
+                                                <x-artisanpack-badge :value="__( 'Off' )" size="sm" variant="ghost" />
                                             @endif
                                         </td>
                                         <td>
@@ -94,11 +92,9 @@
                                             <x-artisanpack-button
                                                 variant="ghost"
                                                 size="sm"
-                                                icon="o-pencil"
-                                                :link="route( 'artisanpack.ecommerce.admin.notifications.edit', [ 'template' => $template->id ] )"
-                                                :label="__( 'Edit' )"
-                                                :aria-label="__( 'Edit :template (:locale)', [ 'template' => $group['label'], 'locale' => $template->locale ] )"
-                                            />
+                                                leading-icon="o-pencil"
+                                                :href="route( 'artisanpack.ecommerce.admin.notifications.edit', [ 'template' => $template->id ] )"
+                                                :aria-label="__( 'Edit :template (:locale)', [ 'template' => $group['label'], 'locale' => $template->locale ] )">{{ __( 'Edit' ) }}</x-artisanpack-button>
                                         </td>
                                     </tr>
                                 @endforeach

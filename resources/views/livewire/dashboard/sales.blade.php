@@ -8,7 +8,7 @@
     @since      1.0.0
 --}}
 @php( $sales = $dashboard['sales'] )
-<x-artisanpack-card shadow class="h-full">
+<x-artisanpack-card class="h-full">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="dashboard-widget-{{ $widget['key'] }}" class="text-lg font-semibold">{{ $widget['label'] }}</h2>
         <span class="text-2xl font-black tabular-nums" data-sales-total>{{ $sales['total'] }}</span>
@@ -20,7 +20,7 @@
             <x-artisanpack-sparkline
                 id="dashboard-sales-sparkline"
                 :data="$sales['values']"
-                type="area"
+                variant="area"
                 height="64"
                 class="w-full"
                 wire:key="dashboard-sales-sparkline-{{ md5( json_encode( $sales['values'] ) ) }}"

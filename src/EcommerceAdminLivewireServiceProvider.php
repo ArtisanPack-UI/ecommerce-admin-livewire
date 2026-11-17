@@ -112,13 +112,21 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * The composed Blade components, keyed by their name after the
      * `artisanpack-ec-` prefix.
      *
+     * `money` and `empty-state` share their names with ecommerce-storefront-
+     * livewire's components, so in an app with both, whichever registers last
+     * owns them. The admin's own views use the `admin-money` and
+     * `admin-empty-state` names, which only the admin registers.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Added `admin-money` and `admin-empty-state`.
      *
      * @var array<string, class-string>
      */
     public const BLADE_COMPONENTS = [
         'address'              => Components\Address::class,
         'address-form'         => Components\AddressForm::class,
+        'admin-empty-state'    => Components\EmptyState::class,
+        'admin-money'          => Components\Money::class,
         'bulk-action-bar'      => Components\BulkActionBar::class,
         'category-picker'      => Components\CategoryPicker::class,
         'config-form'          => Components\ConfigForm::class,

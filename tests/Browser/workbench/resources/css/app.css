@@ -1,17 +1,15 @@
 /*
- * Stands in for a host application's Tailwind entry: the admin's views and
- * the component library's views are added as sources, as the install
- * command tells a host to do.
+ * Stands in for a host application's main stylesheet, as the install
+ * command tells a host to write it: Tailwind, then the ArtisanPack UI design
+ * system in its own layer (so Preflight never restyles a component and
+ * utilities still win), with the admin's views and the component library's
+ * views as Tailwind sources.
  */
+@layer theme, base, apui, components, utilities;
 @import 'tailwindcss';
+@import '@artisanpack-ui/css';
 
 @source '../../../../../resources/views/**/*.blade.php';
 @source '../../../../../src/**/*.php';
 @source '../../../../../vendor/artisanpack-ui/livewire-ui-components/resources/views/**/*.php';
 @source '../../../../../vendor/artisanpack-ui/livewire-ui-components/src/**/*.php';
-
-@custom-variant dark (&:where(.dark, .dark *));
-
-@plugin "daisyui" {
-    themes: light --default, dark --prefersdark;
-}

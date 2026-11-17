@@ -22,8 +22,9 @@ use Throwable;
 /**
  * Publishes the admin config and prints the front-end setup steps.
  *
- * The package ships no CSS build: the host adds the package views to its
- * Tailwind sources and installs the drag-and-drop npm package itself.
+ * The package ships no CSS build: the host loads the ArtisanPack UI design
+ * system (livewire-ui-components 3.0), adds the package views to its
+ * Tailwind sources, and installs the drag-and-drop npm package itself.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -32,6 +33,19 @@ use Throwable;
  */
 class InstallCommand extends Command
 {
+    /**
+     * The design-system stylesheet a host imports in its main stylesheet,
+     * after Tailwind when it uses Tailwind.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const STYLESHEET_IMPORTS = [
+        '@layer theme, base, apui, components, utilities;',
+        "@import '@artisanpack-ui/css';",
+    ];
+
     /**
      * The Tailwind `@source` lines a host adds to its main stylesheet.
      *
@@ -45,19 +59,20 @@ class InstallCommand extends Command
     ];
 
     /**
-     * The npm packages the admin's scripts depend on: drag-and-drop for the
-     * reorderable lists, ApexCharts for the dashboard and reports, and
-     * flatpickr for the date pickers.
+     * The npm packages the admin's pages depend on: the design system's CSS
+     * and behavior engine (the release livewire-ui-components 3.x renders),
+     * and drag-and-drop for the reorderable lists.
      *
      * @since 1.0.0
      *
      * @var array<int, string>
      */
-    public const NPM_PACKAGES = [ '@artisanpack-ui/livewire-drag-and-drop', 'apexcharts', 'flatpickr' ];
+    public const NPM_PACKAGES = [ '@artisanpack-ui/css@^1', '@artisanpack-ui/behavior@^1', '@artisanpack-ui/livewire-drag-and-drop' ];
 
     /**
-     * The lines that expose the chart and date-picker libraries to the
-     * component library, for `resources/js/app.js`.
+     * The lines that load the design system's behavior engine and
+     * drag-and-drop, for `resources/js/app.js`. Livewire starts Alpine, so
+     * the engine registers on `alpine:init`.
      *
      * @since 1.0.0
      *
@@ -65,10 +80,8 @@ class InstallCommand extends Command
      */
     public const JS_GLOBALS = [
         "import '@artisanpack-ui/livewire-drag-and-drop';",
-        "import ApexCharts from 'apexcharts';",
-        "import flatpickr from 'flatpickr';",
-        'window.ApexCharts = ApexCharts;',
-        'window.flatpickr = flatpickr;',
+        "import apuiBehavior from '@artisanpack-ui/behavior/alpine';",
+        "document.addEventListener( 'alpine:init', () => window.Alpine.plugin( apuiBehavior ) );",
     ];
 
     /**
@@ -119,6 +132,10 @@ class InstallCommand extends Command
         $this->newLine();
         $this->components->info( __( 'Add these lines to your main stylesheet (e.g. resources/css/app.css):' ) );
 
+        foreach ( self::STYLESHEET_IMPORTS as $line ) {
+            $this->line( '    ' . $line );
+        }
+
         foreach ( self::TAILWIND_SOURCES as $source ) {
             $this->line( '    ' . $source );
         }
@@ -139,7 +156,7 @@ class InstallCommand extends Command
         $this->line( '    ' . self::PUBLISH_ASSETS_COMMAND );
 
         $this->newLine();
-        $this->components->warn( __( 'Pin daisyui to ~5.0 in package.json; later releases leave tab panels empty.' ) );
+        $this->components->warn( __( 'Remove daisyUI: the admin renders on the ArtisanPack UI design system.' ) );
         $this->components->info( __( 'Full front-end setup: :url', [ 'url' => self::FRONT_END_DOCS ] ) );
 
         $this->newLine();

@@ -15,57 +15,41 @@
         {!! UnsavedChanges::members() !!}
         target: 'body',
         insert( text ) {
-            if ( 'subject' === this.target ) {
-                const input = document.getElementById( 'notification-subject' );
+            {{-- The CodeEditor's textarea carries the editor's id. --}}
+            const field = document.getElementById( 'subject' === this.target ? 'notification-subject' : 'notification-body' );
 
-                if ( input ) {
-                    const start = input.selectionStart ?? input.value.length;
-                    const end   = input.selectionEnd ?? input.value.length;
-
-                    input.value = input.value.slice( 0, start ) + text + input.value.slice( end );
-                    input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
-                    input.focus();
-                    input.setSelectionRange( start + text.length, start + text.length );
-
-                    return;
-                }
-            }
-
-            const element = document.getElementById( 'notification-body' );
-
-            if ( window.ace && element ) {
-                const editor = window.ace.edit( element );
-
-                editor.insert( text );
-                editor.focus();
-                $wire.$commit();
+            if ( ! field ) {
+                $wire.set( 'body', ( $wire.body || '' ) + text );
 
                 return;
             }
 
-            $wire.set( 'body', ( $wire.body || '' ) + text );
+            const start = field.selectionStart ?? field.value.length;
+            const end   = field.selectionEnd ?? field.value.length;
+
+            field.value = field.value.slice( 0, start ) + text + field.value.slice( end );
+            field.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+            field.focus();
+            field.setSelectionRange( start + text.length, start + text.length );
+            $wire.$commit();
         },
     }"
     data-notification-editor="{{ $template->id }}"
 >
-    @assets
-        <script @if ( null !== ( $cspNonce = \Illuminate\Support\Facades\Vite::cspNonce() ) ) nonce="{{ $cspNonce }}" @endif src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.2/ace.js" integrity="sha384-7At53v27YjwyO+MGQtN09WDN4Usk+18Tx7rZPLFcixW1yNHAr0mR46P27VxBiU4h" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-        <script @if ( null !== ( $cspNonce = \Illuminate\Support\Facades\Vite::cspNonce() ) ) nonce="{{ $cspNonce }}" @endif src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.2/ext-language_tools.js" integrity="sha384-tM062o3qwppSZeyxbtqMzlCBc0qwr2V5tKBS+AlXKOgqTMYMUj4CGkCT9/ZDMpoi" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    @endassets
-
-    <x-artisanpack-header :title="$label" :subtitle="$template->key . ' · ' . $channelLabel" :level="1" separator>
+    <x-artisanpack-page-header :title="$label" :description="$template->key . ' · ' . $channelLabel" :level="1">
         <x-slot:actions>
             @if ( null !== $indexUrl )
-                <x-artisanpack-button variant="ghost" icon="o-arrow-left" :link="$indexUrl" :label="__( 'All notifications' )" />
+                <x-artisanpack-button variant="ghost" leading-icon="o-arrow-left" :href="$indexUrl">{{ __( 'All notifications' ) }}</x-artisanpack-button>
             @endif
         </x-slot:actions>
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     <div class="mb-4 flex flex-wrap items-end gap-3" data-template-controls>
         <x-artisanpack-select
+            placeholder=""
             id="notification-locale"
             :label="__( 'Language' )"
-            :options="$localeOptions"
+            :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $localeOptions )"
             wire:model.live="localeId"
         />
 
@@ -74,12 +58,11 @@
                 <x-artisanpack-select
                     id="notification-new-locale"
                     :label="__( 'Add a translation' )"
-                    :options="$newLocales"
+                    :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $newLocales )"
                     :placeholder="__( 'Choose a language' )"
-                    placeholder-value=""
                     wire:model="newLocale"
                 />
-                <x-artisanpack-button type="submit" variant="outline" icon="o-plus" wire:loading.attr="disabled" :label="__( 'Add' )" />
+                <x-artisanpack-button type="submit" variant="outline" leading-icon="o-plus" wire:loading.attr="disabled">{{ __( 'Add' ) }}</x-artisanpack-button>
             </form>
         @endif
 
@@ -107,23 +90,23 @@
 
             @if ( $canUpdate )
                 <div x-on:focusin="target = 'body'" x-on:keyup.debounce.600ms="$wire.$commit()" x-on:paste.debounce.600ms="$wire.$commit()" data-body-editor>
-                    <x-artisanpack-code
+                    <x-artisanpack-code-editor
                         id="notification-body"
                         :label="__( 'Body' )"
                         :hint="__( 'Twig source. Click a variable to insert it at the cursor.' )"
                         language="twig"
-                        height="24rem"
+                        :rows="20"
                         wire:model="body"
                     />
                 </div>
 
                 <div x-on:keyup.debounce.600ms="$wire.$commit()" x-on:paste.debounce.600ms="$wire.$commit()" data-preview-data>
-                    <x-artisanpack-code
+                    <x-artisanpack-code-editor
                         id="notification-preview-data"
                         :label="__( 'Preview data (JSON)' )"
                         :hint="__( 'Sample values the preview renders with. They are saved with the template but never sent.' )"
                         language="json"
-                        height="12rem"
+                        :rows="10"
                         wire:model="previewJson"
                     />
                 </div>
@@ -141,18 +124,16 @@
             @if ( $canUpdate )
                 <div class="flex flex-wrap justify-end gap-2">
                     @if ( $hasDefault )
-                        <x-artisanpack-button variant="ghost" icon="o-arrow-uturn-left" wire:click="confirmReset" :label="__( 'Reset to default' )" />
+                        <x-artisanpack-button variant="ghost" leading-icon="o-arrow-uturn-left" wire:click="confirmReset">{{ __( 'Reset to default' ) }}</x-artisanpack-button>
                     @endif
                     @if ( $isHtml )
-                        <x-artisanpack-button variant="outline" icon="o-paper-airplane" wire:click="sendTest" wire:loading.attr="disabled" :label="__( 'Send test to me' )" />
+                        <x-artisanpack-button variant="outline" leading-icon="o-paper-airplane" wire:click="sendTest" wire:loading.attr="disabled">{{ __( 'Send test to me' ) }}</x-artisanpack-button>
                     @endif
                     <x-artisanpack-button
                         type="submit"
                         color="primary"
                         wire:loading.attr="disabled"
-                        :disabled="[] !== $previewErrors"
-                        :label="__( 'Save template' )"
-                    />
+                        :disabled="[] !== $previewErrors">{{ __( 'Save template' ) }}</x-artisanpack-button>
                 </div>
             @endif
         </form>
@@ -173,9 +154,7 @@
                                     class="font-mono"
                                     x-on:click="insert( {{ \Illuminate\Support\Js::from( $variable['snippet'] ) }} )"
                                     :disabled="! $canUpdate"
-                                    :label="$variable['path']"
-                                    :aria-label="__( 'Insert :variable', [ 'variable' => $variable['path'] ] )"
-                                />
+                                    :aria-label="__( 'Insert :variable', [ 'variable' => $variable['path'] ] )">{{ $variable['path'] }}</x-artisanpack-button>
                             </li>
                         @endforeach
                     </ul>
@@ -225,12 +204,12 @@
         </aside>
     </div>
 
-    <x-artisanpack-modal wire:model="confirmingReset" :title="__( 'Reset to the default copy?' )" separator>
+    <x-artisanpack-dialog wire:model="confirmingReset" :title="__( 'Reset to the default copy?' )">
         <p>{{ __( 'The subject and body go back to the copy the store shipped with. Your edits to them are lost; the preview data and language stay.' ) }}</p>
 
-        <x-slot:actions>
-            <x-artisanpack-button variant="ghost" wire:click="cancelReset" :label="__( 'Keep my copy' )" />
-            <x-artisanpack-button color="error" wire:click="resetToDefault" wire:loading.attr="disabled" :label="__( 'Reset' )" />
-        </x-slot:actions>
-    </x-artisanpack-modal>
+        <x-slot:footer>
+            <x-artisanpack-button variant="ghost" wire:click="cancelReset">{{ __( 'Keep my copy' ) }}</x-artisanpack-button>
+            <x-artisanpack-button color="error" wire:click="resetToDefault" wire:loading.attr="disabled">{{ __( 'Reset' ) }}</x-artisanpack-button>
+        </x-slot:footer>
+    </x-artisanpack-dialog>
 </div>

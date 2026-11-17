@@ -26,7 +26,7 @@ it( 'renders subscriptions with their state and failures', function (): void {
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">Webhook subscriptions</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Webhook subscriptions</caption>' )
         ->assertSee( 'Fulfilment partner' )
         ->assertSee( 'https://partner.example.test/hooks' )
         ->assertSee( 'order.refunded' )
@@ -71,6 +71,10 @@ it( 'creates a subscription and shows its secret once', function (): void {
     expect( $secret )->toStartWith( 'whsec_' )
         ->and( $subscription->events )->toBe( [ 'order.refunded', 'order.cancelled' ] )
         ->and( (string) DB::table( ( new WebhookSubscription() )->getTable() )->value( 'secret' ) )->not->toContain( $secret );
+
+    // An alertdialog with no close button, so an outside click can't lose the secret.
+    expect( $component->html() )->toMatch( '/role="alertdialog"[^>]*>.*data-revealed-secret/s' )
+        ->not->toMatch( '/data-revealed-secret.*data-part="close-trigger"/s' );
 
     $component->assertSeeHtml( 'data-revealed-secret' )
         ->assertSee( $secret )

@@ -16,18 +16,18 @@ it( 'publishes the config', function (): void {
     expect( File::exists( config_path( 'artisanpack/ecommerce-admin-livewire.php' ) ) )->toBeTrue();
 } );
 
-it( 'prints the Tailwind source lines and the npm dependency', function (): void {
+it( 'prints the design-system import, the Tailwind source lines and the npm dependencies', function (): void {
     $command = $this->artisan( 'ecommerce-admin:install' );
 
-    foreach ( InstallCommand::TAILWIND_SOURCES as $source ) {
+    foreach ( [ ...InstallCommand::STYLESHEET_IMPORTS, ...InstallCommand::TAILWIND_SOURCES ] as $source ) {
         $command->expectsOutputToContain( $source );
     }
 
-    $command->expectsOutputToContain( 'npm install @artisanpack-ui/livewire-drag-and-drop apexcharts flatpickr' )
+    $command->expectsOutputToContain( 'npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop' )
         ->assertSuccessful();
 } );
 
-it( 'prints the script globals, the asset publish command, the daisyUI pin, and the docs link', function (): void {
+it( 'prints the script lines, the asset publish command, the daisyUI removal, and the docs link', function (): void {
     $command = $this->artisan( 'ecommerce-admin:install' );
 
     foreach ( InstallCommand::JS_GLOBALS as $line ) {
@@ -35,7 +35,7 @@ it( 'prints the script globals, the asset publish command, the daisyUI pin, and 
     }
 
     $command->expectsOutputToContain( 'php artisan vendor:publish --tag=artisanpack-assets' )
-        ->expectsOutputToContain( '~5.0' )
+        ->expectsOutputToContain( 'Remove daisyUI' )
         ->expectsOutputToContain( InstallCommand::FRONT_END_DOCS )
         ->assertSuccessful();
 } );

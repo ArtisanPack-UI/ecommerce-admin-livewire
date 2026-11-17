@@ -23,8 +23,8 @@ it( 'renders the pickers on x-artisanpack-choices with server search', function 
 
     Livewire::actingAs( makeUser() )
         ->test( HelperForm::class )
-        ->assertSeeHtml( '.searchPicker(value, &#039;product&#039;, &#039;productIds&#039;)' )
-        ->assertSeeHtml( '.searchPicker(value, &#039;customer&#039;, &#039;customerId&#039;)' )
+        ->assertSeeHtml( 'searchPicker&#039;, $event.detail.search, &#039;product&#039;, &#039;productIds&#039;)' )
+        ->assertSeeHtml( 'searchPicker&#039;, $event.detail.search, &#039;customer&#039;, &#039;customerId&#039;)' )
         ->assertSee( 'Blue Mug' );
 } );
 

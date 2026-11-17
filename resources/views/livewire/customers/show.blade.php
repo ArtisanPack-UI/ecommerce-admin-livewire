@@ -11,28 +11,27 @@
     use ArtisanPackUI\Ecommerce\Support\MoneyFormatter;
 @endphp
 <div class="flex flex-col gap-4">
-    <x-artisanpack-header
+    <x-artisanpack-page-header
         :title="$name ?? $customer->email"
-        :subtitle="null === $name ? null : $customer->email"
+        :description="null === $name ? null : $customer->email"
         :level="1"
-        separator
     >
         <x-slot:actions>
             @if ( null !== $indexUrl )
-                <x-artisanpack-button variant="ghost" icon="o-arrow-left" :link="$indexUrl" :label="__( 'All customers' )" />
+                <x-artisanpack-button variant="ghost" leading-icon="o-arrow-left" :href="$indexUrl">{{ __( 'All customers' ) }}</x-artisanpack-button>
             @endif
             @if ( $canUpdate && ! $editing )
-                <x-artisanpack-button icon="o-pencil" wire:click="startEdit" :label="__( 'Edit' )" data-edit-customer />
+                <x-artisanpack-button leading-icon="o-pencil" wire:click="startEdit" data-edit-customer>{{ __( 'Edit' ) }}</x-artisanpack-button>
             @endif
             @if ( $canDelete && ! $confirmingDelete )
-                <x-artisanpack-button variant="outline" color="error" icon="o-trash" wire:click="startDelete" :label="__( 'Delete' )" data-delete-customer data-focus-key="customer-delete" />
+                <x-artisanpack-button variant="outline" color="error" leading-icon="o-trash" wire:click="startDelete" data-delete-customer data-focus-key="customer-delete">{{ __( 'Delete' ) }}</x-artisanpack-button>
             @endif
         </x-slot:actions>
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     <div class="flex flex-wrap gap-2" role="group" aria-label="{{ __( 'Customer status' ) }}">
-        <x-artisanpack-badge :value="null === $customer->user_id ? __( 'Guest' ) : __( 'Has an account' )" class="badge-sm" color="neutral" />
-        <x-artisanpack-badge :value="$customer->accepts_marketing ? __( 'Subscribed to marketing' ) : __( 'Not subscribed to marketing' )" class="badge-sm" :color="$customer->accepts_marketing ? 'success' : 'neutral'" />
+        <x-artisanpack-badge :value="null === $customer->user_id ? __( 'Guest' ) : __( 'Has an account' )" size="sm" color="neutral" />
+        <x-artisanpack-badge :value="$customer->accepts_marketing ? __( 'Subscribed to marketing' ) : __( 'Not subscribed to marketing' )" size="sm" :color="$customer->accepts_marketing ? 'success' : 'neutral'" />
     </div>
 
     <dl class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" data-customer-stats>
@@ -59,7 +58,7 @@
     </dl>
 
     @if ( $editing )
-        <x-artisanpack-card :title="__( 'Edit customer' )" shadow>
+        <x-artisanpack-card :title="__( 'Edit customer' )">
             <form wire:submit="saveDetails" class="grid gap-4 sm:grid-cols-2" data-customer-details-form>
                 <x-artisanpack-input id="customer-first-name" :label="__( 'First name' )" autocomplete="off" wire:model="firstName" />
                 <x-artisanpack-input id="customer-last-name" :label="__( 'Last name' )" autocomplete="off" wire:model="lastName" />
@@ -68,15 +67,15 @@
                     <x-artisanpack-toggle
                         id="customer-accepts-marketing"
                         :label="__( 'Accepts marketing' )"
-                        :hint="null === $customer->accepts_marketing_at
+                        :description="null === $customer->accepts_marketing_at
                             ? __( 'Turning this on records today as the date of consent.' )
                             : __( 'Consent recorded :date. Turning this off clears it.', [ 'date' => LocalizedDate::format( $customer->accepts_marketing_at ) ] )"
                         wire:model="acceptsMarketing"
                     />
                 </div>
                 <div class="flex gap-2 sm:col-span-2">
-                    <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" spinner="saveDetails" :label="__( 'Save' )" />
-                    <x-artisanpack-button variant="ghost" wire:click="cancelEdit" :label="__( 'Cancel' )" />
+                    <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save' ) }}</x-artisanpack-button>
+                    <x-artisanpack-button variant="ghost" wire:click="cancelEdit">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                 </div>
             </form>
         </x-artisanpack-card>
@@ -129,8 +128,8 @@
                     autocomplete="off"
                     wire:model="deleteConfirmation"
                 />
-                <x-artisanpack-button type="submit" color="error" wire:loading.attr="disabled" spinner="deleteCustomer" :label="__( 'Delete customer' )" />
-                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" data-focus-return="customer-delete" :label="__( 'Cancel' )" />
+                <x-artisanpack-button type="submit" color="error" wire:loading.attr="disabled">{{ __( 'Delete customer' ) }}</x-artisanpack-button>
+                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" data-focus-return="customer-delete">{{ __( 'Cancel' ) }}</x-artisanpack-button>
             </form>
         </div>
     @endif

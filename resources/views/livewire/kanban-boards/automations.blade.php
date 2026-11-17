@@ -10,15 +10,15 @@
     <div class="flex flex-wrap items-center gap-2">
         <h2 id="board-automations-heading" class="grow text-lg font-semibold">{{ __( 'Automations' ) }}</h2>
         @if ( $canUpdate && $hasColumns )
-            <x-artisanpack-button size="sm" variant="outline" icon="o-plus" wire:click="create" :label="__( 'Add automation' )" />
+            <x-artisanpack-button size="sm" variant="outline" leading-icon="o-plus" wire:click="create">{{ __( 'Add automation' ) }}</x-artisanpack-button>
         @endif
     </div>
     <p class="text-sm opacity-75">{{ __( 'Automations run when a card moves into a column, like emailing the customer when an order reaches "Shipped".' ) }}</p>
 
     @if ( ! $hasColumns )
-        <x-artisanpack-ec-empty-state icon="o-bolt" :title="__( 'Add columns first' )" :description="__( 'Automations run when cards move between columns, so the board needs columns before it can have automations.' )" />
+        <x-artisanpack-ec-admin-empty-state icon="o-bolt" :title="__( 'Add columns first' )" :description="__( 'Automations run when cards move between columns, so the board needs columns before it can have automations.' )" />
     @elseif ( [] === $automations )
-        <x-artisanpack-ec-empty-state icon="o-bolt" :title="__( 'No automations yet' )" :description="__( 'Add one to send an email, call a webhook, or create a shipment when a card moves.' )" />
+        <x-artisanpack-ec-admin-empty-state icon="o-bolt" :title="__( 'No automations yet' )" :description="__( 'Add one to send an email, call a webhook, or create a shipment when a card moves.' )" />
     @else
         <ul class="flex list-none flex-col divide-y divide-base-300 rounded-box border border-base-300" aria-label="{{ __( 'Automations' ) }}">
             @foreach ( $automations as $automation )
@@ -33,7 +33,7 @@
                             <span aria-hidden="true">&middot;</span>
                             <span class="font-semibold">{{ $automation['trigger'] }}</span>
                             @unless ( $automation['is_active'] )
-                                <x-artisanpack-badge :value="__( 'Switched off' )" class="badge-sm badge-ghost" data-inactive-automation />
+                                <x-artisanpack-badge :value="__( 'Switched off' )" size="sm" variant="ghost" data-inactive-automation />
                             @endunless
                         </div>
                         <p class="text-sm opacity-75">{{ $automation['conditions'] }}</p>
@@ -44,12 +44,12 @@
                             <x-artisanpack-button
                                 variant="ghost"
                                 size="sm"
-                                :icon="$automation['is_active'] ? 'o-pause' : 'o-play'"
+                                :leading-icon="$automation['is_active'] ? 'o-pause' : 'o-play'"
                                 wire:click="toggleActive( {{ $automation['id'] }} )"
                                 :aria-label="$automation['is_active'] ? __( 'Switch off :name', [ 'name' => $summary ] ) : __( 'Switch on :name', [ 'name' => $summary ] )"
                             />
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="edit( {{ $automation['id'] }} )" :aria-label="__( 'Edit :name', [ 'name' => $summary ] )" />
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $automation['id'] }} )" :aria-label="__( 'Delete :name', [ 'name' => $summary ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-pencil" wire:click="edit( {{ $automation['id'] }} )" :aria-label="__( 'Edit :name', [ 'name' => $summary ] )" />
+                            <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="confirmDelete( {{ $automation['id'] }} )" :aria-label="__( 'Delete :name', [ 'name' => $summary ] )" />
                         </div>
                     @endif
                 </li>
@@ -60,10 +60,7 @@
     <x-artisanpack-drawer
         wire:model="editing"
         :title="null === $automationId ? __( 'New automation' ) : __( 'Edit automation' )"
-        right
-        separator
-        with-close-button
-        close-on-escape
+        side="end"
         class="w-full max-w-2xl"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-automation-form>
@@ -72,17 +69,15 @@
                 <x-artisanpack-select
                     id="automation-from"
                     :label="__( 'When a card moves from' )"
-                    :options="$columnOptions"
+                    :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $columnOptions )"
                     :placeholder="__( 'Any column' )"
-                    placeholder-value=""
                     wire:model="form.from_column_id"
                 />
                 <x-artisanpack-select
                     id="automation-to"
                     :label="__( 'Into' )"
-                    :options="$columnOptions"
+                    :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $columnOptions )"
                     :placeholder="__( 'Choose a column' )"
-                    placeholder-value=""
                     wire:model="form.to_column_id"
                     required
                 />
@@ -91,9 +86,8 @@
             <x-artisanpack-select
                 id="automation-trigger"
                 :label="__( 'Run' )"
-                :options="$triggerOptions"
+                :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $triggerOptions )"
                 :placeholder="__( 'Choose a trigger' )"
-                placeholder-value=""
                 wire:model.live="form.trigger_key"
                 required
             />
@@ -120,7 +114,7 @@
                     </x-artisanpack-alert>
                     <pre class="overflow-x-auto rounded-box bg-base-200 p-3 text-sm"><code>{{ $complexJson }}</code></pre>
                     <div>
-                        <x-artisanpack-button variant="outline" size="sm" wire:click="replaceComplexConditions" :label="__( 'Replace with simple conditions' )" />
+                        <x-artisanpack-button variant="outline" size="sm" wire:click="replaceComplexConditions">{{ __( 'Replace with simple conditions' ) }}</x-artisanpack-button>
                     </div>
                 </div>
             @else
@@ -128,28 +122,26 @@
             @endif
 
             <div class="flex justify-end gap-2">
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )" :label="__( 'Cancel' )" />
-                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Save automation' )" />
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save automation' ) }}</x-artisanpack-button>
             </div>
         </form>
     </x-artisanpack-drawer>
 
     @if ( null !== $deleting )
-        <x-artisanpack-modal wire:model="confirmingDelete" :title="__( 'Delete this automation?' )" separator>
+        <x-artisanpack-dialog wire:model="confirmingDelete" :title="__( 'Delete this automation?' )">
             <p data-delete-automation="{{ $deleting['id'] }}">
                 {{ __( ':from to :to: :trigger. Deleting it cannot be undone.', [ 'from' => $deleting['from'], 'to' => $deleting['to'], 'trigger' => $deleting['trigger'] ] ) }}
             </p>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" :label="__( 'Keep automation' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="cancelDelete">{{ __( 'Keep automation' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
                     wire:click="delete( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"
                     wire:loading.attr="disabled"
-                    :label="__( 'Delete automation' )"
-                    data-delete-button
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    data-delete-button>{{ __( 'Delete automation' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </section>

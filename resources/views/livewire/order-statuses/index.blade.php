@@ -7,7 +7,7 @@
     @since      1.0.0
 --}}
 <div class="flex flex-col gap-6">
-    <x-artisanpack-header :title="__( 'Order statuses' )" :subtitle="__( 'Sub-statuses refine each order status. Order screens and kanban columns use them.' )" :level="1" separator />
+    <x-artisanpack-page-header :title="__( 'Order statuses' )" :description="__( 'Sub-statuses refine each order status. Order screens and kanban columns use them.' )" :level="1" />
 
     @foreach ( $groups as $group )
         <section wire:key="system-status-{{ $group['status'] }}" class="flex flex-col gap-2" aria-labelledby="system-status-{{ $group['status'] }}-heading" data-system-status="{{ $group['status'] }}">
@@ -20,11 +20,9 @@
                     <x-artisanpack-button
                         size="sm"
                         variant="outline"
-                        icon="o-plus"
+                        leading-icon="o-plus"
                         wire:click="create( {{ \Illuminate\Support\Js::from( $group['status'] ) }} )"
-                        :label="__( 'Add sub-status' )"
-                        :aria-label="__( 'Add sub-status to :status', [ 'status' => $group['label'] ] )"
-                    />
+                        :aria-label="__( 'Add sub-status to :status', [ 'status' => $group['label'] ] )">{{ __( 'Add sub-status' ) }}</x-artisanpack-button>
                 @endif
             </div>
 
@@ -57,7 +55,7 @@
                                 <x-artisanpack-button
                                     variant="ghost"
                                     size="sm"
-                                    icon="o-arrow-up"
+                                    leading-icon="o-arrow-up"
                                     wire:click="move( {{ $substatus->id }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="substatuses-{{ $group['status'] }}" data-reorder-key="substatus-{{ $substatus->id }}" data-reorder-item="{{ $substatus->label }}"
                                     :disabled="$loop->first"
                                     :aria-label="__( 'Move :name up', [ 'name' => $substatus->label ] )"
@@ -65,15 +63,15 @@
                                 <x-artisanpack-button
                                     variant="ghost"
                                     size="sm"
-                                    icon="o-arrow-down"
+                                    leading-icon="o-arrow-down"
                                     wire:click="move( {{ $substatus->id }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="substatuses-{{ $group['status'] }}" data-reorder-key="substatus-{{ $substatus->id }}" data-reorder-item="{{ $substatus->label }}"
                                     :disabled="$loop->last"
                                     :aria-label="__( 'Move :name down', [ 'name' => $substatus->label ] )"
                                 />
-                                <x-artisanpack-button variant="ghost" size="sm" icon="o-pencil" wire:click="edit( {{ $substatus->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $substatus->label ] )" />
+                                <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-pencil" wire:click="edit( {{ $substatus->id }} )" :aria-label="__( 'Edit :name', [ 'name' => $substatus->label ] )" />
                             @endif
                             @if ( $canDelete )
-                                <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="confirmDelete( {{ $substatus->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $substatus->label ] )" />
+                                <x-artisanpack-button variant="ghost" size="sm" leading-icon="o-trash" wire:click="confirmDelete( {{ $substatus->id }} )" :aria-label="__( 'Delete :name', [ 'name' => $substatus->label ] )" />
                             @endif
                         </div>
                     </li>
@@ -85,10 +83,7 @@
     <x-artisanpack-drawer
         wire:model="editing"
         :title="null === $substatusId ? __( 'New sub-status' ) : __( 'Edit sub-status' )"
-        right
-        separator
-        with-close-button
-        close-on-escape
+        side="end"
         class="w-full max-w-lg"
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-substatus-form>
@@ -103,7 +98,7 @@
                 <x-artisanpack-input id="substatus-key" :label="__( 'Key' )" :hint="__( 'Automations and integrations refer to the key, so it cannot be changed.' )" :value="$form['key']" readonly />
             @endif
 
-            <x-artisanpack-colorpicker id="substatus-color" :label="__( 'Colour' )" :hint="__( 'A hex code like #3B82F6. Leave empty for a neutral badge.' )" wire:model.live.debounce.300ms="form.color" />
+            <x-artisanpack-color-picker id="substatus-color" :label="__( 'Colour' )" :hint="__( 'A hex code like #3B82F6. Leave empty for a neutral badge.' )" wire:model.live.debounce.300ms="form.color" />
 
             @if ( null !== $contrastWarning )
                 <x-artisanpack-alert color="warning" icon="o-exclamation-triangle" role="status" data-contrast-warning>
@@ -113,14 +108,13 @@
 
             @if ( $iconPicker )
                 <div data-icon-picker>
-                    <x-artisanpack-choices-offline
+                    <x-artisanpack-combobox
                         id="substatus-icon"
                         :label="__( 'Icon' )"
-                        :options="$iconOptions"
-                        single
-                        searchable
+                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $iconOptions )"
+                        :multiple="false"
                         clearable
-                        :no-result-text="__( 'No results found.' )"
+                        :empty-label="__( 'No results found.' )"
                         wire:model="form.icon"
                     />
                 </div>
@@ -128,7 +122,7 @@
                 <x-artisanpack-input id="substatus-icon" :label="__( 'Icon' )" :hint="__( 'An icon name, such as o-printer. Install artisanpack-ui/icons to pick from a list.' )" wire:model="form.icon" maxlength="80" data-icon-text />
             @endif
 
-            <x-artisanpack-toggle id="substatus-terminal" :label="__( 'Terminal' )" :hint="__( 'Orders on a terminal sub-status are finished. Kanban boards treat them as done.' )" wire:model="form.is_terminal" />
+            <x-artisanpack-toggle id="substatus-terminal" :label="__( 'Terminal' )" :description="__( 'Orders on a terminal sub-status are finished. Kanban boards treat them as done.' )" wire:model="form.is_terminal" />
 
             @if ( '' !== trim( (string) $form['label'] ) )
                 <div class="flex items-center gap-2" data-substatus-preview>
@@ -138,15 +132,15 @@
             @endif
 
             <div class="flex justify-end gap-2">
-                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )" :label="__( 'Cancel' )" />
-                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled" :label="__( 'Save sub-status' )" />
+                <x-artisanpack-button variant="ghost" wire:click="$set( 'editing', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" color="primary" wire:loading.attr="disabled">{{ __( 'Save sub-status' ) }}</x-artisanpack-button>
             </div>
         </form>
     </x-artisanpack-drawer>
 
     @if ( null !== $deleting )
         @php $deleteTitle = __( 'Delete ":name"?', [ 'name' => $deleting->label ] ); @endphp
-        <x-artisanpack-modal wire:model="confirmingDelete" :title="$deleteTitle" separator>
+        <x-artisanpack-dialog wire:model="confirmingDelete" :title="$deleteTitle">
             <div class="flex flex-col gap-3" data-delete-substatus="{{ $deleting->key }}">
                 @if ( $deletingIsLast )
                     <x-artisanpack-alert color="warning" icon="o-exclamation-triangle" role="status" data-delete-last>
@@ -165,17 +159,15 @@
                 @endif
             </div>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="cancelDelete" :label="__( 'Keep sub-status' )" />
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" wire:click="cancelDelete">{{ __( 'Keep sub-status' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
                     wire:click="delete( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"
                     wire:loading.attr="disabled"
                     :disabled="$deleteBlocked"
-                    :label="__( 'Delete sub-status' )"
-                    data-delete-button
-                />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+                    data-delete-button>{{ __( 'Delete sub-status' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

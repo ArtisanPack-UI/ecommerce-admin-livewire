@@ -30,7 +30,7 @@ it( 'renders customers with their counters and badges', function (): void {
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">Customers</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Customers</caption>' )
         ->assertSee( [ 'Ada Lovelace', 'ada@example.test', '$123.45', 'Subscribed', 'Has an account' ] )
         ->assertSee( [ 'Grace Hopper', 'Not subscribed', 'Guest', 'Never' ] );
 } );

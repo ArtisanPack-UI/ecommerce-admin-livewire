@@ -12,7 +12,7 @@
 @endphp
 <div class="flex flex-col gap-4" data-promotion-usage>
     @if ( 0 === $usages->total() )
-        <x-artisanpack-ec-empty-state icon="o-chart-bar" :title="__( 'Not used yet' )" :description="__( 'Orders that this promotion discounts appear here.' )" />
+        <x-artisanpack-ec-admin-empty-state icon="o-chart-bar" :title="__( 'Not used yet' )" :description="__( 'Orders that this promotion discounts appear here.' )" />
     @else
         <dl class="flex flex-wrap gap-3" aria-label="{{ __( 'Total discounted' ) }}" data-usage-totals>
             @foreach ( $totals as $total )
@@ -58,7 +58,7 @@
                                     {{ $usageCustomer }}
                                 @endif
                             </td>
-                            <td class="text-end"><x-artisanpack-ec-money :amount="(int) $usage->amount_discounted" :currency="$usage->currency" /></td>
+                            <td class="text-end"><x-artisanpack-ec-admin-money :amount="(int) $usage->amount_discounted" :currency="$usage->currency" /></td>
                             <td>{{ null === $usage->created_at ? '—' : LocalizedDate::format( $usage->created_at ) }}</td>
                         </tr>
                     @endforeach
@@ -66,6 +66,6 @@
             </table>
         </div>
 
-        <x-artisanpack-pagination :rows="$usages" hide-per-page :page-info-template="__( 'Showing {from} to {to} of {total} results' )" />
+        <x-artisanpack-pagination :rows="$usages" :summary-label="__( 'Showing {from} to {to} of {total} results' )" />
     @endif
 </div>
