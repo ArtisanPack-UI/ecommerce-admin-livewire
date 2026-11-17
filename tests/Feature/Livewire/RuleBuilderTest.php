@@ -96,3 +96,35 @@ it( 'drops rows the client forges', function (): void {
         ->call( 'save' )
         ->assertSet( 'saved', [] );
 } );
+
+it( 'renders each rule as a named, bordered row with icon-only move and remove buttons', function (): void {
+    $component = Livewire::test( RoutingRulesHost::class )
+        ->set( 'ruleToAdd.conditions', 'min-subtotal' )->call( 'addRule', 'conditions' )
+        ->set( 'ruleToAdd.conditions', 'customer-first-order' )->call( 'addRule', 'conditions' )
+        ->assertSeeHtml( 'class="ec-rule"' )
+        ->assertSeeHtml( 'data-icon-only' )
+        ->assertSee( '2 rules' )
+        ->assertDontSeeHtml( '<x-' )
+        ->assertDontSeeHtml( 'rounded-box' )
+        ->assertDontSeeHtml( 'border-error' );
+
+    expect( $component->html() )->toMatch( '/<li[^>]*aria-label="1\. [^"]+"/' )
+        ->toMatch( '/<li[^>]*aria-label="2\. [^"]+"/' )
+        ->toMatch( '/aria-label="Move [^"]+ up"/' );
+} );
+
+it( 'marks a row with errors and shows its "Has errors" badge', function (): void {
+    $component = Livewire::test( RoutingRulesHost::class )
+        ->set( 'ruleToAdd.conditions', 'day-of-week' )->call( 'addRule', 'conditions' )
+        ->assertDontSee( 'Has errors' )
+        ->call( 'save' )
+        ->assertSee( 'Has errors' );
+
+    expect( $component->html() )->toMatch( '/<li[^>]*class="ec-rule"[^>]*data-invalid/' );
+} );
+
+it( 'shows the empty list as a dashed note', function (): void {
+    Livewire::test( RoutingRulesHost::class )
+        ->assertSeeHtml( '<p class="ec-rule-empty">No rules: this board catches every order.</p>' )
+        ->assertDontSee( 'Drag a row' );
+} );

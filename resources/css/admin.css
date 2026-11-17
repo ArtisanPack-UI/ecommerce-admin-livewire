@@ -462,4 +462,258 @@
         gap: 12px;
         min-inline-size: 0;
     }
+
+    /* Rule builder (#88) */
+    .ec-rule-builder {
+        display: grid;
+        gap: 24px;
+    }
+
+    .ec-rule-summary-label {
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-rule-list {
+        display: grid;
+        gap: 12px;
+        min-inline-size: 0;
+    }
+
+    .ec-rule-list-head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }
+
+    .ec-rule-count,
+    .ec-rule-help,
+    .ec-rule-desc {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-rule-help {
+        margin: 0;
+    }
+
+    .ec-rule-empty {
+        margin: 0;
+        padding: 16px;
+        border: var(--apui-border-width) dashed var(--apui-border-default);
+        border-radius: var(--apui-radius-md);
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+    }
+
+    .ec-rule-rows {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-rule {
+        border: var(--apui-border-width) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-default);
+    }
+
+    .ec-rule[data-invalid] {
+        border-color: var(--apui-color-error-border);
+    }
+
+    /* The row being dragged lifts off the list. */
+    .ec-rule[data-dragging] {
+        border-color: var(--apui-border-strong);
+        background: var(--apui-surface-raised);
+        box-shadow: var(--apui-elevation-overlay);
+    }
+
+    .ec-rule-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        min-block-size: 44px;
+        box-sizing: border-box;
+        padding-block: 8px;
+        padding-inline: 12px 8px;
+    }
+
+    .ec-rule-handle {
+        display: inline-flex;
+        color: var(--apui-text-muted);
+        cursor: grab;
+    }
+
+    .ec-rule-index {
+        color: var(--apui-text-muted);
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-rule-title {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-rule-actions {
+        display: flex;
+        gap: 2px;
+        margin-inline-start: auto;
+    }
+
+    .ec-rule-error {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-block: -2px 10px;
+        margin-inline: 12px;
+        color: var(--apui-color-error-text);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: var(--apui-type-caption-line-height, 16px);
+    }
+
+    .ec-rule-body {
+        display: grid;
+        gap: var(--apui-field-gap);
+        margin-block: 0 12px;
+        margin-inline: 12px;
+        padding: 16px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-rule-add {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .ec-rule-add-select {
+        flex: 1 1 220px;
+        max-inline-size: 320px;
+    }
+
+    /* Activity timeline (#89): the filter is a segmented group of toggle
+       buttons, so the pressed one takes the selected tab's look. */
+    .ec-timeline [data-scope="card"][data-part="header"] {
+        flex-wrap: wrap;
+    }
+
+    .ec-timeline [data-scope="tabs"][data-part="trigger"][aria-pressed="true"] {
+        background: var(--apui-surface-raised);
+        box-shadow: inset 0 0 0 var(--apui-border-width) var(--apui-border-muted);
+        color: var(--apui-text-default);
+    }
+
+    .ec-timeline [data-timeline-entry]:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid var(--apui-focus-ring-color);
+        outline-offset: 2px;
+        border-radius: var(--apui-radius-sm, 4px);
+    }
+
+    .ec-timeline-event {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-timeline-loading {
+        display: grid;
+        gap: 20px;
+    }
+
+    .ec-timeline-skeleton {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr);
+        align-items: start;
+        gap: 12px;
+    }
+
+    .ec-timeline-skeleton-lines {
+        display: grid;
+        gap: 2px;
+        padding-block-start: 4px;
+    }
+
+    /* Sized here, not with Skeleton's width/height props: those render an
+       inline style attribute, which the nonce-only style CSP blocks. */
+    .ec-timeline-skeleton .ec-skel-marker {
+        inline-size: 32px;
+        block-size: 32px;
+    }
+
+    .ec-timeline-skeleton .ec-skel-line {
+        inline-size: 70%;
+    }
+
+    .ec-timeline-skeleton .ec-skel-line-short {
+        inline-size: 36%;
+    }
+
+    .ec-timeline-more {
+        margin-block-start: 16px;
+    }
+
+    .ec-details {
+        grid-column: 2;
+        margin-block-start: 6px;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    .ec-details > summary {
+        color: var(--apui-color-primary-text);
+        font-weight: var(--apui-font-weight-medium, 500);
+        cursor: pointer;
+    }
+
+    .ec-details .ec-payload {
+        margin-block: 8px 0;
+        margin-inline: 0;
+        padding: 10px 12px;
+        border: var(--apui-border-width) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: 18px;
+        text-align: start;
+        unicode-bidi: isolate;
+    }
+
+    /* Webhook secret dialogs (#91) */
+    .ec-dialog-footer-divided {
+        border-block-start: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-secret-reveal {
+        display: grid;
+        gap: var(--apui-field-gap);
+    }
+
+    .ec-secret-field {
+        display: grid;
+        gap: 6px;
+    }
+
+    .ec-secret [data-scope="clipboard"][data-part="tooltip"] {
+        color: var(--apui-text-muted);
+    }
+
+    .apui-clipboard.ec-secret[data-state="copied"] [data-scope="clipboard"][data-part="tooltip"] {
+        color: var(--apui-color-success-text);
+    }
+
+    .apui-clipboard.ec-secret[data-state="failed"] [data-scope="clipboard"][data-part="tooltip"] {
+        color: var(--apui-color-error-text);
+    }
+
+    @media (max-width: 40rem) {
+        .ec-dialog-footer-divided {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+    }
 }
