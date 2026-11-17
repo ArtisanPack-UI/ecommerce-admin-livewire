@@ -7,7 +7,9 @@
     a decorative marker (toned only for events that need attention or
     complete money movement), the event and a relative time with the full
     date hidden after it, the actor, and the raw payload of an event the
-    admin doesn't know. "Load more" moves focus to the first new entry.
+    admin doesn't know. "Load more" moves focus to the entry after the last
+    one shown before it, found by id, so events that arrived in the
+    meantime don't shift it.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -37,8 +39,9 @@
             </div>
         </x-slot:actions>
 
-        <div class="ec-timeline-loading" wire:loading.grid wire:target="filter" aria-busy="true">
-            <p class="apui-sr-only" role="status">{{ __( 'Loading activity…' ) }}</p>
+        {{-- Always present and outside the skeleton, so nothing busy or hidden swallows the announcement. --}}
+        <p class="apui-sr-only" role="status" data-timeline-status><span wire:loading wire:target="filter">{{ __( 'Loading activity…' ) }}</span></p>
+        <div class="ec-timeline-loading" wire:loading.grid wire:target="filter" aria-hidden="true">
             @for ( $skeleton = 0; $skeleton < 4; $skeleton++ )
                 <div class="ec-timeline-skeleton" aria-hidden="true">
                     <x-artisanpack-skeleton shape="circle" class="ec-skel-marker" />
@@ -67,7 +70,7 @@
                             data-scope="timeline"
                             data-part="item"
                             data-event-type="{{ $entry['type'] }}"
-                            data-timeline-entry
+                            data-timeline-entry="{{ $entry['id'] }}"
                             tabindex="-1"
                         >
                             <span data-scope="timeline" data-part="marker"@if ( null !== $entry['tone'] ) data-color="{{ $entry['tone'] }}"@endif aria-hidden="true">{!! IconRegistry::render( $entry['icon'] ) !!}</span>
@@ -98,7 +101,7 @@
                             wire:target="loadMore"
                             data-load-more
                             x-data
-                            x-on:click="const shown = {{ count( $entries ) }}; const list = $el.closest( '[data-timeline]' ); $wire.loadMore().then( () => $nextTick( () => list?.querySelectorAll( '[data-timeline-entry]' )[ shown ]?.focus() ) )"
+                            x-on:click="const list = $el.closest( '[data-timeline]' ); const shown = [ ...( list?.querySelectorAll( '[data-timeline-entry]' ) ?? [] ) ]; const last = shown.at( -1 )?.dataset.timelineEntry; $wire.loadMore().then( () => $nextTick( () => { const entries = [ ...( list?.querySelectorAll( '[data-timeline-entry]' ) ?? [] ) ]; const index = entries.findIndex( ( entry ) => entry.dataset.timelineEntry === last ); if ( index >= 0 ) { entries[ index + 1 ]?.focus() } } ) )"
                         >{{ __( 'Load more' ) }}</x-artisanpack-button>
                     </div>
                 @endif

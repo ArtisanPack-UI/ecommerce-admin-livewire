@@ -290,16 +290,19 @@ it( 'keeps a raw payload left to right', function (): void {
         ->assertSeeHtml( '<pre class="ec-payload" dir="ltr">' );
 } );
 
-it( 'focuses the first newly loaded entry after Load more', function (): void {
-    foreach ( range( 1, Timeline::PAGE_SIZE + 1 ) as $index ) {
-        timelineEntry( $this->order, 'note.added', [ 'body' => 'Note ' . $index ] );
-    }
+it( 'marks each entry with its id for the Load more focus hand-off', function (): void {
+    $entry = timelineEntry( $this->order, 'note.added', [ 'body' => 'Only note' ] );
 
     Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
-        ->assertSeeHtml( 'data-load-more' )
-        ->assertSeeHtml( 'const shown = ' . Timeline::PAGE_SIZE . ';' )
-        ->assertSeeHtml( 'data-timeline-entry' )
+        ->assertSeeHtml( 'data-timeline-entry="' . $entry->id . '"' )
         ->assertSeeHtml( 'tabindex="-1"' );
+} );
+
+it( 'announces loading from a status region outside any busy or hidden element', function (): void {
+    $html = Livewire::test( Timeline::class, [ 'subject' => $this->order ] )->html();
+
+    expect( $html )->toContain( '<p class="apui-sr-only" role="status" data-timeline-status><span wire:loading wire:target="filter">Loading activity…</span></p>' )
+        ->not->toContain( 'aria-busy' );
 } );
 
 it( 'renders with no uncompiled component tags', function (): void {
