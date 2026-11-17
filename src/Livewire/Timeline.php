@@ -75,6 +75,37 @@ class Timeline extends Component
     public const FILTERS = [ 'all', 'notes', 'system' ];
 
     /**
+     * Marker tones by event type. A marker takes a tone only when the event
+     * needs attention or completes money movement; every other event, and
+     * any type not listed here, stays neutral.
+     *
+     * @since 2.0.0
+     *
+     * @var array<string, string>
+     */
+    public const TONES = [
+        'payment.capture_failed'   => 'error',
+        'payment.fraud_blocked'    => 'error',
+        'payment.amount_mismatch'  => 'error',
+        'refund.failed'            => 'error',
+        'refund.amount_mismatch'   => 'error',
+        'kanban.automation_failed' => 'error',
+        'payment.fraud_challenged' => 'warning',
+        'payment.action_required'  => 'warning',
+        'payment.captured'         => 'success',
+        'order.refunded'           => 'success',
+    ];
+
+    /**
+     * The tones a satellite's filter may give a marker.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const TONE_COLORS = [ 'success', 'warning', 'error', 'info' ];
+
+    /**
      * Entries shown at first and added by each "load more".
      *
      * @since 1.0.0
@@ -292,7 +323,7 @@ class Timeline extends Component
      * @param  Model                  $subject  The subject.
      * @param  array<int, string>     $actors   Actor names by user id.
      *
-     * @return array{id: int, type: string, icon: string, description: string, known: bool, actor: string, time: Carbon|null, payload: string|null, isNote: bool}
+     * @return array{id: int, type: string, icon: string, tone: string|null, description: string, known: bool, actor: string, time: Carbon|null, payload: string|null, isNote: bool}
      */
     protected function present( Model $row, Model $subject, array $actors ): array
     {
@@ -302,6 +333,7 @@ class Timeline extends Component
 
         $presented = [
             'icon'        => $known['icon'] ?? null,
+            'tone'        => self::TONES[ $type ] ?? null,
             'description' => $known['description'] ?? null,
             'known'       => null !== $known,
         ];
@@ -311,9 +343,11 @@ class Timeline extends Component
         if ( is_array( $filtered ) ) {
             $description = $filtered['description'] ?? null;
             $icon        = $filtered['icon'] ?? null;
+            $tone        = $filtered['tone'] ?? $presented['tone'];
 
             $presented = [
                 'icon'        => is_string( $icon ) && '' !== $icon ? $icon : $presented['icon'],
+                'tone'        => in_array( $tone, self::TONE_COLORS, true ) ? $tone : null,
                 'description' => is_string( $description ) && '' !== trim( $description ) ? $description : null,
                 'known'       => ( $filtered['known'] ?? false ) === true || ( is_string( $description ) && '' !== trim( $description ) ),
             ];
@@ -332,7 +366,8 @@ class Timeline extends Component
         return [
             'id'          => (int) $row->getKey(),
             'type'        => $type,
-            'icon'        => $presented['icon'] ?? 'o-information-circle',
+            'icon'        => $presented['icon'] ?? 'info',
+            'tone'        => $presented['tone'],
             'description' => $known ? (string) $presented['description'] : $type,
             'known'       => $known,
             'actor'       => null === $actorId ? __( 'System' ) : ( $actors[ (int) $actorId ] ?? __( 'User #:id', [ 'id' => (int) $actorId ] ) ),
@@ -359,63 +394,63 @@ class Timeline extends Component
         $reason   = $this->withReason( $payload );
 
         $entry = match ( $type ) {
-            'order.placed'            => [ 'o-shopping-bag', __( 'Order placed' ) . $this->amountSuffix( $payload['total'] ?? null, $currency ) ],
-            'order.status_changed'    => [ 'o-arrow-path', __( 'Status changed from :from to :to', [
+            'order.placed'            => [ 'shopping-bag', __( 'Order placed' ) . $this->amountSuffix( $payload['total'] ?? null, $currency ) ],
+            'order.status_changed'    => [ 'refresh-cw', __( 'Status changed from :from to :to', [
                 'from' => $this->statusLabel( $payload['from'] ?? null ),
                 'to'   => $this->statusLabel( $payload['to'] ?? null ),
             ] ) . $reason ],
-            'order.substatus_changed'    => [ 'o-tag', $this->describeSubstatus( $payload ) . $reason ],
-            'order.cancelled'            => [ 'o-x-circle', $this->describeCancel( $payload, $currency ) ],
-            'order.refunded'             => [ 'o-receipt-refund', __( 'Refunded :amount', [ 'amount' => $this->money( $payload['amount'] ?? 0, $currency ) ] ) . $reason ],
-            'order.edited'               => [ 'o-pencil-square', $this->describeEdit( $payload, $currency ) ],
-            'note.added'                 => [ 'o-chat-bubble-left-ellipsis', $this->describeNote( $payload, true ) ],
-            'note.deleted'               => [ 'o-trash', $this->describeNote( $payload, false ) ],
-            'payment.authorized'         => [ 'o-credit-card', __( 'Payment of :amount authorized via :gateway', [ 'amount' => $this->money( $payload['amount'] ?? 0, $currency ), 'gateway' => (string) ( $payload['gateway'] ?? '' ) ] ) ],
-            'payment.captured'           => [ 'o-banknotes', __( 'Payment of :amount captured via :gateway', [ 'amount' => $this->money( $payload['amount'] ?? 0, $currency ), 'gateway' => (string) ( $payload['gateway'] ?? '' ) ] ) ],
-            'payment.capture_failed'     => [ 'o-exclamation-triangle', __( 'Payment capture failed: :message', [ 'message' => (string) ( $payload['message'] ?? __( 'unknown error' ) ) ] ) ],
-            'payment.fraud_blocked'      => [ 'o-shield-exclamation', __( 'Blocked by the fraud check (score :score)', [ 'score' => (string) ( $payload['score'] ?? '—' ) ] ) ],
-            'payment.fraud_challenged'   => [ 'o-shield-exclamation', __( 'Challenged by the fraud check (score :score)', [ 'score' => (string) ( $payload['score'] ?? '—' ) ] ) ],
-            'payment.action_required'    => [ 'o-finger-print', __( 'Payment action required' ) ],
-            'payment.amount_mismatch'    => [ 'o-exclamation-triangle', __( 'The gateway reported :refunded but :requested was requested. Needs reconciliation.', [
+            'order.substatus_changed'    => [ 'tag', $this->describeSubstatus( $payload ) . $reason ],
+            'order.cancelled'            => [ 'circle-x', $this->describeCancel( $payload, $currency ) ],
+            'order.refunded'             => [ 'undo-2', __( 'Refunded :amount', [ 'amount' => $this->money( $payload['amount'] ?? 0, $currency ) ] ) . $reason ],
+            'order.edited'               => [ 'pencil', $this->describeEdit( $payload, $currency ) ],
+            'note.added'                 => [ 'message-square', $this->describeNote( $payload, true ) ],
+            'note.deleted'               => [ 'trash', $this->describeNote( $payload, false ) ],
+            'payment.authorized'         => [ 'credit-card', __( 'Payment of :amount authorized via :gateway', [ 'amount' => $this->money( $payload['amount'] ?? 0, $currency ), 'gateway' => (string) ( $payload['gateway'] ?? '' ) ] ) ],
+            'payment.captured'           => [ 'banknote', __( 'Payment of :amount captured via :gateway', [ 'amount' => $this->money( $payload['amount'] ?? 0, $currency ), 'gateway' => (string) ( $payload['gateway'] ?? '' ) ] ) ],
+            'payment.capture_failed'     => [ 'triangle-alert', __( 'Payment capture failed: :message', [ 'message' => (string) ( $payload['message'] ?? __( 'unknown error' ) ) ] ) ],
+            'payment.fraud_blocked'      => [ 'shield-alert', __( 'Blocked by the fraud check (score :score)', [ 'score' => (string) ( $payload['score'] ?? '—' ) ] ) ],
+            'payment.fraud_challenged'   => [ 'shield-alert', __( 'Challenged by the fraud check (score :score)', [ 'score' => (string) ( $payload['score'] ?? '—' ) ] ) ],
+            'payment.action_required'    => [ 'lock', __( 'Payment action required' ) ],
+            'payment.amount_mismatch'    => [ 'triangle-alert', __( 'The gateway reported :refunded but :requested was requested. Needs reconciliation.', [
                 'refunded'  => $this->money( $payload['actual'] ?? null, (string) ( $payload['currency'] ?? $currency ) ),
                 'requested' => $this->money( $payload['expected'] ?? null, (string) ( $payload['currency'] ?? $currency ) ),
             ] ) ],
-            'refund.failed'              => [ 'o-exclamation-triangle', __( 'Refund of :amount failed: :error', [
+            'refund.failed'              => [ 'triangle-alert', __( 'Refund of :amount failed: :error', [
                 'amount' => $this->money( $payload['amount'] ?? null, (string) ( $payload['currency'] ?? $currency ) ),
                 'error'  => (string) ( $payload['error'] ?? __( 'unknown error' ) ),
             ] ) ],
-            'refund.amount_mismatch'     => [ 'o-exclamation-triangle', __( 'The gateway reported :refunded but :requested was requested. Needs reconciliation.', [
+            'refund.amount_mismatch'     => [ 'triangle-alert', __( 'The gateway reported :refunded but :requested was requested. Needs reconciliation.', [
                 'refunded'  => $this->money( $payload['refunded'] ?? null, (string) ( $payload['refunded_currency'] ?? $currency ) ),
                 'requested' => $this->money( $payload['requested'] ?? null, (string) ( $payload['requested_currency'] ?? $currency ) ),
             ] ) ],
-            'kanban.assignment_added'    => [ 'o-view-columns', __( 'Added to board ":board"', [ 'board' => $this->boardName( $payload ) ] ) ],
-            'kanban.assignment_removed'  => [ 'o-view-columns', __( 'Removed from board ":board"', [ 'board' => $this->boardName( $payload ) ] ) ],
-            'kanban.automation_fired'    => [ 'o-bolt', __( 'Automation ":trigger" ran on board ":board"', [ 'trigger' => (string) ( $payload['trigger_key'] ?? '' ), 'board' => $this->boardName( $payload ) ] ) ],
-            'kanban.automation_failed'   => [ 'o-bolt-slash', __( 'Automation ":trigger" failed: :error', [ 'trigger' => (string) ( $payload['trigger_key'] ?? '' ), 'error' => (string) ( $payload['error'] ?? __( 'unknown error' ) ) ] ) ],
-            'kanban.order_field_updated' => [ 'o-bolt', __( 'An automation updated the order\'s :field', [ 'field' => (string) ( $payload['field'] ?? '' ) ] ) ],
-            'product.created'            => [ 'o-cube', __( 'Product ":name" created', [ 'name' => (string) ( $payload['name'] ?? '' ) ] ) ],
-            'product.updated'            => [ 'o-cube', $this->describeChanges( __( 'Product changed' ), $payload ) ],
-            'product.deleted'            => [ 'o-trash', __( 'Product ":name" deleted', [ 'name' => (string) ( $payload['name'] ?? '' ) ] ) ],
-            'variant.created'            => [ 'o-squares-2x2', __( 'Variant :variant added', [ 'variant' => $this->variantLabel( $payload ) ] ) ],
-            'variant.updated'            => [ 'o-squares-2x2', $this->describeChanges( __( 'Variant :variant changed', [ 'variant' => $this->variantLabel( $payload ) ] ), $payload ) ],
-            'variant.deleted'            => [ 'o-trash', __( 'Variant :variant removed', [ 'variant' => $this->variantLabel( $payload ) ] ) ],
-            'price.created'              => [ 'o-currency-dollar', __( 'Price added: :amount', [ 'amount' => $this->money( $payload['amount'] ?? 0, $currency ) ] ) ],
-            'price.updated'              => [ 'o-currency-dollar', $this->describeChanges( __( 'Price changed' ), $payload ) ],
-            'price.deleted'              => [ 'o-trash', __( 'Price removed: :amount', [ 'amount' => $this->money( $payload['amount'] ?? 0, $currency ) ] ) ],
-            'inventory.adjusted'         => [ 'o-archive-box', $this->describeInventory( $payload ) ],
-            'customer.created'           => [ 'o-user-plus', __( 'Customer created' ) ],
-            'customer.updated'           => [ 'o-user', $this->describeChanges( __( 'Customer changed' ), $payload ) ],
-            'customer.deleted'           => [ 'o-user-minus', __( 'Customer deleted' ) ],
-            'address.added'              => [ 'o-map-pin', __( 'Address added' ) ],
-            'address.updated'            => [ 'o-map-pin', $this->describeFields( __( 'Address changed' ), $payload ) ],
-            'address.deleted'            => [ 'o-trash', __( 'Address deleted' ) ],
-            'promotion.created'          => [ 'o-megaphone', __( 'Promotion ":name" created', [ 'name' => (string) ( $payload['name'] ?? '' ) ] ) ],
-            'promotion.updated'          => [ 'o-megaphone', $this->describeChanges( __( 'Promotion changed' ), $payload ) ],
-            'promotion.deleted'          => [ 'o-trash', __( 'Promotion ":name" deleted', [ 'name' => (string) ( $payload['name'] ?? '' ) ] ) ],
-            'coupon.created'             => [ 'o-ticket', __( 'Coupon :code added', [ 'code' => (string) ( $payload['code'] ?? '' ) ] ) ],
-            'coupon.updated'             => [ 'o-ticket', $this->describeChanges( __( 'Coupon :code changed', [ 'code' => (string) ( $payload['code'] ?? '' ) ] ), $payload ) ],
-            'coupon.deleted'             => [ 'o-trash', __( 'Coupon :code removed', [ 'code' => (string) ( $payload['code'] ?? '' ) ] ) ],
-            'coupons.generated'          => [ 'o-sparkles', trans_choice( ':count coupon code generated|:count coupon codes generated', (int) ( $payload['count'] ?? 0 ), [ 'count' => (int) ( $payload['count'] ?? 0 ) ] ) ],
+            'kanban.assignment_added'    => [ 'columns-3', __( 'Added to board ":board"', [ 'board' => $this->boardName( $payload ) ] ) ],
+            'kanban.assignment_removed'  => [ 'columns-3', __( 'Removed from board ":board"', [ 'board' => $this->boardName( $payload ) ] ) ],
+            'kanban.automation_fired'    => [ 'zap', __( 'Automation ":trigger" ran on board ":board"', [ 'trigger' => (string) ( $payload['trigger_key'] ?? '' ), 'board' => $this->boardName( $payload ) ] ) ],
+            'kanban.automation_failed'   => [ 'zap-off', __( 'Automation ":trigger" failed: :error', [ 'trigger' => (string) ( $payload['trigger_key'] ?? '' ), 'error' => (string) ( $payload['error'] ?? __( 'unknown error' ) ) ] ) ],
+            'kanban.order_field_updated' => [ 'zap', __( 'An automation updated the order\'s :field', [ 'field' => (string) ( $payload['field'] ?? '' ) ] ) ],
+            'product.created'            => [ 'box', __( 'Product ":name" created', [ 'name' => (string) ( $payload['name'] ?? '' ) ] ) ],
+            'product.updated'            => [ 'box', $this->describeChanges( __( 'Product changed' ), $payload ) ],
+            'product.deleted'            => [ 'trash', __( 'Product ":name" deleted', [ 'name' => (string) ( $payload['name'] ?? '' ) ] ) ],
+            'variant.created'            => [ 'layout-grid', __( 'Variant :variant added', [ 'variant' => $this->variantLabel( $payload ) ] ) ],
+            'variant.updated'            => [ 'layout-grid', $this->describeChanges( __( 'Variant :variant changed', [ 'variant' => $this->variantLabel( $payload ) ] ), $payload ) ],
+            'variant.deleted'            => [ 'trash', __( 'Variant :variant removed', [ 'variant' => $this->variantLabel( $payload ) ] ) ],
+            'price.created'              => [ 'wallet', __( 'Price added: :amount', [ 'amount' => $this->money( $payload['amount'] ?? 0, $currency ) ] ) ],
+            'price.updated'              => [ 'wallet', $this->describeChanges( __( 'Price changed' ), $payload ) ],
+            'price.deleted'              => [ 'trash', __( 'Price removed: :amount', [ 'amount' => $this->money( $payload['amount'] ?? 0, $currency ) ] ) ],
+            'inventory.adjusted'         => [ 'archive', $this->describeInventory( $payload ) ],
+            'customer.created'           => [ 'user-plus', __( 'Customer created' ) ],
+            'customer.updated'           => [ 'user', $this->describeChanges( __( 'Customer changed' ), $payload ) ],
+            'customer.deleted'           => [ 'user-minus', __( 'Customer deleted' ) ],
+            'address.added'              => [ 'map-pin', __( 'Address added' ) ],
+            'address.updated'            => [ 'map-pin', $this->describeFields( __( 'Address changed' ), $payload ) ],
+            'address.deleted'            => [ 'trash', __( 'Address deleted' ) ],
+            'promotion.created'          => [ 'megaphone', __( 'Promotion ":name" created', [ 'name' => (string) ( $payload['name'] ?? '' ) ] ) ],
+            'promotion.updated'          => [ 'megaphone', $this->describeChanges( __( 'Promotion changed' ), $payload ) ],
+            'promotion.deleted'          => [ 'trash', __( 'Promotion ":name" deleted', [ 'name' => (string) ( $payload['name'] ?? '' ) ] ) ],
+            'coupon.created'             => [ 'ticket', __( 'Coupon :code added', [ 'code' => (string) ( $payload['code'] ?? '' ) ] ) ],
+            'coupon.updated'             => [ 'ticket', $this->describeChanges( __( 'Coupon :code changed', [ 'code' => (string) ( $payload['code'] ?? '' ) ] ), $payload ) ],
+            'coupon.deleted'             => [ 'trash', __( 'Coupon :code removed', [ 'code' => (string) ( $payload['code'] ?? '' ) ] ) ],
+            'coupons.generated'          => [ 'star', trans_choice( ':count coupon code generated|:count coupon codes generated', (int) ( $payload['count'] ?? 0 ), [ 'count' => (int) ( $payload['count'] ?? 0 ) ] ) ],
             default                      => null,
         };
 

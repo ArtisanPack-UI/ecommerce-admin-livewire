@@ -259,3 +259,33 @@ it( 'does not recreate a subscription deleted while it was being edited', functi
     expect( WebhookSubscription::query()->count() )->toBe( 0 )
         ->and( sentToasts( $component ) )->toContain( 'This subscription was deleted.' );
 } );
+
+it( 'opens the rotate confirmation on the safe choice, warning-toned', function (): void {
+    $subscription = WebhookSubscription::factory()->create( [ 'name' => 'Fulfillment sync' ] );
+
+    $html = Livewire::test( Index::class )->call( 'confirmRotate', $subscription->id )->html();
+
+    expect( $html )->toMatch( '/class="apui-dialog"[^>]*data-color="warning"/' )
+        ->toContain( 'Rotate the secret of &quot;Fulfillment sync&quot;?' )
+        ->toMatch( '/data-autofocus[^>]*>\s*(<[^>]+>\s*)*Keep current secret/' )
+        ->not->toContain( '<x-' );
+} );
+
+it( 'shows the new secret in a read-only copy field that ignores Escape', function (): void {
+    $component = Livewire::test( Index::class )
+        ->call( 'create' )
+        ->set( 'form.name', 'Fulfillment sync' )
+        ->set( 'form.url', 'https://partner.example.test/hooks' )
+        ->set( 'form.events', [ 'order.refunded' ] )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    $secret = (string) WebhookSubscription::query()->firstOrFail()->secret;
+
+    expect( $component->html() )->toContain( 'class="apui-clipboard ec-secret"' )
+        ->toContain( 'data-variant="field"' )
+        ->toContain( 'value="' . $secret . '"' )
+        ->toContain( 'x-on:keydown.escape.window.capture.stop.prevent' )
+        ->toContain( 'aria-labelledby="webhook-secret-label"' )
+        ->not->toContain( '<x-' );
+} );
