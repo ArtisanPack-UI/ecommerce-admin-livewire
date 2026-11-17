@@ -42,8 +42,8 @@ it( 'shows multi picks as chips and a single pick as a clearable value', functio
         ->and( $customer[0] )->not->toContain( 'data-multiple' )
         ->and( $html )->toContain( 'Search products or SKUs' )
         ->toContain( 'Search customers by name or email' )
-        // Js::from() escapes "…" as \u2026 on Laravel 12 and leaves it as is on 13.
-        ->toMatch( '/Searching(…|\\\\u2026)/u' )
+        // Laravel 12's Js::from() writes "…" as \\u2026 inside JSON.parse(); Laravel 13 leaves it as is.
+        ->toMatch( '/Searching(?:…|\\\\+u2026)/u' )
         ->toContain( 'No results found.' )
         ->not->toContain( 'x-artisanpack-choices' );
 } );
