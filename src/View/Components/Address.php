@@ -22,7 +22,8 @@ use JsonSerializable;
 /**
  * `<x-artisanpack-ec-address :address="$order->shipping_address" />`
  *
- * Renders an address in an `<address>` element. Accepts the engine's order
+ * Renders an address in an `<address>` element, one line per part in the
+ * country's own line order, the name first. Accepts the engine's order
  * address array, the `Address` value object, or a `CustomerAddress` model —
  * they share the keys `first_name`, `last_name`, `company`, `phone`,
  * `address1`, `address2`, `city`, `region`, `region_code`, `postal_code`,
@@ -36,7 +37,38 @@ use JsonSerializable;
 class Address extends Component
 {
     /**
-     * The address lines to show.
+     * Countries that write the postal code before the city ("69003 Lyon").
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const POSTAL_CODE_FIRST = [
+        'AT', 'BE', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'IS',
+        'IT', 'LI', 'LT', 'LU', 'LV', 'MC', 'NL', 'NO', 'PL', 'PT', 'SE', 'SI', 'SK',
+    ];
+
+    /**
+     * Countries that put the town, the county and the postcode on lines of
+     * their own.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const SEPARATE_LOCALITY_LINES = [ 'GB', 'IE', 'IM', 'JE', 'GG' ];
+
+    /**
+     * The recipient's name, shown first in a heavier weight.
+     *
+     * @since 2.0.0
+     *
+     * @var string|null
+     */
+    public ?string $name = null;
+
+    /**
+     * The address lines after the name.
      *
      * @since 1.0.0
      *
@@ -69,21 +101,30 @@ class Address extends Component
             return;
         }
 
-        $locality = trim( implode( ' ', array_filter( [
-            implode( ', ', array_filter( [ $fields['city'] ?? null, $fields['region'] ?? $fields['region_code'] ?? null ] ) ),
-            $fields['postal_code'] ?? null,
-        ] ) ) );
+        $name       = trim( ( $fields['first_name'] ?? '' ) . ' ' . ( $fields['last_name'] ?? '' ) );
+        $this->name = '' === $name ? null : $name;
 
         $this->lines = array_values( array_filter( [
-            trim( ( $fields['first_name'] ?? '' ) . ' ' . ( $fields['last_name'] ?? '' ) ),
             $fields['company'] ?? '',
             $fields['address1'] ?? '',
             $fields['address2'] ?? '',
-            $locality,
+            ...self::localityLines( $fields ),
             isset( $fields['country_code'] ) ? Countries::name( (string) $fields['country_code'] ) : '',
         ], static fn ( mixed $line ): bool => is_string( $line ) && '' !== trim( $line ) ) );
 
         $this->phone = $this->showPhone && ! empty( $fields['phone'] ) ? (string) $fields['phone'] : null;
+    }
+
+    /**
+     * Whether there is nothing to show but the phone.
+     *
+     * @since 2.0.0
+     *
+     * @return bool
+     */
+    public function isEmpty(): bool
+    {
+        return null === $this->name && [] === $this->lines;
     }
 
     /**
@@ -96,6 +137,36 @@ class Address extends Component
     public function render(): View
     {
         return view( 'ecommerce-admin::components.address' );
+    }
+
+    /**
+     * The city, region and postal code in the country's order.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, string>  $fields  The address fields.
+     *
+     * @return array<int, string> The lines.
+     */
+    private static function localityLines( array $fields ): array
+    {
+        $country = strtoupper( $fields['country_code'] ?? '' );
+        $city    = $fields['city'] ?? '';
+        $region  = ( $fields['region'] ?? '' ) ?: ( $fields['region_code'] ?? '' );
+        $postal  = $fields['postal_code'] ?? '';
+
+        if ( in_array( $country, self::SEPARATE_LOCALITY_LINES, true ) ) {
+            return [ $city, $region, $postal ];
+        }
+
+        if ( in_array( $country, self::POSTAL_CODE_FIRST, true ) ) {
+            return [ trim( $postal . ' ' . $city ), $region ];
+        }
+
+        return [ trim( implode( ' ', array_filter( [
+            implode( ', ', array_filter( [ $city, $region ] ) ),
+            $postal,
+        ] ) ) ) ];
     }
 
     /**

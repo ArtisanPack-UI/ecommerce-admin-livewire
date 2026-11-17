@@ -11,7 +11,7 @@ it( 'creates a simple product', function (): void {
         // The name syncs on a debounce; on Livewire 3 a click does not flush it.
         ->assertValue( Locators::label( 'Slug' ), 'browser-test-mug' )
         ->click( Locators::role( 'Pricing', 'tab' ) )
-        ->type( Locators::label( 'Price' ), '12.50' )
+        ->type( Locators::label( 'Price, USD' ), '12.50' )
         ->click( '[data-save]' )
         ->assertSee( 'Edit Browser Test Mug' )
         ->assertNoJavaScriptErrors();

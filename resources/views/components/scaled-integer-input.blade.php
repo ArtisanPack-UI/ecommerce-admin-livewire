@@ -1,9 +1,29 @@
+{{--
+    Money and percent inputs (#83). A design-system Input that takes a human
+    amount and stores a scaled integer: the currency code in the prefix part,
+    "%" in the suffix part. Parsing happens on blur or Enter; a value that
+    can't be read shows a format error in the server error's place, so only
+    one error shows at a time. See ScaledIntegerInput.
+
+    @package    ArtisanPack_UI
+    @subpackage EcommerceAdminLivewire
+
+    @since      1.0.0
+--}}
 @php
-    $wireModel = $attributes->wire( 'model' );
-    $model     = (string) $wireModel->value();
-    $live      = $wireModel->hasModifier( 'live' ) || $wireModel->hasModifier( 'blur' ) ? 'true' : 'false';
-    $scale     = $scale();
-    $trimZeros = $trimsZeros() ? 'true' : 'false';
+    $wireModel     = $attributes->wire( 'model' );
+    $model         = (string) $wireModel->value();
+    $live          = $wireModel->hasModifier( 'live' ) || $wireModel->hasModifier( 'blur' ) ? 'true' : 'false';
+    $scale         = $scale();
+    $trimZeros     = $trimsZeros() ? 'true' : 'false';
+    $controlId     = $id ?? $model;
+    $formatErrorId = $controlId . '-format-error';
+    $hasServerError = isset( $errors ) && $errors instanceof \Illuminate\Support\ViewErrorBag && $errors->has( $model );
+    $serverInvalid  = $hasServerError ? "'true'" : 'null';
+    // While the format error shows, the hidden server error drops out of the description.
+    $describedIds   = array_filter( [ null !== $hint && '' !== $hint ? $controlId . '-hint' : null, $hasServerError ? $controlId . '-error' : null ] );
+    $describedBy    = \Illuminate\Support\Js::from( implode( ' ', [ ...$describedIds, $formatErrorId ] ) )->toHtml();
+    $describedByFormat = \Illuminate\Support\Js::from( implode( ' ', [ ...array_filter( $describedIds, static fn ( string $id ): bool => ! str_ends_with( $id, '-error' ) ), $formatErrorId ] ) )->toHtml();
 @endphp
 <div
     x-data="{
@@ -45,7 +65,7 @@
             return ( negative ? '-' : '' ) + digits.slice( 0, -this.scale ) + ( '' === fraction ? '' : '.' + fraction );
         },
         parse( input ) {
-            let text = String( input ?? '' ).replace( /[\s  ']/g, '' );
+            let text = String( input ?? '' ).replace( /[\s  ']/g, '' );
             if ( '' === text ) {
                 return null;
             }
@@ -104,11 +124,11 @@
         },
     }"
     data-scale="{{ $scale }}"
-    {{ $attributes->only( [ 'class' ] ) }}
+    x-bind:data-format-invalid="invalid ? '' : null"
+    {{ $attributes->only( [ 'class', 'wire:key' ] )->class( [ 'ec-scaled-input' ] ) }}
 >
     <x-artisanpack-input
-        :id="$id ?? $model"
-        :label="$label"
+        :id="$controlId"
         :hint="$hint"
         :prefix="$prefix"
         :suffix="$suffix"
@@ -116,12 +136,18 @@
         x-model="display"
         x-on:blur="commit()"
         x-on:keydown.enter="commit()"
-        x-bind:aria-invalid="invalid ? 'true' : 'false'"
-        x-bind:aria-describedby="invalid ? {{ \Illuminate\Support\Js::from( ( $id ?? $model ) . '-format-error' ) }} : null"
+        x-bind:aria-invalid="invalid ? 'true' : {{ $serverInvalid }}"
+        x-bind:aria-describedby="invalid ? {{ $describedByFormat }} : {{ $describedBy }}"
+        :aria-describedby="$formatErrorId"
         inputmode="decimal"
         autocomplete="off"
-        {{ $attributes->whereDoesntStartWith( 'wire:model' )->except( [ 'class' ] ) }}
-    />
+        {{ $attributes->whereDoesntStartWith( 'wire:model' )->except( [ 'class', 'wire:key' ] ) }}
+    >
+        @if ( null !== $accessibleLabel() )
+            <x-slot:label>{{ $accessibleLabel() }}</x-slot:label>
+        @endif
+    </x-artisanpack-input>
 
-    <p id="{{ ( $id ?? $model ) . '-format-error' }}" class="mt-1 text-sm text-error empty:hidden" role="alert" x-text="invalid ? @js( $invalidMessage() ) : ''"></p>
+    {{-- The format error takes the server error's slot: the stylesheet hides the server one while this shows. --}}
+    <p id="{{ $formatErrorId }}" data-scope="input" data-part="error" data-format-error role="alert" hidden x-bind:hidden="! invalid"><x-artisanpack-icon name="circle-alert" aria-hidden="true" /><span x-text="invalid ? @js( $invalidMessage() ) : ''"></span></p>
 </div>

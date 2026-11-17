@@ -193,8 +193,8 @@
                 @endif
 
                 <div class="grid gap-5 lg:grid-cols-2">
-                    <x-artisanpack-ec-address-form model="shipping" :legend="__( 'Shipping address' )" live />
-                    <x-artisanpack-ec-address-form model="billing" :legend="__( 'Billing address' )" live />
+                    <x-artisanpack-ec-admin-address-form model="shipping" :legend="__( 'Shipping address' )" live />
+                    <x-artisanpack-ec-admin-address-form model="billing" :legend="__( 'Billing address' )" live />
                 </div>
 
                 <section aria-labelledby="edit-preview-heading" aria-live="polite">

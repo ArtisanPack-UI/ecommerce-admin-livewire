@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\View\Components;
 
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Component;
 
 /**
@@ -67,6 +68,43 @@ abstract class ScaledIntegerInput extends Component
         return 0 === $this->scale()
             ? __( 'Enter a whole number.' )
             : trans_choice( 'Enter a number with up to :count decimal place.|Enter a number with up to :count decimal places.', $this->scale(), [ 'count' => $this->scale() ] );
+    }
+
+    /**
+     * The unit the prefix or suffix shows, as read aloud after the label.
+     *
+     * @since 2.0.0
+     *
+     * @return string|null The unit, or null for none.
+     */
+    public function unitLabel(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * The label with the unit added for screen readers ("Price, USD"): the
+     * prefix and suffix are context for the label, not part of the value.
+     *
+     * @since 2.0.0
+     *
+     * @return HtmlString|null The escaped label, or null without one.
+     */
+    public function accessibleLabel(): ?HtmlString
+    {
+        $label = $this->label ?? null;
+
+        if ( null === $label || '' === $label ) {
+            return null;
+        }
+
+        $unit = $this->unitLabel();
+
+        if ( null === $unit || '' === $unit ) {
+            return new HtmlString( e( $label ) );
+        }
+
+        return new HtmlString( e( $label ) . '<span class="apui-sr-only">' . e( __( ', :unit', [ 'unit' => $unit ] ) ) . '</span>' );
     }
 
     /**

@@ -62,4 +62,16 @@ class MoneyInput extends ScaledIntegerInput
     {
         return MinorUnits::subunit( (string) $this->currency );
     }
+
+    /**
+     * The unit read after the label.
+     *
+     * @since 2.0.0
+     *
+     * @return string|null
+     */
+    public function unitLabel(): ?string
+    {
+        return $this->currency;
+    }
 }
