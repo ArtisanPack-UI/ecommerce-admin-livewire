@@ -506,7 +506,8 @@ it( 'renders the field-like trigger, the actions, the empty state and the key le
         ->toContain( 'data-part="item-group-label"' )
         ->toContain( 'New product' )
         ->toContain( 'Try an order number, a SKU, or a customer’s email.' )
-        ->toContain( 'to move' )
+        ->toContain( '<span class="apui-sr-only">Up and Down arrows </span>to move' )
+        ->toContain( '<span class="apui-sr-only">Escape </span>to close' )
         ->toContain( 'to open' )
         ->toContain( 'to close' );
 } );

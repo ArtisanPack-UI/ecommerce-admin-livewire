@@ -71,9 +71,13 @@ it( 'builds the key figures from design-system Stats with Lucide icons and no Da
 it( 'emphasizes only the awaiting-fulfillment figure, and only while orders wait', function (): void {
     grantAbilities( [ 'report.view', 'order.viewAny', 'inventory.viewAny', 'review.viewAny' ] );
 
+    // A product, so the store is past its first-run state and the figure renders at 0.
+    Product::factory()->create();
+
     $quiet = Livewire::test( Dashboard::class )->html();
 
-    expect( $quiet )->not->toContain( 'data-emphasis' );
+    expect( $quiet )->toContain( 'data-kpi="awaiting-fulfillment"' )
+        ->not->toContain( 'data-emphasis' );
 
     designDashboardOrder( '2026-03-15 09:00:00', 2_500, [ 'system_status' => 'processing', 'fulfillment_status' => 'unfulfilled' ] );
 

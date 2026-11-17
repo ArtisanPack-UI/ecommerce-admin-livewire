@@ -54,9 +54,9 @@
         </x-slot:empty>
 
         <x-slot:footer>
-            <span class="ec-admin-spotlight-legend"><span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd></span>{{ __( 'to move' ) }}</span>
-            <span class="ec-admin-spotlight-legend"><span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>↵</kbd></span>{{ __( 'to open' ) }}</span>
-            <span class="ec-admin-spotlight-legend"><span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>Esc</kbd></span>{{ __( 'to close' ) }}</span>
+            <span class="ec-admin-spotlight-legend"><span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd></span><span class="apui-sr-only">{{ __( 'Up and Down arrows' ) }} </span>{{ __( 'to move' ) }}</span>
+            <span class="ec-admin-spotlight-legend"><span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>↵</kbd></span><span class="apui-sr-only">{{ __( 'Enter' ) }} </span>{{ __( 'to open' ) }}</span>
+            <span class="ec-admin-spotlight-legend"><span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>Esc</kbd></span><span class="apui-sr-only">{{ __( 'Escape' ) }} </span>{{ __( 'to close' ) }}</span>
         </x-slot:footer>
     </x-artisanpack-spotlight>
 @endif
