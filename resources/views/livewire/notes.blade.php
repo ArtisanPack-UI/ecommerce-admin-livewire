@@ -1,5 +1,11 @@
 {{--
-    Internal notes. See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notes.
+    Internal notes (#103). See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notes.
+
+    The composer sits at the top: a textarea with a character count, the
+    "Visible to customer" toggle on orders, and Add note. Notes list newest
+    first, each with its author, time and a visibility badge with an icon,
+    so internal and customer-visible notes differ by more than color.
+    Delete is a ghost icon button that confirms in a small dialog.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -8,78 +14,131 @@
 --}}
 @php
     use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
+    use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notes;
+    use ArtisanPack\LivewireUiComponents\View\Components\Avatar;
 @endphp
 <div>
-    <x-artisanpack-card :title="__( 'Notes' )" data-notes>
+    <x-artisanpack-card :title="__( 'Notes' )" :classes="[ 'body' => 'ec-stack-lg' ]" data-notes>
         @if ( $canAdd )
-            <form wire:submit="addNote" class="mb-4 flex flex-col gap-2" data-note-form>
+            <form
+                wire:submit="addNote"
+                class="ec-stack-sm"
+                x-data="{ hasText: false }"
+                x-on:input="if ( 'TEXTAREA' === $event.target.tagName ) hasText = '' !== $event.target.value.trim()"
+                x-on:{{ Notes::NOTES_CHANGED_EVENT }}.window="hasText = false"
+                data-note-form
+            >
                 <x-artisanpack-textarea
                     id="note-body-{{ $this->getId() }}"
                     :label="__( 'Add a note' )"
                     :hint="$isOrder ? __( 'Notes are internal unless you make them visible to the customer.' ) : __( 'Customer notes are internal and never shown to the customer.' )"
-                    rows="3"
-                    maxlength="{{ \ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notes::MAX_LENGTH }}"
+                    :rows="3"
+                    :max-length="Notes::MAX_LENGTH"
                     wire:model="body"
                 />
 
-                @if ( $isOrder )
-                    <x-artisanpack-toggle
-                        id="note-visible-{{ $this->getId() }}"
-                        :label="__( 'Visible to customer' )"
-                        :description="__( 'Shown in the customer\'s order history.' )"
-                        wire:model="isCustomerVisible"
-                    />
-                @endif
+                <div class="ec-note-actions">
+                    @if ( $isOrder )
+                        <x-artisanpack-toggle
+                            id="note-visible-{{ $this->getId() }}"
+                            size="sm"
+                            :label="__( 'Visible to customer' )"
+                            wire:model="isCustomerVisible"
+                        />
+                    @endif
 
-                <x-artisanpack-button type="submit" size="sm" class="self-start" wire:loading.attr="disabled">{{ __( 'Add note' ) }}</x-artisanpack-button>
+                    <x-artisanpack-button
+                        type="submit"
+                        size="sm"
+                        class="ec-push-end"
+                        x-bind:aria-disabled="hasText ? 'false' : 'true'"
+                        wire:loading.attr="disabled"
+                        wire:target="addNote"
+                    >{{ __( 'Add note' ) }}</x-artisanpack-button>
+                </div>
             </form>
         @endif
 
         @if ( [] === $notes )
-            <x-artisanpack-ec-admin-empty-state size="sm" :heading-level="4" icon="o-chat-bubble-left-ellipsis" :title="__( 'No notes yet' )" :description="__( 'Notes from your team appear here.' )" />
+            <x-artisanpack-ec-admin-empty-state
+                size="sm"
+                class="ec-empty-sunken"
+                :heading-level="4"
+                icon="message-square"
+                :title="__( 'No notes yet' )"
+                :description="__( 'Notes from your team appear here.' )"
+            />
         @else
-            <ul class="flex list-none flex-col gap-3" aria-label="{{ __( 'Notes, newest first' ) }}">
+            <x-artisanpack-list variant="divided" ordered class="ec-notes" :aria-label="__( 'Notes, newest first' )">
                 @foreach ( $notes as $note )
                     <li
                         wire:key="note-{{ $note['id'] }}"
-                        @class( [
-                            'rounded-box border p-3',
-                            'border-info bg-info/10' => $note['visible'],
-                            'border-base-300' => ! $note['visible'],
-                        ] )
+                        class="ec-note"
                         data-note="{{ $note['id'] }}"
                         data-customer-visible="{{ $note['visible'] ? 'true' : 'false' }}"
                     >
-                        <div class="mb-1 flex flex-wrap items-center gap-2 text-sm">
-                            @if ( $note['visible'] )
-                                <x-artisanpack-badge :value="__( 'Visible to customer' )" leading-icon="o-eye" size="sm" color="info" />
-                            @elseif ( $isOrder )
-                                <x-artisanpack-badge :value="__( 'Internal' )" leading-icon="o-lock-closed" size="sm" color="neutral" />
-                            @endif
-                            <span class="font-semibold">{{ $note['author'] }}</span>
+                        <x-artisanpack-avatar size="sm" :initials="Avatar::initialsFor( $note['author'] )" :color="Avatar::colorFor( $note['author'] )" class="ec-note-avatar" />
+                        <div class="ec-note-meta">
+                            <span class="ec-note-author">{{ $note['author'] }}</span>
                             @if ( null !== $note['time'] )
-                                <span class="opacity-75">&middot;</span>
-                                <time class="opacity-75" datetime="{{ $note['time']->toIso8601String() }}" title="{{ LocalizedDate::format( $note['time'] ) }}">
+                                <time class="ec-note-time" datetime="{{ $note['time']->toIso8601String() }}" title="{{ LocalizedDate::format( $note['time'] ) }}">
                                     {{ $note['time']->diffForHumans() }}
-                                    <span class="sr-only">({{ LocalizedDate::format( $note['time'] ) }})</span>
+                                    <span class="apui-sr-only">({{ LocalizedDate::format( $note['time'] ) }})</span>
                                 </time>
                             @endif
-                            @if ( $note['canDelete'] )
-                                <x-artisanpack-button
-                                    variant="ghost"
-                                    size="xs"
-                                    leading-icon="o-trash"
-                                    class="ms-auto"
-                                    wire:click="deleteNote( {{ $note['id'] }} )"
-                                    wire:confirm="{{ __( 'Delete this note?' ) }}"
-                                    wire:loading.attr="disabled"
-                                    :aria-label="__( 'Delete note by :author', [ 'author' => $note['author'] ] )">{{ __( 'Delete' ) }}</x-artisanpack-button>
+                            @if ( $note['visible'] )
+                                <x-artisanpack-badge size="sm" color="info" leading-icon="eye">{{ __( 'Visible to customer' ) }}</x-artisanpack-badge>
+                            @else
+                                <x-artisanpack-badge size="sm" color="neutral" leading-icon="lock">{{ __( 'Internal' ) }}</x-artisanpack-badge>
                             @endif
                         </div>
-                        <p class="whitespace-pre-line break-words">{{ $note['body'] }}</p>
+                        @if ( $note['canDelete'] )
+                            <x-artisanpack-button
+                                variant="ghost"
+                                color="neutral"
+                                size="xs"
+                                leading-icon="trash"
+                                class="ec-note-delete"
+                                wire:click="confirmDelete( {{ $note['id'] }} )"
+                                wire:loading.attr="disabled"
+                                wire:target="confirmDelete"
+                                :aria-label="__( 'Delete note by :author', [ 'author' => $note['author'] ] )"
+                                data-delete-note
+                            />
+                        @endif
+                        <p class="ec-note-body">{{ $note['body'] }}</p>
                     </li>
                 @endforeach
-            </ul>
+            </x-artisanpack-list>
         @endif
     </x-artisanpack-card>
+
+    @if ( $confirmingDelete && null !== $deletingNote )
+        @php
+            $deleteDescription = null === $deletingNote['time']
+                ? __( 'The note by :author will be removed for everyone.', [ 'author' => $deletingNote['author'] ] )
+                : __( 'The note by :author from :time will be removed for everyone.', [ 'author' => $deletingNote['author'], 'time' => $deletingNote['time']->diffForHumans() ] );
+        @endphp
+        <x-artisanpack-dialog
+            wire:model="confirmingDelete"
+            size="sm"
+            role="alertdialog"
+            color="error"
+            icon="trash"
+            :title="__( 'Delete this note?' )"
+            :description="$deleteDescription"
+            :close-label="__( 'Close' )"
+            data-delete-note-dialog
+        >
+            <x-slot:footer>
+                <x-artisanpack-button variant="outline" color="neutral" wire:click="cancelDelete" data-autofocus>{{ __( 'Keep note' ) }}</x-artisanpack-button>
+                <x-artisanpack-button
+                    color="error"
+                    wire:click="deleteNote( {{ (int) $deletingNote['id'] }} )"
+                    wire:loading.attr="disabled"
+                    wire:target="deleteNote"
+                >{{ __( 'Delete' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
+    @endif
 </div>

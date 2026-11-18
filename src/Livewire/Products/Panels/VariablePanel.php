@@ -617,6 +617,8 @@ class VariablePanel extends ProductTypePanel
         }
 
         return view( 'ecommerce-admin::livewire.products.panels.variable', [
+            'baseCurrency' => StoreCurrencies::base(),
+            'skuClashes'   => self::skuClashes( (array) ( $this->state['variants'] ?? [] ) ),
             'currencies'   => $this->currencies(),
             'optionLabels' => $labels,
             'matrixSize'   => $this->matrixSize(),
@@ -910,6 +912,42 @@ class VariablePanel extends ProductTypePanel
                 $fail( __( 'Two variants have the same SKU.' ) );
             }
         };
+    }
+
+    /**
+     * Variants whose SKU an earlier variant already uses (compared like
+     * {@see self::distinctSkus()}), as row index => the earlier variant's
+     * name, so the clash is flagged on the row that repeats it.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, mixed>  $variants  Variant rows.
+     *
+     * @return array<int, string>
+     */
+    protected static function skuClashes( array $variants ): array
+    {
+        $seen    = [];
+        $clashes = [];
+
+        foreach ( array_values( $variants ) as $index => $variant ) {
+            $sku = strtolower( trim( (string) ( is_array( $variant ) ? ( $variant['sku'] ?? '' ) : '' ) ) );
+
+            if ( '' === $sku ) {
+                continue;
+            }
+
+            if ( isset( $seen[ $sku ] ) ) {
+                $clashes[ $index ] = $seen[ $sku ];
+
+                continue;
+            }
+
+            $name         = trim( (string) ( $variant['name'] ?? '' ) );
+            $seen[ $sku ] = '' !== $name ? $name : __( 'Variant :number', [ 'number' => $index + 1 ] );
+        }
+
+        return $clashes;
     }
 
     /**
