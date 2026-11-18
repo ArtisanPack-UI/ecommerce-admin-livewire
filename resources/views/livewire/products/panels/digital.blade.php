@@ -44,8 +44,8 @@
                         @endphp
                         <li wire:key="digital-file-{{ $file['id'] ?? 'new-' . $i }}" class="ec-item ec-file" data-digital-file="{{ $i }}">
                             <div class="ec-field-grid ec-file-fields">
-                                <x-artisanpack-input id="digital-{{ $i }}-label" :label="__( 'Label of file :number', [ 'number' => $i + 1 ] )" wire:model.blur="state.files.{{ $i }}.label" :disabled="$readOnly" />
-                                <x-artisanpack-input id="digital-{{ $i }}-version" dir="ltr" :label="__( 'Version of :file', [ 'file' => $fileLabel ] )" :hint="__( 'Changing it on a saved file emails past buyers.' )" wire:model.blur="state.files.{{ $i }}.version" :disabled="$readOnly" />
+                                <x-artisanpack-input id="digital-{{ $i }}-label" :label="__( 'Label of file :number', [ 'number' => $i + 1 ] )" wire:model.live.blur="state.files.{{ $i }}.label" :disabled="$readOnly" />
+                                <x-artisanpack-input id="digital-{{ $i }}-version" dir="ltr" :label="__( 'Version of :file', [ 'file' => $fileLabel ] )" :hint="__( 'Changing it on a saved file emails past buyers.' )" wire:model.live.blur="state.files.{{ $i }}.version" :disabled="$readOnly" />
                                 <div class="ec-stack-sm ec-file-switches">
                                     <x-artisanpack-toggle id="digital-{{ $i }}-streaming" size="sm" :label="__( 'Streaming only' )" :description="__( 'Can be played but never downloaded.' )" wire:model="state.files.{{ $i }}.is_streaming_only" :disabled="$readOnly" />
                                     <x-artisanpack-toggle id="digital-{{ $i }}-archived" size="sm" :label="__( 'Archived' )" :description="__( 'Existing buyers keep their downloads; the file is no longer offered.' )" wire:model="state.files.{{ $i }}.is_archived" :disabled="$readOnly" />
@@ -81,7 +81,7 @@
                             @else
                                 <div class="ec-file-source">
                                     <x-artisanpack-select placeholder="" id="digital-{{ $i }}-disk" class="ec-file-disk" :label="__( 'Disk' )" :options="ControlOptions::from( $diskOptions )" wire:model="state.files.{{ $i }}.disk" :disabled="$readOnly" />
-                                    <x-artisanpack-input id="digital-{{ $i }}-path" class="ec-file-path ec-mono-input" dir="ltr" :label="__( 'Path of :file on the disk', [ 'file' => $fileLabel ] )" :placeholder="__( 'downloads/guide.pdf' )" wire:model.blur="state.files.{{ $i }}.path" :disabled="$readOnly" />
+                                    <x-artisanpack-input id="digital-{{ $i }}-path" class="ec-file-path ec-mono-input" dir="ltr" :label="__( 'Path of :file on the disk', [ 'file' => $fileLabel ] )" :placeholder="__( 'downloads/guide.pdf' )" wire:model.live.blur="state.files.{{ $i }}.path" :disabled="$readOnly" />
                                     @unless ( $readOnly )
                                         <x-artisanpack-button variant="ghost" color="neutral" size="sm" leading-icon="trash" class="ec-file-remove" wire:click="removeFile( {{ $i }} )" wire:loading.attr="disabled" wire:confirm="{{ __( 'Remove this file when you save? A file customers already bought can\'t be removed; archive it instead.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
                                     @endunless

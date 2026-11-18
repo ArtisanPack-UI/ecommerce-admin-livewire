@@ -75,7 +75,7 @@
                 <fieldset @disabled( $readOnly ) class="min-w-0">
                     <div class="grid gap-4 lg:grid-cols-2">
                         <x-artisanpack-input id="product-name" :label="__( 'Name' )" wire:model.live.debounce.400ms="name" required />
-                        <x-artisanpack-input id="product-slug" :label="__( 'Slug' )" :hint="__( 'Filled from the name until you edit it.' )" wire:model.blur="slug" />
+                        <x-artisanpack-input id="product-slug" :label="__( 'Slug' )" :hint="__( 'Filled from the name until you edit it.' )" wire:model.live.blur="slug" />
 
                         @if ( $isCreate )
                             <x-artisanpack-select placeholder="" id="product-type" :label="__( 'Type' )" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $typeOptions )" wire:model.live="type" />
@@ -335,7 +335,7 @@
                                     x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Form::MEDIA_FEATURED ) }} } )">{{ null === $featuredMediaId ? __( 'Choose image' ) : __( 'Replace image' ) }}</x-artisanpack-button>
                             @endunless
                         @else
-                            <x-artisanpack-input id="product-featured-url" class="min-w-80" type="url" :label="__( 'Image URL' )" wire:model.blur="featuredImageUrl" />
+                            <x-artisanpack-input id="product-featured-url" class="min-w-80" type="url" :label="__( 'Image URL' )" wire:model.live.blur="featuredImageUrl" />
                         @endif
 
                         @if ( null !== $featuredPreview && ! $readOnly )
@@ -354,7 +354,7 @@
                                         <img src="{{ $galleryPreviews[ $index ] }}" alt="{{ $image['alt_text'] ?: $name }}" class="size-16 rounded object-cover" />
                                     @endif
                                     @if ( null === $image['media_id'] )
-                                        <x-artisanpack-input id="gallery-{{ $index }}-url" class="min-w-64" type="url" :label="__( 'Image URL' )" wire:model.blur="gallery.{{ $index }}.image_url" />
+                                        <x-artisanpack-input id="gallery-{{ $index }}-url" class="min-w-64" type="url" :label="__( 'Image URL' )" wire:model.live.blur="gallery.{{ $index }}.image_url" />
                                     @endif
                                     <x-artisanpack-input id="gallery-{{ $index }}-alt" class="min-w-64" :label="__( 'Alt text' )" :hint="__( 'Describe the image for people who can\'t see it.' )" wire:model="gallery.{{ $index }}.alt_text" />
                                     @unless ( $readOnly )

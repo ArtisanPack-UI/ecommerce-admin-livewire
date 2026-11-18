@@ -43,12 +43,12 @@
     <x-artisanpack-tabs wire:model="tab" aria-label="{{ __( 'Promotion details' ) }}">
         <x-artisanpack-tab name="details" :label="__( 'Details' )" icon="o-document-text">
             <fieldset class="grid gap-4 pt-4 md:grid-cols-2" @disabled( $readOnly ) data-promotion-details>
-                <x-artisanpack-input id="promotion-name" :label="__( 'Name' )" wire:model.blur="name" required />
+                <x-artisanpack-input id="promotion-name" :label="__( 'Name' )" wire:model.live.blur="name" required />
                 <x-artisanpack-input
                     id="promotion-key"
                     :label="__( 'Key' )"
                     :hint="__( 'A unique, permanent identifier, like black-friday-2026. Filled from the name until you change it.' )"
-                    wire:model.blur="key"
+                    wire:model.live.blur="key"
                     required
                 />
 

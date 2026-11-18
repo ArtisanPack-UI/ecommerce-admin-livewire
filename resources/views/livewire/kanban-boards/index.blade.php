@@ -112,8 +112,8 @@
     >
         <form wire:submit="save" class="flex flex-col gap-4" data-board-form>
             @include( 'ecommerce-admin::partials.error-summary' )
-            <x-artisanpack-input id="board-name" :label="__( 'Name' )" wire:model.blur="form.name" maxlength="255" required />
-            <x-artisanpack-input id="board-key" :label="__( 'Key' )" :hint="__( 'A unique, permanent identifier, like production. Filled from the name until you change it.' )" wire:model.blur="form.key" maxlength="120" required />
+            <x-artisanpack-input id="board-name" :label="__( 'Name' )" wire:model.live.blur="form.name" maxlength="255" required />
+            <x-artisanpack-input id="board-key" :label="__( 'Key' )" :hint="__( 'A unique, permanent identifier, like production. Filled from the name until you change it.' )" wire:model.live.blur="form.key" maxlength="120" required />
             <x-artisanpack-textarea id="board-description" :label="__( 'Description' )" rows="2" wire:model="form.description" />
             <x-artisanpack-toggle id="board-active" :label="__( 'Switched on' )" :description="__( 'Orders are only routed onto active boards.' )" wire:model="form.is_active" />
             <x-artisanpack-toggle id="board-default" :label="__( 'Default board' )" :description="__( 'The default board catches orders no other board took. Only one board can be the default.' )" wire:model="form.is_default" />
