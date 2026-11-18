@@ -114,6 +114,7 @@ const MATRIX = [
             'previewEdit'      => [ 'args' => [], 'ability' => 'order.update' ],
             'applyEdit'        => [ 'args' => [ 'token' ], 'ability' => 'order.update' ],
             'rollbackEdit'     => [ 'args' => [ 1, 'token' ], 'ability' => 'order.update' ],
+            'confirmRollback'  => [ 'args' => [ 1 ], 'ability' => 'order.update' ],
             // The page re-authorizes order.view on every request; the picker source then needs product.viewAny.
             'searchPicker'     => [ 'args' => [ 'a', 'product', 'addProductId' ], 'ability' => 'product.viewAny' ],
             'optionsForPicker' => [ 'args' => [ 'product', 'addProductId' ], 'ability' => 'product.viewAny' ],

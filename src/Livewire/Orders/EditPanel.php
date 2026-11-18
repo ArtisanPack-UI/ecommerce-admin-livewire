@@ -181,6 +181,36 @@ class EditPanel extends Component
     public string $reason = '';
 
     /**
+     * Whether the roll-back confirmation is open.
+     *
+     * @since 2.0.0
+     *
+     * @var bool
+     */
+    public bool $confirmingRollback = false;
+
+    /**
+     * The edit the roll-back confirmation was opened for. Fixed while the
+     * dialog is open, so a newer edit saved meanwhile is never rolled back
+     * in its place.
+     *
+     * @since 2.0.0
+     *
+     * @var int|null
+     */
+    #[Locked]
+    public ?int $rollbackEditId = null;
+
+    /**
+     * The address sections open in the editor (`shipping`, `billing`).
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public array $openAddresses = [];
+
+    /**
      * Re-render when another panel changes the order.
      *
      * @since 1.0.0
@@ -222,6 +252,7 @@ class EditPanel extends Component
         $this->shippingMethod = (string) ( $order->shipping_method_key ?? '' );
         $this->preview        = null;
         $this->reason         = '';
+        $this->openAddresses  = [];
         $this->reset( 'addProductId', 'addVariantId', 'addQuantity' );
 
         $this->editing = true;
@@ -238,6 +269,12 @@ class EditPanel extends Component
      */
     public function updated( string $property ): void
     {
+        if ( 'openAddresses' === Str::before( $property, '.' ) ) {
+            $this->openAddresses = self::addressSections( $this->openAddresses );
+
+            return;
+        }
+
         if ( in_array( Str::before( $property, '.' ), [ 'draftItems', 'shipping', 'billing', 'shippingMethod' ], true ) ) {
             $this->preview = null;
         }
@@ -419,7 +456,7 @@ class EditPanel extends Component
             return;
         }
 
-        $this->reset( 'editing', 'draftItems', 'newItems', 'shipping', 'billing', 'shippingMethod', 'preview', 'reason' );
+        $this->reset( 'editing', 'draftItems', 'newItems', 'shipping', 'billing', 'shippingMethod', 'preview', 'reason', 'openAddresses' );
         $this->orderChanged();
 
         if ( null !== $result->paymentActionRequired ) {
@@ -435,6 +472,34 @@ class EditPanel extends Component
             __( 'Order updated.' ),
             null === $result->refundDelta ? null : __( 'The total fell by :amount; refund it from Refunds if it was paid.', [ 'amount' => MoneyFormatter::format( (int) $result->refundDelta['delta_amount'], (string) $result->refundDelta['currency'] ) ] ),
         );
+    }
+
+    /**
+     * Opens the roll-back confirmation for `$editId`, which must be the
+     * order's latest edit.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $editId  The edit to roll back.
+     *
+     * @return void
+     */
+    public function confirmRollback( int $editId ): void
+    {
+        $order = $this->order();
+
+        if ( ! $this->authorizeEdit( $order ) ) {
+            return;
+        }
+
+        if ( $this->latestEditId( $order ) !== $editId ) {
+            $this->toastError( __( 'Only the latest edit can be rolled back.' ) );
+
+            return;
+        }
+
+        $this->rollbackEditId     = $editId;
+        $this->confirmingRollback = true;
     }
 
     /**
@@ -456,6 +521,9 @@ class EditPanel extends Component
         }
 
         $latest = OrderEdit::query()->where( 'order_id', $order->id )->orderByDesc( 'id' )->first();
+
+        $this->confirmingRollback = false;
+        $this->rollbackEditId     = null;
 
         if ( null === $latest || (int) $latest->id !== $editId ) {
             $this->toastError( __( 'Only the latest edit can be rolled back.' ) );
@@ -496,8 +564,23 @@ class EditPanel extends Component
     {
         $order   = $this->order()->load( 'items' );
         $user    = auth()->user();
+
+        $this->openAddresses = self::addressSections( $this->openAddresses );
+
+        // An address with an error opens, so its message is never hidden in a collapsed section.
+        foreach ( [ 'shipping', 'billing' ] as $address ) {
+            if ( $this->getErrorBag()->hasAny( array_map( static fn ( string $field ): string => $address . '.' . $field, self::ADDRESS_FIELDS ) ) && ! in_array( $address, $this->openAddresses, true ) ) {
+                $this->openAddresses[] = $address;
+            }
+        }
+
         $edits   = OrderEdit::query()->where( 'order_id', $order->id )->orderByDesc( 'id' )->get();
         $blocked = $this->blockedReason( $order );
+
+        // The edit the open confirmation was opened for, never whichever edit is latest now.
+        $rollbackTarget = $this->confirmingRollback && null !== $this->rollbackEditId
+            ? $edits->firstWhere( 'id', $this->rollbackEditId )
+            : null;
         $canEdit = null === $blocked
             && $this->canEcommerce( 'update', $order )
             && ( ! $this->fulfillmentStarted( $order ) || Authorization::allows( $user, 'order.edit-fulfilled', $order ) );
@@ -516,7 +599,10 @@ class EditPanel extends Component
             'addVariantOptions'  => $this->editing ? $this->addVariantOptions() : [],
             'methodOptions'      => $this->editing ? ShippingMethods::options( $order->shipping_method_key ) : [],
             'editToken'          => $this->editing && $canEdit ? $this->actionToken( 'edit', $order ) : null,
-            'rollbackToken'      => $canEdit && $edits->isNotEmpty() ? $this->actionToken( 'rollback', $edits->first() ) : null,
+            'canRollback'        => $canEdit && $edits->isNotEmpty(),
+            'rollbackTarget'     => $rollbackTarget,
+            'rollbackStale'      => null !== $rollbackTarget && (int) $rollbackTarget->id !== (int) $edits->first()?->id,
+            'rollbackToken'      => $canEdit && null !== $rollbackTarget ? $this->actionToken( 'rollback', $rollbackTarget ) : null,
         ] );
     }
 
@@ -593,6 +679,39 @@ class EditPanel extends Component
         }
 
         return $lines;
+    }
+
+    /**
+     * The id of the order's latest edit, or null when it has none.
+     *
+     * @since 2.0.0
+     *
+     * @param  Order  $order  The order.
+     *
+     * @return int|null
+     */
+    protected function latestEditId( Order $order ): ?int
+    {
+        $id = OrderEdit::query()->where( 'order_id', $order->id )->orderByDesc( 'id' )->value( 'id' );
+
+        return null === $id ? null : (int) $id;
+    }
+
+    /**
+     * The address sections a client may open: `shipping` and `billing`,
+     * once each, in that order. Anything else in the array is dropped.
+     *
+     * @since 2.0.0
+     *
+     * @param  mixed  $sections  The requested sections.
+     *
+     * @return array<int, string>
+     */
+    protected static function addressSections( mixed $sections ): array
+    {
+        $sections = is_array( $sections ) ? $sections : [];
+
+        return array_values( array_filter( [ 'shipping', 'billing' ], static fn ( string $section ): bool => in_array( $section, $sections, true ) ) );
     }
 
     /**

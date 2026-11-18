@@ -259,3 +259,50 @@ it( 'does not buy a second label for a shipment', function (): void {
 
     expect( $shipment->fresh()->label_id )->toBe( 1 );
 } );
+
+it( 'builds the panel from design-system parts with the status beside the title', function (): void {
+    $shipment = Shipment::factory()->create( [
+        'order_id'        => $this->order->id,
+        'carrier'         => 'UPS',
+        'tracking_number' => '1Z999',
+        'tracking_url'    => 'https://ups.example.test/1Z999',
+        'status'          => 'in_transit',
+    ] );
+    $shipment->items()->create( [ 'order_item_id' => $this->shirt->id, 'quantity' => 1 ] );
+
+    $html = Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )->html();
+
+    expect( $html )
+        ->toContain( 'class="ec-card-title-row"' )
+        ->toContain( 'class="ec-item" data-shipment="' . $shipment->id . '"' )
+        ->toContain( 'target="_blank" rel="noopener noreferrer"' )
+        ->toContain( '(opens in a new tab)' )
+        ->toContain( 'aria-label="Update tracking for shipment #' . $shipment->id . '"' )
+        ->not->toContain( 'rounded-box' )
+        ->not->toContain( 'border-base-300' );
+} );
+
+it( 'shows the empty state before the first shipment', function (): void {
+    Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )
+        ->assertSee( 'No shipments yet' )
+        ->assertSee( 'Create a shipment when items leave the warehouse.' );
+} );
+
+it( 'disables the ship-now input for a line with nothing left and shows gateway errors as an alert', function (): void {
+    $shipment = Shipment::factory()->create( [ 'order_id' => $this->order->id ] );
+    $shipment->items()->create( [ 'order_item_id' => $this->mug->id, 'quantity' => 1 ] );
+
+    $component = Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )->call( 'startShipment' );
+
+    expect( $component->html() )
+        ->toContain( 'Choose how many units of each item are in this parcel.' )
+        ->toMatch( '/<input[^>]*id="ship-item-' . $this->mug->id . '"[^>]*\sdisabled/s' );
+
+    // The order is cancelled while the dialog is open: the refusal shows at the top of the dialog.
+    $this->order->forceFill( [ 'system_status' => 'cancelled' ] )->save();
+
+    $component->call( 'createShipment', fulfillmentShipmentToken( $component ) )
+        ->assertHasErrors( [ 'shipment' ] )
+        ->assertSeeHtml( 'data-shipment-error' )
+        ->assertSee( 'This order was cancelled, so nothing more can ship.' );
+} );

@@ -105,7 +105,7 @@ it( 'renders the refund history with issuer and gateway reference', function ():
         ->assertSee( 'Damaged' )
         ->assertSee( 'Grace Hopper' )
         ->assertSee( 're_history_9' )
-        ->assertSee( 'Issue refund' );
+        ->assertSeeHtml( 'data-start-refund' );
 } );
 
 it( 'is denied without order.view', function (): void {
@@ -118,7 +118,7 @@ it( 'hides and refuses refunds without order.refund', function (): void {
     Gate::define( 'ecommerce.order.refund', static fn (): bool => false );
 
     Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
-        ->assertDontSee( 'Issue refund' )
+        ->assertDontSeeHtml( 'data-start-refund' )
         ->call( 'startRefund' )
         ->assertForbidden();
 
@@ -180,7 +180,7 @@ it( 'refunds the full order', function (): void {
     expect( $this->order->fresh()->payment_status )->toBe( 'refunded' )
         ->and( $refund->items->pluck( 'amount', 'order_item_id' )->all() )->toBe( [ $this->item->id => 3_000, $this->wrap->id => 500 ] );
 
-    Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )->assertDontSee( 'Issue refund' );
+    Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )->assertDontSeeHtml( 'data-start-refund' );
 } );
 
 it( 'validates the refund', function ( string $mode, array $set, string $error ): void {
@@ -260,7 +260,7 @@ it( 'explains an order whose gateway is missing', function (): void {
 
     Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
         ->assertSee( 'The payment gateway "gone" is not installed' )
-        ->assertDontSee( 'Issue refund' );
+        ->assertDontSeeHtml( 'data-start-refund' );
 } );
 
 it( 'ignores lines for another order\'s items', function (): void {
@@ -391,4 +391,95 @@ it( 'pre-fills no more than is left on a line after an earlier amount refund', f
         ->call( 'startRefund' )
         ->set( "lines.{$this->item->id}.quantity", 3 )
         ->assertSet( "lines.{$this->item->id}.amount", 2_500 );
+} );
+
+it( 'builds the history as a flush design-system table with status badges', function (): void {
+    Refund::factory()->create( [ 'order_id' => $this->order->id, 'amount' => 1_000, 'currency' => 'USD', 'status' => Refund::STATUS_PENDING ] );
+
+    $html = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )->html();
+
+    expect( $html )
+        ->toContain( 'ec-card-flush' )
+        ->toContain( 'data-refund-history' )
+        ->toContain( 'data-refund-status="pending"' )
+        ->toContain( 'Pending' )
+        ->not->toContain( 'table-sm' )
+        ->not->toContain( 'opacity-75' );
+} );
+
+it( 'shows the gateway error under a failed refund', function (): void {
+    $refund = Refund::factory()->create( [ 'order_id' => $this->order->id, 'amount' => 1_000, 'currency' => 'USD', 'status' => Refund::STATUS_FAILED, 'reason' => 'Damaged' ] );
+    OrderTimelineEntry::query()->create( [
+        'order_id'   => $this->order->id,
+        'event_type' => 'refund.failed',
+        'payload'    => [ 'refund_id' => $refund->id, 'amount' => 1_000, 'currency' => 'USD', 'gateway' => 'fake', 'error' => 'charge_already_refunded' ],
+    ] );
+
+    Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->assertSee( 'Failed' )
+        ->assertSeeHtml( 'data-refund-error' )
+        ->assertSee( 'Gateway: charge_already_refunded' );
+} );
+
+it( 'names the running total in the primary button and disables it at zero', function (): void {
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )->call( 'startRefund' );
+
+    expect( Illuminate\Support\Str::betweenFirst( $component->html(), 'data-submit-refund', '</button>' ) )->toContain( 'Refund $0.00' );
+    expect( $component->html() )->toMatch( '/<button[^>]*\sdisabled[^>]*data-submit-refund/s' );
+
+    $component->set( "lines.{$this->item->id}.quantity", 1 );
+
+    expect( $component->html() )
+        ->toContain( 'Refund $10.00' )
+        ->not->toMatch( '/<button[^>]*\sdisabled[^>]*data-submit-refund/s' );
+
+    $component->set( 'mode', 'amount' )->set( 'amount', 250 );
+
+    expect( $component->html() )->toContain( 'Refund $2.50' );
+} );
+
+it( 'fills the full remaining balance from the amount view', function (): void {
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startRefund' )
+        ->set( 'mode', 'amount' )
+        ->assertSee( 'Use the full remaining balance ($35.00)' );
+
+    $component->set( 'amount', 3_500 )->assertSee( 'Refund $35.00' );
+} );
+
+it( 'names each per-line control for its item and restocks with a checkbox', function (): void {
+    $html = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )->call( 'startRefund' )->html();
+
+    expect( $html )
+        ->toContain( 'aria-label="Quantity of Linen Shirt to refund"' )
+        ->toContain( 'aria-label="Restock Linen Shirt"' )
+        ->toContain( 'class="apui-checkbox' )
+        ->toContain( 'data-variant="segmented"' )
+        ->not->toContain( 'apui-toggle' );
+} );
+
+it( 'hides "Refund by" for a gateway without partial refunds and says why', function (): void {
+    refundsPanelGateway( partial: false, key: 'full-only' );
+    $this->order->update( [ 'payment_gateway_key' => 'full-only' ] );
+
+    Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startRefund' )
+        ->assertSeeHtml( 'data-full-only-note' )
+        ->assertDontSee( 'Refund by' )
+        ->assertSee( 'Refund $35.00' );
+} );
+
+it( 'leaves a line whose item left the order out of the running total', function (): void {
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startRefund' )
+        ->set( "lines.{$this->item->id}.quantity", 1 )
+        ->set( "lines.{$this->wrap->id}.amount", 500 )
+        ->assertSee( 'Refund $15.00' );
+
+    // An edit removes the gift wrap while the dialog is open.
+    $this->wrap->delete();
+
+    $component->dispatch( OrderPanelRegistry::ORDER_UPDATED_EVENT )
+        ->assertSee( 'Refund $10.00' )
+        ->assertDontSee( 'Refund $15.00' );
 } );

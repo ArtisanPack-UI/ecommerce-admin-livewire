@@ -179,3 +179,45 @@ it( 'shows the healthy empty state when no item is low', function (): void {
         ->not->toContain( 'ec-card-body-flush' )
         ->not->toContain( 'data-low-stock' );
 } );
+
+it( 'builds recent orders as a flush design-system table with one link per row', function (): void {
+    grantAbilities( [ 'report.view', 'order.viewAny', 'inventory.viewAny', 'review.viewAny' ] );
+    designDashboardOrder( '2026-03-15 09:00:00', 4_850, [ 'order_number' => '1048', 'system_status' => 'processing', 'fulfillment_status' => 'unfulfilled', 'email' => 'guest@example.test' ] );
+
+    $html = Livewire::test( Dashboard::class )->html();
+
+    expect( $html )
+        ->toContain( 'data-recent-orders' )
+        ->toContain( 'The 1 most recent orders, newest first' )
+        ->toContain( 'class="ec-mono">#1048</bdi>' )
+        ->toContain( 'View all orders' )
+        ->toContain( 'guest@example.test' )
+        ->toContain( 'data-status-type="system"' )
+        ->toContain( 'data-status-type="fulfillment"' )
+        ->toContain( '$48.50' )
+        ->not->toContain( 'table-sm' )
+        ->not->toContain( 'link-hover' );
+
+    // The order number is the row's only link.
+    $row = Illuminate\Support\Str::betweenFirst( $html, 'wire:key="dashboard-order-', '</tr>' );
+
+    expect( preg_match_all( '/<a\s/', $row ) )->toBe( 1 );
+} );
+
+it( 'says "None" for an order with neither a customer nor an email', function (): void {
+    grantAbilities( [ 'report.view', 'order.viewAny', 'inventory.viewAny', 'review.viewAny' ] );
+    designDashboardOrder( '2026-03-15 09:00:00', 1_000, [ 'email' => '', 'customer_id' => null ] );
+
+    expect( Livewire::test( Dashboard::class )->html() )
+        ->toContain( '<span aria-hidden="true">&mdash;</span><span class="apui-sr-only">None</span>' );
+} );
+
+it( 'shows the recent orders empty state before any order is placed', function (): void {
+    grantAbilities( [ 'report.view', 'order.viewAny', 'inventory.viewAny', 'review.viewAny' ] );
+    Product::factory()->create();
+
+    expect( Livewire::test( Dashboard::class )->html() )
+        ->toContain( 'No orders yet' )
+        ->toContain( 'Orders appear here as soon as customers check out.' )
+        ->not->toContain( 'data-recent-orders' );
+} );
