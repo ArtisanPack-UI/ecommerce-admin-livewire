@@ -44,8 +44,8 @@
                         @endphp
                         <li wire:key="attribute-{{ $attribute['uid'] }}" class="ec-item" data-attribute="{{ $a }}">
                             <div class="ec-attr-row">
-                                <x-artisanpack-input id="attribute-{{ $a }}-label" :label="__( 'Attribute' )" :placeholder="__( 'Size' )" wire:model.blur="state.attributes.{{ $a }}.label" :disabled="$readOnly" />
-                                <x-artisanpack-input id="attribute-{{ $a }}-key" class="ec-mono-input" dir="ltr" :label="__( 'Key' )" :hint="__( 'Optional; made from the label.' )" wire:model.blur="state.attributes.{{ $a }}.key" :disabled="$readOnly" />
+                                <x-artisanpack-input id="attribute-{{ $a }}-label" :label="__( 'Attribute' )" :placeholder="__( 'Size' )" wire:model.live.blur="state.attributes.{{ $a }}.label" :disabled="$readOnly" />
+                                <x-artisanpack-input id="attribute-{{ $a }}-key" class="ec-mono-input" dir="ltr" :label="__( 'Key' )" :hint="__( 'Optional; made from the label.' )" wire:model.live.blur="state.attributes.{{ $a }}.key" :disabled="$readOnly" />
                                 <div class="ec-attr-row-end">
                                     <x-artisanpack-toggle id="attribute-{{ $a }}-variation" size="sm" :label="__( 'Used for variations' )" wire:model.live="state.attributes.{{ $a }}.is_variation" :disabled="$readOnly" />
                                 </div>
@@ -67,8 +67,8 @@
                                         $swatch    = (string) ( $value['swatch'] ?? '' );
                                     @endphp
                                     <div wire:key="value-{{ $value['uid'] }}" class="ec-value-row" data-attribute-value="{{ $a }}-{{ $v }}">
-                                        <x-artisanpack-input id="value-{{ $a }}-{{ $v }}-label" size="sm" class="ec-value-label" :aria-label="__( 'Value :number of :attribute', [ 'number' => $v + 1, 'attribute' => $attributeName ] )" :placeholder="__( 'Value' )" wire:model.blur="state.attributes.{{ $a }}.values.{{ $v }}.label" :disabled="$readOnly" />
-                                        <x-artisanpack-input id="value-{{ $a }}-{{ $v }}-swatch" size="sm" class="ec-value-swatch ec-mono-input" dir="ltr" :aria-label="__( 'Swatch for :value', [ 'value' => $valueName ] )" :placeholder="__( 'Swatch' )" wire:model.blur="state.attributes.{{ $a }}.values.{{ $v }}.swatch" :disabled="$readOnly" />
+                                        <x-artisanpack-input id="value-{{ $a }}-{{ $v }}-label" size="sm" class="ec-value-label" :aria-label="__( 'Value :number of :attribute', [ 'number' => $v + 1, 'attribute' => $attributeName ] )" :placeholder="__( 'Value' )" wire:model.live.blur="state.attributes.{{ $a }}.values.{{ $v }}.label" :disabled="$readOnly" />
+                                        <x-artisanpack-input id="value-{{ $a }}-{{ $v }}-swatch" size="sm" class="ec-value-swatch ec-mono-input" dir="ltr" :aria-label="__( 'Swatch for :value', [ 'value' => $valueName ] )" :placeholder="__( 'Swatch' )" wire:model.live.blur="state.attributes.{{ $a }}.values.{{ $v }}.swatch" :disabled="$readOnly" />
                                         @if ( 1 === preg_match( '/^#[0-9a-fA-F]{3,8}$/', $swatch ) )
                                             <span class="ec-swatch" style="background-color: {{ $swatch }}" aria-hidden="true"></span>
                                         @endif
@@ -174,7 +174,7 @@
                                                         @endforeach
                                                     </div>
                                                 @endif
-                                                <x-artisanpack-input id="variant-{{ $i }}-name" size="sm" :aria-label="__( 'Name of variant :number', [ 'number' => $i + 1 ] )" wire:model.blur="state.variants.{{ $i }}.name" :disabled="$readOnly" />
+                                                <x-artisanpack-input id="variant-{{ $i }}-name" size="sm" :aria-label="__( 'Name of variant :number', [ 'number' => $i + 1 ] )" wire:model.live.blur="state.variants.{{ $i }}.name" :disabled="$readOnly" />
                                             </div>
                                         </td>
                                         <td data-scope="table" data-part="cell">
@@ -186,7 +186,7 @@
                                                     dir="ltr"
                                                     :aria-label="__( 'SKU for :variant', [ 'variant' => $variantLabel ] )"
                                                     :error="isset( $skuClashes[ $i ] ) ? __( 'Already used by :variant.', [ 'variant' => $skuClashes[ $i ] ] ) : null"
-                                                    wire:model.blur="state.variants.{{ $i }}.sku"
+                                                    wire:model.live.blur="state.variants.{{ $i }}.sku"
                                                     :disabled="$readOnly"
                                                     data-variant-sku
                                                 />
@@ -222,7 +222,7 @@
                                                         <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="pencil" x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ Js::from( VariablePanel::MEDIA_CONTEXT . $i ) }} } )" :aria-label="__( 'Choose image for :variant', [ 'variant' => $variantLabel ] )" />
                                                     @endunless
                                                 @else
-                                                    <x-artisanpack-input id="variant-{{ $i }}-image" type="url" size="sm" dir="ltr" class="ec-col-image-url" :aria-label="__( 'Image URL for :variant', [ 'variant' => $variantLabel ] )" wire:model.blur="state.variants.{{ $i }}.image_url" :disabled="$readOnly" />
+                                                    <x-artisanpack-input id="variant-{{ $i }}-image" type="url" size="sm" dir="ltr" class="ec-col-image-url" :aria-label="__( 'Image URL for :variant', [ 'variant' => $variantLabel ] )" wire:model.live.blur="state.variants.{{ $i }}.image_url" :disabled="$readOnly" />
                                                 @endif
                                             </div>
                                         </td>

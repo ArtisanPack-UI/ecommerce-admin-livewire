@@ -71,7 +71,7 @@
 
                 <x-artisanpack-file id="inventory-bulk-file" :label="__( 'CSV file' )" accept=".csv,text/csv,text/plain" wire:model="stockCsv" />
                 <x-artisanpack-radio-group id="inventory-bulk-mode" :label="__( 'Quantities in the file' )" :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $modeOptions )" wire:model.live="bulkMode" orientation="horizontal" />
-                <x-artisanpack-input id="inventory-bulk-reason" :label="__( 'Reason' )" wire:model.blur="bulkReason" required />
+                <x-artisanpack-input id="inventory-bulk-reason" :label="__( 'Reason' )" wire:model.live.blur="bulkReason" required />
 
                 @if ( null !== $bulkReport )
                     <div class="overflow-x-auto" data-bulk-report>

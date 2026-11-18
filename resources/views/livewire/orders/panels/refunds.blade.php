@@ -202,7 +202,7 @@
                                                 id="refund-line-{{ $item->id }}-amount"
                                                 :currency="$currency"
                                                 :aria-label="__( 'Amount to refund for :item', [ 'item' => $itemName ] )"
-                                                wire:model.blur="lines.{{ $item->id }}.amount"
+                                                wire:model.live.blur="lines.{{ $item->id }}.amount"
                                             />
                                         </td>
                                         <td data-scope="table" data-part="cell">
@@ -228,7 +228,7 @@
                         :label="__( 'Amount' )"
                         :hint="$supportsPartial ? __( 'For shipping, a goodwill gesture, or any amount not tied to returned units.' ) : __( 'The full remaining balance.' )"
                         :readonly="! $supportsPartial"
-                        wire:model.blur="amount"
+                        wire:model.live.blur="amount"
                     />
                 </div>
                 @if ( $supportsPartial )
