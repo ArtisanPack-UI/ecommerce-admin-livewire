@@ -783,7 +783,7 @@
     "Items to ship": "Artículos a enviar",
     "Its :count product stays in the catalog but leaves this category.|Its :count products stay in the catalog but leave this category.": "Su :count producto sigue en el catálogo, pero sale de esta categoría.|Sus :count productos siguen en el catálogo, pero salen de esta categoría.",
     "Its columns and automations are deleted. Orders stay as they are, but lose their card on this board. This cannot be undone.": "Se eliminan sus columnas y automatizaciones. Los pedidos no cambian, pero pierden su tarjeta en este tablero. Esta acción no se puede deshacer.",
-    "Its type, “:type”, is provided by a plugin that is no longer installed. Reinstall it to edit this product; orders and stock keep working.": "Su tipo, «:type», lo proporciona un complemento que ya no está instalado. Vuelve a instalarlo para editar este producto; los pedidos y el inventario siguen funcionando.",
+    "Its type, “:type”, is provided by a plugin that is no longer installed, so it can’t be edited or bought until you reinstall it. Existing orders and stock aren’t affected.": "Su tipo, «:type», lo proporciona un complemento que ya no está instalado, así que no se puede editar ni comprar hasta que lo vuelvas a instalar. Los pedidos existentes y el inventario no se ven afectados.",
     "Job": "Trabajo",
     "Jump to the order's notes": "Ir a las notas del pedido",
     "Jurisdiction": "Jurisdicción",

@@ -23,9 +23,7 @@
             <form
                 wire:submit="addNote"
                 class="ec-stack-sm"
-                x-data="{ hasText: false }"
-                x-on:input="if ( 'TEXTAREA' === $event.target.tagName ) hasText = '' !== $event.target.value.trim()"
-                x-on:{{ Notes::NOTES_CHANGED_EVENT }}.window="hasText = false"
+                x-data
                 data-note-form
             >
                 <x-artisanpack-textarea
@@ -51,7 +49,7 @@
                         type="submit"
                         size="sm"
                         class="ec-push-end"
-                        x-bind:aria-disabled="hasText ? 'false' : 'true'"
+                        x-bind:aria-disabled="'' === String( $wire.body ?? '' ).trim() ? 'true' : 'false'"
                         wire:loading.attr="disabled"
                         wire:target="addNote"
                     >{{ __( 'Add note' ) }}</x-artisanpack-button>

@@ -15,7 +15,7 @@ it( 'names the missing type and what keeps working in a warning alert', function
     $html = Blade::render( '<x-artisanpack-ec-product-type-warning :product="$product" />', [ 'product' => $product ] );
 
     expect( $html )->toContain( 'This product is read-only' )
-        ->toContain( e( 'Its type, “subscription”, is provided by a plugin that is no longer installed. Reinstall it to edit this product; orders and stock keep working.' ) )
+        ->toContain( e( 'Its type, “subscription”, is provided by a plugin that is no longer installed, so it can’t be edited or bought until you reinstall it. Existing orders and stock aren’t affected.' ) )
         ->toContain( 'role="status"' )
         ->toContain( 'class="apui-alert' )
         ->toContain( 'data-color="warning"' )

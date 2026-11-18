@@ -783,7 +783,7 @@
     "Items to ship": "Items to ship",
     "Its :count product stays in the catalog but leaves this category.|Its :count products stay in the catalog but leave this category.": "Its :count product stays in the catalog but leaves this category.|Its :count products stay in the catalog but leave this category.",
     "Its columns and automations are deleted. Orders stay as they are, but lose their card on this board. This cannot be undone.": "Its columns and automations are deleted. Orders stay as they are, but lose their card on this board. This cannot be undone.",
-    "Its type, “:type”, is provided by a plugin that is no longer installed. Reinstall it to edit this product; orders and stock keep working.": "Its type, “:type”, is provided by a plugin that is no longer installed. Reinstall it to edit this product; orders and stock keep working.",
+    "Its type, “:type”, is provided by a plugin that is no longer installed, so it can’t be edited or bought until you reinstall it. Existing orders and stock aren’t affected.": "Its type, “:type”, is provided by a plugin that is no longer installed, so it can’t be edited or bought until you reinstall it. Existing orders and stock aren’t affected.",
     "Job": "Job",
     "Jump to the order's notes": "Jump to the order's notes",
     "Jurisdiction": "Jurisdiction",

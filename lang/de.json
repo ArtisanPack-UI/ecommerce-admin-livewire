@@ -783,7 +783,7 @@
     "Items to ship": "Zu versendende Artikel",
     "Its :count product stays in the catalog but leaves this category.|Its :count products stay in the catalog but leave this category.": "Ihr :count Produkt bleibt im Katalog, verlässt aber diese Kategorie.|Ihre :count Produkte bleiben im Katalog, verlassen aber diese Kategorie.",
     "Its columns and automations are deleted. Orders stay as they are, but lose their card on this board. This cannot be undone.": "Seine Spalten und Automationen werden gelöscht. Bestellungen bleiben unverändert, verlieren aber ihre Karte auf diesem Board. Dies kann nicht rückgängig gemacht werden.",
-    "Its type, “:type”, is provided by a plugin that is no longer installed. Reinstall it to edit this product; orders and stock keep working.": "Sein Typ „:type“ stammt aus einem Plugin, das nicht mehr installiert ist. Installieren Sie es erneut, um dieses Produkt zu bearbeiten; Bestellungen und Lagerbestand funktionieren weiter.",
+    "Its type, “:type”, is provided by a plugin that is no longer installed, so it can’t be edited or bought until you reinstall it. Existing orders and stock aren’t affected.": "Sein Typ „:type“ stammt aus einem Plugin, das nicht mehr installiert ist. Bis Sie es erneut installieren, kann das Produkt weder bearbeitet noch gekauft werden. Bestehende Bestellungen und der Lagerbestand sind nicht betroffen.",
     "Job": "Job",
     "Jump to the order's notes": "Zu den Notizen der Bestellung springen",
     "Jurisdiction": "Rechtsgebiet",

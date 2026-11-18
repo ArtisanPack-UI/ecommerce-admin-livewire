@@ -206,6 +206,10 @@ it( 'builds the notes card from design-system parts with no DaisyUI classes', fu
         ->not->toContain( 'opacity-75' )
         ->not->toContain( 'wire:confirm' );
 
+    // Add note's state follows the draft itself, so deleting a note while a draft is typed keeps it enabled.
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'data-note-form', 'Add note' ) )->toContain( 'x-bind:aria-disabled=' )->toContain( '$wire.body' )
+        ->and( $html )->not->toContain( 'hasText' );
+
     // The avatar repeats the visible author name, so it stays out of the accessibility tree.
     expect( Illuminate\Support\Str::betweenFirst( $html, 'class="apui-avatar', '>' ) )->toContain( 'aria-hidden="true"' )->not->toContain( 'role="img"' )
         ->and( $html )->toContain( '>AL</span>' );
