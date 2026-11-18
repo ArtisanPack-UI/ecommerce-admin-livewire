@@ -191,10 +191,16 @@ it( 'rolls back the latest edit', function (): void {
     $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) );
 
     $edit     = OrderEdit::query()->sole();
-    $history  = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->assertSee( 'Roll back' );
+    $history  = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->assertSeeHtml( 'data-rollback' )
+        ->assertDontSeeHtml( 'data-rollback-dialog' )
+        ->set( 'confirmingRollback', true )
+        ->assertSeeHtml( 'data-rollback-dialog' )
+        ->assertSee( 'Roll back edit #' . $edit->id . '?' );
 
     $history->call( 'rollbackEdit', $edit->id, editPanelToken( $history, 'rollbackEdit' ) )
-        ->assertDispatched( OrderPanelRegistry::ORDER_UPDATED_EVENT );
+        ->assertDispatched( OrderPanelRegistry::ORDER_UPDATED_EVENT )
+        ->assertSet( 'confirmingRollback', false );
 
     expect( $this->item->fresh()->quantity )->toBe( 2 )
         ->and( OrderEdit::query()->count() )->toBe( 2 );
@@ -328,4 +334,69 @@ it( 'marks a line for removal with a visible badge, not by fading the row', func
         ->assertSeeHtml( 'data-will-remove' )
         ->assertSee( 'Will be removed' )
         ->assertDontSeeHtml( 'opacity-50' );
+} );
+
+it( 'builds the history from design-system parts and offers roll back on the latest edit only', function (): void {
+    $older  = OrderEdit::factory()->create( [ 'order_id' => $this->order->id, 'reason' => 'Wrong size ordered.' ] );
+    $latest = OrderEdit::factory()->create( [ 'order_id' => $this->order->id, 'reason' => 'Second sweater.' ] );
+
+    $html = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->html();
+
+    expect( $html )
+        ->toContain( 'aria-label="Edit history, newest first"' )
+        ->toContain( 'class="ec-item"' )
+        ->toContain( 'aria-label="Roll back edit #' . $latest->id . '"' )
+        ->not->toContain( 'aria-label="Roll back edit #' . $older->id . '"' )
+        ->not->toContain( 'wire:confirm' )
+        ->not->toContain( 'rounded-box' );
+} );
+
+it( 'keeps Save disabled until the changes are previewed, then until a reason is entered', function (): void {
+    $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startEdit' )
+        ->set( "draftItems.{$this->item->id}.quantity", 3 );
+
+    expect( $component->html() )
+        ->toContain( 'x-bind:disabled="true"' )
+        ->toContain( 'Preview the changes to see the new totals before saving.' );
+
+    $component->call( 'previewEdit' );
+
+    expect( $component->html() )
+        ->toMatch( '/x-bind:disabled="! \( \$wire\.reason/' )
+        ->toContain( 'Total: $20.00 → $30.00' )
+        ->toContain( 'aria-live="polite"' );
+} );
+
+it( 'names per-row controls for their item and wraps the addresses in an accordion', function (): void {
+    $html = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->call( 'startEdit' )->html();
+
+    expect( $html )
+        ->toContain( 'aria-label="Quantity of Linen Shirt"' )
+        ->toContain( 'aria-label="Remove Linen Shirt"' )
+        ->toContain( 'data-edit-addresses' )
+        ->toContain( 'Shipping address' )
+        ->toContain( '1 Main St, Springfield' )
+        ->toContain( 'class="apui-dialog ec-dialog-xl' );
+} );
+
+it( 'opens an address section whose fields have an error', function (): void {
+    $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startEdit' )
+        ->assertSet( 'openAddresses', [] )
+        ->set( 'shipping.country_code', 'USA' )
+        ->set( 'reason', 'x' );
+
+    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )
+        ->assertHasErrors( [ 'shipping.country_code' ] )
+        ->assertSet( 'openAddresses', [ 'shipping' ] );
+} );
+
+it( 'keeps only the known address sections a client asks to open', function (): void {
+    Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startEdit' )
+        ->set( 'openAddresses', [ 'billing', 'payment', [ 'nested' ], 'shipping', 'billing' ] )
+        ->assertSet( 'openAddresses', [ 'shipping', 'billing' ] )
+        ->assertSeeHtml( 'aria-label="Shipping address"' )
+        ->assertOk();
 } );

@@ -936,18 +936,23 @@
     }
 
     /* Lowest stock (#97): the table flush inside the card, with a level bar. */
-    .apui-card .ec-card-body-flush {
+    .apui-card .ec-card-body-flush,
+    .apui-card.ec-card-flush > [data-scope="card"][data-part="body"] {
         padding-inline: 0;
         padding-block-end: 4px;
     }
 
     .ec-card-body-flush [data-scope="table"][data-part="head-cell"]:first-child,
-    .ec-card-body-flush [data-scope="table"][data-part="cell"]:first-child {
+    .ec-card-body-flush [data-scope="table"][data-part="cell"]:first-child,
+    .ec-card-flush [data-scope="table"][data-part="head-cell"]:first-child,
+    .ec-card-flush [data-scope="table"][data-part="cell"]:first-child {
         padding-inline-start: var(--apui-card-padding, 20px);
     }
 
     .ec-card-body-flush [data-scope="table"][data-part="head-cell"]:last-child,
-    .ec-card-body-flush [data-scope="table"][data-part="cell"]:last-child {
+    .ec-card-body-flush [data-scope="table"][data-part="cell"]:last-child,
+    .ec-card-flush [data-scope="table"][data-part="head-cell"]:last-child,
+    .ec-card-flush [data-scope="table"][data-part="cell"]:last-child {
         padding-inline-end: var(--apui-card-padding, 20px);
     }
 
@@ -970,6 +975,345 @@
     .ec-w-80 [data-scope="progress"][data-part="bar"] { --apui-_v: 80%; }
     .ec-w-90 [data-scope="progress"][data-part="bar"] { --apui-_v: 90%; }
     .ec-w-100 [data-scope="progress"][data-part="bar"] { --apui-_v: 100%; }
+
+    /* Recent orders and the order panels (#98–#102). */
+    .ec-stack,
+    .ec-stack-sm,
+    .ec-stack-lg,
+    .ec-form-stack {
+        display: grid;
+        min-inline-size: 0;
+    }
+
+    .ec-stack {
+        gap: 16px;
+    }
+
+    .ec-stack-sm,
+    .ec-form-stack {
+        gap: 12px;
+    }
+
+    .ec-stack-lg {
+        gap: 20px;
+    }
+
+    .ec-muted {
+        margin: 0;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-body {
+        margin: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+    }
+
+    .ec-strong {
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-mono {
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    .ec-nowrap {
+        white-space: nowrap;
+    }
+
+    .ec-break {
+        overflow-wrap: anywhere;
+    }
+
+    .ec-text-error {
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-inset {
+        padding-inline: var(--apui-card-padding, 20px);
+    }
+
+    .ec-subheading {
+        margin: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-card-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ec-badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .ec-badge-after {
+        margin-inline-start: 6px;
+    }
+
+    .ec-alert-list,
+    .ec-bullets {
+        display: grid;
+        gap: 4px;
+        margin: 0;
+        padding-inline-start: 18px;
+    }
+
+    .ec-bullets {
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+    }
+
+    .ec-bullets-nested {
+        margin-block-start: 4px;
+        color: var(--apui-text-muted);
+        list-style: circle;
+    }
+
+    .ec-bullets-muted {
+        gap: 2px;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-plain-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-what-happens {
+        display: grid;
+        gap: 6px;
+    }
+
+    .ec-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .ec-sunken {
+        display: grid;
+        gap: 12px;
+        padding: 12px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-empty-sunken {
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-field-grid-3 {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    }
+
+    .ec-field-narrow {
+        max-inline-size: 22.5rem;
+    }
+
+    .ec-inline-field {
+        justify-self: start;
+    }
+
+    /* A raised row in a card: a shipment, an edit. */
+    .ec-list {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-item {
+        display: grid;
+        gap: 8px;
+        padding: 12px 14px;
+        border: var(--apui-border-width) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-raised);
+    }
+
+    .ec-item-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-item-head .ec-push {
+        display: flex;
+        gap: 4px;
+        margin-inline-start: auto;
+    }
+
+    .ec-dl {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px 16px;
+        margin: 0;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-dl dt {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-dl dd {
+        margin: 0;
+        min-inline-size: 0;
+        overflow-wrap: anywhere;
+    }
+
+    /* Tables in the panels and their dialogs. */
+    .ec-table th[data-scope="table"][data-part="cell"] {
+        font-weight: inherit;
+        text-align: start;
+    }
+
+    .ec-table [data-density="compact"] [data-scope="table"][data-part="cell"] {
+        padding-block: 8px;
+    }
+
+    .ec-table .ec-row-top [data-scope="table"][data-part="cell"] {
+        vertical-align: top;
+    }
+
+    .ec-table [data-removing] [data-scope="table"][data-part="cell"] {
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-cell-muted {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-cell-wrap {
+        min-inline-size: 13.75rem;
+        white-space: normal;
+    }
+
+    .ec-cell-secondary {
+        display: block;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: 16px;
+    }
+
+    .ec-cell-secondary.ec-text-error {
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-col-qty {
+        inline-size: 7rem;
+    }
+
+    .ec-col-money {
+        inline-size: 10rem;
+    }
+
+    .ec-col-check {
+        inline-size: 5rem;
+    }
+
+    .ec-col-variant {
+        inline-size: 11.25rem;
+    }
+
+    .ec-figure-inline {
+        color: var(--apui-text-default);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    /* Wider dialogs: refunds (720px) and order edits (880px). */
+    .apui-dialog.ec-dialog-wide {
+        inline-size: min(720px, 100%);
+    }
+
+    .apui-dialog.ec-dialog-xl {
+        inline-size: min(880px, 100%);
+    }
+
+    /* Order edits (#102): the add-item row, address sections and the preview. */
+    .ec-add-item {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 5.5rem auto;
+        gap: 8px;
+        align-items: end;
+    }
+
+    .ec-accordion-title {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-accordion-summary {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        font-weight: var(--apui-font-weight-regular, 400);
+    }
+
+    .ec-preview {
+        padding: 16px;
+    }
+
+    .ec-preview-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .ec-preview-head > :last-child {
+        margin-inline-start: auto;
+    }
+
+    .ec-diff {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px;
+        margin: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+    }
+
+    .ec-diff-before {
+        color: var(--apui-text-muted);
+        text-decoration: line-through;
+    }
+
+    .ec-diff-arrow {
+        align-self: center;
+        inline-size: 14px;
+        block-size: 14px;
+        color: var(--apui-text-muted);
+    }
+
+    /* undo-2 isn't in the icon registry's directional list, so roll back mirrors here. */
+    .ec-icon-mirror:dir(rtl) [data-scope="button"][data-part="icon"] {
+        transform: scaleX(-1);
+    }
+
+    @media (max-width: 40rem) {
+        .ec-add-item {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
 
     @media (forced-colors: active) {
         .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item .ec-admin-nav__badge {
