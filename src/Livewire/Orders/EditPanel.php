@@ -190,6 +190,18 @@ class EditPanel extends Component
     public bool $confirmingRollback = false;
 
     /**
+     * The edit the roll-back confirmation was opened for. Fixed while the
+     * dialog is open, so a newer edit saved meanwhile is never rolled back
+     * in its place.
+     *
+     * @since 2.0.0
+     *
+     * @var int|null
+     */
+    #[Locked]
+    public ?int $rollbackEditId = null;
+
+    /**
      * The address sections open in the editor (`shipping`, `billing`).
      *
      * @since 2.0.0
@@ -463,6 +475,34 @@ class EditPanel extends Component
     }
 
     /**
+     * Opens the roll-back confirmation for `$editId`, which must be the
+     * order's latest edit.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $editId  The edit to roll back.
+     *
+     * @return void
+     */
+    public function confirmRollback( int $editId ): void
+    {
+        $order = $this->order();
+
+        if ( ! $this->authorizeEdit( $order ) ) {
+            return;
+        }
+
+        if ( $this->latestEditId( $order ) !== $editId ) {
+            $this->toastError( __( 'Only the latest edit can be rolled back.' ) );
+
+            return;
+        }
+
+        $this->rollbackEditId     = $editId;
+        $this->confirmingRollback = true;
+    }
+
+    /**
      * Rolls back the order's latest edit.
      *
      * @since 1.0.0
@@ -483,6 +523,7 @@ class EditPanel extends Component
         $latest = OrderEdit::query()->where( 'order_id', $order->id )->orderByDesc( 'id' )->first();
 
         $this->confirmingRollback = false;
+        $this->rollbackEditId     = null;
 
         if ( null === $latest || (int) $latest->id !== $editId ) {
             $this->toastError( __( 'Only the latest edit can be rolled back.' ) );
@@ -535,6 +576,11 @@ class EditPanel extends Component
 
         $edits   = OrderEdit::query()->where( 'order_id', $order->id )->orderByDesc( 'id' )->get();
         $blocked = $this->blockedReason( $order );
+
+        // The edit the open confirmation was opened for, never whichever edit is latest now.
+        $rollbackTarget = $this->confirmingRollback && null !== $this->rollbackEditId
+            ? $edits->firstWhere( 'id', $this->rollbackEditId )
+            : null;
         $canEdit = null === $blocked
             && $this->canEcommerce( 'update', $order )
             && ( ! $this->fulfillmentStarted( $order ) || Authorization::allows( $user, 'order.edit-fulfilled', $order ) );
@@ -553,7 +599,10 @@ class EditPanel extends Component
             'addVariantOptions'  => $this->editing ? $this->addVariantOptions() : [],
             'methodOptions'      => $this->editing ? ShippingMethods::options( $order->shipping_method_key ) : [],
             'editToken'          => $this->editing && $canEdit ? $this->actionToken( 'edit', $order ) : null,
-            'rollbackToken'      => $canEdit && $edits->isNotEmpty() ? $this->actionToken( 'rollback', $edits->first() ) : null,
+            'canRollback'        => $canEdit && $edits->isNotEmpty(),
+            'rollbackTarget'     => $rollbackTarget,
+            'rollbackStale'      => null !== $rollbackTarget && (int) $rollbackTarget->id !== (int) $edits->first()?->id,
+            'rollbackToken'      => $canEdit && null !== $rollbackTarget ? $this->actionToken( 'rollback', $rollbackTarget ) : null,
         ] );
     }
 
@@ -630,6 +679,22 @@ class EditPanel extends Component
         }
 
         return $lines;
+    }
+
+    /**
+     * The id of the order's latest edit, or null when it has none.
+     *
+     * @since 2.0.0
+     *
+     * @param  Order  $order  The order.
+     *
+     * @return int|null
+     */
+    protected function latestEditId( Order $order ): ?int
+    {
+        $id = OrderEdit::query()->where( 'order_id', $order->id )->orderByDesc( 'id' )->value( 'id' );
+
+        return null === $id ? null : (int) $id;
     }
 
     /**

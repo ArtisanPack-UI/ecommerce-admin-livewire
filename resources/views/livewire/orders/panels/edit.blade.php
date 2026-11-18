@@ -23,8 +23,6 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
     use ArtisanPackUI\EcommerceAdminLivewire\Support\UserNames;
     use Illuminate\Support\Js;
-
-    $latestEdit = $edits->first();
 @endphp
 <div>
     <x-artisanpack-card :title="__( 'Edits' )" :classes="[ 'body' => 'ec-stack-sm' ]" data-edits-panel>
@@ -60,7 +58,7 @@
                                     &middot; <time datetime="{{ $edit->created_at->toIso8601String() }}">{{ LocalizedDate::format( $edit->created_at ) }}</time>
                                 @endif
                             </span>
-                            @if ( $loop->first && null !== $rollbackToken )
+                            @if ( $loop->first && $canRollback )
                                 <span class="ec-push">
                                     <x-artisanpack-button
                                         variant="ghost"
@@ -68,7 +66,7 @@
                                         size="xs"
                                         leading-icon="undo-2"
                                         class="ec-icon-mirror"
-                                        wire:click="$set( 'confirmingRollback', true )"
+                                        wire:click="confirmRollback( {{ (int) $edit->id }} )"
                                         :aria-label="__( 'Roll back edit #:id', [ 'id' => $edit->id ] )"
                                         data-rollback>{{ __( 'Roll back' ) }}</x-artisanpack-button>
                                 </span>
@@ -90,9 +88,9 @@
         @endif
     </x-artisanpack-card>
 
-    @if ( $confirmingRollback && null !== $rollbackToken && null !== $latestEdit )
+    @if ( $confirmingRollback && null !== $rollbackToken && null !== $rollbackTarget )
         @php
-            $rollbackTitle = __( 'Roll back edit #:id?', [ 'id' => $latestEdit->id ] );
+            $rollbackTitle = __( 'Roll back edit #:id?', [ 'id' => $rollbackTarget->id ] );
         @endphp
         <x-artisanpack-dialog
             wire:model="confirmingRollback"
@@ -104,12 +102,16 @@
             :classes="[ 'footer' => 'ec-dialog-footer-divided' ]"
             data-rollback-dialog
         >
+            @if ( $rollbackStale )
+                <x-artisanpack-alert color="warning" icon="triangle-alert" role="status" data-rollback-stale>{{ __( 'A newer edit was saved while this was open, so edit #:id is no longer the latest and can’t be rolled back. Close this and roll back the latest edit instead.', [ 'id' => $rollbackTarget->id ] ) }}</x-artisanpack-alert>
+            @endif
             <x-slot:footer>
                 <x-artisanpack-button variant="outline" color="neutral" wire:click="$set( 'confirmingRollback', false )" data-autofocus>{{ __( 'Keep edit' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="warning"
                     leading-icon="undo-2"
-                    wire:click="rollbackEdit( {{ (int) $latestEdit->id }}, {{ Js::from( $rollbackToken ) }} )"
+                    wire:click="rollbackEdit( {{ (int) $rollbackTarget->id }}, {{ Js::from( $rollbackToken ) }} )"
+                    :disabled="$rollbackStale"
                     wire:loading.attr="disabled"
                     wire:target="rollbackEdit">{{ __( 'Roll back' ) }}</x-artisanpack-button>
             </x-slot:footer>

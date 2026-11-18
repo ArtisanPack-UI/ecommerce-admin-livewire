@@ -158,6 +158,7 @@
     "A new product needs a SKU or a slug.": "Ein neues Produkt braucht eine SKU oder einen Slug.",
     "A new product needs a name.": "Ein neues Produkt braucht einen Namen.",
     "A new signing secret replaces the current one straight away. Deliveries signed with the old secret will fail verification until the receiving endpoint is updated.": "Ein neues Signaturgeheimnis ersetzt das aktuelle sofort. Mit dem alten Geheimnis signierte Zustellungen bestehen die Prüfung nicht, bis der empfangende Endpunkt aktualisiert ist.",
+    "A newer edit was saved while this was open, so edit #:id is no longer the latest and can’t be rolled back. Close this and roll back the latest edit instead.": "Während dieses Fenster offen war, wurde eine neuere Bearbeitung gespeichert. Bearbeitung #:id ist daher nicht mehr die neueste und kann nicht zurückgesetzt werden. Schließe dieses Fenster und setze stattdessen die neueste Bearbeitung zurück.",
     "A product can't contain itself.": "Ein Produkt kann sich nicht selbst enthalten.",
     "A product is listed twice.": "Ein Produkt ist doppelt aufgeführt.",
     "A review was submitted. The dashboard has been updated.": "Eine Bewertung wurde abgegeben. Das Dashboard wurde aktualisiert.",

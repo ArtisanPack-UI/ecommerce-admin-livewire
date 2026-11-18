@@ -158,6 +158,7 @@
     "A new product needs a SKU or a slug.": "A new product needs a SKU or a slug.",
     "A new product needs a name.": "A new product needs a name.",
     "A new signing secret replaces the current one straight away. Deliveries signed with the old secret will fail verification until the receiving endpoint is updated.": "A new signing secret replaces the current one straight away. Deliveries signed with the old secret will fail verification until the receiving endpoint is updated.",
+    "A newer edit was saved while this was open, so edit #:id is no longer the latest and can’t be rolled back. Close this and roll back the latest edit instead.": "A newer edit was saved while this was open, so edit #:id is no longer the latest and can’t be rolled back. Close this and roll back the latest edit instead.",
     "A product can't contain itself.": "A product can't contain itself.",
     "A product is listed twice.": "A product is listed twice.",
     "A review was submitted. The dashboard has been updated.": "A review was submitted. The dashboard has been updated.",

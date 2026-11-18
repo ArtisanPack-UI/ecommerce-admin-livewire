@@ -194,7 +194,8 @@ it( 'rolls back the latest edit', function (): void {
     $history  = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
         ->assertSeeHtml( 'data-rollback' )
         ->assertDontSeeHtml( 'data-rollback-dialog' )
-        ->set( 'confirmingRollback', true )
+        ->call( 'confirmRollback', $edit->id )
+        ->assertSet( 'rollbackEditId', $edit->id )
         ->assertSeeHtml( 'data-rollback-dialog' )
         ->assertSee( 'Roll back edit #' . $edit->id . '?' );
 
@@ -399,4 +400,43 @@ it( 'keeps only the known address sections a client asks to open', function (): 
         ->assertSet( 'openAddresses', [ 'shipping', 'billing' ] )
         ->assertSeeHtml( 'aria-label="Shipping address"' )
         ->assertOk();
+} );
+
+it( 'keeps the roll-back confirmation on the edit it was opened for when a newer edit is saved', function (): void {
+    $first     = OrderEdit::factory()->create( [ 'order_id' => $this->order->id ] );
+    $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->call( 'confirmRollback', $first->id );
+
+    // Another panel saves a newer edit while the dialog is open.
+    $newer = OrderEdit::factory()->create( [ 'order_id' => $this->order->id ] );
+    $component->dispatch( OrderPanelRegistry::ORDER_UPDATED_EVENT );
+
+    expect( $component->html() )
+        ->toContain( 'Roll back edit #' . $first->id . '?' )
+        ->not->toContain( 'Roll back edit #' . $newer->id . '?' )
+        ->toContain( 'data-rollback-stale' )
+        ->toContain( 'rollbackEdit( ' . $first->id . ',' );
+
+    $component->call( 'rollbackEdit', $first->id, editPanelToken( $component, 'rollbackEdit' ) )
+        ->assertSet( 'confirmingRollback', false )
+        ->assertSet( 'rollbackEditId', null );
+
+    expect( OrderEdit::query()->count() )->toBe( 2 );
+} );
+
+it( 'refuses to open the roll-back confirmation for an edit that is not the latest', function (): void {
+    $older = OrderEdit::factory()->create( [ 'order_id' => $this->order->id ] );
+    OrderEdit::factory()->create( [ 'order_id' => $this->order->id ] );
+
+    Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'confirmRollback', $older->id )
+        ->assertSet( 'confirmingRollback', false )
+        ->assertSet( 'rollbackEditId', null )
+        ->assertDontSeeHtml( 'data-rollback-dialog' );
+} );
+
+it( 'does not let the client choose the roll-back target', function (): void {
+    $edit = OrderEdit::factory()->create( [ 'order_id' => $this->order->id ] );
+
+    expect( fn () => Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->set( 'rollbackEditId', $edit->id ) )
+        ->toThrow( \Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class );
 } );

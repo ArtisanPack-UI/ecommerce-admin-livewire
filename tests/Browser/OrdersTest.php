@@ -55,12 +55,12 @@ it( 'issues a partial refund with restock', function (): void {
     $line = 'refund-line-' . $this->item->id;
 
     visit( route( 'artisanpack.ecommerce.admin.orders.show', [ 'order' => $this->order->id ] ) )
-        ->click( Locators::role( 'Issue refund' ) )
+        ->click( Locators::role( 'Refund' ) )
         ->type( Locators::field( $line . '-quantity' ), '1' )
         ->click( Locators::field( 'refund-reason' ) )
         ->check( Locators::field( $line . '-restock' ) )
         ->type( Locators::field( 'refund-reason' ), 'Wrong size' )
-        ->click( 'internal:role=dialog >> ' . Locators::role( 'Refund' ) )
+        ->click( 'internal:role=dialog >> ' . Locators::role( 'Refund $10.00' ) )
         ->assertSee( 'Refunded $10.00.' )
         ->assertNoJavaScriptErrors();
 

@@ -468,3 +468,18 @@ it( 'hides "Refund by" for a gateway without partial refunds and says why', func
         ->assertDontSee( 'Refund by' )
         ->assertSee( 'Refund $35.00' );
 } );
+
+it( 'leaves a line whose item left the order out of the running total', function (): void {
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startRefund' )
+        ->set( "lines.{$this->item->id}.quantity", 1 )
+        ->set( "lines.{$this->wrap->id}.amount", 500 )
+        ->assertSee( 'Refund $15.00' );
+
+    // An edit removes the gift wrap while the dialog is open.
+    $this->wrap->delete();
+
+    $component->dispatch( OrderPanelRegistry::ORDER_UPDATED_EVENT )
+        ->assertSee( 'Refund $10.00' )
+        ->assertDontSee( 'Refund $15.00' );
+} );

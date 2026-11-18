@@ -296,7 +296,7 @@ class RefundsPanel extends Component
             'refundProblem'   => $canRefund ? $problem : null,
             'supportsPartial' => null !== $gateway && $this->supportsPartial( $order ),
             'refundToken'     => $this->refunding && $canRefund ? $this->actionToken( 'refund', $order ) : null,
-            'refundTotal'     => $this->refunding ? $this->refundTotal() : 0,
+            'refundTotal'     => $this->refunding ? $this->refundTotal( $items->modelKeys() ) : 0,
             'failures'        => $this->failureMessages( $order, $refunds ),
         ] );
     }
@@ -306,11 +306,17 @@ class RefundsPanel extends Component
      * amount mode, otherwise the sum of the line amounts. Shown in the
      * primary button; {@see self::validatedLines()} still checks it.
      *
+     * Only lines for items still on the order count, the same lines
+     * {@see self::validatedLines()} submits, so a line whose item an edit
+     * removed while the dialog was open never inflates the total.
+     *
      * @since 2.0.0
+     *
+     * @param  array<int, int|string>  $itemIds  The order's current item ids.
      *
      * @return int
      */
-    protected function refundTotal(): int
+    protected function refundTotal( array $itemIds ): int
     {
         if ( 'amount' === $this->mode ) {
             return is_numeric( $this->amount ) ? max( 0, (int) $this->amount ) : 0;
@@ -318,7 +324,13 @@ class RefundsPanel extends Component
 
         $total = 0;
 
-        foreach ( $this->lines as $line ) {
+        $current = array_map( 'intval', $itemIds );
+
+        foreach ( $this->lines as $id => $line ) {
+            if ( ! in_array( (int) $id, $current, true ) ) {
+                continue;
+            }
+
             $amount = is_array( $line ) ? ( $line['amount'] ?? 0 ) : 0;
             $total += is_numeric( $amount ) ? max( 0, (int) $amount ) : 0;
         }
