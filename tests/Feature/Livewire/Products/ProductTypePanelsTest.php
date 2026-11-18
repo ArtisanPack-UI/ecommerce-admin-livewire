@@ -444,3 +444,101 @@ it( 'reports an unresolvable panel alias as such, keeping the original error', f
             ->and( $exception->getPrevious() )->not->toBeNull();
     }
 } );
+
+it( 'builds the variable panel from design-system parts with no DaisyUI classes', function (): void {
+    $state = [
+        'attributes'   => teeAttributes( [ 'M', 'L' ], [ 'Navy' ] ),
+        'variants'     => [],
+        'stock_reason' => '',
+    ];
+
+    $component = Livewire::test( VariablePanel::class )->set( 'state', $state )->call( 'generateVariants' );
+    $html      = $component->html();
+
+    expect( $html )
+        ->toContain( 'class="apui-card' )
+        ->toContain( 'class="ec-list"' )
+        ->toContain( 'class="ec-values"' )
+        ->toContain( 'Values · Size' )
+        ->toContain( 'class="ec-generate"' )
+        ->toContain( 'class="apui-table ec-table"' )
+        ->toContain( 'aria-label="Move Size up"' )
+        ->toContain( 'aria-label="Remove Size"' )
+        ->toContain( 'aria-label="Value 1 of Size"' )
+        ->toContain( 'aria-label="Swatch for M"' )
+        ->toContain( 'aria-label="SKU for M / Navy"' )
+        ->toContain( 'aria-label="USD price for M / Navy"' )
+        ->toContain( 'aria-label="Stock for M / Navy"' )
+        ->not->toContain( 'rounded-box' )
+        ->not->toContain( 'border-base-300' )
+        ->not->toContain( 'bg-base-200' )
+        ->not->toContain( 'table-sm' )
+        ->not->toContain( 'opacity-75' );
+} );
+
+it( 'reads an empty price in a non-store currency as coming from the store currency', function (): void {
+    $html = Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => teeAttributes( [ 'M' ], [ 'Navy' ] ), 'variants' => [], 'stock_reason' => '' ] )
+        ->call( 'generateVariants' )
+        ->html();
+
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'id="variant-0-price-EUR"', '>' ) )->toContain( 'placeholder="From store currency"' )
+        ->and( Illuminate\Support\Str::betweenFirst( $html, 'id="variant-0-price-USD"', '>' ) )->not->toContain( 'From store currency' );
+} );
+
+it( 'flags a duplicate SKU on the row that repeats it', function (): void {
+    $component = Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => teeAttributes( [ 'M', 'L' ], [ 'Navy' ] ), 'variants' => [], 'stock_reason' => '' ] )
+        ->call( 'generateVariants' )
+        ->set( 'state.variants.0.sku', 'MER-CRW-NV' )
+        ->set( 'state.variants.1.sku', ' mer-crw-nv ' );
+
+    $html = $component->html();
+
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'data-variant-row="1"', '</tr>' ) )->toContain( 'Already used by M / Navy.' )
+        ->and( Illuminate\Support\Str::betweenFirst( $html, 'data-variant-row="0"', '</tr>' ) )->not->toContain( 'Already used by' );
+
+    $component->set( 'state.variants.1.sku', 'MER-CRW-NV-L' )->assertDontSee( 'Already used by' );
+} );
+
+it( 'confirms a large generation inline with an Add variants button', function (): void {
+    $sizes   = array_map( static fn ( int $n ): string => "Size {$n}", range( 1, 9 ) );
+    $colours = array_map( static fn ( int $n ): string => "Colour {$n}", range( 1, 6 ) );
+
+    $html = Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => teeAttributes( $sizes, $colours ), 'variants' => [], 'stock_reason' => '' ] )
+        ->call( 'generateVariants' )
+        ->html();
+
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'class="ec-generate"', '</section>' ) )
+        ->toContain( 'role="alertdialog"' )
+        ->toContain( 'This adds 54 variants. Continue?' )
+        ->toContain( 'Add variants' )
+        ->toContain( 'Cancel' );
+} );
+
+it( 'shows the empty attributes and variants copy', function (): void {
+    Livewire::test( VariablePanel::class )
+        ->set( 'state', VariablePanel::initialState( null ) )
+        ->assertSee( 'Add attributes such as size or colour, then generate a variant for each combination.' )
+        ->assertSee( '0 variants' )
+        ->assertSee( 'No variants yet.' )
+        ->assertDontSeeHtml( 'class="ec-list"' );
+} );
+
+it( 'disables every control and hides the actions on a read-only variable panel', function (): void {
+    $product = Product::factory()->variable()->create();
+
+    $html = Livewire::test( VariablePanel::class, [ 'productId' => $product->id, 'readOnly' => true ] )
+        ->set( 'state', [ 'attributes' => teeAttributes( [ 'M' ], [ 'Navy' ] ), 'variants' => [], 'stock_reason' => '' ] )
+        ->html();
+
+    expect( $html )
+        ->toContain( 'id="attribute-0-label"' )
+        ->not->toContain( 'Add attribute' )
+        ->not->toContain( 'Add value' )
+        ->not->toContain( 'aria-label="Remove Size"' )
+        ->not->toContain( 'Add a variant by hand' );
+
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'id="attribute-0-label"', '>' ) )->toContain( 'disabled' );
+} );

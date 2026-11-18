@@ -351,3 +351,104 @@ it( 'refuses a media-library file on a public disk in the panel', function (): v
 
     expect( DigitalFile::query()->count() )->toBe( 0 );
 } );
+
+it( 'builds the digital panel from design-system parts with no DaisyUI classes', function (): void {
+    $html = Livewire::test( DigitalPanel::class )
+        ->set( 'state', [ ...DigitalPanel::initialState( null ), 'files' => [ digitalRow() ], 'licensing_enabled' => true ] )
+        ->html();
+
+    expect( $html )
+        ->toContain( 'class="apui-card' )
+        ->toContain( 'class="ec-item ec-file"' )
+        ->toContain( 'class="apui-divider' )
+        ->toContain( 'Label of file 1' )
+        ->toContain( 'Version of Field guide (PDF)' )
+        ->toContain( 'Path of Field guide (PDF) on the disk' )
+        ->toContain( 'aria-label="Remove Field guide (PDF)"' )
+        ->toContain( 'Can be played but never downloaded.' )
+        ->toContain( 'data-licensing-fields' )
+        ->not->toContain( 'rounded-box' )
+        ->not->toContain( 'border-base-300' )
+        ->not->toContain( 'opacity-75' )
+        ->not->toContain( 'text-error' );
+} );
+
+it( 'shows the license fields only while license keys are on', function (): void {
+    Livewire::test( DigitalPanel::class )
+        ->set( 'state', DigitalPanel::initialState( null ) )
+        ->assertSee( 'Attach the files buyers can download or stream.' )
+        ->assertDontSeeHtml( 'data-licensing-fields' )
+        ->assertDontSee( 'Activations per key' )
+        ->set( 'state.licensing_enabled', true )
+        ->assertSeeHtml( 'data-licensing-fields' )
+        ->assertSee( 'Activations per key' );
+} );
+
+it( 'shows a media-library file as a chip with a replace button', function (): void {
+    ProductMedia::fake( true );
+
+    Livewire::test( DigitalPanel::class )
+        ->set( 'state', [ ...DigitalPanel::initialState( null ), 'files' => [ digitalRow( [ 'source' => 'media', 'media_id' => 418 ] ) ] ] )
+        ->assertSeeHtml( 'class="ec-file-chip"' )
+        ->assertSee( 'Media library file #418' )
+        ->assertSee( 'Replace file' )
+        ->assertSeeHtml( 'aria-label="Replace file for Field guide (PDF)"' )
+        ->assertDontSee( 'Path of Field guide (PDF) on the disk' );
+
+    Livewire::test( DigitalPanel::class )
+        ->set( 'state', [ ...DigitalPanel::initialState( null ), 'files' => [ digitalRow( [ 'source' => 'media', 'media_id' => null ] ) ] ] )
+        ->assertSee( 'No file chosen yet.' )
+        ->assertSee( 'Choose file' );
+} );
+
+it( 'hides the digital panel actions when read-only', function (): void {
+    $product = Product::factory()->create( [ 'type' => 'digital' ] );
+
+    Livewire::test( DigitalPanel::class, [ 'productId' => $product->id, 'readOnly' => true ] )
+        ->set( 'state', [ ...DigitalPanel::initialState( null ), 'files' => [ digitalRow() ] ] )
+        ->assertDontSee( 'Add file' )
+        ->assertDontSeeHtml( 'aria-label="Remove Field guide (PDF)"' );
+} );
+
+it( 'builds the children panel from design-system parts and names each row for its product', function (): void {
+    $sweater = Product::factory()->variable()->create( [ 'name' => 'Merino crew sweater' ] );
+    $socks   = Product::factory()->create( [ 'name' => 'Wool socks, 3-pack' ] );
+    ProductVariant::factory()->create( [ 'product_id' => $sweater->id, 'name' => 'Navy M' ] );
+
+    $html = Livewire::test( ChildrenPanel::class )
+        ->set( 'state', [ 'children' => [
+            [ 'uid' => 'a', 'product_id' => $sweater->id, 'variant_id' => '', 'quantity' => 1 ],
+            [ 'uid' => 'b', 'product_id' => $socks->id, 'variant_id' => '', 'quantity' => 2 ],
+        ] ] )
+        ->html();
+
+    expect( $html )
+        ->toContain( 'class="apui-card' )
+        ->toContain( 'aria-label="Products included, in order"' )
+        ->toContain( 'class="ec-item"' )
+        ->toContain( 'Product 1' )
+        ->toContain( 'Product 2' )
+        ->toContain( 'Shopper chooses' )
+        ->toContain( 'aria-label="Variant of Merino crew sweater"' )
+        ->toContain( 'aria-label="Quantity of Wool socks, 3-pack"' )
+        ->toContain( 'aria-label="Move Merino crew sweater down"' )
+        ->toContain( 'aria-label="Remove Wool socks, 3-pack"' )
+        ->not->toContain( 'rounded-box' )
+        ->not->toContain( 'border-base-300' )
+        ->not->toContain( 'opacity-75' );
+
+    // A product without variants says so instead of showing a dead select.
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'data-child-row="1"', '</li>' ) )->toContain( 'No variants' )->not->toContain( 'Shopper chooses' );
+} );
+
+it( 'shows the children error as an alert and hides the actions when read-only', function (): void {
+    $bundle = Product::factory()->bundled()->create();
+    $mug    = Product::factory()->create( [ 'name' => 'Mug' ] );
+
+    Livewire::test( ChildrenPanel::class, [ 'productId' => $bundle->id, 'readOnly' => true, 'panelErrors' => [ 'children' => 'A bundle needs at least two products.' ] ] )
+        ->set( 'state', [ 'children' => [ [ 'uid' => 'a', 'product_id' => $mug->id, 'variant_id' => '', 'quantity' => 1 ] ] ] )
+        ->assertSeeHtml( 'class="ec-field-error" role="alert"' )
+        ->assertSee( 'A bundle needs at least two products.' )
+        ->assertDontSee( 'Add product' )
+        ->assertDontSeeHtml( 'aria-label="Remove Mug"' );
+} );

@@ -225,8 +225,8 @@ class ChildrenPanel extends ProductTypePanel
             ->groupBy( 'product_id' );
 
         return view( 'ecommerce-admin::livewire.products.panels.children', [
-            'pickerOptions'  => array_map( fn ( int $index ): array => $this->optionsForPicker( 'product', "state.children.{$index}.product_id" ), array_keys( $rows ) ),
-            'variantOptions' => array_map( static fn ( array $row ): array => $variants->get( (int) ( $row['product_id'] ?? 0 ), collect() )->map( static fn ( ProductVariant $variant ): array => [
+            'childPickerOptions' => array_map( fn ( int $index ): array => $this->optionsForPicker( 'product', "state.children.{$index}.product_id" ), array_keys( $rows ) ),
+            'variantOptions'     => array_map( static fn ( array $row ): array => $variants->get( (int) ( $row['product_id'] ?? 0 ), collect() )->map( static fn ( ProductVariant $variant ): array => [
                 'id'   => (string) $variant->id,
                 'name' => (string) ( $variant->name ?: $variant->sku ?: __( 'Variant #:id', [ 'id' => $variant->id ] ) ),
             ] )->values()->all(), $rows ),

@@ -20,8 +20,9 @@ use Illuminate\View\Component;
 /**
  * `<x-artisanpack-ec-product-type-warning :product="$product" />`
  *
- * Shows the engine's read-only banner when the product's type is provided by
- * a satellite that is not installed. Renders nothing otherwise.
+ * Shows a read-only warning when the product's type is provided by a
+ * satellite that is not installed: it names the type and says what keeps
+ * working (#107). Renders nothing otherwise.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -61,7 +62,7 @@ class ProductTypeWarning extends Component
     public function render(): View
     {
         return view( 'ecommerce-admin::components.product-type-warning', [
-            'warning' => (string) $this->product->typeWarning(),
+            'type' => (string) $this->product->getAttribute( 'type' ),
         ] );
     }
 }

@@ -130,9 +130,11 @@ const MATRIX = [
     'artisanpack-ecommerce-admin-notes' => [
         'mount'   => [ 'params' => [ 'subject' => '@order-model' ], 'ability' => 'order.view' ],
         'actions' => [
-            'addNote'    => [ 'args' => [], 'ability' => 'order.update' ],
-            // Deleting needs authorship or order.update on an existing note; a missing note only needs the view check.
-            'deleteNote' => [ 'args' => [ 1 ], 'ability' => 'order.view' ],
+            'addNote'       => [ 'args' => [], 'ability' => 'order.update' ],
+            // Deleting (and confirming it) needs order.update on an existing note; a missing note only needs the view check.
+            'confirmDelete' => [ 'args' => [ 1 ], 'ability' => 'order.view' ],
+            'cancelDelete'  => [ 'args' => [], 'ability' => 'order.view' ],
+            'deleteNote'    => [ 'args' => [ 1 ], 'ability' => 'order.view' ],
         ],
     ],
 

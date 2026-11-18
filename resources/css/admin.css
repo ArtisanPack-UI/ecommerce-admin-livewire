@@ -1309,9 +1309,278 @@
         transform: scaleX(-1);
     }
 
+    /* Notes and the product type panels (#103–#106). */
+    .ec-stack-xl {
+        display: grid;
+        gap: 24px;
+        min-inline-size: 0;
+    }
+
+    .ec-measure {
+        max-inline-size: 68ch;
+    }
+
+    .ec-row-actions {
+        display: flex;
+        gap: 2px;
+    }
+
+    .ec-mono-input [data-scope="input"][data-part="control"] {
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    /* Internal notes (#103). */
+    .ec-note-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .apui-card .ec-notes {
+        margin-inline: calc(var(--apui-card-padding, 20px) * -1);
+    }
+
+    .ec-note {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 4px 12px;
+        padding: 14px var(--apui-card-padding, 20px);
+    }
+
+    .ec-note-avatar,
+    .ec-note-delete {
+        grid-row: span 2;
+    }
+
+    .ec-note-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-note-author {
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-note-time {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-note-body {
+        grid-column: 2;
+        margin: 0;
+        max-inline-size: 68ch;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+        white-space: pre-line;
+        overflow-wrap: anywhere;
+    }
+
+    /* Variable product panel (#104). */
+    /* Top-aligned, so the Key hint can't push its box up; the toggle and the
+       buttons drop past a label line and the field gap, then centre on the
+       input box. */
+    .ec-attr-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+        align-items: start;
+        gap: 12px;
+    }
+
+    .ec-attr-row-end {
+        display: flex;
+        align-items: center;
+        min-block-size: var(--apui-control-height-md);
+        margin-block-start: calc(var(--apui-type-body-sm-line-height, 18px) + 6px);
+    }
+
+    .ec-values {
+        display: grid;
+        gap: 8px;
+        min-inline-size: 0;
+        margin: 0;
+        padding: 12px;
+        border: 0;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-values-title {
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-value-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-value-label {
+        flex: 1 1 8.75rem;
+    }
+
+    .ec-value-swatch {
+        flex: 0 1 9.375rem;
+    }
+
+    .ec-swatch {
+        flex: none;
+        inline-size: 20px;
+        block-size: 20px;
+        border-radius: var(--apui-radius-sm, 4px);
+        box-shadow: inset 0 0 0 1px var(--apui-border-default);
+    }
+
+    .ec-generate {
+        display: grid;
+        gap: 8px;
+        padding: 16px;
+        border: var(--apui-border-width) dashed var(--apui-border-default);
+        border-radius: var(--apui-radius-md);
+    }
+
+    .ec-confirm.ec-confirm-boxed {
+        border: var(--apui-border-width) solid var(--apui-color-warning-border);
+        border-radius: var(--apui-radius-md);
+    }
+
+    .ec-variant-cell {
+        display: grid;
+        gap: 4px;
+        min-inline-size: 11.875rem;
+    }
+
+    .ec-col-sku {
+        display: grid;
+        gap: 4px;
+        min-inline-size: 9.375rem;
+    }
+
+    .ec-col-price {
+        min-inline-size: 8.125rem;
+    }
+
+    .ec-col-stock {
+        inline-size: 5.25rem;
+    }
+
+    .ec-col-image-url {
+        min-inline-size: 10rem;
+    }
+
+    .ec-variant-image {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ec-variant-thumb {
+        inline-size: 32px;
+        block-size: 32px;
+        border-radius: var(--apui-radius-sm, 6px);
+        object-fit: cover;
+        box-shadow: inset 0 0 0 1px var(--apui-border-muted);
+    }
+
+    /* Digital product panel (#105). */
+    .ec-item.ec-file {
+        gap: 14px;
+    }
+
+    .ec-field-grid.ec-file-fields {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.25rem), 1fr));
+    }
+
+    .ec-file-switches {
+        align-content: start;
+        gap: 10px;
+    }
+
+    .ec-file-chip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-file-chip-text {
+        display: grid;
+        flex: 1;
+        min-inline-size: 10rem;
+    }
+
+    .ec-file-chip-title {
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-file-chip-meta {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-file-source {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 10px;
+    }
+
+    .ec-file-disk {
+        flex: 0 1 10rem;
+    }
+
+    .ec-file-path {
+        flex: 1 1 16.25rem;
+    }
+
+    /* Grouped and bundled product panel (#106). */
+    .ec-child-row {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 5.5rem auto;
+        align-items: end;
+        gap: 10px;
+    }
+
+    .ec-child-row .ec-row-actions {
+        padding-block-end: 6px;
+    }
+
+    .ec-child-no-variants {
+        padding-block-end: 9px;
+    }
+
     @media (max-width: 40rem) {
         .ec-add-item {
             grid-template-columns: minmax(0, 1fr);
+        }
+
+        .ec-attr-row {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .ec-attr-row-end {
+            min-block-size: 0;
+            margin-block-start: 0;
+        }
+
+        .ec-child-row {
+            grid-template-columns: minmax(0, 1fr) 5.5rem;
+        }
+
+        .ec-child-row > :first-child {
+            grid-column: 1 / -1;
         }
     }
 

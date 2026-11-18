@@ -23,6 +23,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
 use Closure;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
@@ -296,12 +297,80 @@ class DigitalPanel extends ProductTypePanel
      */
     public function render(): View
     {
+        $mediaIds = array_filter( array_map(
+            static fn ( mixed $file ): ?int => is_array( $file ) && 'media' === ( $file['source'] ?? 'path' ) && is_numeric( $file['media_id'] ?? null ) ? (int) $file['media_id'] : null,
+            (array) ( $this->state['files'] ?? [] ),
+        ) );
+
         return view( 'ecommerce-admin::livewire.products.panels.digital', [
+            'mediaDetails'     => self::mediaDetails( array_values( array_unique( $mediaIds ) ), $this->savedMediaIds() ),
             'mediaLibrary'     => ProductMedia::libraryInstalled(),
             'diskOptions'      => array_map( static fn ( string $disk ): array => [ 'id' => $disk, 'name' => $disk ], self::allowedDisks() ),
             'defaultLimit'     => (int) config( 'artisanpack.ecommerce.digital.download_limit', 5 ),
             'defaultExpiry'    => (int) config( 'artisanpack.ecommerce.digital.download_expiry_days', 30 ),
         ] );
+    }
+
+    /**
+     * Media ids the product's saved files use.
+     *
+     * @since 2.0.0
+     *
+     * @return array<int, int>
+     */
+    protected function savedMediaIds(): array
+    {
+        if ( null === $this->productId ) {
+            return [];
+        }
+
+        return DigitalFile::query()
+            ->where( 'product_id', $this->productId )
+            ->whereNotNull( 'media_id' )
+            ->pluck( 'media_id' )
+            ->map( static fn ( mixed $id ): int => (int) $id )
+            ->all();
+    }
+
+    /**
+     * File names and sizes of media-library items, for the file chips,
+     * keyed by media id. Empty when the library isn't installed; an item
+     * that can't be found is left out.
+     *
+     * The ids come from client-writable state, so an item is only named
+     * when the product's saved files already use it or the user may view
+     * it in the media library; any other id would let a user read the
+     * library's file names.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, int>  $ids       Media ids.
+     * @param  array<int, int>  $savedIds  Media ids the product's saved files use.
+     *
+     * @return array<int, array{name: string, size: string|null}>
+     */
+    protected static function mediaDetails( array $ids, array $savedIds = [] ): array
+    {
+        $model = DigitalFile::MEDIA_MODEL;
+
+        if ( [] === $ids || ! class_exists( $model ) ) {
+            return [];
+        }
+
+        $details = [];
+
+        foreach ( $model::query()->whereKey( $ids )->get() as $media ) {
+            if ( ! in_array( (int) $media->getKey(), $savedIds, true ) && ! Gate::allows( 'view', $media ) ) {
+                continue;
+            }
+
+            $details[ (int) $media->getKey() ] = [
+                'name' => (string) ( $media->getAttribute( 'file_name' ) ?? '' ),
+                'size' => method_exists( $media, 'humanFileSize' ) && null !== $media->getAttribute( 'file_size' ) ? (string) $media->humanFileSize() : null,
+            ];
+        }
+
+        return $details;
     }
 
     /**

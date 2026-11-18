@@ -30,9 +30,10 @@ it( 'creates a variable product with variants', function (): void {
         ->click( Locators::role( 'Variants', 'tab' ) )
         ->click( Locators::role( 'Add attribute' ) )
         ->type( Locators::field( 'attribute-0-label' ), 'Size' )
-        ->click( Locators::role( 'Add value' ) )
+        ->keys( Locators::field( 'attribute-0-label' ), 'Tab' )
+        ->click( Locators::role( 'Add value to Size' ) )
         ->type( Locators::field( 'value-0-0-label' ), 'Small' )
-        ->click( Locators::role( 'Add value' ) )
+        ->click( Locators::role( 'Add value to Size' ) )
         ->type( Locators::field( 'value-0-1-label' ), 'Large' )
         ->click( Locators::role( 'Generate variants' ) )
         ->assertSee( '2 variants' );
