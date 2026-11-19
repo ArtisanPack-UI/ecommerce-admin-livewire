@@ -34,9 +34,9 @@ use Livewire\Component;
  *
  * - Keys are shown in full only to users with `licenseKey.view`. Users who
  *   may only revoke (`licenseKey.revoke`) can open the screen but see each
- *   key masked to its last group, and cannot search by key.
+ *   key masked to its last four characters, and cannot search by key.
  * - A drawer lists a key's activations (machine, first and last seen, IP).
- * - Revoking takes a reason and a one-time action token, and goes through
+ * - Revoking takes an optional reason and a one-time action token, and goes through
  *   the engine's `LicenseService::revoke()`.
  *
  * @package    ArtisanPack_UI
@@ -260,7 +260,8 @@ class Index extends Component
     }
 
     /**
-     * Revokes the key waiting for confirmation, once per token.
+     * Revokes the key waiting for confirmation, once per token. The reason
+     * is optional and kept privately on the key.
      *
      * @since 1.0.0
      *
@@ -283,7 +284,7 @@ class Index extends Component
         $this->authorizeEcommerce( 'revoke', $key );
 
         $this->validate(
-            [ 'revokeReason' => [ 'required', 'string', 'max:500' ] ],
+            [ 'revokeReason' => [ 'nullable', 'string', 'max:500' ] ],
             [],
             [ 'revokeReason' => __( 'reason' ) ],
         );
@@ -291,7 +292,7 @@ class Index extends Component
         $revoked = $this->withActionToken(
             $token,
             'revoke',
-            fn (): LicenseKey => app( LicenseService::class )->revoke( $key, sanitizeText( $this->revokeReason ) ),
+            fn (): LicenseKey => app( LicenseService::class )->revoke( $key, '' === trim( $this->revokeReason ) ? null : sanitizeText( $this->revokeReason ) ),
             $key,
         );
 
@@ -323,7 +324,7 @@ class Index extends Component
      */
     public function render(): View
     {
-        $viewing  = null === $this->viewingId || ! $this->viewing ? null : LicenseKey::query()->with( [ 'activations' => static fn ( $query ) => $query->orderByDesc( 'last_seen_at' ) ] )->find( $this->viewingId );
+        $viewing  = null === $this->viewingId || ! $this->viewing ? null : LicenseKey::query()->with( [ 'orderItem.order.customer', 'activations' => static fn ( $query ) => $query->orderByDesc( 'last_seen_at' ) ] )->find( $this->viewingId );
         $revoking = null === $this->revokingId || ! $this->revoking ? null : LicenseKey::query()->find( $this->revokingId );
 
         $deactivating = null === $viewing || null === $this->deactivatingId || ! $this->deactivating ? null : $viewing->activations->firstWhere( 'id', $this->deactivatingId );
@@ -343,7 +344,8 @@ class Index extends Component
     }
 
     /**
-     * A key with every group but the last replaced by dots.
+     * A key masked to its last four characters: eight dots, then those
+     * four ("••••••••9F3A"), whatever the key's length or grouping.
      *
      * @since 1.0.0
      *
@@ -353,14 +355,7 @@ class Index extends Component
      */
     public static function mask( string $key ): string
     {
-        $groups = explode( '-', $key );
-        $last   = (string) array_pop( $groups );
-
-        if ( [] === $groups ) {
-            return str_repeat( '•', max( 0, mb_strlen( $last ) - 4 ) ) . mb_substr( $last, -4 );
-        }
-
-        return implode( '-', array_map( static fn ( string $group ): string => str_repeat( '•', mb_strlen( $group ) ), $groups ) ) . '-' . $last;
+        return str_repeat( '•', 8 ) . mb_substr( str_replace( '-', '', $key ), -4 );
     }
 
     /**
@@ -416,6 +411,43 @@ class Index extends Component
     }
 
     /**
+     * How full a key's activation slots are, for its bar: the share used,
+     * rounded to a step of ten (0–100) so an `.ec-w-N` class can draw it,
+     * or null when there is no bar to draw: a key with no limit (null), or
+     * one whose limit of zero allows no activations.
+     *
+     * @since 2.0.0
+     *
+     * @param  LicenseKey  $key  License key.
+     *
+     * @return int|null
+     */
+    public static function activationLevel( LicenseKey $key ): ?int
+    {
+        $limit = (int) ( $key->activations_limit ?? 0 );
+
+        if ( null === $key->activations_limit || $limit <= 0 ) {
+            return null;
+        }
+
+        return (int) ( round( min( 1, max( 0, (int) $key->activations_count / $limit ) ) * 10 ) * 10 );
+    }
+
+    /**
+     * Whether every activation slot of a limited key is used.
+     *
+     * @since 2.0.0
+     *
+     * @param  LicenseKey  $key  License key.
+     *
+     * @return bool
+     */
+    public static function activationsFull( LicenseKey $key ): bool
+    {
+        return null !== $key->activations_limit && (int) $key->activations_count >= (int) $key->activations_limit;
+    }
+
+    /**
      * The activation `$id` of the key in the open drawer, or null when no
      * drawer is open.
      *
@@ -462,7 +494,7 @@ class Index extends Component
 
     /**
      * The key as this user may see it: in full with `licenseKey.view`,
-     * otherwise masked to its last group.
+     * otherwise masked to its last four characters.
      *
      * @since 1.0.0
      *
@@ -569,8 +601,8 @@ class Index extends Component
                 'key'      => 'activations',
                 'label'    => __( 'Activations' ),
                 'sortable' => true,
-                'class'    => 'tabular-nums',
-                'value'    => static fn ( LicenseKey $key ): string => null === $key->activations_limit
+                'view'     => $cells . 'activations',
+                'export'   => static fn ( LicenseKey $key ): string => null === $key->activations_limit
                     ? (string) $key->activations_count
                     : __( ':used of :limit', [ 'used' => $key->activations_count, 'limit' => $key->activations_limit ] ),
             ],
@@ -578,7 +610,7 @@ class Index extends Component
                 'key'      => 'expires',
                 'label'    => __( 'Expires' ),
                 'sortable' => true,
-                'value'    => static fn ( LicenseKey $key ): string => null === $key->expires_at ? __( 'Never' ) : LocalizedDate::format( $key->expires_at ),
+                'view'     => $cells . 'expires',
                 'export'   => static fn ( LicenseKey $key ): string => $key->expires_at?->format( DATE_ATOM ) ?? '',
             ],
             [
@@ -588,11 +620,11 @@ class Index extends Component
                 'export' => static fn ( LicenseKey $key ): string => self::statuses()[ self::status( $key ) ],
             ],
             [
-                'key'        => 'actions',
-                'label'      => __( 'Actions' ),
-                'class'      => 'text-end',
-                'view'       => $cells . 'actions',
-                'exportable' => false,
+                'key'         => 'actions',
+                'label'       => __( 'Actions' ),
+                'labelHidden' => true,
+                'view'        => $cells . 'actions',
+                'exportable'  => false,
             ],
         ];
     }

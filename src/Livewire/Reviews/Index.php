@@ -16,7 +16,6 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reviews;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductReview;
 use ArtisanPackUI\Ecommerce\Services\ReviewService;
-use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
@@ -38,9 +37,10 @@ use Livewire\Component;
  * - Opens on `pending` reviews. Columns: product, rating, author,
  *   verified-purchase badge, excerpt, status, and submitted date.
  * - Filters: status, rating, product, verified purchases only.
- * - Row and bulk actions approve, reject (with a reason), mark as spam,
- *   requeue, and delete, all through the engine's `ReviewService`.
- * - A drawer shows the whole review and its media. Review text is always
+ * - Rows open the review drawer or delete the review. The drawer and the
+ *   bulk bar approve, reject (with an optional private reason), mark as
+ *   spam, requeue, and delete, all through the engine's `ReviewService`.
+ * - The drawer shows the whole review and its media. Review text is always
  *   escaped: it is customer input.
  *
  * @package    ArtisanPack_UI
@@ -259,6 +259,8 @@ class Index extends Component
     {
         $this->authorizeEcommerceAbility( 'review.delete' );
 
+        // The confirmation sits above the table; the modal drawer would hide it.
+        $this->viewing           = false;
         $this->selected          = [ $id ];
         $this->selectAllMatching = false;
 
@@ -321,7 +323,7 @@ class Index extends Component
     }
 
     /**
-     * The first words of a review, for the table.
+     * The first words of a review, for the CSV export.
      *
      * @since 1.0.0
      *
@@ -331,10 +333,25 @@ class Index extends Component
      */
     public static function excerpt( ProductReview $review ): string
     {
-        $text = trim( (string) ( $review->title ?? '' ) );
-        $body = trim( preg_replace( '/\s+/', ' ', strip_tags( (string) ( $review->body ?? '' ) ) ) );
+        return Str::limit( self::reviewText( $review ), 100 );
+    }
 
-        return Str::limit( '' === $text ? $body : $text . ' — ' . $body, 100 );
+    /**
+     * A review's title and text on one line, whitespace collapsed and tags
+     * stripped, for the table's two-line clamp.
+     *
+     * @since 2.0.0
+     *
+     * @param  ProductReview  $review  Review.
+     *
+     * @return string
+     */
+    public static function reviewText( ProductReview $review ): string
+    {
+        $text = trim( (string) ( $review->title ?? '' ) );
+        $body = trim( (string) preg_replace( '/\s+/', ' ', strip_tags( (string) ( $review->body ?? '' ) ) ) );
+
+        return '' === $text ? $body : $text . ' — ' . $body;
     }
 
     /**
@@ -499,9 +516,10 @@ class Index extends Component
                 'export' => static fn ( ProductReview $review ): int => $review->is_verified_purchase ? 1 : 0,
             ],
             [
-                'key'   => 'excerpt',
-                'label' => __( 'Review' ),
-                'value' => static fn ( ProductReview $review ): string => self::excerpt( $review ),
+                'key'    => 'excerpt',
+                'label'  => __( 'Review' ),
+                'view'   => $cells . 'review',
+                'export' => static fn ( ProductReview $review ): string => self::excerpt( $review ),
             ],
             [
                 'key'    => 'status',
@@ -513,15 +531,15 @@ class Index extends Component
                 'key'      => 'submitted',
                 'label'    => __( 'Submitted' ),
                 'sortable' => true,
-                'value'    => static fn ( ProductReview $review ): string => null === $review->created_at ? '' : LocalizedDate::format( $review->created_at ),
+                'view'     => $cells . 'submitted',
                 'export'   => static fn ( ProductReview $review ): string => $review->created_at?->format( DATE_ATOM ) ?? '',
             ],
             [
-                'key'        => 'actions',
-                'label'      => __( 'Actions' ),
-                'class'      => 'text-end',
-                'view'       => $cells . 'actions',
-                'exportable' => false,
+                'key'         => 'actions',
+                'label'       => __( 'Actions' ),
+                'labelHidden' => true,
+                'view'        => $cells . 'actions',
+                'exportable'  => false,
             ],
         ];
     }
@@ -566,35 +584,35 @@ class Index extends Component
             [
                 'key'     => 'approve',
                 'label'   => __( 'Approve' ),
-                'icon'    => 'o-check',
+                'icon'    => 'check',
                 'ability' => 'review.moderate',
                 'handler' => fn ( Builder $selection ): ?string => $this->moderateSelection( $selection, 'approve' ),
             ],
             [
                 'key'     => 'reject',
                 'label'   => __( 'Reject' ),
-                'icon'    => 'o-x-mark',
+                'icon'    => 'circle-x',
                 'ability' => 'review.moderate',
                 'handler' => fn ( Builder $selection ): ?string => $this->moderateSelection( $selection, 'reject' ),
             ],
             [
                 'key'     => 'spam',
                 'label'   => __( 'Mark as spam' ),
-                'icon'    => 'o-no-symbol',
+                'icon'    => 'triangle-alert',
                 'ability' => 'review.moderate',
                 'handler' => fn ( Builder $selection ): ?string => $this->moderateSelection( $selection, 'spam' ),
             ],
             [
                 'key'     => 'requeue',
                 'label'   => __( 'Back to pending' ),
-                'icon'    => 'o-arrow-uturn-left',
+                'icon'    => 'undo-2',
                 'ability' => 'review.moderate',
                 'handler' => fn ( Builder $selection ): ?string => $this->moderateSelection( $selection, 'requeue' ),
             ],
             [
                 'key'     => 'delete',
                 'label'   => __( 'Delete' ),
-                'icon'    => 'o-trash',
+                'icon'    => 'trash',
                 'ability' => 'review.delete',
                 'confirm' => __( 'Delete the selected reviews? This cannot be undone.' ),
                 'handler' => fn ( Builder $selection ): ?string => $this->deleteSelection( $selection ),
@@ -613,7 +631,7 @@ class Index extends Component
     protected function validateReason(): void
     {
         $this->validate(
-            [ 'rejectReason' => [ 'required', 'string', 'max:500' ] ],
+            [ 'rejectReason' => [ 'nullable', 'string', 'max:500' ] ],
             [],
             [ 'rejectReason' => __( 'reason' ) ],
         );

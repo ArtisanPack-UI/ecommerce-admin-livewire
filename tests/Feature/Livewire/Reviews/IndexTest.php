@@ -79,8 +79,12 @@ it( 'rejects a review with a reason', function (): void {
     Livewire::test( Index::class )
         ->call( 'startReject', $review->id )
         ->assertSet( 'rejecting', true )
+        ->assertSeeHtml( 'data-reject-form' )
+        ->assertSee( 'Reason (optional)' )
+        ->assertSee( 'For your team. The reviewer is not told.' )
+        ->set( 'rejectReason', str_repeat( 'x', 501 ) )
         ->call( 'reject' )
-        ->assertHasErrors( [ 'rejectReason' => 'required' ] )
+        ->assertHasErrors( [ 'rejectReason' => 'max' ] )
         ->set( 'rejectReason', 'Off-topic' )
         ->call( 'reject' )
         ->assertHasNoErrors()
@@ -92,18 +96,43 @@ it( 'rejects a review with a reason', function (): void {
     removeAllActions( 'ap.ecommerce.review.rejected' );
 } );
 
-it( 'requires a reason for the bulk reject', function (): void {
-    $reviews = ProductReview::factory()->count( 2 )->create();
+it( 'rejects a review without a reason, since the reason is optional', function (): void {
+    $review = ProductReview::factory()->create();
 
     Livewire::test( Index::class )
-        ->set( 'selected', $reviews->pluck( 'id' )->map( 'strval' )->all() )
+        ->call( 'startReject', $review->id )
+        ->call( 'reject' )
+        ->assertHasNoErrors()
+        ->assertSet( 'rejecting', false );
+
+    expect( $review->refresh()->status )->toBe( 'rejected' );
+} );
+
+it( 'bulk rejects with the bulk bar reason, or none', function (): void {
+    $reviews = ProductReview::factory()->count( 3 )->create();
+    $reasons = [];
+    addAction( 'ap.ecommerce.review.rejected', static function ( $rejected, string $reason ) use ( &$reasons ): void {
+        $reasons[] = $reason;
+    }, 10, 2 );
+
+    Livewire::test( Index::class )
+        ->set( 'selected', [ (string) $reviews[0]->id, (string) $reviews[1]->id ] )
+        ->set( 'rejectReason', str_repeat( 'x', 501 ) )
         ->call( 'runBulkAction', 'reject' )
-        ->assertHasErrors( [ 'rejectReason' => 'required' ] )
+        ->assertHasErrors( [ 'rejectReason' => 'max' ] )
         ->set( 'rejectReason', 'Duplicates' )
+        ->call( 'runBulkAction', 'reject' )
+        ->assertHasNoErrors()
+        ->assertSet( 'rejectReason', '' )
+        ->set( 'filters.status', '' )
+        ->set( 'selected', [ (string) $reviews[2]->id ] )
         ->call( 'runBulkAction', 'reject' )
         ->assertHasNoErrors();
 
-    expect( ProductReview::query()->where( 'status', 'rejected' )->count() )->toBe( 2 );
+    expect( ProductReview::query()->where( 'status', 'rejected' )->count() )->toBe( 3 )
+        ->and( $reasons )->toBe( [ 'Duplicates', 'Duplicates', '' ] );
+
+    removeAllActions( 'ap.ecommerce.review.rejected' );
 } );
 
 it( 'rescues a false positive from spam and marks spam', function (): void {
@@ -119,13 +148,15 @@ it( 'rescues a false positive from spam and marks spam', function (): void {
         ->and( $review->refresh()->status )->toBe( 'spam' );
 } );
 
-it( 'approves one review from its row', function (): void {
+it( 'approves one review from its drawer', function (): void {
     $review = ProductReview::factory()->create( [ 'author_name' => 'Ada' ] );
 
     Livewire::test( Index::class )
+        ->assertDontSeeHtml( 'Approve the review by Ada' )
+        ->call( 'showReview', $review->id )
         ->assertSeeHtml( 'Approve the review by Ada' )
         ->call( 'moderate', $review->id, 'approve' )
-        ->assertDontSee( 'Ada' );
+        ->assertDontSee( 'Read the review by Ada' );
 
     expect( $review->refresh()->status )->toBe( 'approved' );
 } );
@@ -147,7 +178,10 @@ it( 'refuses moderation without review.moderate', function (): void {
     $review = ProductReview::factory()->create( [ 'author_name' => 'Ada' ] );
 
     Livewire::test( Index::class )
+        ->call( 'showReview', $review->id )
         ->assertDontSeeHtml( 'Approve the review by Ada' )
+        ->assertDontSeeHtml( 'Reject the review by Ada' )
+        ->assertSeeHtml( 'Delete the review by Ada' )
         ->call( 'moderate', $review->id, 'approve' )
         ->assertForbidden();
 
@@ -182,6 +216,10 @@ it( 'refuses the drawer without review.view', function (): void {
 
 it( 'forgets a reason typed into a cancelled reject dialog', function (): void {
     $reviews = ProductReview::factory()->count( 2 )->create();
+    $reasons = [];
+    addAction( 'ap.ecommerce.review.rejected', static function ( $rejected, string $reason ) use ( &$reasons ): void {
+        $reasons[] = $reason;
+    }, 10, 2 );
 
     Livewire::test( Index::class )
         ->call( 'startReject', $reviews[0]->id )
@@ -190,7 +228,144 @@ it( 'forgets a reason typed into a cancelled reject dialog', function (): void {
         ->assertSet( 'rejectReason', '' )
         ->set( 'selected', $reviews->pluck( 'id' )->map( 'strval' )->all() )
         ->call( 'runBulkAction', 'reject' )
-        ->assertHasErrors( [ 'rejectReason' => 'required' ] );
+        ->assertHasNoErrors();
 
-    expect( ProductReview::query()->where( 'status', 'rejected' )->count() )->toBe( 0 );
+    expect( ProductReview::query()->where( 'status', 'rejected' )->count() )->toBe( 2 )
+        ->and( $reasons )->toBe( [ '', '' ] );
+
+    removeAllActions( 'ap.ecommerce.review.rejected' );
+} );
+
+it( 'renders the design-system table: description, search hint, stars, clamped text and muted cells', function (): void {
+    ProductReview::factory()->create( [
+        'author_name'          => 'Ada',
+        'author_email'         => 'ada@example.com',
+        'rating'               => 2,
+        'title'                => null,
+        'body'                 => str_repeat( 'Long review text. ', 20 ),
+        'is_verified_purchase' => false,
+    ] );
+
+    $html = Livewire::test( Index::class )
+        ->assertSee( 'What customers say about your products, waiting for you to approve before it goes live.' )
+        ->assertSeeHtml( 'placeholder="Search reviews, products or authors"' )
+        ->assertSeeHtml( 'class="apui-rating' )
+        ->assertSeeHtml( 'role="img"' )
+        ->assertSee( '2 out of 5' )
+        ->assertSeeHtml( 'data-review-excerpt' )
+        ->assertDontSee( 'ada@example.com' )
+        ->html();
+
+    expect( substr_count( $html, 'Long review text.' ) )->toBe( 20 )
+        ->and( $html )->not->toContain( 'link-hover' )
+        ->and( $html )->not->toContain( 'opacity-75' )
+        ->and( $html )->not->toContain( 'text-end' );
+} );
+
+it( 'offers Read and Delete in the row, named for the author', function (): void {
+    $review = ProductReview::factory()->create( [ 'author_name' => 'Ada' ] );
+
+    Livewire::test( Index::class )
+        ->assertSeeHtml( 'aria-label="Read the review by Ada"' )
+        ->assertSeeHtml( 'aria-label="Delete the review by Ada"' )
+        ->assertSeeHtml( 'data-read-review="' . $review->id . '"' )
+        ->assertDontSeeHtml( 'data-moderate="approve"' );
+} );
+
+it( 'puts the moderation buttons in the row when the drawer is not allowed', function (): void {
+    Gate::define( 'ecommerce.review.view', static fn (): bool => false );
+    ProductReview::factory()->create( [ 'author_name' => 'Ada' ] );
+
+    Livewire::test( Index::class )
+        ->assertDontSeeHtml( 'Read the review by Ada' )
+        ->assertSeeHtml( 'aria-label="Approve the review by Ada"' )
+        ->assertSeeHtml( 'aria-label="Reject the review by Ada"' )
+        ->assertSeeHtml( 'aria-label="Mark the review by Ada as spam"' );
+} );
+
+it( 'titles the drawer for the author and moderates from its footer', function (): void {
+    $order  = ArtisanPackUI\Ecommerce\Models\Order::factory()->create();
+    $review = ProductReview::factory()->create( [
+        'author_name'          => 'Daniel Okafor',
+        'author_email'         => 'daniel@example.com',
+        'is_verified_purchase' => true,
+        'order_id'             => $order->id,
+    ] );
+
+    Livewire::test( Index::class )
+        ->call( 'showReview', $review->id )
+        ->assertSee( 'Review by Daniel Okafor' )
+        ->assertSee( 'daniel@example.com' )
+        ->assertSee( '#' . $order->order_number )
+        ->assertSeeHtml( 'data-review-moderation' )
+        ->assertSeeHtml( 'aria-label="Approve the review by Daniel Okafor"' )
+        ->assertSeeHtml( 'aria-label="Reject the review by Daniel Okafor"' )
+        ->assertSeeHtml( 'aria-label="Mark the review by Daniel Okafor as spam"' )
+        ->assertSeeHtml( 'aria-label="Delete the review by Daniel Okafor"' )
+        ->assertDontSeeHtml( 'data-moderate="requeue"' );
+} );
+
+it( 'offers Back to pending, not Approve, for an approved review', function (): void {
+    $review = ProductReview::factory()->approved()->create( [ 'author_name' => 'Ada' ] );
+
+    Livewire::test( Index::class )
+        ->set( 'filters.status', 'approved' )
+        ->call( 'showReview', $review->id )
+        ->assertSeeHtml( 'aria-label="Move the review by Ada back to pending"' )
+        ->assertDontSeeHtml( 'data-moderate="approve"' )
+        ->call( 'moderate', $review->id, 'requeue' );
+
+    expect( $review->refresh()->status )->toBe( 'pending' );
+} );
+
+it( 'puts the reason field and a soft Approve in the bulk bar', function (): void {
+    $reviews = ProductReview::factory()->count( 2 )->create();
+
+    $html = Livewire::test( Index::class )
+        ->set( 'selected', $reviews->pluck( 'id' )->map( 'strval' )->all() )
+        ->assertSeeHtml( 'id="reviews-bulk-reject-reason"' )
+        ->assertSeeHtml( 'aria-label="Reason (for Reject)"' )
+        ->assertSee( 'Mark as spam' )
+        ->assertSee( 'Back to pending' )
+        ->html();
+
+    expect( substr_count( $html, 'wire:key="bulk-action-approve"' ) )->toBe( 1 )
+        ->and( substr_count( $html, 'data-focus-key="bulk-approve"' ) )->toBe( 1 );
+} );
+
+it( 'hides the bulk reason and Approve from a user who may not moderate', function (): void {
+    Gate::define( 'ecommerce.review.moderate', static fn (): bool => false );
+    $reviews = ProductReview::factory()->count( 2 )->create();
+
+    Livewire::test( Index::class )
+        ->set( 'selected', $reviews->pluck( 'id' )->map( 'strval' )->all() )
+        ->assertDontSeeHtml( 'reviews-bulk-reject-reason' )
+        ->assertDontSeeHtml( 'bulk-action-approve' );
+} );
+
+it( 'closes the drawer before asking to delete from it, so the confirmation is reachable', function (): void {
+    $review = ProductReview::factory()->create();
+
+    Livewire::test( Index::class )
+        ->call( 'showReview', $review->id )
+        ->assertSet( 'viewing', true )
+        ->call( 'confirmDelete', $review->id )
+        ->assertSet( 'viewing', false )
+        ->assertSet( 'confirmingBulkAction', 'delete' );
+} );
+
+it( 'names the stars in the current locale', function (): void {
+    ProductReview::factory()->create( [ 'rating' => 2 ] );
+    app()->setLocale( 'de' );
+
+    Livewire::test( Index::class )->assertSee( '2 von 5' );
+} );
+
+it( 'labels the bulk reason field visibly', function (): void {
+    $review = ProductReview::factory()->create();
+
+    Livewire::test( Index::class )
+        ->set( 'selected', [ (string) $review->id ] )
+        ->assertSeeHtml( '<label class="ec-bulk-inline-label" for="reviews-bulk-reject-reason">Reason (for Reject)</label>' )
+        ->assertSeeHtml( 'placeholder="Optional"' );
 } );

@@ -358,7 +358,7 @@ trait WithResourceTable
 
         $this->confirmingBulkAction = null;
 
-        return $this->withActionToken( $token, 'bulk.' . $key, fn (): mixed => $this->executeBulkAction( $action ) );
+        return $this->withActionToken( $token, 'bulk.' . $key, fn (): mixed => $this->executeBulkAction( $action ), $this->bulkActionTokenSubject( $key ) );
     }
 
     /**
@@ -555,7 +555,7 @@ trait WithResourceTable
             'tableAllMatching'    => $this->selectAllMatching,
             'tableSelectable'     => [] !== $bulkActions,
             'tableConfirming'     => $this->confirmingBulkAction(),
-            'tableConfirmToken'   => null === $this->confirmingBulkAction ? null : $this->actionToken( 'bulk.' . $this->confirmingBulkAction ),
+            'tableConfirmToken'   => null === $this->confirmingBulkAction ? null : $this->actionToken( 'bulk.' . $this->confirmingBulkAction, $this->bulkActionTokenSubject( $this->confirmingBulkAction ) ),
         ];
     }
 
@@ -893,6 +893,23 @@ trait WithResourceTable
     protected function selectionCount( LengthAwarePaginator $rows ): int
     {
         return $this->selectAllMatching ? $rows->total() : count( $this->normalizedSelection() );
+    }
+
+    /**
+     * What a bulk action's confirmation token is bound to, besides the
+     * component and the action. A screen whose action depends on other
+     * input (a merge's target) returns it, so a token minted for one value
+     * can't confirm the action for another. Null by default.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $key  The bulk action key.
+     *
+     * @return mixed A model, a scalar, or null.
+     */
+    protected function bulkActionTokenSubject( string $key ): mixed
+    {
+        return null;
     }
 
     /**

@@ -54,11 +54,12 @@ it( 'masks keys and refuses key search for users who may only revoke', function 
     Livewire::test( Index::class )
         ->assertOk()
         ->assertDontSee( 'ABCDE' )
-        ->assertSee( '•••••-•••••-•••••-•••••-WXYZ2' )
+        ->assertSee( '••••••••XYZ2' )
+        ->assertSeeHtml( 'aria-label="Revoke ••••••••XYZ2"' )
         ->set( 'search', 'ABCDE' )
-        ->assertDontSee( 'WXYZ2' )
+        ->assertDontSee( 'XYZ2' )
         ->set( 'search', 'A100' )
-        ->assertSee( 'WXYZ2' );
+        ->assertSee( 'XYZ2' );
 } );
 
 it( 'is denied without licenseKey.view or licenseKey.revoke', function (): void {
@@ -98,7 +99,7 @@ it( 'does not let a revoke-only user find a key by searching it', function (): v
     Livewire::test( Index::class )
         ->set( 'search', 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2' )
         ->assertSee( 'Search by order or customer.' )
-        ->assertDontSee( 'WXYZ2' );
+        ->assertDontSee( 'XYZ2' );
 } );
 
 it( 'filters by status', function (): void {
@@ -228,8 +229,9 @@ it( 'revokes a key with a reason, once per token', function (): void {
 
     $token = $component->viewData( 'revokeToken' );
 
-    $component->call( 'revoke', $token )
-        ->assertHasErrors( [ 'revokeReason' => 'required' ] )
+    $component->set( 'revokeReason', str_repeat( 'x', 501 ) )
+        ->call( 'revoke', $token )
+        ->assertHasErrors( [ 'revokeReason' => 'max' ] )
         ->set( 'revokeReason', 'Chargeback' )
         ->call( 'revoke', $token )
         ->assertHasNoErrors()
@@ -255,4 +257,126 @@ it( 'refuses to revoke without licenseKey.revoke', function (): void {
         ->assertDontSeeHtml( 'startRevoke' )
         ->call( 'startRevoke', $key->id )
         ->assertForbidden();
+} );
+
+it( 'revokes a key without a reason', function (): void {
+    $key = licenseKeyOn( 'A100' );
+
+    $component = Livewire::test( Index::class )
+        ->call( 'startRevoke', $key->id )
+        ->assertSee( 'Reason (optional)' )
+        ->assertSee( 'The key stops validating on every machine at once. This cannot be undone.' );
+
+    $component->call( 'revoke', $component->viewData( 'revokeToken' ) )
+        ->assertHasNoErrors()
+        ->assertSet( 'revoking', false );
+
+    expect( $key->refresh() )
+        ->is_revoked->toBeTrue()
+        ->and( $key->meta['revoked_reason'] ?? null )->toBeNull();
+} );
+
+it( 'masks a key to eight dots and its last four characters', function (): void {
+    expect( Index::mask( 'KNIT-7Q4M-2HXP-9F3A' ) )->toBe( '••••••••9F3A' )
+        ->and( Index::mask( 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2' ) )->toBe( '••••••••XYZ2' )
+        ->and( Index::mask( 'ABC' ) )->toBe( '••••••••ABC' );
+} );
+
+it( 'draws used activations as text and a bar that warns when every slot is used', function (): void {
+    licenseKeyOn( 'A100', [ 'key' => 'AAAAA-AAAAA-AAAAA-AAAAA-AAAAA', 'activations_count' => 2, 'activations_limit' => 3 ] );
+    licenseKeyOn( 'B200', [ 'key' => 'BBBBB-BBBBB-BBBBB-BBBBB-BBBBB', 'activations_count' => 3, 'activations_limit' => 3 ] );
+    licenseKeyOn( 'C300', [ 'key' => 'CCCCC-CCCCC-CCCCC-CCCCC-CCCCC', 'activations_count' => 1, 'activations_limit' => null ] );
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )
+        ->toContain( '2 of 3' )
+        ->toContain( '3 of 3' )
+        ->toContain( '1, no limit' )
+        ->toContain( 'ec-w-70' )
+        ->toContain( 'ec-w-100' )
+        ->and( substr_count( $html, 'data-activations-full' ) )->toBe( 1 )
+        ->and( substr_count( $html, 'role="progressbar"' ) )->toBe( 2 );
+} );
+
+it( 'rounds the activation level to a step of ten', function (): void {
+    $key = static fn ( int $used, ?int $limit ): LicenseKey => new LicenseKey( [ 'activations_count' => $used, 'activations_limit' => $limit ] );
+
+    expect( Index::activationLevel( $key( 2, 3 ) ) )->toBe( 70 )
+        ->and( Index::activationLevel( $key( 0, 5 ) ) )->toBe( 0 )
+        ->and( Index::activationLevel( $key( 7, 5 ) ) )->toBe( 100 )
+        ->and( Index::activationLevel( $key( 1, null ) ) )->toBeNull()
+        ->and( Index::activationLevel( $key( 0, 0 ) ) )->toBeNull()
+        ->and( Index::activationsFull( $key( 0, 0 ) ) )->toBeTrue()
+        ->and( Index::activationsFull( $key( 3, 3 ) ) )->toBeTrue()
+        ->and( Index::activationsFull( $key( 2, 3 ) ) )->toBeFalse()
+        ->and( Index::activationsFull( $key( 9, null ) ) )->toBeFalse();
+} );
+
+it( 'badges each status with a dot: active success, expired neutral, revoked error', function (): void {
+    licenseKeyOn( 'A100' );
+    licenseKeyOn( 'B200', [ 'is_revoked' => true, 'revoked_at' => now() ] );
+    licenseKeyOn( 'C300', [ 'expires_at' => now()->subDay() ] );
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )
+        ->toMatch( '/data-color="success"[^>]*data-license-status="active"|data-license-status="active"[^>]*data-color="success"/' )
+        ->toMatch( '/data-color="neutral"[^>]*data-license-status="expired"|data-license-status="expired"[^>]*data-color="neutral"/' )
+        ->toMatch( '/data-color="error"[^>]*data-license-status="revoked"|data-license-status="revoked"[^>]*data-color="error"/' );
+} );
+
+it( 'hides Revoke on revoked keys, in the row and the drawer', function (): void {
+    $key = licenseKeyOn( 'A100', [ 'is_revoked' => true, 'revoked_at' => now(), 'meta' => [ 'revoked_reason' => 'Chargeback' ] ] );
+
+    Livewire::test( Index::class )
+        ->assertDontSeeHtml( 'data-revoke-key=' )
+        ->call( 'showActivations', $key->id )
+        ->assertDontSeeHtml( 'data-drawer-revoke' )
+        ->assertSee( 'Revoked: Chargeback' );
+} );
+
+it( 'names the key\'s product, customer and order in the drawer, and revokes from it', function (): void {
+    $customer = Customer::factory()->create( [ 'first_name' => 'Maya', 'last_name' => 'Chen' ] );
+    $key      = licenseKeyOn( 'A100', [ 'key' => 'KNIT-7Q4M-2HXP-9F3A', 'activations_count' => 2, 'activations_limit' => 3 ], $customer );
+
+    Livewire::test( Index::class )
+        ->call( 'showActivations', $key->id )
+        ->assertSee( 'Photo Editor · Maya Chen · #A100' )
+        ->assertSee( '2 of 3 activations used.' )
+        ->assertSee( 'This key has not been activated on any machine.' )
+        ->assertSeeHtml( 'data-drawer-revoke' )
+        ->call( 'startRevoke', $key->id )
+        ->assertSet( 'revoking', true )
+        ->assertSet( 'viewing', true )
+        ->assertSee( 'Revoke KNIT-7Q4M-2HXP-9F3A?' );
+} );
+
+it( 'keeps keys, IP addresses and order numbers left to right, with no DaisyUI or utility classes', function (): void {
+    $key = licenseKeyOn( 'A100', [ 'key' => 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2' ] );
+    LicenseActivation::factory()->create( [ 'license_key_id' => $key->id, 'machine_fingerprint' => 'studio-mac', 'ip_address' => '10.0.0.8', 'last_seen_at' => now()->subHours( 2 ) ] );
+
+    $html = Livewire::test( Index::class )->call( 'showActivations', $key->id )->html();
+
+    expect( $html )
+        ->toContain( '<bdi dir="ltr" class="ec-mono ec-nowrap" data-license-key="' . $key->id . '">ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2</bdi>' )
+        ->toContain( '<bdi dir="ltr" class="ec-mono">10.0.0.8</bdi>' )
+        ->toContain( '<bdi dir="ltr" class="ec-mono">#A100</bdi>' )
+        ->toContain( '2 hours ago' )
+        ->not->toMatch( '/class="[^"]*\b(btn|badge-|table-sm|link-hover|font-mono|text-sm|opacity-75|flex|gap-\d|text-end|tabular-nums|overflow-x-auto|w-full|max-w-xl)\b/' );
+} );
+
+it( 'shows a key whose limit is zero as allowing no activations, not as having no limit', function (): void {
+    $key = licenseKeyOn( 'Z000', [ 'key' => 'ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ', 'activations_count' => 0, 'activations_limit' => 0 ] );
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )->toContain( '0 of 0' )
+        ->not->toContain( 'no limit' )
+        ->not->toContain( 'role="progressbar"' );
+
+    Livewire::test( Index::class )
+        ->call( 'showActivations', $key->id )
+        ->assertSee( 'This key allows no activations.' )
+        ->assertDontSeeHtml( 'data-activations-unlimited' );
 } );

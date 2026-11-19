@@ -102,11 +102,15 @@
         min-inline-size: 0;
     }
 
+    /* Fills the design-system toolbar part, so the end group wrapped onto
+       its own line still sits against the table's end edge. */
     .ec-table-toolbar {
         display: flex;
+        flex: 1 1 100%;
         flex-wrap: wrap;
-        align-items: flex-end;
+        align-items: center;
         gap: 8px;
+        min-inline-size: 0;
     }
 
     .ec-table-search {
@@ -117,7 +121,7 @@
     .ec-table-toolbar-end {
         display: flex;
         flex-wrap: wrap;
-        align-items: flex-end;
+        align-items: center;
         gap: 8px;
         margin-inline-start: auto;
     }
@@ -137,14 +141,16 @@
 
     .ec-filters {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
-        gap: 12px;
+        grid-template-columns: repeat(auto-fill, minmax(min(12rem, 100%), 1fr));
+        align-items: end;
+        gap: 12px 16px;
         padding: 12px var(--apui-cell-padding-x, 16px) 16px;
         background: var(--apui-surface-sunken);
         border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
     }
 
-    .ec-filters[hidden] {
+    .ec-filters[hidden],
+    .ec-table-toolbar-end [hidden] {
         display: none;
     }
 
@@ -2545,5 +2551,273 @@
         .ec-category-row {
             padding-inline-start: calc(16px + var(--ec-category-depth, 0) * 16px);
         }
+    }
+
+    /* Tags (#123): the quick-add card, the merge group in the bulk bar and the rename row. */
+    .ec-tags-add {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 10px;
+    }
+
+    .ec-tags-add-field {
+        flex: 1 1 15rem;
+        max-inline-size: 22.5rem;
+    }
+
+    .ec-tags-merge {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* A short visible label beside a bulk-bar control (Tags, Reviews). */
+    .ec-bulk-inline-label {
+        font-size: 13px;
+        line-height: 18px;
+        color: var(--apui-text-muted);
+        white-space: nowrap;
+    }
+
+    .ec-tags-merge-select {
+        inline-size: 12.5rem;
+        max-inline-size: 100%;
+    }
+
+    .ec-tags-name {
+        font-weight: var(--apui-font-weight-medium, 500);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-tags-actions {
+        justify-content: flex-end;
+    }
+
+    /* Labels sit above the fields, so Save and Cancel line up with the inputs. */
+    .ec-tags-rename {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px;
+        min-inline-size: min(23.75rem, 100%);
+    }
+
+    .ec-tags-rename-field {
+        flex: 1 1 8rem;
+        min-inline-size: 0;
+    }
+
+    /* Inventory (#124): counts with their badge, the in-place threshold editor and the read-only flag. */
+    .ec-inventory-name {
+        color: var(--apui-text-default);
+    }
+
+    .ec-inventory-flags {
+        display: flex;
+        margin-block-start: 4px;
+    }
+
+    .ec-inventory-available,
+    .ec-inventory-threshold {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    /* Numeric cells end-align; the badge sits after the count in reading order. */
+    .ec-inventory-available {
+        justify-content: flex-end;
+    }
+
+    .ec-inventory-threshold {
+        gap: 4px;
+    }
+
+    .ec-inventory-inline-edit {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ec-inventory-threshold-field {
+        inline-size: 5.5rem;
+        flex: none;
+    }
+
+    /* Reviews (#125): the clamped review text, row actions, the bulk bar's
+       reason field, and the drawer's badges, sunken text box, photos and
+       moderation footer. */
+    .ec-reviews-clamp {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow: hidden;
+        min-inline-size: 240px;
+        max-inline-size: 360px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-reviews-author {
+        overflow-wrap: anywhere;
+    }
+
+    .ec-reviews-row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 2px;
+    }
+
+    .ec-reviews-bulk-reason {
+        inline-size: 200px;
+        max-inline-size: 100%;
+    }
+
+    .ec-reviews-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .ec-reviews-email {
+        display: block;
+        color: var(--apui-text-muted);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-reviews-text {
+        display: grid;
+        gap: 6px;
+        padding: 14px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-reviews-title {
+        margin: 0;
+        font-weight: var(--apui-font-weight-semibold, 600);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-reviews-body {
+        margin: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: 22px;
+        white-space: pre-line;
+        overflow-wrap: anywhere;
+    }
+
+    .ec-reviews-media {
+        display: grid;
+        gap: 6px;
+    }
+
+    .ec-reviews-media-heading {
+        margin: 0;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-reviews-media-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-reviews-photo {
+        display: block;
+        border-radius: var(--apui-radius-md, 8px);
+    }
+
+    .ec-reviews-photo:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid transparent;
+        box-shadow:
+            0 0 0 var(--apui-focus-ring-offset, 2px) var(--apui-focus-ring-offset-color),
+            0 0 0 calc(var(--apui-focus-ring-offset, 2px) + var(--apui-focus-ring-width, 2px)) var(--apui-focus-ring-color);
+    }
+
+    .ec-reviews-photo img {
+        display: block;
+        inline-size: 72px;
+        block-size: 72px;
+        border-radius: var(--apui-radius-md, 8px);
+        object-fit: cover;
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-reviews-moderation {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        inline-size: 100%;
+    }
+
+    @media (max-width: 40rem) {
+        .ec-reviews-bulk-reason {
+            inline-size: 100%;
+        }
+    }
+
+    /* Digital files (#126): a long path or file name stays on one line and is
+       cut short with an ellipsis (in full in its title and to screen readers),
+       so rows keep the table's height; the row's icon buttons stay on one line. */
+    .ec-digital-files-location {
+        display: inline-block;
+        max-inline-size: 18rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    [data-digital-files-index] .ec-row-actions {
+        justify-content: flex-end;
+    }
+
+    /* License keys (#127): the activations cell (text over a short bar), muted
+       expiry, and the drawer's key summary and machines table. */
+    .ec-license-keys-muted {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-license-keys-usage {
+        display: grid;
+        gap: 4px;
+        min-inline-size: 110px;
+    }
+
+    .ec-license-keys-summary {
+        display: grid;
+        gap: 6px;
+    }
+
+    .ec-license-keys-key {
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-body-md-font-size, 15px);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-license-keys-revoked {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-license-keys-cell-end {
+        text-align: end;
+        white-space: nowrap;
     }
 }

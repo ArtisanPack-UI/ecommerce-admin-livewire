@@ -73,8 +73,9 @@
                 @endif
 
                 <div class="ec-table-toolbar-end">
+                    {{-- The open drawer has its own Clear filters, so this one steps aside while it shows. --}}
                     @if ( $tableFiltersActive )
-                        <x-artisanpack-button variant="ghost" color="neutral" size="sm" leading-icon="x" wire:click="resetFilters">{{ __( 'Clear filters' ) }}</x-artisanpack-button>
+                        <x-artisanpack-button variant="ghost" color="neutral" size="sm" leading-icon="x" wire:click="resetFilters" x-bind:hidden="{{ $tableFilterCount > 0 ? 'filtersOpen' : 'false' }}" data-toolbar-clear-filters>{{ __( 'Clear filters' ) }}</x-artisanpack-button>
                     @endif
 
                     <x-artisanpack-select
