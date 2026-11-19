@@ -661,7 +661,10 @@ class Edit extends Component
      *
      * Text in the GSM 7-bit alphabet fits 160 characters in one message and
      * 153 in each part of a longer one (extension characters such as `€`
-     * count twice); anything else is sent as UCS-2, at 70 and 67.
+     * count twice); anything else is sent as UCS-2, at 70 and 67 (emoji
+     * count twice). A character never splits across two messages, so an
+     * extension character or emoji that would straddle a boundary starts
+     * the next message.
      *
      * @since 2.0.0
      *
@@ -673,14 +676,14 @@ class Edit extends Component
     {
         $basic     = "@£\$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
         $extension = "^{}\\[~]|€\f";
-        $septets   = 0;
+        $septets   = [];
         $isGsm     = true;
 
         foreach ( mb_str_split( $text ) as $character ) {
             if ( str_contains( $basic, $character ) ) {
-                $septets++;
+                $septets[] = 1;
             } elseif ( str_contains( $extension, $character ) ) {
-                $septets += 2;
+                $septets[] = 2;
             } else {
                 $isGsm = false;
 
@@ -689,16 +692,33 @@ class Edit extends Component
         }
 
         if ( $isGsm ) {
-            $characters = $septets;
-            $single     = 160;
-            $part       = 153;
+            $units  = $septets;
+            $single = 160;
+            $part   = 153;
         } else {
-            $characters = intdiv( strlen( (string) mb_convert_encoding( $text, 'UTF-16BE', 'UTF-8' ) ), 2 );
-            $single     = 70;
-            $part       = 67;
+            $units = array_map(
+                static fn ( string $character ): int => intdiv( strlen( (string) mb_convert_encoding( $character, 'UTF-16BE', 'UTF-8' ) ), 2 ),
+                mb_str_split( $text ),
+            );
+            $single = 70;
+            $part   = 67;
         }
 
-        $messages = $characters <= $single ? 1 : (int) ceil( $characters / $part );
+        $characters = array_sum( $units );
+        $messages   = 1;
+
+        if ( $characters > $single ) {
+            $used = 0;
+
+            foreach ( $units as $unit ) {
+                if ( $used + $unit > $part ) {
+                    $messages++;
+                    $used = 0;
+                }
+
+                $used += $unit;
+            }
+        }
 
         return [
             'characters' => $characters,

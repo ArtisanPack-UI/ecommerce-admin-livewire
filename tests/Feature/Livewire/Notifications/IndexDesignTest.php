@@ -77,6 +77,19 @@ it( 'keeps a catalog row at Never until its copy differs from the shipped defaul
     expect( Index::wasEdited( $template->fresh() ) )->toBeFalse();
 } );
 
+it( 'reads Unknown for edited catalog copy with no saved time', function (): void {
+    app( NotificationTemplateService::class )->sync();
+    $template = NotificationTemplate::query()->where( 'key', NotificationCatalog::ORDER_CONFIRMATION )->firstOrFail();
+
+    NotificationTemplate::query()->whereKey( $template->id )->toBase()->update( [ 'body' => '<p>Custom</p>', 'updated_at' => null ] );
+
+    expect( Index::wasEdited( $template->fresh() ) )->toBeTrue();
+
+    Livewire::test( Index::class )
+        ->assertOk()
+        ->assertSeeHtml( 'data-edited-unknown' );
+} );
+
 it( 'shows Never for a row not saved since it was created, and the date once edited', function (): void {
     Carbon::setTestNow( '2026-11-01 10:00:00' );
     $untouched = NotificationTemplate::factory()->create( [ 'key' => 'test.untouched' ] );

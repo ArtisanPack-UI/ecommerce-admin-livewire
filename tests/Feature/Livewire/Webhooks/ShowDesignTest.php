@@ -89,13 +89,18 @@ it( 'shows the next retry relative to now and a dash once settled', function ():
 
 it( 'keeps Delivered at out of the grid but in the export', function (): void {
     $subscription = WebhookSubscription::factory()->create();
-    WebhookDelivery::factory()->create( [ 'subscription_id' => $subscription->id ] );
+    $delivery     = WebhookDelivery::factory()->create( [ 'subscription_id' => $subscription->id, 'delivered_at' => Carbon::parse( '2026-11-12 09:30:00' ) ] );
 
     $component = Livewire::test( Show::class, [ 'subscription' => $subscription->id ] );
 
     $listed = array_column( $component->viewData( 'tableColumns' ), 'key' );
 
     expect( $listed )->toBe( [ 'event', 'status', 'attempts', 'next_retry', 'created', 'actions' ] );
+
+    $content = base64_decode( (string) ( $component->call( 'exportCsv' )->effects['download']['content'] ?? '' ) );
+
+    expect( $content )->toContain( 'Delivered at' )
+        ->and( $content )->toContain( Webhooks::dateTime( $delivery->fresh()->delivered_at ) );
 } );
 
 it( 'blocks Replay in the drawer while the subscription is disabled', function (): void {

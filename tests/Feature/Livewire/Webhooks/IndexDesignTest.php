@@ -72,7 +72,9 @@ it( 'shows two event badges then a count of the rest', function (): void {
     expect( substr_count( $row, 'data-webhook-event=' ) )->toBe( 2 )
         ->and( $row )->toContain( '<bdi dir="ltr" class="ec-webhooks-event-key">order.paid</bdi>' )
         ->and( $row )->toContain( 'order.refunded' )
-        ->and( $row )->toMatch( '/title="order.cancelled" data-webhook-more-events>\+1 more</' );
+        ->and( $row )->toMatch( '/<details class="ec-webhooks-more" data-webhook-more-events>\s*<summary>\+1 more<\/summary>/' )
+        ->and( substr_count( $row, 'data-webhook-event-more=' ) )->toBe( 1 )
+        ->and( $row )->toContain( '<bdi dir="ltr" class="ec-webhooks-event-key">order.cancelled</bdi>' );
 } );
 
 it( 'shows All events as one primary badge with a zap', function (): void {

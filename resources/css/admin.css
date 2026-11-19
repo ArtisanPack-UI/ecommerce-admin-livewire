@@ -3450,6 +3450,15 @@
         font-size: var(--apui-type-caption-font-size, 12px);
     }
 
+    .ec-webhooks-more > summary {
+        color: var(--apui-text-muted);
+        cursor: pointer;
+    }
+
+    .ec-webhooks-more > .ec-webhooks-events {
+        margin-block-start: 4px;
+    }
+
     .ec-webhooks-failures[data-failing] {
         color: var(--apui-color-error-text);
         font-weight: var(--apui-font-weight-medium, 500);

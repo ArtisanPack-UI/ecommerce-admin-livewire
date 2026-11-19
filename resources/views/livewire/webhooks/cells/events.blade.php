@@ -1,7 +1,7 @@
 {{--
     Webhooks list cell (#136): All events as one primary badge with a zap;
-    otherwise the first two event keys as neutral mono badges, then "+N
-    more" with the rest in its title.
+    otherwise the first two event keys as neutral mono badges, then a "+N
+    more" disclosure that reveals the rest (keyboard and pointer alike).
 --}}
 @php
     $webhookEvents = array_values( array_map( 'strval', (array) $row->events ) );
@@ -17,7 +17,14 @@
             <x-artisanpack-badge color="neutral" size="sm" data-webhook-event><bdi dir="ltr" class="ec-webhooks-event-key">{{ $webhookEvent }}</bdi></x-artisanpack-badge>
         @endforeach
         @if ( [] !== $moreEvents )
-            <span class="ec-muted ec-webhooks-more" title="{{ implode( ', ', $moreEvents ) }}" data-webhook-more-events>{{ __( '+:count more', [ 'count' => count( $moreEvents ) ] ) }}</span>
+            <details class="ec-webhooks-more" data-webhook-more-events>
+                <summary>{{ __( '+:count more', [ 'count' => count( $moreEvents ) ] ) }}</summary>
+                <div class="ec-webhooks-events">
+                    @foreach ( $moreEvents as $webhookEvent )
+                        <x-artisanpack-badge color="neutral" size="sm" data-webhook-event-more><bdi dir="ltr" class="ec-webhooks-event-key">{{ $webhookEvent }}</bdi></x-artisanpack-badge>
+                    @endforeach
+                </div>
+            </details>
         @endif
     </div>
 @endif

@@ -143,6 +143,8 @@ it( 'splits SMS text into GSM and UCS-2 messages', function ( string $text, arra
     'extension chars' => [ '€[]', [ 'characters' => 6, 'limit' => 160, 'messages' => 1 ] ],
     'unicode'         => [ 'Hello 👋', [ 'characters' => 8, 'limit' => 70, 'messages' => 1 ] ],
     'long unicode'    => [ str_repeat( 'é', 150 ) . 'ж', [ 'characters' => 151, 'limit' => 201, 'messages' => 3 ] ],
+    'escape boundary' => [ str_repeat( '^', 153 ), [ 'characters' => 306, 'limit' => 459, 'messages' => 3 ] ],
+    'emoji boundary'  => [ str_repeat( 'a', 66 ) . str_repeat( '👋', 34 ), [ 'characters' => 134, 'limit' => 201, 'messages' => 3 ] ],
 ] );
 
 it( 'reads the line from a template error message', function ( string $message, ?int $line ): void {

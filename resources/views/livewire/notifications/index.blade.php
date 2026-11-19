@@ -104,8 +104,11 @@
                                                         <x-artisanpack-badge dot :color="$template->is_active ? 'success' : 'neutral'" :data-template-state="$template->is_active ? 'active' : 'off'">{{ $template->is_active ? __( 'Active' ) : __( 'Off' ) }}</x-artisanpack-badge>
                                                     </td>
                                                     <td data-scope="table" data-part="cell" class="ec-cell-muted ec-nowrap">
-                                                        @if ( Index::wasEdited( $template ) )
+                                                        @php( $templateEdited = Index::wasEdited( $template ) )
+                                                        @if ( $templateEdited && null !== $template->updated_at )
                                                             <time datetime="{{ $template->updated_at->toIso8601String() }}">{{ LocalizedDate::format( $template->updated_at ) }}</time>
+                                                        @elseif ( $templateEdited )
+                                                            <span data-edited-unknown>{{ __( 'Unknown' ) }}</span>
                                                         @else
                                                             <span data-never-edited>{{ __( 'Never' ) }}</span>
                                                         @endif
