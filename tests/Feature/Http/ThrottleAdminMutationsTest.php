@@ -90,7 +90,9 @@ it( 'turns a 429 into a toast instead of the Livewire error modal', function ():
         ->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
         ->assertOk()
         ->assertSee( 'data-ecommerce-admin-rate-limit', false )
-        ->assertSee( "window.Livewire.hook( 'request'", false );
+        ->assertSee( "window.Livewire.hook( 'request'", false )
+        ->assertSee( 'title: escapeHtml( title ), description: escapeHtml( message )', false )
+        ->assertSee( 'node.textContent = String( text );', false );
 } );
 
 afterEach( function (): void {
