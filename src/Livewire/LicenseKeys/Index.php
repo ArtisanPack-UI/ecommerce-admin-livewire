@@ -413,7 +413,8 @@ class Index extends Component
     /**
      * How full a key's activation slots are, for its bar: the share used,
      * rounded to a step of ten (0–100) so an `.ec-w-N` class can draw it,
-     * or null for a key with no limit.
+     * or null when there is no bar to draw: a key with no limit (null), or
+     * one whose limit of zero allows no activations.
      *
      * @since 2.0.0
      *

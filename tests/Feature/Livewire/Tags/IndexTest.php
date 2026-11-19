@@ -261,3 +261,39 @@ it( 'labels the merge select visibly', function (): void {
         ->set( 'selected', [ (string) ProductTag::query()->value( 'id' ) ] )
         ->assertSeeHtml( 'class="ec-bulk-inline-label" aria-hidden="true">Merge into</span>' );
 } );
+
+it( 'refuses a merge token minted for a different target', function (): void {
+    $lower = ProductTag::factory()->create( [ 'name' => 'sale', 'slug' => 'sale' ] );
+    $upper = ProductTag::factory()->create( [ 'name' => 'Sale', 'slug' => 'sale-2' ] );
+    $other = ProductTag::factory()->create( [ 'name' => 'Clearance', 'slug' => 'clearance' ] );
+
+    $component = Livewire::test( Index::class )
+        ->set( 'selected', [ (string) $lower->id, (string) $upper->id ] )
+        ->set( 'mergeTargetId', (string) $upper->id )
+        ->call( 'runBulkAction', 'merge' );
+
+    $staleToken = $component->viewData( 'tableConfirmToken' );
+
+    // A new confirmation for another target, answered with the first target's token.
+    $component->set( 'mergeTargetId', (string) $other->id )
+        ->call( 'runBulkAction', 'merge' )
+        ->assertSet( 'confirmingBulkAction', 'merge' )
+        ->call( 'confirmBulkAction', $staleToken );
+
+    expect( ProductTag::query()->whereKey( [ $lower->id, $upper->id, $other->id ] )->count() )->toBe( 3 );
+
+    $component->call( 'runBulkAction', 'merge' )
+        ->call( 'confirmBulkAction', $component->viewData( 'tableConfirmToken' ) );
+
+    expect( ProductTag::query()->find( $lower->id ) )->toBeNull()
+        ->and( ProductTag::query()->find( $other->id ) )->not->toBeNull();
+} );
+
+it( 'labels the rename fields visibly', function (): void {
+    $tag = ProductTag::factory()->create( [ 'name' => 'sale', 'slug' => 'sale' ] );
+
+    Livewire::test( Index::class )
+        ->call( 'startRename', $tag->id )
+        ->assertSeeHtml( 'for="tag-' . $tag->id . '-name"' )
+        ->assertSeeHtml( 'for="tag-' . $tag->id . '-slug"' );
+} );

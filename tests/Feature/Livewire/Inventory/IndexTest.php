@@ -403,6 +403,23 @@ it( 'previews the new on hand and available counts while adjusting', function ()
         ->assertDontSee( 'New on hand:' );
 } );
 
+it( 'previews only quantities the adjustment accepts', function ( string $mode, string $quantity, ?string $preview ): void {
+    $item      = inventoryRow( Product::factory()->create(), 5 );
+    $component = Livewire::test( Index::class )
+        ->call( 'startAdjust', $item->id )
+        ->set( 'adjustMode', $mode )
+        ->set( 'adjustQuantity', $quantity );
+
+    null === $preview ? $component->assertDontSee( 'New on hand:' ) : $component->assertSee( $preview );
+} )->with( [
+    'set to zero'             => [ 'set', '0', 'New on hand: 0.' ],
+    'set below zero'          => [ 'set', '-1', null ],
+    'set past the maximum'    => [ 'set', '1000001', null ],
+    'a negative change'       => [ 'delta', '-3', 'New on hand: 2.' ],
+    'no change'               => [ 'delta', '0', null ],
+    'a change past the limit' => [ 'delta', '-1000001', null ],
+] );
+
 it( 'returns focus to the opener from the adjust dialog and the threshold editor', function (): void {
     $item = inventoryRow( Product::factory()->create(), 5, 2 );
 

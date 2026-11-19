@@ -306,6 +306,8 @@ it( 'rounds the activation level to a step of ten', function (): void {
         ->and( Index::activationLevel( $key( 0, 5 ) ) )->toBe( 0 )
         ->and( Index::activationLevel( $key( 7, 5 ) ) )->toBe( 100 )
         ->and( Index::activationLevel( $key( 1, null ) ) )->toBeNull()
+        ->and( Index::activationLevel( $key( 0, 0 ) ) )->toBeNull()
+        ->and( Index::activationsFull( $key( 0, 0 ) ) )->toBeTrue()
         ->and( Index::activationsFull( $key( 3, 3 ) ) )->toBeTrue()
         ->and( Index::activationsFull( $key( 2, 3 ) ) )->toBeFalse()
         ->and( Index::activationsFull( $key( 9, null ) ) )->toBeFalse();
@@ -362,4 +364,19 @@ it( 'keeps keys, IP addresses and order numbers left to right, with no DaisyUI o
         ->toContain( '<bdi dir="ltr" class="ec-mono">#A100</bdi>' )
         ->toContain( '2 hours ago' )
         ->not->toMatch( '/class="[^"]*\b(btn|badge-|table-sm|link-hover|font-mono|text-sm|opacity-75|flex|gap-\d|text-end|tabular-nums|overflow-x-auto|w-full|max-w-xl)\b/' );
+} );
+
+it( 'shows a key whose limit is zero as allowing no activations, not as having no limit', function (): void {
+    $key = licenseKeyOn( 'Z000', [ 'key' => 'ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ', 'activations_count' => 0, 'activations_limit' => 0 ] );
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )->toContain( '0 of 0' )
+        ->not->toContain( 'no limit' )
+        ->not->toContain( 'role="progressbar"' );
+
+    Livewire::test( Index::class )
+        ->call( 'showActivations', $key->id )
+        ->assertSee( 'This key allows no activations.' )
+        ->assertDontSeeHtml( 'data-activations-unlimited' );
 } );

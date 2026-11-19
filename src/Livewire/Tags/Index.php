@@ -299,6 +299,21 @@ class Index extends Component
     }
 
     /**
+     * Binds the merge's confirmation token to the tag it merges into, so a
+     * token minted for one target can't confirm a merge into another.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $key  The bulk action key.
+     *
+     * @return mixed
+     */
+    protected function bulkActionTokenSubject( string $key ): mixed
+    {
+        return 'merge' === $key ? 'target:' . (int) $this->mergeTargetId : null;
+    }
+
+    /**
      * Merges the selected tags into the chosen tag.
      *
      * @since 1.0.0

@@ -1681,6 +1681,7 @@
     "This is the default board, but it has routing rules, so it only takes matching orders. Orders no board matches go nowhere.": "Dies ist das Standard-Board, aber es hat Routing-Regeln und nimmt daher nur passende Bestellungen auf. Bestellungen, die zu keinem Board passen, landen nirgends.",
     "This is the store's default or shipping tax class, so it cannot be deleted.": "Dies ist die Standard- oder Versand-USt.-Klasse des Shops und kann daher nicht gelöscht werden.",
     "This item's product type is not installed, so its stock cannot be changed here.": "Der Produkttyp dieses Artikels ist nicht installiert, daher kann sein Bestand hier nicht geändert werden.",
+    "This key allows no activations.": "Dieser Schlüssel erlaubt keine Aktivierungen.",
     "This key has not been activated on any machine.": "Dieser Schlüssel wurde noch auf keinem Gerät aktiviert.",
     "This month": "Dieser Monat",
     "This order cannot be refunded.": "Diese Bestellung kann nicht erstattet werden.",

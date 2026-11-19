@@ -47,9 +47,13 @@
             $onHand          = (int) $adjustingItem->quantity_on_hand;
             $reserved        = (int) $adjustingItem->quantity_reserved;
             $enteredQuantity = trim( (string) $adjustQuantity );
-            $projectedOnHand = 1 === preg_match( '/^[+-]?\d{1,7}$/', $enteredQuantity )
-                ? ( 'set' === $adjustMode ? (int) $enteredQuantity : $onHand + (int) $enteredQuantity )
-                : null;
+            // Only quantities adjust() accepts get a preview: set 0 to 1,000,000; change by a non-zero ±1,000,000.
+            $enteredNumber   = 1 === preg_match( '/^[+-]?\d{1,7}$/', $enteredQuantity ) ? (int) $enteredQuantity : null;
+            $projectedOnHand = match ( true ) {
+                null === $enteredNumber || abs( $enteredNumber ) > 1000000 => null,
+                'set' === $adjustMode                                      => $enteredNumber >= 0 ? $enteredNumber : null,
+                default                                                    => 0 !== $enteredNumber ? $onHand + $enteredNumber : null,
+            };
         @endphp
         <x-artisanpack-dialog
             wire:model="adjusting"

@@ -65,8 +65,11 @@
                     @endif
                 </div>
 
-                @if ( null === $viewingLevel )
+                @if ( null === $viewingKey->activations_limit )
                     <p class="ec-body" data-activations-unlimited>{{ trans_choice( ':count activation, no limit.|:count activations, no limit.', $viewingKey->activations_count, [ 'count' => $viewingKey->activations_count ] ) }}</p>
+                @elseif ( null === $viewingLevel )
+                    {{-- A limit of zero allows no activations; it isn't "no limit". --}}
+                    <p class="ec-body" data-activations-none>{{ __( 'This key allows no activations.' ) }}</p>
                 @else
                     <x-artisanpack-progress
                         :value="(int) $viewingKey->activations_count"

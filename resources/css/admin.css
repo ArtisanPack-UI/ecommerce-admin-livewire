@@ -2595,10 +2595,11 @@
         justify-content: flex-end;
     }
 
+    /* Labels sit above the fields, so Save and Cancel line up with the inputs. */
     .ec-tags-rename {
         display: flex;
         flex-wrap: wrap;
-        align-items: flex-start;
+        align-items: flex-end;
         gap: 8px;
         min-inline-size: min(23.75rem, 100%);
     }
