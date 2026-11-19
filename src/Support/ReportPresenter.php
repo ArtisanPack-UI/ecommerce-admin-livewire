@@ -13,10 +13,13 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
+use ArtisanPack\LivewireUiComponents\Support\ChartGeometry;
+use ArtisanPackUI\Ecommerce\Support\MoneyFormatter;
 use ArtisanPackUI\Ecommerce\Support\TaxLabel;
 use ArtisanPackUI\Ecommerce\Support\TaxRateMath;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Number;
 use Throwable;
 
 /**
@@ -47,6 +50,24 @@ final class ReportPresenter
      * @var array<int, string>
      */
     public const SALES_METRICS = [ 'net', 'gross', 'total', 'orders', 'average_order_value', 'refunds', 'tax', 'shipping', 'discounts' ];
+
+    /**
+     * Sales columns taken off gross sales: shown muted with a minus sign.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const DEDUCTIONS = [ 'discounts', 'refunds' ];
+
+    /**
+     * Figures where going down is the good news.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const LOWER_IS_BETTER = [ 'refunds', 'discounts' ];
 
     /**
      * Labels for the sales metrics.
@@ -104,7 +125,7 @@ final class ReportPresenter
      * @param  string                $report  Report key.
      * @param  array<string, mixed>  $result  Engine result.
      *
-     * @return array<int, array{key: string, label: string, type: string, value: float|int, previous: float|int|null, change: float|null}>
+     * @return array<int, array{key: string, label: string, type: string, value: float|int, previous: float|int|null, change: float|null, tone: string|null}>
      */
     public static function kpis( string $report, array $result ): array
     {
@@ -142,15 +163,17 @@ final class ReportPresenter
                 continue;
             }
 
-            $value    = $totals[ $key ];
-            $before   = null === $previous ? null : ( $previous[ $key ] ?? null );
-            $kpis[]   = [
+            $value  = $totals[ $key ];
+            $before = null === $previous ? null : ( $previous[ $key ] ?? null );
+            $change = is_numeric( $value ) && is_numeric( $before ) && 0 != $before ? round( ( $value - $before ) / abs( $before ) * 100, 1 ) : null;
+            $kpis[] = [
                 'key'      => (string) $key,
                 'label'    => $labels[ $key ] ?? (string) $key,
                 'type'     => $type,
                 'value'    => $value,
                 'previous' => $before,
-                'change'   => is_numeric( $value ) && is_numeric( $before ) && 0 != $before ? round( ( $value - $before ) / abs( $before ) * 100, 1 ) : null,
+                'change'   => $change,
+                'tone'     => self::tone( (string) $key, $change ),
             ];
         }
 
@@ -158,8 +181,34 @@ final class ReportPresenter
     }
 
     /**
-     * The chart: ApexCharts type, categories, series (money as major units),
-     * and a one-sentence summary for screen readers.
+     * Whether a KPI's change is good, bad or flat news: up is good, except
+     * for figures where less is better (refunds), where down is good.
+     *
+     * @since 2.0.0
+     *
+     * @param  string      $key     KPI key.
+     * @param  float|null  $change  Percentage change, or null without one.
+     *
+     * @return string|null `good`, `bad`, `flat`, or null without a change.
+     */
+    public static function tone( string $key, ?float $change ): ?string
+    {
+        if ( null === $change ) {
+            return null;
+        }
+
+        if ( 0.0 === $change ) {
+            return 'flat';
+        }
+
+        return ( $change > 0 ) !== in_array( $key, self::LOWER_IS_BETTER, true ) ? 'good' : 'bad';
+    }
+
+    /**
+     * The chart: its type (`area` over time, `bar` for a ranked list), title,
+     * categories, series (money as major units), the raw values of a bar
+     * chart (minor units for money), and a one-sentence summary that names
+     * the chart for screen readers and captions it.
      *
      * @since 1.0.0
      *
@@ -167,7 +216,7 @@ final class ReportPresenter
      * @param  array<string, mixed>  $result  Engine result.
      * @param  string                $metric  Sales metric to plot.
      *
-     * @return array{type: string, categories: array<int, string>, series: array<int, array{name: string, data: array<int, float|int>}>, money: bool, summary: string}|null
+     * @return array{type: string, title: string, categories: array<int, string>, series: array<int, array{name: string, data: array<int, float|int>}>, raw?: array<int, int>, money: bool, summary: string}|null
      */
     public static function chart( string $report, array $result, string $metric = 'net' ): ?array
     {
@@ -183,6 +232,7 @@ final class ReportPresenter
                 $value    = static fn ( array $bucket ): int|float => $money ? $major( (int) $bucket[ $metric ] ) : (int) $bucket[ $metric ];
                 $chart    = [
                     'type'       => 'area',
+                    'title'      => $label,
                     'categories' => array_map( static fn ( array $bucket ): string => self::periodLabel( (string) $bucket['period'], (string) ( $result['range']['interval'] ?? 'day' ) ), $series ),
                     'series'     => [ [ 'name' => __( ':metric, this period', [ 'metric' => $label ] ), 'data' => array_map( $value, $series ) ] ],
                     'money'      => $money,
@@ -209,8 +259,10 @@ final class ReportPresenter
 
                 return [
                     'type'       => 'bar',
+                    'title'      => 'top-products' === $report ? __( 'Net revenue by product' ) : __( 'Net revenue by category' ),
                     'categories' => array_map( static fn ( array $row ): string => (string) $row['name'], $rows ),
                     'series'     => [ [ 'name' => __( 'Net revenue' ), 'data' => array_map( static fn ( array $row ): float => $major( (int) $row['net_revenue'] ), $rows ) ] ],
+                    'raw'        => array_map( static fn ( array $row ): int => (int) $row['net_revenue'], $rows ),
                     'money'      => true,
                     'summary'    => __( 'Net revenue for the top :count rows. The table below lists every value.', [ 'count' => count( $rows ) ] ),
                 ];
@@ -220,6 +272,8 @@ final class ReportPresenter
 
                 return [
                     'type'       => 'bar',
+                    'title'      => __( 'Tax collected by rate' ),
+                    'raw'        => array_map( static fn ( array $row ): int => (int) $row['amount'], $rows ),
                     'categories' => array_map( static fn ( array $row ): string => trim( ( '' !== $row['jurisdiction'] ? $row['jurisdiction'] . ' · ' : '' ) . $row['label'] ), $rows ),
                     'series'     => [ [ 'name' => __( 'Tax collected' ), 'data' => array_map( static fn ( array $row ): float => $major( (int) $row['amount'] ), $rows ) ] ],
                     'money'      => true,
@@ -231,6 +285,8 @@ final class ReportPresenter
 
                 return [] === $rows ? null : [
                     'type'       => 'bar',
+                    'title'      => __( 'Stock value at cost' ),
+                    'raw'        => array_map( static fn ( array $row ): int => (int) $row['stock_value'], $rows ),
                     'categories' => array_map( static fn ( array $row ): string => (string) $row['name'], $rows ),
                     'series'     => [ [ 'name' => __( 'Stock value at cost' ), 'data' => array_map( static fn ( array $row ): float => $major( (int) $row['stock_value'] ), $rows ) ] ],
                     'money'      => true,
@@ -242,6 +298,8 @@ final class ReportPresenter
 
                 return [] === $rows ? null : [
                     'type'       => 'bar',
+                    'title'      => __( 'Units below threshold' ),
+                    'raw'        => array_map( static fn ( array $row ): int => (int) $row['shortfall'], $rows ),
                     'categories' => array_map( static fn ( array $row ): string => (string) $row['name'], $rows ),
                     'series'     => [ [ 'name' => __( 'Units below threshold' ), 'data' => array_map( static fn ( array $row ): int => (int) $row['shortfall'], $rows ) ] ],
                     'money'      => false,
@@ -253,39 +311,82 @@ final class ReportPresenter
     }
 
     /**
-     * ApexCharts options for a chart. The previous period is dashed and both
-     * series are named in the legend, so the chart does not rely on colour.
+     * The plot of a chart over time, from the design system's chart
+     * geometry: grid, axis labels, a line (and area) per series, and a
+     * focusable column per category that opens the tooltip. The labels are
+     * stripped of markup, the x axis keeps about eight of them so they never
+     * overlap, and money values carry the currency's symbol.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
-     * @param  array{type: string, categories: array<int, string>, series: array<int, array<string, mixed>>, money: bool, summary: string}  $chart     Chart from {@see self::chart()}.
-     * @param  string                                                                                                                     $currency  Base currency.
+     * @param  array{type: string, categories: array<int, string>, series: array<int, array{name: string, data: array<int, float|int>}>, money: bool}  $chart     Chart from {@see self::chart()}.
+     * @param  string                                                                                                                                  $currency  Base currency.
      *
      * @return array<string, mixed>
      */
-    public static function chartOptions( array $chart, string $currency ): array
+    public static function plot( array $chart, string $currency ): array
     {
-        $dashed = count( $chart['series'] ) > 1;
+        [ $prefix, $suffix ] = $chart['money'] ? self::currencyAffixes( $currency ) : [ null, null ];
 
-        return [
-            'chart'       => [ 'toolbar' => [ 'show' => false ], 'zoom' => [ 'enabled' => false ] ],
-            // ApexCharts writes the tooltip title with innerHTML; the table
-            // below the chart carries the names, so the title is hidden.
-            'tooltip'     => [ 'x' => [ 'show' => false ] ],
-            'xaxis'       => [ 'categories' => array_map( self::chartText( ... ), $chart['categories'] ) ],
-            'dataLabels'  => [ 'enabled' => false ],
-            'legend'      => [ 'show' => true, 'position' => 'bottom' ],
-            'stroke'      => [ 'curve' => 'straight', 'width' => 2, 'dashArray' => $dashed ? [ 0, 6 ] : [ 0 ] ],
-            'markers'     => [ 'size' => $dashed ? [ 3, 0 ] : 3 ],
-            'yaxis'       => [ 'title' => [ 'text' => $chart['money'] ? $currency : __( 'Count' ) ] ],
-            'plotOptions' => [ 'bar' => [ 'horizontal' => 'bar' === $chart['type'] ] ],
-        ];
+        $geometry = ChartGeometry::compute(
+            array_map( static fn ( array $series ): array => [ ...$series, 'name' => self::chartText( (string) $series['name'] ) ], $chart['series'] ),
+            [
+                'type'   => 'line' === $chart['type'] ? 'line' : 'area',
+                'labels' => array_map( self::chartText( ... ), $chart['categories'] ),
+                'width'  => 960,
+                'height' => 280,
+                'prefix' => $prefix,
+                'suffix' => $suffix,
+            ],
+        );
+
+        $geometry = self::localizePlot( $geometry, $chart, (string) $prefix, (string) $suffix );
+
+        $every                  = max( 1, (int) ceil( count( $geometry['categories'] ) / 8 ) );
+        $geometry['categories'] = array_values( array_filter(
+            $geometry['categories'],
+            static fn ( int $index ): bool => 0 === $index % $every,
+            ARRAY_FILTER_USE_KEY,
+        ) );
+
+        return $geometry;
+    }
+
+    /**
+     * The rows of a ranked bar chart: each name with its formatted value and
+     * its bar's length as a share of the largest value.
+     *
+     * @since 2.0.0
+     *
+     * @param  array{categories: array<int, string>, series: array<int, array{name: string, data: array<int, float|int>}>, raw?: array<int, int>, money: bool}  $chart     Chart from {@see self::chart()}.
+     * @param  string                                                                                                                                             $currency  Base currency.
+     *
+     * @return array<int, array{name: string, value: string, percent: float}>
+     */
+    public static function bars( array $chart, string $currency ): array
+    {
+        $values  = array_map( static fn ( mixed $value ): float => (float) $value, (array) ( $chart['series'][0]['data'] ?? [] ) );
+        $largest = [] === $values ? 0.0 : max( array_map( 'abs', $values ) );
+        $raw     = (array) ( $chart['raw'] ?? [] );
+        $bars    = [];
+
+        foreach ( $chart['categories'] as $index => $name ) {
+            $value  = $values[ $index ] ?? 0.0;
+            $amount = (int) ( $raw[ $index ] ?? $value );
+            $bars[] = [
+                'name'    => self::chartText( (string) $name ),
+                'value'   => $chart['money'] ? MoneyFormatter::format( $amount, $currency ) : Number::format( $amount, locale: app()->getLocale() ),
+                'percent' => $largest > 0 ? round( abs( $value ) / $largest * 100, 1 ) : 0.0,
+            ];
+        }
+
+        return $bars;
     }
 
     /**
      * Store data (product, category, rate names) as plain chart text.
-     * ApexCharts renders labels as HTML, so tags are stripped and `<` / `>`
-     * removed before anything reaches it.
+     * Tags are stripped and `<` / `>` removed, so a name never carries
+     * markup into the chart's labels, tooltips or bar list.
      *
      * @since 1.0.0
      *
@@ -397,6 +498,84 @@ final class ReportPresenter
     }
 
     /**
+     * Rewrites the chart's y-axis labels and each column's tooltip and
+     * accessible name with the app locale's digits. The chart geometry
+     * always writes `1,500.5`; a German reader needs `1.500,5`.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>  $geometry  Geometry from ChartGeometry::compute().
+     * @param  array<string, mixed>  $chart     Chart from {@see self::chart()}.
+     * @param  string                $prefix    Currency text before the digits.
+     * @param  string                $suffix    Currency text after the digits.
+     *
+     * @return array<string, mixed>
+     */
+    private static function localizePlot( array $geometry, array $chart, string $prefix, string $suffix ): array
+    {
+        $locale = app()->getLocale();
+        $format = static fn ( float $value ): string => ( $value < 0 ? '-' : '' ) . $prefix . Number::format( abs( $value ), maxPrecision: 2, locale: $locale ) . $suffix;
+
+        foreach ( $geometry['ticks'] ?? [] as $index => $tick ) {
+            $label    = (string) $tick['label'];
+            $negative = str_starts_with( $label, '-' );
+            $digits   = substr( ltrim( $label, '-' ), strlen( $prefix ) );
+            $digits   = '' === $suffix ? $digits : substr( $digits, 0, -strlen( $suffix ) );
+            $number   = str_replace( ',', '', $digits );
+
+            if ( is_numeric( $number ) ) {
+                $geometry['ticks'][ $index ]['label'] = $format( ( $negative ? -1 : 1 ) * (float) $number );
+            }
+        }
+
+        $series = array_values( $chart['series'] );
+
+        foreach ( $geometry['marks'] ?? [] as $key => $mark ) {
+            $parts = [];
+
+            foreach ( $series as $entry ) {
+                $value = $entry['data'][ $mark['index'] ] ?? null;
+
+                if ( null !== $value ) {
+                    $parts[] = [ self::chartText( (string) $entry['name'] ), $format( (float) $value ) ];
+                }
+            }
+
+            if ( [] === $parts ) {
+                continue;
+            }
+
+            $named = count( $series ) > 1;
+
+            $geometry['marks'][ $key ]['body']  = implode( ' · ', array_map( static fn ( array $part ): string => $named ? $part[0] . ' ' . $part[1] : $part[1], $parts ) );
+            $geometry['marks'][ $key ]['label'] = $mark['title'] . ': ' . implode( ', ', array_map( static fn ( array $part ): string => $named ? $part[0] . ' ' . $part[1] : $part[1], $parts ) );
+        }
+
+        return $geometry;
+    }
+
+    /**
+     * The text before and after the digits when the app locale writes an
+     * amount in the currency (`$`, or ` €`), for the chart's value labels.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $currency  Base currency.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private static function currencyAffixes( string $currency ): array
+    {
+        $sample = MoneyFormatter::format( 0, $currency );
+
+        if ( 1 !== preg_match( '/^(.*?)\d(?:.*\d)?(.*)$/su', $sample, $parts ) ) {
+            return [ '', '' ];
+        }
+
+        return [ $parts[1], $parts[2] ];
+    }
+
+    /**
      * Sales: one row per bucket, totals in the footer.
      *
      * @since 1.0.0
@@ -412,7 +591,7 @@ final class ReportPresenter
         $columns  = [ [ 'key' => 'period', 'label' => __( 'Period' ), 'type' => 'text' ] ];
 
         foreach ( [ 'orders', 'gross', 'discounts', 'refunds', 'net', 'tax', 'shipping', 'total', 'average_order_value' ] as $metric ) {
-            $columns[] = [ 'key' => $metric, 'label' => $labels[ $metric ], 'type' => 'orders' === $metric ? 'int' : 'money' ];
+            $columns[] = [ 'key' => $metric, 'label' => $labels[ $metric ], 'type' => 'orders' === $metric ? 'int' : 'money', 'deduction' => in_array( $metric, self::DEDUCTIONS, true ) ];
         }
 
         return [

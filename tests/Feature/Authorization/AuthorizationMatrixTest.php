@@ -781,6 +781,8 @@ const MATRIX = [
         'actions' => [
             'save'                      => [ 'args' => [], 'ability' => 'settings.update' ],
             'confirmBaseCurrencyChange' => [ 'args' => [], 'ability' => 'settings.update' ],
+            'confirmReset'              => [ 'args' => [ 'tax.prices_include_tax' ], 'ability' => 'settings.update' ],
+            'cancelReset'               => [ 'args' => [], 'ability' => 'settings.view' ],
             'resetToDefault'            => [ 'args' => [ 'tax.prices_include_tax' ], 'ability' => 'settings.update' ],
             'addMapRow'                 => [ 'args' => [ 'localization.tax_labels' ], 'ability' => 'settings.update' ],
             'removeMapRow'              => [ 'args' => [ 'localization.tax_labels', 0 ], 'ability' => 'settings.update' ],

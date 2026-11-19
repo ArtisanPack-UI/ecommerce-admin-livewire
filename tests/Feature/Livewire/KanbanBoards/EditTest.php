@@ -175,3 +175,65 @@ it( 'caps routing rules on save even when rows arrive through wire:model', funct
         ->call( 'save' )
         ->assertHasErrors( 'ruleRows.conditions' );
 } );
+
+it( 'shows the saved state as badges', function (): void {
+    $board = KanbanBoard::factory()->asDefault()->routing( [ [ 'type' => 'customer-first-order', 'config' => [] ] ] )->create();
+
+    Livewire::test( Edit::class, [ 'board' => $board->id ] )
+        ->assertSeeHtml( [ 'data-board-badges', 'data-board-is-default', 'data-board-state="active"', 'data-board-has-rules' ] )
+        ->assertSee( [ 'Default', 'Switched on', 'Has routing rules' ] );
+
+    $plain = KanbanBoard::factory()->create( [ 'is_active' => false ] );
+
+    Livewire::test( Edit::class, [ 'board' => $plain->id ] )
+        ->assertSeeHtml( 'data-board-state="inactive"' )
+        ->assertDontSeeHtml( [ 'data-board-is-default', 'data-board-has-rules' ] )
+        ->assertSee( 'Switched off' );
+} );
+
+it( 'locks the default switch on the default board', function (): void {
+    $board = KanbanBoard::factory()->asDefault()->create();
+
+    $html = Livewire::test( Edit::class, [ 'board' => $board->id ] )
+        ->assertSeeHtml( 'data-board-default-locked' )
+        ->assertSee( 'To change the default, make another board the default from the boards list.' )
+        ->assertDontSee( 'Make this the default board' )
+        ->html();
+
+    expect( $html )->toMatch( '/id="board-default"[^>]*disabled/' );
+} );
+
+it( 'leads with an error alert after a failed save', function (): void {
+    $board = KanbanBoard::factory()->create();
+
+    Livewire::test( Edit::class, [ 'board' => $board->id ] )
+        ->assertDontSeeHtml( 'data-error-alert' )
+        ->set( 'form.name', '' )
+        ->call( 'save' )
+        ->assertSeeHtml( 'data-error-alert' )
+        ->assertSee( 'The board was not saved. Fix the highlighted fields.' );
+} );
+
+it( 'warns about nested rules and hides the replace action when view-only', function (): void {
+    $tree  = [ 'not' => [ 'type' => 'customer-first-order', 'config' => [] ] ];
+    $board = KanbanBoard::factory()->routing( $tree )->create();
+
+    Livewire::test( Edit::class, [ 'board' => $board->id ] )
+        ->assertSee( 'They are kept as they are when you save.' )
+        ->assertSeeHtml( [ 'data-replace-complex-rules', 'customer-first-order' ] );
+
+    Gate::define( 'ecommerce.kanbanBoard.update', static fn (): bool => false );
+
+    Livewire::test( Edit::class, [ 'board' => $board->id ] )
+        ->assertSeeHtml( 'data-complex-rules' )
+        ->assertDontSeeHtml( 'data-replace-complex-rules' );
+} );
+
+it( 'disables every control when view-only', function (): void {
+    Gate::define( 'ecommerce.kanbanBoard.update', static fn (): bool => false );
+
+    $html = Livewire::test( Edit::class, [ 'board' => KanbanBoard::factory()->create()->id ] )->html();
+
+    expect( $html )->toMatch( '/<fieldset[^>]*class="ec-board-form-panel"[^>]*disabled/' )
+        ->and( $html )->toMatch( '/id="board-name"[^>]*disabled/' );
+} );

@@ -3572,4 +3572,610 @@
         outline: var(--apui-focus-ring-width) solid var(--apui-focus-ring-color);
         outline-offset: var(--apui-focus-ring-offset);
     }
+
+    /* Kanban boards (#139): numbered board rows in one card, routing order. */
+    .ec-board-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+    }
+
+    .ec-board-row + .ec-board-row {
+        border-block-start: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-board-row__index {
+        flex: none;
+        inline-size: 16px;
+    }
+
+    .ec-board-row__main {
+        display: grid;
+        flex: 1 1 15rem;
+        gap: 4px;
+        min-inline-size: 0;
+    }
+
+    .ec-board-row__title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        min-inline-size: 0;
+    }
+
+    .ec-board-row__name {
+        color: var(--apui-text-default);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-board-row__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+    }
+
+    .ec-board-row__actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .ec-board-note {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-board-note [data-scope="icon"] {
+        flex: none;
+    }
+
+    /*
+     * Kanban board editor (#140): the saved-state badge row under the page
+     * header, and the board form's Details and Routing sections (heading and
+     * explanation on the start side, fields on the end side, stacked below
+     * 48rem), like the promotion form. Nested routing rules the builder
+     * can't edit sit in a disclosure as mono JSON.
+     */
+    .ec-board-form-badges {
+        margin-block-start: calc(10px - var(--apui-panel-gap, 16px));
+    }
+
+    .ec-board-form-panel {
+        min-inline-size: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .ec-board-form-section {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        gap: 24px;
+        padding-block: 20px;
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-board-form-section:first-child {
+        padding-block-start: 0;
+        border-block-start: 0;
+    }
+
+    .ec-board-form-section:last-child {
+        padding-block-end: 0;
+    }
+
+    .ec-board-form-section__head {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        min-inline-size: 0;
+    }
+
+    .ec-board-form-section__hint {
+        margin: 0;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: 19px;
+    }
+
+    .ec-board-form-fields {
+        display: grid;
+        gap: 16px;
+        min-inline-size: 0;
+    }
+
+    .ec-board-form-json {
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    .ec-board-form-json > summary {
+        color: var(--apui-color-primary-text);
+        font-weight: var(--apui-font-weight-medium, 500);
+        cursor: pointer;
+    }
+
+    .ec-board-form-json__code {
+        margin-block: 8px 0;
+        margin-inline: 0;
+        padding: 10px 12px;
+        overflow-x: auto;
+        border: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: 18px;
+        text-align: start;
+        unicode-bidi: isolate;
+    }
+
+    @media (max-width: 47.999rem) {
+        .ec-board-form-section {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
+        }
+    }
+
+    /*
+     * Link tabs (#141, and #142's phone section nav): underline tabs whose
+     * triggers are links. The current page is aria-current, not
+     * aria-selected (that belongs to role="tab"), so it gets the selected
+     * tab's look here. The list scrolls on a phone.
+     */
+    .ec-link-tabs [data-scope="tabs"][data-part="list"] {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .ec-link-tabs [data-scope="tabs"][data-part="trigger"] {
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
+    .ec-link-tabs [data-scope="tabs"][data-part="trigger"][aria-current="page"] {
+        color: var(--apui-text-default);
+        box-shadow: inset 0 calc(var(--apui-selected-indicator-width) * -1) 0 var(--apui-color-primary);
+    }
+
+    .ec-link-tabs [data-scope="tabs"][data-part="trigger"][aria-current="page"]:focus-visible {
+        box-shadow:
+            inset 0 calc(var(--apui-selected-indicator-width) * -1) 0 var(--apui-color-primary),
+            inset 0 0 0 var(--apui-focus-ring-width) var(--apui-focus-ring-color);
+    }
+
+    @media (forced-colors: active) {
+        .ec-link-tabs [data-scope="tabs"][data-part="trigger"][aria-current="page"] {
+            border-block-end: var(--apui-selected-indicator-width) solid Highlight;
+        }
+    }
+
+    /*
+     * Report (#141): the options row (fields top-aligned, the toggle offset
+     * by the field label), KPI changes with a toned arrow, the chart over
+     * time (previous period dashed in the axis colour), the ranked bar list,
+     * and the table with row headers and a totals row.
+     */
+    .ec-report-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .ec-report-control {
+        flex: 0 1 auto;
+        min-inline-size: 0;
+    }
+
+    .ec-report-control[data-width="xs"] {
+        inline-size: 7rem;
+    }
+
+    .ec-report-control[data-width="sm"] {
+        inline-size: 8rem;
+    }
+
+    .ec-report-control[data-width="md"] {
+        inline-size: 11rem;
+    }
+
+    .ec-report-control[data-width="date"] {
+        inline-size: 10rem;
+    }
+
+    /* The label line (18px) and its gap (6px), then centred on a small control. */
+    .ec-report-toggle {
+        display: flex;
+        align-items: center;
+        min-block-size: var(--apui-control-height-sm);
+        margin-block-start: 24px;
+    }
+
+    .ec-report-results {
+        transition: opacity var(--apui-motion-duration-fast, 120ms) var(--apui-motion-ease-standard, ease);
+    }
+
+    .ec-report-results--busy {
+        opacity: 0.5;
+    }
+
+    .ec-report-change {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .ec-report-trend {
+        display: inline-flex;
+        flex: none;
+        color: var(--apui-text-muted);
+    }
+
+    .ec-report-trend[data-tone="good"] {
+        color: var(--apui-color-success-text);
+    }
+
+    .ec-report-trend[data-tone="bad"] {
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-report-figure {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+    }
+
+    .ec-report-chart [data-scope="chart"][data-part="body"] {
+        direction: ltr;
+    }
+
+    /* The previous period: a dashed line in the axis colour, no fill. */
+    .ec-report-chart [data-scope="chart"][data-part="line"][data-series="2"] {
+        stroke: var(--apui-chart-axis);
+        stroke-dasharray: 6 4;
+    }
+
+    .ec-report-chart [data-scope="chart"][data-part="area"][data-series="2"] {
+        display: none;
+    }
+
+    .ec-report-chart [data-scope="chart"][data-part="dot"][data-series="2"] {
+        fill: var(--apui-chart-axis);
+    }
+
+    .ec-report-chart [data-scope="chart"][data-part="swatch"] {
+        inline-size: 14px;
+        block-size: 2px;
+        border-radius: 0;
+    }
+
+    .ec-report-chart [data-scope="chart"][data-part="swatch"][data-series="2"] {
+        block-size: 0;
+        border-block-start: 2px dashed var(--apui-chart-axis);
+        background: none;
+    }
+
+    .ec-report-bars {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-report-bar {
+        display: grid;
+        grid-template-columns: minmax(0, 10rem) minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-report-bar__name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ec-report-bar__track {
+        display: block;
+        min-inline-size: 0;
+    }
+
+    .ec-report-bar__fill {
+        display: block;
+        block-size: 14px;
+        min-inline-size: 2px;
+        border-radius: 0 4px 4px 0;
+        background: var(--apui-chart-1);
+    }
+
+    .ec-report-bar__value {
+        font-variant-numeric: tabular-nums;
+        text-align: end;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 30rem) {
+        .ec-report-bar {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .ec-report-bar__track {
+            grid-column: 1 / -1;
+            grid-row: 2;
+        }
+    }
+
+    @media (forced-colors: active) {
+        .ec-report-bar__fill {
+            forced-color-adjust: none;
+            background: CanvasText;
+        }
+    }
+
+    .ec-report-table__body {
+        padding-inline: 0;
+        padding-block-end: 4px;
+    }
+
+    .ec-report-table [data-scope="table"][data-part="table"] > :is(tbody, tfoot) > tr > th {
+        box-sizing: border-box;
+        block-size: var(--apui-row-height);
+        padding-block: 0;
+        padding-inline: var(--apui-cell-padding-x);
+        border-block-end: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+        font-weight: var(--apui-font-weight-regular, 400);
+        text-align: start;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .ec-report-table [data-scope="table"][data-part="row"][data-indent] > th {
+        padding-inline-start: calc(var(--apui-cell-padding-x) + 20px);
+    }
+
+    .ec-report-table [data-scope="table"][data-part="table"] > tbody > tr:last-child > :is(th, td) {
+        border-block-end: 0;
+    }
+
+    .ec-report-table [data-scope="table"][data-part="table"] > tfoot > tr > :is(th, td) {
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-default);
+        border-block-end: 0;
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    /* Settings (#142): a section list on the start side (underlined links
+       that scroll on a phone), groups as cards of label-beside-control rows,
+       and a Save bar that stays in view. */
+    .ec-settings-layout {
+        display: grid;
+        grid-template-columns: 200px minmax(0, 1fr);
+        gap: 32px;
+        align-items: start;
+    }
+
+    .ec-settings-nav {
+        position: sticky;
+        inset-block-start: 16px;
+        min-inline-size: 0;
+    }
+
+    .ec-settings-nav__list {
+        display: grid;
+        gap: 2px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-settings-nav__link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+        text-decoration: none;
+    }
+
+    .ec-settings-nav__link:hover {
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+    }
+
+    .ec-settings-nav__link[aria-current="page"] {
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-settings-nav__link:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid var(--apui-focus-ring-color);
+        outline-offset: 2px;
+    }
+
+    .ec-settings-content {
+        display: grid;
+        gap: var(--apui-panel-gap, 16px);
+        min-inline-size: 0;
+    }
+
+    .ec-settings-fieldset {
+        min-inline-size: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .ec-settings-rows[data-scope="card"][data-part="body"] {
+        padding-block: 0 4px;
+    }
+
+    .ec-setting-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+        gap: 8px 24px;
+        padding-block: 16px;
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-setting-row:first-child {
+        border-block-start: 0;
+    }
+
+    .ec-setting-row__text,
+    .ec-setting-row__control {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        min-inline-size: 0;
+    }
+
+    .ec-setting-row__text {
+        gap: 4px;
+    }
+
+    .ec-setting-row__label {
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        font-weight: var(--apui-font-weight-medium, 500);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+    }
+
+    .ec-setting-row__stored {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-block-start: 2px;
+    }
+
+    .ec-setting-map {
+        display: grid;
+        gap: 8px;
+    }
+
+    .ec-setting-map__rows {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-setting-map__row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 8px;
+    }
+
+    .ec-setting-currency [data-scope="input"][data-part="control"] {
+        text-transform: uppercase;
+    }
+
+    .ec-settings-secrets {
+        display: grid;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-settings-secret {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 12px;
+        padding-block: 10px;
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-settings-secret:first-child {
+        border-block-start: 0;
+        padding-block-start: 0;
+    }
+
+    .ec-settings-secret__name {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 8px;
+        min-inline-size: 0;
+    }
+
+    .ec-settings-save {
+        position: sticky;
+        z-index: 1;
+        inset-block-end: 0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding-block: 12px;
+        background: linear-gradient(transparent, var(--apui-surface-page) 30%);
+    }
+
+    @media (max-width: 48rem) {
+        .ec-settings-layout {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 16px;
+        }
+
+        /* Phone: the section list becomes a row of underlined links that
+           scrolls sideways, like Tabs. */
+        .ec-settings-nav {
+            position: static;
+            overflow-x: auto;
+            border-block-end: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+        }
+
+        .ec-settings-nav__list {
+            display: flex;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .ec-settings-nav__link {
+            padding: 10px 12px;
+            border-radius: 0;
+            border-block-end: 2px solid transparent;
+            margin-block-end: calc(-1 * var(--apui-border-width, 1px));
+        }
+
+        .ec-settings-nav__link:hover {
+            background: transparent;
+        }
+
+        .ec-settings-nav__link[aria-current="page"] {
+            background: transparent;
+            border-block-end-color: var(--apui-color-primary);
+        }
+
+        .ec-settings-nav__link:focus-visible {
+            outline-offset: -2px;
+        }
+    }
+
+    @media (max-width: 40rem) {
+        .ec-setting-row {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
+    @media (forced-colors: active) {
+        .ec-settings-nav__link[aria-current="page"] {
+            outline: 1px solid CanvasText;
+        }
+    }
 }

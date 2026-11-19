@@ -14,7 +14,6 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\OrderStatuses;
 
 use ArtisanPackUI\Ecommerce\Exceptions\OrderSubstatusWriteException;
-use ArtisanPackUI\Ecommerce\Models\Order;
 use ArtisanPackUI\Ecommerce\Models\OrderSubstatus;
 use ArtisanPackUI\Ecommerce\Services\OrderSubstatusService;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
@@ -26,7 +25,6 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\IconChoices;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StatusPresenter;
 use Closure;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -421,14 +419,7 @@ class Index extends Component
      */
     public function render(): View
     {
-        $substatuses = OrderSubstatus::query()->orderBy( 'position' )->orderBy( 'id' )->get();
-        $orderCounts = Order::query()
-            ->whereNotNull( 'substatus_id' )
-            ->groupBy( 'substatus_id' )
-            ->select( 'substatus_id', DB::raw( 'COUNT(*) as aggregate' ) )
-            ->pluck( 'aggregate', 'substatus_id' )
-            ->all();
-
+        $substatuses  = OrderSubstatus::query()->orderBy( 'position' )->orderBy( 'id' )->get();
         $systemLabels = StatusPresenter::statuses( 'system' );
         $groups       = [];
 
@@ -444,23 +435,25 @@ class Index extends Component
         $usage    = null === $deleting ? null : app( OrderSubstatusService::class )->usage( $deleting );
         $isLast   = null !== $deleting && $substatuses->where( 'system_status', $deleting->system_status )->count() <= 1;
         $editing  = null === $this->substatusId ? null : $substatuses->firstWhere( 'id', $this->substatusId );
+        $color    = strtoupper( trim( (string) $this->form['color'] ) );
 
         return view( 'ecommerce-admin::livewire.order-statuses.index', [
-            'groups'           => $groups,
-            'orderCounts'      => $orderCounts,
-            'canCreate'        => $this->canEcommerce( 'create', OrderSubstatus::class ),
-            'canUpdate'        => Authorization::allows( auth()->user(), 'orderSubstatus.update' ),
-            'canDelete'        => Authorization::allows( auth()->user(), 'orderSubstatus.delete' ),
-            'formStatusLabel'  => $systemLabels[ $this->form['system_status'] ][0] ?? '',
-            'editingSubstatus' => $editing,
-            'contrastWarning'  => ColorContrast::warning( strtoupper( trim( (string) $this->form['color'] ) ) ),
-            'iconPicker'       => IconChoices::isAvailable(),
-            'iconOptions'      => IconChoices::isAvailable() ? IconChoices::options( (string) $this->form['icon'] ) : [],
-            'deleting'         => $deleting,
-            'deletingUsage'    => $usage,
-            'deletingIsLast'   => $isLast,
-            'deleteBlocked'    => null !== $usage && ( array_sum( $usage ) > 0 || $isLast ),
-            'deleteToken'      => null === $deleting ? null : $this->actionToken( 'delete', $deleting ),
+            'groups'              => $groups,
+            'canCreate'           => $this->canEcommerce( 'create', OrderSubstatus::class ),
+            'canUpdate'           => Authorization::allows( auth()->user(), 'orderSubstatus.update' ),
+            'canDelete'           => Authorization::allows( auth()->user(), 'orderSubstatus.delete' ),
+            'formStatusLabel'     => $systemLabels[ $this->form['system_status'] ][0] ?? '',
+            'editingSubstatus'    => $editing,
+            'contrastWarning'     => ColorContrast::warning( $color ),
+            'previewColor'        => '' === $color ? null : ( 1 === preg_match( '/^#[0-9A-F]{6}$/', $color ) ? $color : $editing?->color ),
+            'iconPicker'          => IconChoices::isAvailable(),
+            'iconOptions'         => IconChoices::isAvailable() ? IconChoices::options( (string) $this->form['icon'] ) : [],
+            'deleting'            => $deleting,
+            'deletingUsage'       => $usage,
+            'deletingIsLast'      => $isLast,
+            'deletingStatusLabel' => null === $deleting ? '' : ( $systemLabels[ $deleting->system_status ][0] ?? (string) $deleting->system_status ),
+            'deleteBlocked'       => null !== $usage && ( array_sum( $usage ) > 0 || $isLast ),
+            'deleteToken'         => null === $deleting ? null : $this->actionToken( 'delete', $deleting ),
         ] );
     }
 }

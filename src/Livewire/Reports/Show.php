@@ -31,6 +31,7 @@ use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 /**
  * One report on the shared report frame (spec §7.7).
@@ -38,7 +39,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * The frame gives every report the same controls and output:
  *
  * - a date range with presets (today, last 7 / 30 days, this and last
- *   month, quarter, year) or custom dates, a previous-period comparison,
+ *   month, quarter, year, last 90 days) or custom dates, a previous-period comparison,
  *   and a day / week / month interval — date controls are hidden for
  *   point-in-time reports such as inventory;
  * - headline numbers with the change against the previous period, written
@@ -71,7 +72,7 @@ class Show extends Component
      *
      * @var array<int, string>
      */
-    public const PRESETS = [ 'today', 'yesterday', 'last-7-days', 'last-30-days', 'this-month', 'last-month', 'this-quarter', 'last-quarter', 'this-year', 'last-year', 'custom' ];
+    public const PRESETS = [ 'today', 'yesterday', 'last-7-days', 'last-30-days', 'last-90-days', 'this-month', 'last-month', 'this-quarter', 'last-quarter', 'this-year', 'last-year', 'custom' ];
 
     /**
      * The default preset.
@@ -309,16 +310,22 @@ class Show extends Component
         $ranged   = $registry->get( $this->report )->ranged();
         $result   = $this->run();
         $chart    = null === $result ? null : ReportPresenter::chart( $this->report, $result, $this->metric );
+        $table    = null === $result ? null : ReportPresenter::table( $this->report, $result );
+        $currency = (string) ( $result['currency'] ?? config( 'artisanpack.ecommerce.base_currency', 'USD' ) );
 
         return view( 'ecommerce-admin::livewire.reports.show', [
             'reports'      => app( ReportRunner::class )->available(),
             'label'        => (string) ( $registry->meta( $this->report )['label'] ?? $this->report ),
             'ranged'       => $ranged,
             'result'       => $result,
-            'table'        => null === $result ? null : ReportPresenter::table( $this->report, $result ),
+            'table'        => $table,
+            'empty'        => null !== $result && self::isEmpty( $this->report, $result, $table ),
+            'longer'       => $ranged && $this->days() < 90,
             'kpis'         => null === $result ? [] : ReportPresenter::kpis( $this->report, $result ),
             'chart'        => $chart,
-            'chartOptions' => null === $chart ? [] : ReportPresenter::chartOptions( $chart, (string) $result['currency'] ),
+            'plot'         => null !== $chart && 'bar' !== $chart['type'] && [] !== $chart['categories'] ? ReportPresenter::plot( $chart, $currency ) : null,
+            'bars'         => null !== $chart && 'bar' === $chart['type'] ? ReportPresenter::bars( $chart, $currency ) : [],
+            'currency'     => $currency,
             'presets'      => self::presetLabels(),
             'metrics'      => ReportPresenter::salesMetricLabels(),
             'sorts'        => $this->sortOptions(),
@@ -340,6 +347,7 @@ class Show extends Component
             'yesterday'    => __( 'Yesterday' ),
             'last-7-days'  => __( 'Last 7 days' ),
             'last-30-days' => __( 'Last 30 days' ),
+            'last-90-days' => __( 'Last 90 days' ),
             'this-month'   => __( 'This month' ),
             'last-month'   => __( 'Last month' ),
             'this-quarter' => __( 'This quarter' ),
@@ -368,6 +376,7 @@ class Show extends Component
             'today'        => [ $today, $today ],
             'yesterday'    => [ $today->subDay(), $today->subDay() ],
             'last-7-days'  => [ $today->subDays( 6 ), $today ],
+            'last-90-days' => [ $today->subDays( 89 ), $today ],
             'this-month'   => [ $today->startOfMonth(), $today ],
             'last-month'   => [ $today->subMonthNoOverflow()->startOfMonth(), $today->subMonthNoOverflow()->endOfMonth() ],
             'this-quarter' => [ $today->startOfQuarter(), $today ],
@@ -378,6 +387,45 @@ class Show extends Component
         };
 
         return [ $from->format( 'Y-m-d' ), $to->format( 'Y-m-d' ) ];
+    }
+
+    /**
+     * Whether there is nothing to report: no rows, or for sales no orders
+     * and no refunds in the range.
+     *
+     * @since 2.0.0
+     *
+     * @param  string                     $report  Report key.
+     * @param  array<string, mixed>       $result  Engine result.
+     * @param  array<string, mixed>|null  $table   Table from {@see ReportPresenter::table()}.
+     *
+     * @return bool
+     */
+    protected static function isEmpty( string $report, array $result, ?array $table ): bool
+    {
+        if ( 'sales' === $report ) {
+            $totals = (array) ( $result['totals'] ?? [] );
+
+            return 0 === (int) ( $totals['orders'] ?? 0 ) && 0 === (int) ( $totals['refunds'] ?? 0 );
+        }
+
+        return null === $table || [] === $table['rows'];
+    }
+
+    /**
+     * Days in the chosen range, or 0 when a date is missing or invalid.
+     *
+     * @since 2.0.0
+     *
+     * @return int
+     */
+    protected function days(): int
+    {
+        try {
+            return (int) CarbonImmutable::createFromFormat( '!Y-m-d', $this->from )->diffInDays( CarbonImmutable::createFromFormat( '!Y-m-d', $this->to ) ) + 1;
+        } catch ( Throwable ) {
+            return 0;
+        }
     }
 
     /**

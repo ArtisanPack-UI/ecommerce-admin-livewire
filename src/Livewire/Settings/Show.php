@@ -101,6 +101,25 @@ class Show extends Component
     public bool $confirmingBaseCurrency = false;
 
     /**
+     * The setting waiting for its reset to be confirmed.
+     *
+     * @since 2.0.0
+     *
+     * @var string|null
+     */
+    #[Locked]
+    public ?string $resettingKey = null;
+
+    /**
+     * Whether the reset confirmation is open.
+     *
+     * @since 2.0.0
+     *
+     * @var bool
+     */
+    public bool $confirmingReset = false;
+
+    /**
      * Authorizes the screen and loads the group.
      *
      * @since 1.0.0
@@ -196,6 +215,42 @@ class Show extends Component
     }
 
     /**
+     * Asks to confirm resetting a changed setting, because the reset saves
+     * immediately.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $key  The setting key.
+     *
+     * @return void
+     */
+    public function confirmReset( string $key ): void
+    {
+        $this->authorizeEcommerce( 'update', EcommerceSetting::class );
+
+        $resettable = $this->isFormTab()
+            && SettingsRepository::BASE_CURRENCY_KEY !== $key
+            && array_key_exists( $key, app( SettingsRegistry::class )->definitions( $this->group ) )
+            && app( SettingsRepository::class )->isStored( $key );
+
+        $this->resettingKey    = $resettable ? $key : null;
+        $this->confirmingReset = $resettable;
+    }
+
+    /**
+     * Dismisses the reset confirmation.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    public function cancelReset(): void
+    {
+        $this->resettingKey    = null;
+        $this->confirmingReset = false;
+    }
+
+    /**
      * Deletes a stored value so the setting falls back to its configured
      * default. The base currency is changed through the form instead.
      *
@@ -208,6 +263,8 @@ class Show extends Component
     public function resetToDefault( string $key ): void
     {
         $this->authorizeEcommerce( 'update', EcommerceSetting::class );
+
+        $this->cancelReset();
 
         if ( ! $this->isFormTab() || SettingsRepository::BASE_CURRENCY_KEY === $key ) {
             return;
@@ -302,6 +359,7 @@ class Show extends Component
         $repository = app( SettingsRepository::class );
         $registry   = app( SettingsRegistry::class );
         $isForm     = 'form' === ( $tab['kind'] ?? null );
+        $resetting  = $isForm && null !== $this->resettingKey ? $registry->definition( $this->resettingKey ) : null;
 
         return view( 'ecommerce-admin::livewire.settings.show', [
             'tabs'         => $this->tabs(),
@@ -314,7 +372,46 @@ class Show extends Component
             'timezones'    => DateTimeZone::listIdentifiers(),
             'satellites'   => 'satellites' === ( $tab['kind'] ?? null ) ? $this->satellites() : [],
             'baseCurrency' => strtoupper( (string) $repository->get( SettingsRepository::BASE_CURRENCY_KEY ) ),
+            'resetting'    => $resetting,
+            'resetDefault' => null === $resetting ? null : self::displayValue( $resetting, $repository->defaultFor( $resetting->key ) ),
         ] );
+    }
+
+    /**
+     * A setting value as staff read it, for the reset confirmation: On or
+     * Off, an option's label, a comma-separated list, or null when empty.
+     *
+     * @since 2.0.0
+     *
+     * @param  SettingDefinition  $definition  The setting.
+     * @param  mixed              $value       The value.
+     *
+     * @return string|null
+     */
+    public static function displayValue( SettingDefinition $definition, mixed $value ): ?string
+    {
+        if ( 'boolean' === $definition->type ) {
+            return $value ? __( 'On' ) : __( 'Off' );
+        }
+
+        $options = in_array( $definition->type, [ 'select', 'multiselect' ], true ) ? $definition->options() : [];
+        $items   = [];
+
+        foreach ( 'map' === $definition->type ? (array) ( $value ?? [] ) : [] as $mapKey => $mapValue ) {
+            $items[] = $mapKey . ': ' . ( is_scalar( $mapValue ) ? (string) $mapValue : '' );
+        }
+
+        if ( 'map' !== $definition->type ) {
+            foreach ( is_array( $value ) ? $value : [ $value ] as $item ) {
+                if ( null === $item || ! is_scalar( $item ) || '' === (string) $item ) {
+                    continue;
+                }
+
+                $items[] = (string) ( $options[ (string) $item ] ?? $item );
+            }
+        }
+
+        return [] === $items ? null : implode( ', ', $items );
     }
 
     /**
