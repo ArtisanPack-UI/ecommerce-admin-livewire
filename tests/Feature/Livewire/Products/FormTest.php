@@ -373,11 +373,14 @@ function formMarkup( $component ): string
 }
 
 it( 'renders the design-system header: an outline back link, one solid Save and when it was saved', function (): void {
+    // A frozen clock and a fixed save time, so the relative label can't tick over mid-test.
+    $this->freezeTime();
     $product = existingProduct();
+    $product->forceFill( [ 'updated_at' => now()->subHours( 3 ) ] )->saveQuietly();
 
     $component = Livewire::test( Form::class, [ 'product' => $product->id ] )
         ->assertSee( 'Edit Blue Mug' )
-        ->assertSee( 'Saved ' . $product->updated_at->diffForHumans() );
+        ->assertSee( 'Saved 3 hours ago' );
 
     expect( formMarkup( $component ) )
         ->toContain( 'data-back-link="data-back-link" data-variant="outline"' )
