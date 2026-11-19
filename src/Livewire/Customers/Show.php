@@ -32,8 +32,10 @@ use Livewire\Component;
 /**
  * A customer's detail page (spec §7.4).
  *
- * The header shows lifetime value, order count, average order value, and
- * the first and last order dates. Below it, the tabs from the
+ * The header shows the account and marketing badges, then lifetime value,
+ * order count, average order value, and the first and last order dates
+ * (#129). The Contact card sits beside the tabs; editing swaps it for the
+ * form in place. Below it, the tabs from the
  * {@see CustomerTabRegistry}: orders, addresses, notification preferences,
  * notes, activity, and any a satellite registers.
  *
@@ -121,13 +123,16 @@ class Show extends Component
     public bool $acceptsMarketing = false;
 
     /**
-     * Whether the delete confirmation is open.
+     * Whether the delete dialog is open.
+     *
+     * Not locked: the dialog closes itself (Escape, the close button) by
+     * setting it false. Setting it true only shows the dialog to a user who
+     * may delete, and deleting re-checks the ability.
      *
      * @since 1.0.0
      *
      * @var bool
      */
-    #[Locked]
     public bool $confirmingDelete = false;
 
     /**
@@ -311,6 +316,22 @@ class Show extends Component
     }
 
     /**
+     * Clears the typed email when the dialog closes itself.
+     *
+     * @since 2.0.0
+     *
+     * @param  bool  $open  Whether the dialog is open.
+     *
+     * @return void
+     */
+    public function updatedConfirmingDelete( bool $open ): void
+    {
+        if ( ! $open ) {
+            $this->cancelDelete();
+        }
+    }
+
+    /**
      * Deletes and anonymizes the customer, then returns to the list.
      *
      * @since 1.0.0
@@ -331,7 +352,7 @@ class Show extends Component
             [ 'deleteConfirmation' => __( 'email' ) ],
         );
 
-        if ( mb_strtolower( trim( $this->deleteConfirmation ) ) !== mb_strtolower( trim( (string) $customer->email ) ) ) {
+        if ( ! $this->deleteConfirmationMatches( $customer ) ) {
             $this->addError( 'deleteConfirmation', __( 'Type the customer\'s email exactly to confirm.' ) );
 
             return;
@@ -363,23 +384,25 @@ class Show extends Component
      */
     public function render(): View
     {
-        $customer = $this->customer();
-        $tabs     = $this->visibleTabs();
-        $keys     = array_column( $tabs, 'key' );
+        $customer  = $this->customer();
+        $tabs      = $this->visibleTabs();
+        $keys      = array_column( $tabs, 'key' );
+        $canDelete = $this->canEcommerce( 'delete', $customer );
 
         if ( ! in_array( $this->tab, $keys, true ) ) {
             $this->tab = $keys[0] ?? '';
         }
 
         return view( 'ecommerce-admin::livewire.customers.show', [
-            'customer'     => $customer,
-            'name'         => Index::customerName( $customer ),
-            'stats'        => $this->stats( $customer ),
-            'tabs'         => $tabs,
-            'canUpdate'    => $this->canEcommerce( 'update', $customer ),
-            'canDelete'    => $this->canEcommerce( 'delete', $customer ),
-            'deleteToken'  => $this->confirmingDelete ? $this->actionToken( 'delete', $customer ) : null,
-            'indexUrl'     => Route::has( AdminNav::ROUTE_PREFIX . 'customers.index' ) ? route( AdminNav::ROUTE_PREFIX . 'customers.index' ) : null,
+            'customer'      => $customer,
+            'name'          => Index::customerName( $customer ),
+            'stats'         => $this->stats( $customer ),
+            'tabs'          => $tabs,
+            'canUpdate'     => $this->canEcommerce( 'update', $customer ),
+            'canDelete'     => $canDelete,
+            'deleteToken'   => $this->confirmingDelete && $canDelete ? $this->actionToken( 'delete', $customer ) : null,
+            'deleteMatches' => $this->deleteConfirmationMatches( $customer ),
+            'indexUrl'      => Route::has( AdminNav::ROUTE_PREFIX . 'customers.index' ) ? route( AdminNav::ROUTE_PREFIX . 'customers.index' ) : null,
         ] );
     }
 
@@ -410,6 +433,23 @@ class Show extends Component
             'firstOrderAt'      => null === $first ? null : Carbon::parse( $first ),
             'lastOrderAt'       => $customer->last_ordered_at,
         ];
+    }
+
+    /**
+     * Whether the typed email matches the customer's, ignoring case and
+     * surrounding spaces.
+     *
+     * @since 2.0.0
+     *
+     * @param  Customer  $customer  The customer.
+     *
+     * @return bool
+     */
+    protected function deleteConfirmationMatches( Customer $customer ): bool
+    {
+        $typed = mb_strtolower( trim( $this->deleteConfirmation ) );
+
+        return '' !== $typed && $typed === mb_strtolower( trim( (string) $customer->email ) );
     }
 
     /**

@@ -27,6 +27,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 use Livewire\Component;
 
@@ -108,7 +109,7 @@ class Index extends Component
             'active'    => __( 'Active' ),
             'scheduled' => __( 'Scheduled' ),
             'expired'   => __( 'Expired' ),
-            'disabled'  => __( 'Disabled' ),
+            'disabled'  => __( 'Switched off' ),
             default     => Str::headline( $state ),
         };
     }
@@ -136,19 +137,23 @@ class Index extends Component
     }
 
     /**
-     * Uses against the total limit, as text.
+     * Times used, as "used / limit" when the promotion has a total limit.
      *
-     * @since 1.0.0
+     * The compact form for the list's Uses column (#130).
+     *
+     * @since 2.0.0
      *
      * @param  Promotion  $promotion  The promotion.
      *
      * @return string
      */
-    public static function usesLabel( Promotion $promotion ): string
+    public static function usesCount( Promotion $promotion ): string
     {
+        $used = Number::format( (int) $promotion->times_used );
+
         return null === $promotion->usage_limit_total
-            ? __( ':used (no limit)', [ 'used' => (int) $promotion->times_used ] )
-            : __( ':used of :limit', [ 'used' => (int) $promotion->times_used, 'limit' => (int) $promotion->usage_limit_total ] );
+            ? $used
+            : __( ':used / :limit', [ 'used' => $used, 'limit' => Number::format( (int) $promotion->usage_limit_total ) ] );
     }
 
     /**
@@ -304,9 +309,10 @@ class Index extends Component
                 'export'   => static fn ( Promotion $promotion ): string => (string) $promotion->name,
             ],
             [
-                'key'   => 'source',
-                'label' => __( 'Source' ),
-                'value' => static fn ( Promotion $promotion ): string => self::sourceLabel( (string) $promotion->source_type ),
+                'key'    => 'source',
+                'label'  => __( 'Source' ),
+                'view'   => $cells . 'source',
+                'export' => static fn ( Promotion $promotion ): string => self::sourceLabel( (string) $promotion->source_type ),
             ],
             [
                 'key'    => 'state',
@@ -318,27 +324,30 @@ class Index extends Component
                 'key'      => 'window',
                 'label'    => __( 'Runs' ),
                 'sortable' => true,
-                'value'    => static fn ( Promotion $promotion ): string => self::windowLabel( $promotion ),
+                'view'     => $cells . 'window',
+                'export'   => static fn ( Promotion $promotion ): string => self::windowLabel( $promotion ),
             ],
             [
                 'key'      => 'uses',
                 'label'    => __( 'Uses' ),
                 'sortable' => true,
-                'value'    => static fn ( Promotion $promotion ): string => self::usesLabel( $promotion ),
+                'numeric'  => true,
+                'view'     => $cells . 'uses',
                 'export'   => static fn ( Promotion $promotion ): int => (int) $promotion->times_used,
             ],
             [
                 'key'      => 'priority',
                 'label'    => __( 'Priority' ),
                 'sortable' => true,
-                'class'    => 'text-end tabular-nums',
-                'value'    => static fn ( Promotion $promotion ): string => (string) (int) $promotion->priority,
+                'numeric'  => true,
+                'view'     => $cells . 'priority',
                 'export'   => static fn ( Promotion $promotion ): int => (int) $promotion->priority,
             ],
             [
                 'key'    => 'exclusive',
                 'label'  => __( 'Exclusive' ),
-                'value'  => static fn ( Promotion $promotion ): string => $promotion->is_exclusive ? __( 'Yes' ) : __( 'No' ),
+                'view'   => $cells . 'exclusive',
+                'export' => static fn ( Promotion $promotion ): string => $promotion->is_exclusive ? __( 'Yes' ) : __( 'No' ),
             ],
         ];
     }
@@ -373,23 +382,23 @@ class Index extends Component
             [
                 'key'     => 'activate',
                 'label'   => __( 'Switch on' ),
-                'icon'    => 'o-play',
+                'icon'    => 'check',
                 'ability' => 'promotion.update',
                 'handler' => fn ( Builder $selection ): string => $this->setActive( $selection, true ),
             ],
             [
                 'key'     => 'deactivate',
                 'label'   => __( 'Switch off' ),
-                'icon'    => 'o-pause',
+                'icon'    => 'minus',
                 'ability' => 'promotion.update',
                 'handler' => fn ( Builder $selection ): string => $this->setActive( $selection, false ),
             ],
             [
                 'key'     => 'delete',
                 'label'   => __( 'Delete' ),
-                'icon'    => 'o-trash',
+                'icon'    => 'trash',
                 'ability' => 'promotion.delete',
-                'confirm' => __( 'Delete the selected promotions and their coupons? Promotions already used on orders are kept; switch those off instead.' ),
+                'confirm' => __( 'Delete the selected promotions? Their coupon codes stop working at checkout. Promotions already used on orders are kept; switch those off instead.' ),
                 'handler' => fn ( Builder $selection ): ?string => $this->deleteSelection( $selection ),
             ],
             $this->exportBulkAction(),

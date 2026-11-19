@@ -46,7 +46,7 @@ it( 'returns focus to the trigger when an inline confirmation is cancelled', fun
     visit( route( 'artisanpack.ecommerce.admin.customers.show', [ 'customer' => $customer->id ] ) )
         ->click( '[data-delete-customer]' )
         ->assertSee( 'Delete this customer?' )
-        ->click( '[data-customer-delete] >> ' . Locators::role( 'Cancel' ) )
+        ->click( 'internal:role=alertdialog >> ' . Locators::role( 'Cancel' ) )
         ->assertScript( 'document.activeElement?.hasAttribute( "data-delete-customer" )', true );
 } );
 

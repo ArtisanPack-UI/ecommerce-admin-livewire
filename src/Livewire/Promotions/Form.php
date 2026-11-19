@@ -22,7 +22,6 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithConfigForms;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithPickers;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithRuleBuilder;
-use ArtisanPackUI\EcommerceAdminLivewire\Queries\PromotionsQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Contracts\View\View;
@@ -392,9 +391,13 @@ class Form extends Component
         return view( 'ecommerce-admin::livewire.promotions.form', [
             'promotion'     => $promotion,
             'isCreate'      => null === $promotion,
-            'state'         => null === $promotion ? null : PromotionsQuery::state( $promotion ),
             'tabs'          => $this->visibleTabs( $promotion ),
-            'sourceOptions' => Index::sourceOptions(),
+            'tabLabels'     => self::tabLabels(),
+            'errorTabs'     => $this->errorTabs(),
+            'sourceOptions' => array_map(
+                static fn ( array $option ): array => [ ...$option, 'icon' => self::sourceIcon( $option['id'] ) ],
+                Index::sourceOptions(),
+            ),
             'ruleBuilder'   => $this->ruleBuilderViewData(),
             'indexUrl'      => Route::has( AdminNav::ROUTE_PREFIX . 'promotions.index' ) ? route( AdminNav::ROUTE_PREFIX . 'promotions.index' ) : null,
             'timezone'      => (string) config( 'app.timezone', 'UTC' ),
@@ -402,26 +405,86 @@ class Form extends Component
     }
 
     /**
+     * The tab labels, by key.
+     *
      * @since 1.0.0
      *
-     * @return array<string, array{registry: string, label: string, add: string, empty: string}>
+     * @return array<string, string>
+     */
+    public static function tabLabels(): array
+    {
+        return [
+            'details'  => __( 'Details' ),
+            'rules'    => __( 'Rules' ),
+            'coupons'  => __( 'Coupons' ),
+            'usage'    => __( 'Usage' ),
+            'activity' => __( 'Activity' ),
+        ];
+    }
+
+    /**
+     * The icon for a source type, matching the promotions list's source
+     * badges: a bolt for automatic, a tag for coupon codes, none otherwise.
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $source  Source type key.
+     *
+     * @return string|null
+     */
+    public static function sourceIcon( string $source ): ?string
+    {
+        return match ( $source ) {
+            Promotion::SOURCE_AUTOMATIC => 'zap',
+            Promotion::SOURCE_COUPON    => 'tag',
+            default                     => null,
+        };
+    }
+
+    /**
+     * The rule lists. Conditions all have to hold; discounts apply in order.
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, array{registry: string, label: string, add: string, empty: string, description?: string}>
      */
     protected function ruleBuilderLists(): array
     {
         return [
             'conditions' => [
-                'registry' => 'promotion-condition',
-                'label'    => __( 'Conditions' ),
-                'add'      => __( 'Add a condition' ),
-                'empty'    => __( 'No conditions: every cart qualifies. Every condition you add must be met.' ),
+                'registry'    => 'promotion-condition',
+                'label'       => __( 'Conditions' ),
+                'add'         => __( 'Add a condition' ),
+                'empty'       => __( 'No conditions: every cart qualifies. Every condition you add must be met.' ),
+                'description' => __( 'All of these must be true for the promotion to apply.' ),
             ],
             'actions'    => [
-                'registry' => 'promotion-action',
-                'label'    => __( 'Actions' ),
-                'add'      => __( 'Add an action' ),
-                'empty'    => __( 'No actions yet: the promotion gives nothing until you add one. Actions apply from top to bottom.' ),
+                'registry'    => 'promotion-action',
+                'label'       => __( 'Discounts' ),
+                'add'         => __( 'Add a discount' ),
+                'empty'       => __( 'No discounts yet. Add one to give this promotion an effect.' ),
+                'description' => __( 'Applied in this order.' ),
             ],
         ];
+    }
+
+    /**
+     * The tabs with validation errors: the rule rows' errors belong to
+     * Rules, every other field's to Details.
+     *
+     * @since 1.0.0
+     *
+     * @return array<int, string>
+     */
+    protected function errorTabs(): array
+    {
+        $tabs = [];
+
+        foreach ( $this->getErrorBag()->keys() as $key ) {
+            $tabs[] = str_starts_with( (string) $key, 'ruleRows.' ) || str_starts_with( (string) $key, 'ruleToAdd.' ) ? 'rules' : 'details';
+        }
+
+        return array_values( array_intersect( [ 'details', 'rules' ], $tabs ) );
     }
 
     /**

@@ -20,9 +20,11 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithResourceTable;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\CustomersQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Route;
 use Livewire\Component;
 
 /**
@@ -80,7 +82,12 @@ class Index extends Component
      */
     public function render(): View
     {
-        return view( 'ecommerce-admin::livewire.customers.index', $this->resourceTableData() );
+        $showRoute = AdminNav::ROUTE_PREFIX . 'customers.show';
+
+        return view( 'ecommerce-admin::livewire.customers.index', [
+            ...$this->resourceTableData(),
+            'customerShowRoute' => Route::has( $showRoute ) ? $showRoute : null,
+        ] );
     }
 
     /**
@@ -160,20 +167,22 @@ class Index extends Component
                 'key'      => 'email',
                 'label'    => __( 'Email' ),
                 'sortable' => true,
+                'view'     => $cells . 'email',
+                'export'   => static fn ( Customer $customer ): string => (string) $customer->email,
             ],
             [
                 'key'      => 'orders',
                 'label'    => __( 'Orders' ),
                 'sortable' => true,
-                'class'    => 'text-end tabular-nums',
-                'value'    => static fn ( Customer $customer ): string => (string) (int) $customer->orders_count,
+                'numeric'  => true,
+                'view'     => $cells . 'orders',
                 'export'   => static fn ( Customer $customer ): int => (int) $customer->orders_count,
             ],
             [
                 'key'      => 'spent',
                 'label'    => __( 'Total spent' ),
                 'sortable' => true,
-                'class'    => 'text-end',
+                'numeric'  => true,
                 'view'     => $cells . 'spent',
                 'export'   => static fn ( Customer $customer ): string => MinorUnits::toMajor( (int) $customer->total_spent_amount, self::spentCurrency( $customer ) ),
             ],
@@ -186,7 +195,7 @@ class Index extends Component
             ],
             [
                 'key'    => 'marketing',
-                'label'  => __( 'Accepts marketing' ),
+                'label'  => __( 'Marketing' ),
                 'view'   => $cells . 'marketing',
                 'export' => static fn ( Customer $customer ): string => $customer->accepts_marketing ? __( 'Yes' ) : __( 'No' ),
             ],
