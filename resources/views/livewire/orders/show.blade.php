@@ -12,6 +12,9 @@
     Columns are 2fr / 1fr (side at least 300px); below 1024px they stack
     with the side column first, so status sits under the header. The side
     column is first in the DOM too, so the tab order matches what's seen.
+    Each board the order is on shows its column (label and color), how
+    long the card has been there, and, with the kanban satellite and
+    kanbanBoard.view, an Open board link that focuses the order's card.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -24,6 +27,7 @@
     use ArtisanPackUI\Ecommerce\Support\TaxLabel;
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders\Show;
     use ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions;
+    use Carbon\CarbonInterface;
 
     $customerLabel = $customerName ?? ( null !== $customerUrl ? $order->email : __( 'Guest' ) );
 @endphp
@@ -119,32 +123,55 @@
 
             {{-- Boards --}}
             <x-artisanpack-card :title="__( 'Boards' )" :classes="[ 'body' => 'ec-stack-sm' ]" data-order-boards>
-                @if ( $assignments->isEmpty() )
+                @if ( [] === $assignments )
                     <p class="ec-muted">{{ __( 'This order is not on any board.' ) }}</p>
                 @else
                     <ul class="ec-list">
                         @foreach ( $assignments as $assignment )
-                            @php
-                                $boardName = $assignment->board?->name ?? __( 'Deleted board' );
-                            @endphp
-                            <li wire:key="order-board-{{ $assignment->board_id }}" class="ec-item-head" data-order-board="{{ (int) $assignment->board_id }}">
-                                <span class="ec-strong">{{ $boardName }}</span>
-                                @if ( null !== $assignment->substatus )
-                                    <x-artisanpack-ec-status-badge :substatus="$assignment->substatus" />
-                                @endif
-                                @if ( $canMoveBoards )
-                                    <x-artisanpack-button
-                                        variant="ghost"
-                                        color="neutral"
-                                        size="xs"
-                                        icon-only
-                                        leading-icon="x"
-                                        class="ec-push-end"
-                                        wire:click="removeFromBoard( {{ (int) $assignment->board_id }} )" wire:loading.attr="disabled"
-                                        wire:target="removeFromBoard"
-                                        :aria-label="__( 'Remove from :board', [ 'board' => $boardName ] )"
-                                        data-remove-board
-                                    />
+                            <li wire:key="order-board-{{ $assignment['boardId'] }}" class="ec-order-board" data-order-board="{{ $assignment['boardId'] }}">
+                                <div class="ec-item-head">
+                                    <span class="ec-strong">{{ $assignment['boardName'] }}</span>
+                                    @if ( null !== $assignment['columnLabel'] )
+                                        <x-artisanpack-badge variant="soft" color="neutral" size="sm" data-order-board-column>
+                                            @if ( null !== $assignment['columnColor'] )
+                                                <x-slot:icon><svg class="ec-hex-dot" width="8" height="8" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><circle cx="4" cy="4" r="3.5" fill="{{ $assignment['columnColor'] }}" /></svg></x-slot:icon>
+                                            @endif
+                                            <span class="apui-sr-only">{{ __( 'Column:' ) }} </span>{{ $assignment['columnLabel'] }}
+                                        </x-artisanpack-badge>
+                                    @endif
+                                    @if ( $canMoveBoards )
+                                        <x-artisanpack-button
+                                            variant="ghost"
+                                            color="neutral"
+                                            size="xs"
+                                            icon-only
+                                            leading-icon="x"
+                                            class="ec-push-end"
+                                            wire:click="removeFromBoard( {{ $assignment['boardId'] }} )" wire:loading.attr="disabled"
+                                            wire:target="removeFromBoard"
+                                            :aria-label="__( 'Remove from :board', [ 'board' => $assignment['boardName'] ] )"
+                                            data-remove-board
+                                        />
+                                    @endif
+                                </div>
+                                @if ( null !== $assignment['since'] || null !== $assignment['url'] )
+                                    <div class="ec-item-head">
+                                        @if ( null !== $assignment['since'] )
+                                            <time class="ec-muted" datetime="{{ $assignment['since']->toIso8601String() }}" data-order-board-since>{{ __( 'In this column for :duration', [ 'duration' => $assignment['since']->diffForHumans( [ 'syntax' => CarbonInterface::DIFF_ABSOLUTE ] ) ] ) }}<span class="apui-sr-only"> ({{ LocalizedDate::format( $assignment['since'] ) }})</span></time>
+                                        @endif
+                                        @if ( null !== $assignment['url'] )
+                                            <x-artisanpack-button
+                                                variant="outline"
+                                                color="neutral"
+                                                size="xs"
+                                                leading-icon="columns-3"
+                                                class="ec-push-end"
+                                                :href="$assignment['url']"
+                                                :aria-label="__( 'Open board: :name', [ 'name' => $assignment['boardName'] ] )"
+                                                data-open-board
+                                            >{{ __( 'Open board' ) }}</x-artisanpack-button>
+                                        @endif
+                                    </div>
                                 @endif
                             </li>
                         @endforeach

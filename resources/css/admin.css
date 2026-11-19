@@ -1164,6 +1164,12 @@
         gap: 8px;
     }
 
+    /* A board the order is on: board and column, then time in column and Open board. */
+    .ec-order-board {
+        display: grid;
+        gap: 4px;
+    }
+
     .ec-item-head .ec-push {
         display: flex;
         gap: 4px;

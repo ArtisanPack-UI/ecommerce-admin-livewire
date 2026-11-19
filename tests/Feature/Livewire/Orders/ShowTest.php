@@ -16,6 +16,7 @@ use ArtisanPackUI\Ecommerce\Models\Promotion;
 use ArtisanPackUI\Ecommerce\Models\PromotionUsage;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders\Show;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\KanbanBoards;
 use Livewire\Livewire;
 use Tests\Fixtures\Livewire\SubscriptionPanel;
 
@@ -26,6 +27,7 @@ beforeEach( function (): void {
 
 afterEach( function (): void {
     removeAllFilters( 'ap.ecommerceAdminLivewire.order.taxBreakdown' );
+    removeAllFilters( 'ap.ecommerceAdminLivewire.kanban.boardUrl' );
 } );
 
 it( 'renders the items from their snapshots', function (): void {
@@ -168,6 +170,100 @@ it( 'shows board assignments with each board\'s sub-status', function (): void {
         ->assertSee( 'Fulfillment' )
         ->assertSee( 'Packing' )
         ->assertDontSee( 'Add to board' );
+} );
+
+it( 'shows each board\'s column label, color and time in column', function (): void {
+    $packing = OrderSubstatus::factory()->create( [ 'system_status' => 'processing', 'key' => 'packing', 'label' => 'Packing', 'color' => '#112233' ] );
+    $board   = KanbanBoard::factory()->create( [ 'name' => 'Shipping' ] );
+    KanbanColumn::factory()->create( [ 'board_id' => $board->id, 'substatus_id' => $packing->id, 'label_override' => 'Being packed', 'color_override' => '#AABBCC' ] );
+    $order = Order::factory()->create( [ 'system_status' => 'processing' ] );
+    OrderBoardAssignment::factory()->create( [
+        'order_id'     => $order->id,
+        'board_id'     => $board->id,
+        'substatus_id' => $packing->id,
+        'assigned_at'  => now()->subDays( 5 ),
+        'moved_at'     => now()->subHours( 3 ),
+    ] );
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertSee( 'Shipping' )
+        ->assertSee( 'Being packed' )
+        ->assertSeeHtml( 'fill="#AABBCC"' )
+        ->assertDontSeeHtml( 'fill="#112233"' )
+        ->assertSee( 'In this column for 3 hours' );
+} );
+
+it( 'falls back to the sub-status when the board has no column for it', function (): void {
+    $packing = OrderSubstatus::factory()->create( [ 'system_status' => 'processing', 'key' => 'packing', 'label' => 'Packing', 'color' => '#112233' ] );
+    $board   = KanbanBoard::factory()->create( [ 'name' => 'Shipping' ] );
+    $order   = Order::factory()->create( [ 'system_status' => 'processing' ] );
+    OrderBoardAssignment::factory()->create( [ 'order_id' => $order->id, 'board_id' => $board->id, 'substatus_id' => $packing->id, 'moved_at' => null, 'assigned_at' => now()->subDays( 2 ) ] );
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertSee( 'Packing' )
+        ->assertSeeHtml( 'fill="#112233"' )
+        ->assertSee( 'In this column for 2 days' );
+} );
+
+it( 'links each board to the order\'s card when the kanban satellite is installed and the user can view boards', function (): void {
+    grantAbilities( [ 'kanbanBoard.view' ] );
+    $packing = OrderSubstatus::factory()->create( [ 'system_status' => 'processing', 'key' => 'packing', 'label' => 'Packing' ] );
+    $board   = KanbanBoard::factory()->create( [ 'name' => 'Shipping' ] );
+    $order   = Order::factory()->create( [ 'system_status' => 'processing' ] );
+    OrderBoardAssignment::factory()->create( [ 'order_id' => $order->id, 'board_id' => $board->id, 'substatus_id' => $packing->id ] );
+
+    app( ArtisanPackUI\Ecommerce\Registries\SatelliteRegistry::class )->register( [
+        'package_name' => KanbanBoards::KANBAN_PACKAGE,
+        'version'      => '1.0.0',
+    ] );
+    Illuminate\Support\Facades\Route::get( 'kanban/{board}', static fn (): string => 'board' )->name( KanbanBoards::BOARD_ROUTE );
+    Illuminate\Support\Facades\Route::getRoutes()->refreshNameLookups();
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertSeeHtml( 'data-open-board' )
+        ->assertSeeHtml( 'href="' . e( route( KanbanBoards::BOARD_ROUTE, [ 'board' => $board->id, 'card' => $order->id ] ) ) . '"' )
+        ->assertSeeHtml( 'aria-label="Open board: Shipping"' );
+} );
+
+it( 'hides the open board link without the kanban satellite', function (): void {
+    grantAbilities( [ 'kanbanBoard.view' ] );
+    $packing = OrderSubstatus::factory()->create( [ 'system_status' => 'processing', 'key' => 'packing', 'label' => 'Packing' ] );
+    $board   = KanbanBoard::factory()->create();
+    $order   = Order::factory()->create( [ 'system_status' => 'processing' ] );
+    OrderBoardAssignment::factory()->create( [ 'order_id' => $order->id, 'board_id' => $board->id, 'substatus_id' => $packing->id ] );
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertSeeHtml( 'data-order-board-column' )
+        ->assertDontSeeHtml( 'data-open-board' );
+} );
+
+it( 'hides the open board link without kanbanBoard.view', function (): void {
+    $packing = OrderSubstatus::factory()->create( [ 'system_status' => 'processing', 'key' => 'packing', 'label' => 'Packing' ] );
+    $board   = KanbanBoard::factory()->create();
+    $order   = Order::factory()->create( [ 'system_status' => 'processing' ] );
+    OrderBoardAssignment::factory()->create( [ 'order_id' => $order->id, 'board_id' => $board->id, 'substatus_id' => $packing->id ] );
+    addFilter( 'ap.ecommerceAdminLivewire.kanban.boardUrl', static fn (): string => 'https://example.test/board' );
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertSeeHtml( 'data-order-board-column' )
+        ->assertDontSeeHtml( 'data-open-board' );
+
+    grantAbilities( [ 'kanbanBoard.view' ] );
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertSeeHtml( 'data-open-board' );
+} );
+
+it( 'passes the card to the board URL filter', function (): void {
+    grantAbilities( [ 'kanbanBoard.view' ] );
+    $packing = OrderSubstatus::factory()->create( [ 'system_status' => 'processing', 'key' => 'packing', 'label' => 'Packing' ] );
+    $board   = KanbanBoard::factory()->create( [ 'key' => 'shipping' ] );
+    $order   = Order::factory()->create( [ 'system_status' => 'processing' ] );
+    OrderBoardAssignment::factory()->create( [ 'order_id' => $order->id, 'board_id' => $board->id, 'substatus_id' => $packing->id ] );
+    addFilter( 'ap.ecommerceAdminLivewire.kanban.boardUrl', static fn ( ?string $url, KanbanBoard $board, array $query ): string => 'https://example.test/boards/' . $board->key . '/cards/' . $query['card'] );
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertSeeHtml( 'https://example.test/boards/shipping/cards/' . $order->id );
 } );
 
 it( 'adds the order to a board through the routing service', function (): void {

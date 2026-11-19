@@ -77,7 +77,8 @@ trait SendsToasts
      *
      * Sends the design system's `toast` browser event, which the page's
      * `<x-artisanpack-toaster>` shows. The toaster renders the title and
-     * description as text, so neither can inject markup.
+     * description as text (`x-text`), so neither can inject markup. Don't
+     * HTML-escape them here: the toaster would show the entities.
      *
      * @since 1.0.0
      *

@@ -301,21 +301,27 @@ final class KanbanBoards
 
     /**
      * The "Open board" URL, or null when the kanban satellite is not
-     * installed. Filterable through `ap.ecommerceAdminLivewire.kanban.boardUrl`.
+     * installed. Filterable through `ap.ecommerceAdminLivewire.kanban.boardUrl`,
+     * which also receives `$query`.
+     *
+     * `$query` adds query parameters, such as `[ 'card' => $orderId ]`,
+     * which the kanban reads to focus that order's card.
      *
      * @since 1.0.0
+     * @since 2.0.0 Added `$query`.
      *
-     * @param  KanbanBoard  $board  The board.
+     * @param  KanbanBoard                $board  The board.
+     * @param  array<string, int|string>  $query  Extra query parameters.
      *
      * @return string|null
      */
-    public static function boardUrl( KanbanBoard $board ): ?string
+    public static function boardUrl( KanbanBoard $board, array $query = [] ): ?string
     {
         $url = self::kanbanInstalled() && Route::has( self::BOARD_ROUTE )
-            ? route( self::BOARD_ROUTE, [ 'board' => $board->id ] )
+            ? route( self::BOARD_ROUTE, [ 'board' => $board->id ] + $query )
             : null;
 
-        $url = applyFilters( 'ap.ecommerceAdminLivewire.kanban.boardUrl', $url, $board );
+        $url = applyFilters( 'ap.ecommerceAdminLivewire.kanban.boardUrl', $url, $board, $query );
 
         return is_string( $url ) && '' !== $url ? $url : null;
     }

@@ -45,6 +45,10 @@ use Livewire\Component;
  * - A stored signing `secret` is never sent back to the browser: leave the
  *   field empty to keep it, type a new one to replace it, or tick "Remove
  *   the signing secret".
+ * - Links can open the drawer: `?automation=new` opens the add form and
+ *   `?automation={id}` opens that automation's edit form (the kanban
+ *   satellite builds these). Users who can't update the board, ids from
+ *   other boards, and anything else land on the list as usual.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -180,6 +184,8 @@ class Automations extends Component
         $this->loadedBoard = $model;
 
         $this->ruleBuilderState( [ 'conditions' => [] ] );
+
+        $this->openLinkedAutomation( request()->query( 'automation' ) );
     }
 
     /**
@@ -646,5 +652,38 @@ class Automations extends Component
     protected function board(): KanbanBoard
     {
         return $this->loadedBoard ??= KanbanBoard::query()->findOrFail( $this->boardId );
+    }
+
+    /**
+     * Opens the drawer a `?automation=` link asks for: `new` for the add
+     * form, or the id of an automation on this board for its edit form.
+     *
+     * Does nothing when the user can't update the board, when `new` meets
+     * a board without columns (it has no add button either), or for any
+     * other value.
+     *
+     * @since 2.0.0
+     *
+     * @param  mixed  $requested  The `automation` query value.
+     *
+     * @return void
+     */
+    private function openLinkedAutomation( mixed $requested ): void
+    {
+        if ( ! is_string( $requested ) || '' === $requested || ! $this->canEcommerce( 'update', $this->board() ) ) {
+            return;
+        }
+
+        if ( 'new' === $requested ) {
+            if ( KanbanColumn::query()->where( 'board_id', $this->boardId )->exists() ) {
+                $this->create();
+            }
+
+            return;
+        }
+
+        if ( 1 === preg_match( '/^[1-9][0-9]{0,17}$/D', $requested ) && null !== $this->automation( (int) $requested ) ) {
+            $this->edit( (int) $requested );
+        }
     }
 }
