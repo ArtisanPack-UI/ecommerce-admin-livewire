@@ -25,6 +25,10 @@
     when a Vite build or dev server is present; the admin's own styles are
     inlined (see partials/styles).
 
+    `dir` follows the locale: right-to-left languages (Arabic, Hebrew,
+    Persian, Urdu, ...) get `dir="rtl"`, and the admin's styles and the
+    design system's directional icons mirror with it.
+
     Publish with `php artisan vendor:publish --tag=ecommerce-admin-views`.
 
     @package    ArtisanPack_UI
@@ -45,9 +49,12 @@
     }
 
     $breadcrumbs[] = [ 'label' => '' === $pageTitle ? __( 'Store admin' ) : $pageTitle ];
+
+    $locale        = app()->getLocale();
+    $textDirection = in_array( strtolower( strtok( $locale, '_-' ) ), [ 'ar', 'ckb', 'dv', 'fa', 'he', 'ps', 'sd', 'ug', 'ur', 'yi' ], true ) ? 'rtl' : 'ltr';
 @endphp
 <!DOCTYPE html>
-<html lang="{{ str_replace( '_', '-', app()->getLocale() ) }}">
+<html lang="{{ str_replace( '_', '-', $locale ) }}" dir="{{ $textDirection }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
