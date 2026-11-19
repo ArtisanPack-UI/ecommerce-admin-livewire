@@ -390,8 +390,10 @@ class Show extends Component
     }
 
     /**
-     * Whether there is nothing to report: no rows, or for sales no orders
-     * and no refunds in the range.
+     * Whether there is nothing to report. Sales is empty only when neither
+     * the range nor the compared period has orders or refunds, so a drop to
+     * zero still shows; other reports when they have no rows and no
+     * non-zero headline total.
      *
      * @since 2.0.0
      *
@@ -404,12 +406,14 @@ class Show extends Component
     protected static function isEmpty( string $report, array $result, ?array $table ): bool
     {
         if ( 'sales' === $report ) {
-            $totals = (array) ( $result['totals'] ?? [] );
+            $quiet = static fn ( array $totals ): bool => 0 === (int) ( $totals['orders'] ?? 0 ) && 0 === (int) ( $totals['refunds'] ?? 0 );
 
-            return 0 === (int) ( $totals['orders'] ?? 0 ) && 0 === (int) ( $totals['refunds'] ?? 0 );
+            return $quiet( (array) ( $result['totals'] ?? [] ) ) && $quiet( (array) ( $result['previous']['totals'] ?? [] ) );
         }
 
-        return null === $table || [] === $table['rows'];
+        $figures = array_filter( (array) ( $result['totals'] ?? [] ), static fn ( mixed $value ): bool => is_int( $value ) && 0 !== $value );
+
+        return ( null === $table || [] === $table['rows'] ) && [] === $figures;
     }
 
     /**

@@ -335,6 +335,34 @@ it( 'offers a longer range when there is nothing to report', function (): void {
         ->assertDontSeeHtml( 'data-report-longer' );
 } );
 
+it( 'shows a drop to zero when only the compared period had sales', function (): void {
+    reportsOrder( '2026-02-01', 10_000 );
+
+    Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'compare', true )
+        ->assertDontSeeHtml( 'data-report-empty' )
+        ->assertSeeHtml( 'data-kpis' );
+} );
+
+it( 'keeps headline totals visible when a report has no detail rows', function (): void {
+    $isEmpty = ( new ReflectionMethod( Show::class, 'isEmpty' ) )->getClosure( null );
+
+    expect( $isEmpty( 'inventory', [ 'totals' => [ 'on_hand' => 12 ] ], [ 'rows' => [] ] ) )->toBeFalse()
+        ->and( $isEmpty( 'inventory', [ 'totals' => [ 'on_hand' => 0 ] ], [ 'rows' => [] ] ) )->toBeTrue()
+        ->and( $isEmpty( 'inventory', [ 'totals' => [] ], null ) )->toBeTrue();
+} );
+
+it( 'keeps the full precision of three-decimal currencies in chart values', function (): void {
+    $plot = ArtisanPackUI\EcommerceAdminLivewire\Support\ReportPresenter::plot( [
+        'type'       => 'area',
+        'categories' => [ 'Mar 1' ],
+        'series'     => [ [ 'name' => 'Net revenue', 'data' => [ 1.234 ] ] ],
+        'money'      => true,
+    ], 'KWD' );
+
+    expect( $plot['marks'][0]['body'] )->toContain( '1.234' );
+} );
+
 it( 're-checks report.view on every update', function (): void {
     $component = Livewire::test( Show::class, [ 'report' => 'sales' ] )->assertOk();
 

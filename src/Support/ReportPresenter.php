@@ -340,7 +340,7 @@ final class ReportPresenter
             ],
         );
 
-        $geometry = self::localizePlot( $geometry, $chart, (string) $prefix, (string) $suffix );
+        $geometry = self::localizePlot( $geometry, $chart, (string) $prefix, (string) $suffix, $chart['money'] ? MinorUnits::subunit( $currency ) : 2 );
 
         $every                  = max( 1, (int) ceil( count( $geometry['categories'] ) / 8 ) );
         $geometry['categories'] = array_values( array_filter(
@@ -508,13 +508,14 @@ final class ReportPresenter
      * @param  array<string, mixed>  $chart     Chart from {@see self::chart()}.
      * @param  string                $prefix    Currency text before the digits.
      * @param  string                $suffix    Currency text after the digits.
+     * @param  int                   $precision Most decimals to write: the currency's subunit for money, else 2.
      *
      * @return array<string, mixed>
      */
-    private static function localizePlot( array $geometry, array $chart, string $prefix, string $suffix ): array
+    private static function localizePlot( array $geometry, array $chart, string $prefix, string $suffix, int $precision ): array
     {
         $locale = app()->getLocale();
-        $format = static fn ( float $value ): string => ( $value < 0 ? '-' : '' ) . $prefix . Number::format( abs( $value ), maxPrecision: 2, locale: $locale ) . $suffix;
+        $format = static fn ( float $value ): string => ( $value < 0 ? '-' : '' ) . $prefix . Number::format( abs( $value ), maxPrecision: $precision, locale: $locale ) . $suffix;
 
         foreach ( $geometry['ticks'] ?? [] as $index => $tick ) {
             $label    = (string) $tick['label'];
