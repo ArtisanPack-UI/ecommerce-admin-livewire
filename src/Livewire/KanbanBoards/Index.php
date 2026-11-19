@@ -35,8 +35,8 @@ use Livewire\Component;
  * each board's own page.
  *
  * - Exactly one board is the default. The first board is the default; a
- *   board becomes the default with "Make default", which takes the flag
- *   from the old one; deleting the default hands the flag to the next
+ *   board becomes the default with "Make default" (offered on active
+ *   boards only), which takes the flag from the old one; deleting the default hands the flag to the next
  *   board (shown in the confirmation).
  * - Reordering is "move up" / "move down", so it works by keyboard. The
  *   order is the order routing walks the boards in.
@@ -55,7 +55,7 @@ class Index extends Component
     use WithActionToken;
 
     /**
-     * Whether the new-board drawer is open.
+     * Whether the new-board dialog is open.
      *
      * @since 1.0.0
      *
@@ -157,7 +157,7 @@ class Index extends Component
     }
 
     /**
-     * Opens the new-board drawer.
+     * Opens the new-board dialog.
      *
      * @since 1.0.0
      *
@@ -409,7 +409,6 @@ class Index extends Component
     {
         $boards = KanbanBoard::query()
             ->withCount( 'columns' )
-            ->withCount( 'automations' )
             ->orderBy( 'position' )
             ->orderBy( 'id' )
             ->get();

@@ -239,12 +239,13 @@ class Edit extends Component
         $indexName = AdminNav::ROUTE_PREFIX . 'kanban-boards.index';
 
         return view( 'ecommerce-admin::livewire.kanban-boards.edit', [
-            'board'        => $board,
-            'ruleBuilder'  => $this->ruleBuilderViewData(),
-            'complexJson'  => null === $this->complexRules ? null : (string) json_encode( $this->complexRules, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ),
-            'indexUrl'     => Route::has( $indexName ) ? route( $indexName ) : null,
-            'boardUrl'     => KanbanBoards::boardUrl( $board ),
-            'fallbackNote' => $board->is_default && ( null !== $this->complexRules || [] !== ( $this->ruleRows['conditions'] ?? [] ) ),
+            'board'           => $board,
+            'ruleBuilder'     => $this->ruleBuilderViewData(),
+            'complexJson'     => null === $this->complexRules ? null : (string) json_encode( $this->complexRules, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ),
+            'indexUrl'        => Route::has( $indexName ) ? route( $indexName ) : null,
+            'boardUrl'        => KanbanBoards::boardUrl( $board ),
+            'hasRoutingRules' => $board->hasRoutingRules(),
+            'fallbackNote'    => $board->is_default && ( null !== $this->complexRules || [] !== ( $this->ruleRows['conditions'] ?? [] ) ),
         ] );
     }
 
