@@ -262,19 +262,21 @@ it( 'refuses a WIP limit below the cards already in the column, with the count',
 } );
 
 it( 'counts cards already on a sub-status when a new column gets a WIP limit', function (): void {
-    OrderBoardAssignment::factory()->create( [ 'board_id' => $this->board->id, 'substatus_id' => substatusId( 'in-progress' ) ] );
+    OrderBoardAssignment::factory()->count( 3 )->create( [ 'board_id' => $this->board->id, 'substatus_id' => substatusId( 'in-progress' ) ] );
 
-    Livewire::test( Columns::class, [ 'board' => $this->board ] )
+    $component = Livewire::test( Columns::class, [ 'board' => $this->board ] )
         ->call( 'create' )
         ->set( 'form.substatus_id', substatusId( 'in-progress' ) )
-        ->set( 'form.wip_limit', 0 )
+        ->set( 'form.wip_limit', 2 )
         ->call( 'save' )
-        ->assertHasErrors( [ 'form.wip_limit' => 'min' ] )
-        ->set( 'form.wip_limit', 1 )
-        ->call( 'save' )
-        ->assertHasNoErrors();
+        ->assertHasErrors( [ 'form.wip_limit' ] )
+        ->assertSee( 'The column already holds 3 cards. Set a limit of 3 or more, or move cards out first.' );
 
-    expect( KanbanColumn::query()->where( 'board_id', $this->board->id )->value( 'wip_limit' ) )->toBe( 1 );
+    expect( KanbanColumn::query()->where( 'board_id', $this->board->id )->count() )->toBe( 0 );
+
+    $component->set( 'form.wip_limit', 3 )->call( 'save' )->assertHasNoErrors();
+
+    expect( KanbanColumn::query()->where( 'board_id', $this->board->id )->value( 'wip_limit' ) )->toBe( 3 );
 } );
 
 it( 'puts the drawer actions in its footer, tied to the form', function (): void {

@@ -105,15 +105,26 @@ class Index extends Component
     public int $noticeSinceId = 0;
 
     /**
-     * Orders after this id are marked New, once "Show new orders" was used.
-     * Zero marks none.
+     * Orders after this id, up to `$highlightUpToId`, are marked New once
+     * "Show new orders" was used. Null marks none.
      *
      * @since 2.0.0
      *
-     * @var int
+     * @var int|null
      */
     #[Locked]
-    public int $highlightAfterId = 0;
+    public ?int $highlightAfterId = null;
+
+    /**
+     * The newest order "Show new orders" showed: the upper end of the New
+     * range, so later arrivals wait for the next notice.
+     *
+     * @since 2.0.0
+     *
+     * @var int|null
+     */
+    #[Locked]
+    public ?int $highlightUpToId = null;
 
     /**
      * Authorizes the screen.
@@ -133,7 +144,9 @@ class Index extends Component
     /**
      * Re-renders after an order broadcast and counts orders that are new
      * since the last look. The count comes from the database, not the
-     * broadcast payload.
+     * broadcast payload, and only counts orders the search and filters
+     * let into the table, so the notice matches what "Show new orders"
+     * shows.
      *
      * @since 1.0.0
      *
@@ -147,8 +160,13 @@ class Index extends Component
             return;
         }
 
-        $arrived              = Order::query()->where( 'id', '>', $this->latestOrderId )->where( 'id', '<=', $latest )->count();
-        $this->latestOrderId  = $latest;
+        $arrived             = $this->matchingOrdersBetween( $this->latestOrderId, $latest );
+        $this->latestOrderId = $latest;
+
+        if ( 0 === $arrived ) {
+            return;
+        }
+
         $this->newOrders += $arrived;
 
         $this->liveAnnouncement = trans_choice( ':count new order arrived.|:count new orders arrived.', $arrived, [ 'count' => $arrived ] );
@@ -183,17 +201,25 @@ class Index extends Component
             return;
         }
 
-        $shown = $this->newOrders;
+        // The table reads the newest rows, so orders that arrived after the
+        // last broadcast show too: take them into the range now, so their
+        // own broadcast doesn't count them again.
+        $upTo  = max( $this->latestOrderId, (int) Order::query()->max( 'id' ) );
+        $shown = $this->matchingOrdersBetween( $this->noticeSinceId, $upTo );
 
         $this->highlightAfterId = $this->noticeSinceId;
-        $this->noticeSinceId    = $this->latestOrderId;
+        $this->highlightUpToId  = $upTo;
+        $this->latestOrderId    = $upTo;
+        $this->noticeSinceId    = $upTo;
         $this->newOrders        = 0;
         $this->sortColumn       = '';
         $this->sortDirection    = '';
 
         $this->resetPage();
 
-        $this->liveAnnouncement = trans_choice( ':count new order shown at the top of the table.|:count new orders shown at the top of the table.', $shown, [ 'count' => $shown ] );
+        $this->liveAnnouncement = 0 === $shown
+            ? __( 'None of the new orders match the search and filters.' )
+            : trans_choice( ':count new order shown at the top of the table.|:count new orders shown at the top of the table.', $shown, [ 'count' => $shown ] );
 
         $this->dispatch( 'ecommerce-admin-new-orders-shown' );
     }
@@ -218,7 +244,7 @@ class Index extends Component
 
         return view( 'ecommerce-admin::livewire.orders.index', $data + [
             'bulkSubstatusOptions' => $options,
-            'cellContext'          => [ 'highlightAfterId' => $this->highlightAfterId ],
+            'cellContext'          => [ 'highlightAfterId' => $this->highlightAfterId, 'highlightUpToId' => $this->highlightUpToId ],
         ] );
     }
 
@@ -236,6 +262,28 @@ class Index extends Component
         $name = trim( ( $order->customer?->first_name ?? '' ) . ' ' . ( $order->customer?->last_name ?? '' ) );
 
         return '' === $name ? null : $name;
+    }
+
+    /**
+     * How many orders with an id in (`$after`, `$upTo`] the search and
+     * filters let into the table.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $after  Exclusive lower id.
+     * @param  int  $upTo   Inclusive upper id.
+     *
+     * @return int
+     */
+    protected function matchingOrdersBetween( int $after, int $upTo ): int
+    {
+        if ( $upTo <= $after ) {
+            return 0;
+        }
+
+        $id = ( new Order() )->qualifyColumn( 'id' );
+
+        return $this->filteredQuery()->reorder()->where( $id, '>', $after )->where( $id, '<=', $upTo )->count();
     }
 
     /**

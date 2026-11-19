@@ -4,13 +4,14 @@
 --}}
 @php
     $showRoute = \ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav::ROUTE_PREFIX . 'orders.show';
-    $highlight = (int) ( $context['highlightAfterId'] ?? 0 );
+    $highlightAfter = $context['highlightAfterId'] ?? null;
+    $highlightUpTo  = $context['highlightUpToId'] ?? null;
 @endphp
 @if ( \Illuminate\Support\Facades\Route::has( $showRoute ) )
     <a href="{{ route( $showRoute, [ 'order' => $row->getKey() ] ) }}" class="apui-link" data-standalone><bdi dir="ltr" class="ec-mono">#{{ $row->order_number }}</bdi></a>
 @else
     <bdi dir="ltr" class="ec-mono">#{{ $row->order_number }}</bdi>
 @endif
-@if ( $highlight > 0 && (int) $row->getKey() > $highlight )
+@if ( null !== $highlightAfter && null !== $highlightUpTo && (int) $row->getKey() > (int) $highlightAfter && (int) $row->getKey() <= (int) $highlightUpTo )
     <x-artisanpack-badge color="info" size="sm" class="ec-badge-after" data-new-order>{{ __( 'New' ) }}</x-artisanpack-badge>
 @endif

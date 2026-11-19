@@ -494,7 +494,7 @@ it( 'shows the new orders at the top of the first page, marked New', function ()
 it( 'does nothing when there are no new orders to show', function (): void {
     Livewire::test( Index::class )
         ->call( 'showNewOrders' )
-        ->assertSet( 'highlightAfterId', 0 )
+        ->assertSet( 'highlightAfterId', null )
         ->assertNotDispatched( 'ecommerce-admin-new-orders-shown' );
 } );
 
@@ -569,4 +569,89 @@ it( 'filters by a total range in the store currency', function (): void {
 it( 'hides the live region with the design system\'s class, not Tailwind\'s', function (): void {
     Livewire::test( Index::class )
         ->assertSeeHtml( '<div class="apui-sr-only" role="status" aria-live="polite" aria-atomic="true" data-live-region>' );
+} );
+
+it( 'marks the first orders New when the page opened with none', function (): void {
+    $component = Livewire::test( Index::class )->assertSet( 'noticeSinceId', 0 );
+
+    Order::factory()->count( 2 )->create();
+
+    $component->call( 'orderBroadcast' )
+        ->call( 'showNewOrders' )
+        ->assertSet( 'highlightAfterId', 0 );
+
+    expect( substr_count( $component->html(), 'data-new-order=' ) )->toBe( 2 );
+} );
+
+it( 'leaves orders after the shown range for the next notice', function (): void {
+    Order::factory()->create();
+
+    $component = Livewire::test( Index::class );
+    $shown     = Order::factory()->create();
+
+    $component->call( 'orderBroadcast' )->call( 'showNewOrders' )->assertSet( 'highlightUpToId', $shown->id );
+
+    $later = Order::factory()->create( [ 'order_number' => 'LATER001' ] );
+
+    $component->call( 'orderBroadcast' )->assertSet( 'newOrders', 1 );
+
+    $rows = collect( explode( '<tr', $component->html() ) );
+    $row  = static fn ( string $number ): string => (string) $rows->first( static fn ( string $markup ): bool => str_contains( $markup, '#' . $number . '<' ) );
+
+    expect( substr_count( $component->html(), 'data-new-order=' ) )->toBe( 1 )
+        ->and( $row( (string) $shown->order_number ) )->toContain( 'data-new-order=' )
+        ->and( $row( 'LATER001' ) )->not->toContain( 'data-new-order=' );
+} );
+
+it( 'does not count an order again that "Show new orders" already showed', function (): void {
+    Order::factory()->create();
+
+    $component = Livewire::test( Index::class );
+
+    Order::factory()->create();
+    $component->call( 'orderBroadcast' )->assertSet( 'newOrders', 1 );
+
+    // Committed after that broadcast, before the click: the table shows it.
+    $unannounced = Order::factory()->create();
+
+    $component->call( 'showNewOrders' )
+        ->assertSet( 'highlightUpToId', $unannounced->id )
+        ->assertSet( 'liveAnnouncement', '2 new orders shown at the top of the table.' );
+
+    // Its own broadcast arrives late.
+    $component->call( 'orderBroadcast' )
+        ->assertSet( 'newOrders', 0 )
+        ->assertDontSeeHtml( 'data-new-orders=' );
+} );
+
+it( 'counts only new orders the search and filters let into the table', function (): void {
+    Order::factory()->create();
+
+    $component = Livewire::test( Index::class )->set( 'filters.payment_status', 'paid' );
+
+    Order::factory()->create( [ 'payment_status' => 'paid' ] );
+    Order::factory()->create( [ 'payment_status' => 'pending' ] );
+
+    $component->call( 'orderBroadcast' )
+        ->assertSet( 'newOrders', 1 )
+        ->assertSee( '1 new order since you opened this page.' );
+
+    // Only pending orders arrive: the notice doesn't move.
+    Order::factory()->create( [ 'payment_status' => 'pending' ] );
+
+    $component->call( 'orderBroadcast' )->assertSet( 'newOrders', 1 );
+} );
+
+it( 'says when none of the new orders match by the time they are shown', function (): void {
+    Order::factory()->create();
+
+    $component = Livewire::test( Index::class );
+
+    Order::factory()->create( [ 'payment_status' => 'pending' ] );
+
+    $component->call( 'orderBroadcast' )
+        ->set( 'filters.payment_status', 'paid' )
+        ->call( 'showNewOrders' )
+        ->assertSet( 'newOrders', 0 )
+        ->assertSet( 'liveAnnouncement', 'None of the new orders match the search and filters.' );
 } );
