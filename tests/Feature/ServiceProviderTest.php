@@ -63,3 +63,16 @@ it( 'makes the host\'s admin middleware persistent, resolving aliases and skippi
     expect( app( Livewire\Mechanisms\PersistentMiddleware\PersistentMiddleware::class )->getPersistentMiddleware() )
         ->toContain( Tests\Fixtures\Http\RequireVerifiedName::class, Illuminate\Auth\Middleware\RequirePassword::class );
 } );
+
+it( 'registers its catalogues before any provider boots, so an early __() cannot cache a locale without them', function (): void {
+    $translator = new Illuminate\Translation\Translator(
+        new Illuminate\Translation\FileLoader( new Illuminate\Filesystem\Filesystem(), $this->app->langPath() ),
+        'es',
+    );
+    $this->app->instance( 'translator', $translator );
+
+    ( new EcommerceAdminLivewireServiceProvider( $this->app ) )->register();
+
+    expect( $translator->get( 'View all low-stock items' ) )->toBe( json_decode( (string) file_get_contents( dirname( __DIR__, 2 ) . '/lang/es.json' ), true )['View all low-stock items'] )
+        ->not->toBe( 'View all low-stock items' );
+} );

@@ -4,6 +4,8 @@ declare( strict_types=1 );
 
 use ArtisanPackUI\Ecommerce\Support\TaxLabel;
 
+const ADMIN_TRANSLATED_LOCALES = [ 'es', 'fr', 'de', 'pt_BR', 'ja', 'zh_CN', 'it', 'ar' ];
+
 /**
  * The package's decoded catalogue for `$locale`.
  *
@@ -26,6 +28,24 @@ function adminPlaceholders( string $value ): array
     return collect( $matches[0] )->unique()->sort()->values()->all();
 }
 
+/**
+ * The number of `|` a translation of `$key` should have in `$locale`.
+ *
+ * Arabic has six plural forms (zero, one, two, few, many, other), so a plain
+ * `singular|plural` key becomes six segments there. Interval keys
+ * (`{0} …|{1} …|[2,*] …`) keep their segments in every locale.
+ */
+function adminExpectedPipes( string $locale, string $key ): int
+{
+    $pipes = substr_count( $key, '|' );
+
+    if ( 'ar' === $locale && 1 === $pipes && 1 !== preg_match( '/^\s*[{\[]/', $key ) ) {
+        return 5;
+    }
+
+    return $pipes;
+}
+
 it( 'has a catalogue entry in every locale for every key in src/ and resources/', function (): void {
     $root = dirname( __DIR__, 3 );
 
@@ -40,7 +60,7 @@ it( 'ships identical key sets in every locale', function (): void {
     $en = array_keys( adminCatalogue( 'en' ) );
     sort( $en );
 
-    foreach ( [ 'es', 'fr', 'de' ] as $locale ) {
+    foreach ( ADMIN_TRANSLATED_LOCALES as $locale ) {
         $keys = array_keys( adminCatalogue( $locale ) );
         sort( $keys );
 
@@ -58,9 +78,9 @@ it( 'preserves placeholders and plural segments in every translation', function 
     foreach ( adminCatalogue( $locale ) as $key => $value ) {
         expect( trim( $value ) )->not->toBe( '', "{$locale}: {$key}" )
             ->and( adminPlaceholders( $value ) )->toBe( adminPlaceholders( $key ), "{$locale}: {$key}" )
-            ->and( substr_count( $value, '|' ) )->toBe( substr_count( $key, '|' ), "{$locale}: {$key}" );
+            ->and( substr_count( $value, '|' ) )->toBe( adminExpectedPipes( $locale, $key ), "{$locale}: {$key}" );
     }
-} )->with( [ 'es', 'fr', 'de' ] );
+} )->with( ADMIN_TRANSLATED_LOCALES );
 
 it( 'pluralizes for 0, 1, and many in each locale', function ( string $locale, array $expected ): void {
     app()->setLocale( $locale );
@@ -73,11 +93,31 @@ it( 'pluralizes for 0, 1, and many in each locale', function ( string $locale, a
         trans_choice( $line, 5, [ 'count' => 5 ] ),
     ] )->toBe( $expected );
 } )->with( [
-    'en' => [ 'en', [ '0 orders to ship', '1 order to ship', '5 orders to ship' ] ],
-    'es' => [ 'es', [ '0 pedidos por enviar', '1 pedido por enviar', '5 pedidos por enviar' ] ],
-    'fr' => [ 'fr', [ '0 commande à expédier', '1 commande à expédier', '5 commandes à expédier' ] ],
-    'de' => [ 'de', [ '0 Bestellungen zu versenden', '1 Bestellung zu versenden', '5 Bestellungen zu versenden' ] ],
+    'en'    => [ 'en', [ '0 orders to ship', '1 order to ship', '5 orders to ship' ] ],
+    'es'    => [ 'es', [ '0 pedidos por enviar', '1 pedido por enviar', '5 pedidos por enviar' ] ],
+    'fr'    => [ 'fr', [ '0 commande à expédier', '1 commande à expédier', '5 commandes à expédier' ] ],
+    'de'    => [ 'de', [ '0 Bestellungen zu versenden', '1 Bestellung zu versenden', '5 Bestellungen zu versenden' ] ],
+    'pt_BR' => [ 'pt_BR', [ '0 pedidos para enviar', '1 pedido para enviar', '5 pedidos para enviar' ] ],
+    'ja'    => [ 'ja', [ '発送する注文0件', '発送する注文1件', '発送する注文5件' ] ],
+    'zh_CN' => [ 'zh_CN', [ '0 个订单待发货', '1 个订单待发货', '5 个订单待发货' ] ],
+    'it'    => [ 'it', [ '0 ordini da spedire', '1 ordine da spedire', '5 ordini da spedire' ] ],
 ] );
+
+it( 'uses all six Arabic plural forms', function (): void {
+    app()->setLocale( 'ar' );
+
+    $line = ':count order to ship|:count orders to ship';
+
+    expect( collect( [ 0, 1, 2, 3, 11, 100 ] )->map( fn ( int $count ): string => trans_choice( $line, $count, [ 'count' => $count ] ) )->all() )
+        ->toBe( [
+            'لا توجد طلبات للشحن',
+            'طلب واحد للشحن',
+            'طلبان للشحن',
+            '3 طلبات للشحن',
+            '11 طلبًا للشحن',
+            '100 طلب للشحن',
+        ] );
+} );
 
 it( 'uses the engine\'s TaxLabel term for "Tax" in each locale', function ( string $locale ): void {
     // Both catalogues load into one JSON namespace and this package's wins,

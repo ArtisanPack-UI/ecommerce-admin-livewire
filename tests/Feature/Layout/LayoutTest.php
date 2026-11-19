@@ -142,6 +142,23 @@ it( 'shows only the page in the dashboard\'s breadcrumbs', function (): void {
         ->and( $trail[0] )->toContain( 'Dashboard' );
 } );
 
+it( 'sets the document language and direction from the locale', function ( string $locale, string $lang, string $dir ): void {
+    CmsFramework::fake( false );
+    app()->setLocale( $locale );
+
+    $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
+        ->assertOk()
+        ->assertSee( '<html lang="' . $lang . '" dir="' . $dir . '">', false );
+} )->with( [
+    'English'          => [ 'en', 'en', 'ltr' ],
+    'Portuguese (BR)'  => [ 'pt_BR', 'pt-BR', 'ltr' ],
+    'Japanese'         => [ 'ja', 'ja', 'ltr' ],
+    'Arabic'           => [ 'ar', 'ar', 'rtl' ],
+    'Arabic (Egypt)'   => [ 'ar_EG', 'ar-EG', 'rtl' ],
+    'Hebrew'           => [ 'he', 'he', 'rtl' ],
+    'Persian'          => [ 'fa', 'fa', 'rtl' ],
+] );
+
 it( 'makes "Skip to content" the first tab stop, landing on the main landmark', function (): void {
     CmsFramework::fake( false );
 
