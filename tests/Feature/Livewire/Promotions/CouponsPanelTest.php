@@ -244,3 +244,103 @@ it( 'reports a code taken by a concurrent request instead of failing', function 
 
     expect( Coupon::query()->where( 'code', 'RACED' )->count() )->toBe( 1 );
 } );
+
+it( 'builds the coupons panel from design-system parts with no DaisyUI classes', function (): void {
+    grantAbilities( [ 'promotion.update' ] );
+    Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'FALL15' ] );
+
+    $html = Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )->html();
+
+    expect( $html )
+        ->toContain( 'data-surface="sunken"' )
+        ->toContain( 'ec-coupon-forms' )
+        ->toContain( 'class="apui-table ec-table"' )
+        ->toContain( '<bdi dir="ltr" class="ec-mono ec-strong">FALL15</bdi>' )
+        ->toContain( 'aria-label="Rename FALL15"' )
+        ->toContain( 'aria-label="Delete FALL15"' )
+        ->toContain( 'aria-label="Find a code"' )
+        ->toContain( 'data-export-codes' )
+        ->not->toContain( 'class="table' )
+        ->not->toContain( 'rounded-box' )
+        ->not->toContain( 'opacity-75' )
+        ->not->toContain( 'input-sm' );
+
+    // The code inputs read left to right in mono, and the new code is named by its heading.
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'data-add-code', '</form>' ) )
+        ->toContain( 'aria-labelledby="coupon-new-code-heading"' )
+        ->toContain( 'ec-mono-input' )
+        ->toContain( 'dir="ltr"' );
+
+    // The engine counts uses per promotion, so the note (not a Uses column) points to the Usage tab.
+    expect( $html )->toContain( 'data-coupon-usage-note' )->not->toContain( '>Uses<' );
+} );
+
+it( 'renames a code in its row', function (): void {
+    $coupon = Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'FALL15' ] );
+
+    $html = Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )
+        ->call( 'startRename', $coupon->id )
+        ->html();
+
+    $row = Illuminate\Support\Str::betweenFirst( $html, 'data-rename-code="' . $coupon->id . '"', '</tr>' );
+
+    expect( $row )
+        ->toContain( 'aria-label="Code"' )
+        ->toContain( 'data-focus-return="coupon-rename-' . $coupon->id . '"' )
+        ->not->toContain( 'aria-label="Rename FALL15"' )
+        ->toContain( 'data-rename-cancel' );
+
+    // Escape clicks the row's Cancel, so the shared focus return sends focus back to Rename.
+    expect( $html )->toContain( 'x-on:keydown.escape.prevent="$el.querySelector( \'[data-rename-cancel]\' )?.click()"' )
+        ->not->toContain( '$wire.cancelRename()' );
+} );
+
+it( 'confirms a delete in place of the row', function (): void {
+    $coupon = Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'VIP-FALL' ] );
+
+    $html = Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )
+        ->call( 'confirmDelete', $coupon->id )
+        ->html();
+
+    expect( $html )
+        ->toContain( 'colspan="3"' )
+        ->toContain( 'role="alertdialog"' )
+        ->toContain( 'Delete VIP-FALL? It stops working at checkout right away.' )
+        ->not->toContain( 'aria-label="Delete VIP-FALL"' );
+} );
+
+it( 'leads with a warning when the promotion is not a coupon promotion', function (): void {
+    $automatic = Promotion::factory()->create( [ 'source_type' => Promotion::SOURCE_AUTOMATIC ] );
+
+    Livewire::test( CouponsPanel::class, [ 'promotion' => $automatic ] )
+        ->assertSeeHtml( 'data-wrong-source' )
+        ->assertSeeHtml( 'class="apui-alert' )
+        ->assertSee( 'Codes only work on coupon promotions.' );
+
+    Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )->assertDontSeeHtml( 'data-wrong-source' );
+} );
+
+it( 'tells no codes apart from no matches', function (): void {
+    grantAbilities( [ 'promotion.update' ] );
+
+    $component = Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] );
+
+    expect( $component->html() )
+        ->toContain( 'No codes yet' )
+        ->toContain( 'ec-empty-sunken' )
+        ->not->toContain( 'data-coupon-usage-note' );
+
+    // With nothing to export, the button stays but is marked unavailable and calls nothing.
+    expect( Illuminate\Support\Str::betweenFirst( $component->html(), 'aria-disabled="true"', 'Export codes (CSV)' ) )->toContain( 'data-export-codes' )
+        ->and( $component->html() )->not->toContain( 'wire:click="exportCodes"' );
+
+    Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'FALL15' ] );
+
+    $component->set( 'search', 'nothing' );
+
+    expect( $component->html() )
+        ->toContain( 'No matching codes' )
+        ->toContain( 'Try another search.' )
+        ->toContain( '1 code in all' )
+        ->not->toContain( 'data-coupon-usage-note' );
+} );

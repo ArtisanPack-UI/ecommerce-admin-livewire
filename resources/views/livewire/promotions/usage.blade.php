@@ -1,5 +1,12 @@
 {{--
-    A promotion's usage. See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Promotions\UsagePanel.
+    Promotion usage panel (#112). See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Promotions\UsagePanel.
+
+    What the promotion has given away: a small Stat per currency with the
+    total discounted and how many orders, then each order with its customer,
+    the amount and the date, newest first. Discount amounts keep the minus
+    sign but stay neutral in colour, because a discount isn't an error.
+    Deleted orders and guests still get a row: "Deleted order" in muted
+    italics with no link, "Guest" muted.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -10,62 +17,84 @@
     use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
     use ArtisanPackUI\Ecommerce\Support\MoneyFormatter;
 @endphp
-<div class="flex flex-col gap-4" data-promotion-usage>
+<div class="ec-stack" data-promotion-usage>
     @if ( 0 === $usages->total() )
-        <x-artisanpack-ec-admin-empty-state icon="o-chart-bar" :title="__( 'Not used yet' )" :description="__( 'Orders that this promotion discounts appear here.' )" />
+        <x-artisanpack-ec-admin-empty-state
+            size="sm"
+            class="ec-empty-sunken"
+            :heading-level="3"
+            icon="chart-column"
+            :title="__( 'Not used yet' )"
+            :description="__( 'Orders that this promotion discounts appear here.' )"
+        />
     @else
-        <dl class="flex flex-wrap gap-3" aria-label="{{ __( 'Total discounted' ) }}" data-usage-totals>
+        <div class="ec-usage-totals" role="group" aria-label="{{ __( 'Total discounted' ) }}" data-usage-totals>
             @foreach ( $totals as $total )
-                <div class="rounded-box border border-base-content/10 p-3" wire:key="usage-total-{{ $total->currency }}">
-                    <dt class="text-sm opacity-75">{{ trans_choice( 'Discounted on :count order in :currency|Discounted on :count orders in :currency', (int) $total->uses, [ 'count' => (int) $total->uses, 'currency' => $total->currency ] ) }}</dt>
-                    <dd class="text-lg font-semibold">{{ MoneyFormatter::format( (int) $total->discounted, (string) $total->currency ) }}</dd>
-                </div>
+                <x-artisanpack-stat
+                    size="sm"
+                    class="ec-usage-total"
+                    icon="percent"
+                    :label="__( 'Total discounted' )"
+                    :description="trans_choice( 'Discounted on :count order in :currency|Discounted on :count orders in :currency', (int) $total->uses, [ 'count' => (int) $total->uses, 'currency' => $total->currency ] )"
+                    wire:key="usage-total-{{ $total->currency }}"
+                    data-usage-total="{{ $total->currency }}"
+                ><bdi dir="ltr">{{ MoneyFormatter::format( (int) $total->discounted, (string) $total->currency ) }}</bdi></x-artisanpack-stat>
             @endforeach
-        </dl>
-
-        <div class="overflow-x-auto">
-            <table class="table table-sm">
-                <caption class="sr-only">{{ __( 'Orders this promotion discounted' ) }}</caption>
-                <thead>
-                    <tr>
-                        <th scope="col">{{ __( 'Order' ) }}</th>
-                        <th scope="col">{{ __( 'Customer' ) }}</th>
-                        <th scope="col" class="text-end">{{ __( 'Discounted' ) }}</th>
-                        <th scope="col">{{ __( 'Date' ) }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ( $usages as $usage )
-                        <tr wire:key="promotion-usage-{{ $usage->id }}">
-                            <td>
-                                @if ( null === $usage->order )
-                                    {{ __( 'Deleted order' ) }}
-                                @elseif ( null !== $orderRoute )
-                                    <a href="{{ route( $orderRoute, [ 'order' => $usage->order_id ] ) }}" class="link link-hover font-semibold">#{{ $usage->order->order_number }}</a>
-                                @else
-                                    #{{ $usage->order->order_number }}
-                                @endif
-                            </td>
-                            <td>
-                                @php( $usageCustomer = $customerName( $usage ) )
-                                @if ( null === $usageCustomer )
-                                    {{ __( 'Guest' ) }}
-                                @elseif ( ! $canSeeNames )
-                                    {{ __( 'Customer' ) }}
-                                @elseif ( null !== $customerRoute )
-                                    <a href="{{ route( $customerRoute, [ 'customer' => $usage->customer_id ] ) }}" class="link link-hover">{{ $usageCustomer }}</a>
-                                @else
-                                    {{ $usageCustomer }}
-                                @endif
-                            </td>
-                            <td class="text-end"><x-artisanpack-ec-admin-money :amount="(int) $usage->amount_discounted" :currency="$usage->currency" /></td>
-                            <td>{{ null === $usage->created_at ? '—' : LocalizedDate::format( $usage->created_at ) }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
         </div>
 
-        <x-artisanpack-pagination :rows="$usages" :summary-label="__( 'Showing {from} to {to} of {total} results' )" />
+        <div class="apui-table ec-table" data-surface="default">
+            <div data-scope="table" data-part="scroll">
+                <table data-scope="table" data-part="table" data-usage-orders>
+                    <caption class="apui-sr-only">{{ __( 'Orders this promotion discounted' ) }}</caption>
+                    <thead>
+                        <tr>
+                            <th data-scope="table" data-part="head-cell" scope="col">{{ __( 'Order' ) }}</th>
+                            <th data-scope="table" data-part="head-cell" scope="col">{{ __( 'Customer' ) }}</th>
+                            <th data-scope="table" data-part="head-cell" scope="col" data-numeric>{{ __( 'Discounted' ) }}</th>
+                            <th data-scope="table" data-part="head-cell" scope="col">{{ __( 'Date' ) }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ( $usages as $usage )
+                            @php( $usageCustomer = $customerName( $usage ) )
+                            <tr data-scope="table" data-part="row" wire:key="promotion-usage-{{ $usage->id }}">
+                                <td data-scope="table" data-part="cell">
+                                    @if ( null === $usage->order )
+                                        <span class="ec-cell-muted ec-deleted" data-deleted-order>{{ __( 'Deleted order' ) }}</span>
+                                    @elseif ( null !== $orderRoute )
+                                        <x-artisanpack-link :href="route( $orderRoute, [ 'order' => $usage->order_id ] )" :navigate="false" standalone><bdi dir="ltr" class="ec-mono">#{{ $usage->order->order_number }}</bdi></x-artisanpack-link>
+                                    @else
+                                        <bdi dir="ltr" class="ec-mono">#{{ $usage->order->order_number }}</bdi>
+                                    @endif
+                                </td>
+                                <td data-scope="table" data-part="cell">
+                                    @if ( null === $usageCustomer )
+                                        <span class="ec-cell-muted" data-guest>{{ __( 'Guest' ) }}</span>
+                                    @elseif ( ! $canSeeNames )
+                                        {{ __( 'Customer' ) }}
+                                    @elseif ( null !== $customerRoute )
+                                        <x-artisanpack-link :href="route( $customerRoute, [ 'customer' => $usage->customer_id ] )" :navigate="false">{{ $usageCustomer }}</x-artisanpack-link>
+                                    @else
+                                        {{ $usageCustomer }}
+                                    @endif
+                                </td>
+                                <td data-scope="table" data-part="cell" data-numeric><x-artisanpack-ec-admin-money :amount="-1 * (int) $usage->amount_discounted" :currency="$usage->currency" neutral /></td>
+                                <td data-scope="table" data-part="cell" class="ec-cell-muted ec-nowrap">
+                                    @if ( null !== $usage->created_at )
+                                        <time datetime="{{ $usage->created_at->toIso8601String() }}">{{ LocalizedDate::format( $usage->created_at ) }}</time>
+                                    @else
+                                        <span aria-hidden="true">&mdash;</span><span class="apui-sr-only">{{ __( 'None' ) }}</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div data-scope="table" data-part="footer">
+                <x-artisanpack-pagination :rows="$usages" summary :summary-label="__( 'Showing {from} to {to} of {total} results' )" />
+            </div>
+        </div>
     @endif
 </div>
