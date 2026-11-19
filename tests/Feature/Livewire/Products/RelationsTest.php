@@ -104,7 +104,9 @@ it( 'shows self, duplicate, and missing ids on the tab when they reach the save'
         ->call( 'save' )
         ->assertHasErrors( 'relations.cross_sell.0' )
         ->assertSet( 'tab', 'linked' )
-        ->assertSee( 'Linked products (has errors)' );
+        ->assertSeeHtml( 'data-error-tabs="linked"' )
+        ->assertSee( 'Fix the errors in: Linked products.' )
+        ->assertSeeHtml( '<span data-scope="tabs" data-part="count">(has errors)</span>' );
 
     expect( ProductRelation::query()->count() )->toBe( 0 );
 } );

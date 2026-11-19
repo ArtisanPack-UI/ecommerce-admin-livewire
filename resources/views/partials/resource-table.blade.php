@@ -9,7 +9,10 @@
 
     - $emptyIcon, $emptyTitle, $emptyDescription — the "nothing yet" state.
     - $searchHint (optional) — what the search matches, as its placeholder.
+    - $emptyActions (optional) — a view rendered as the "nothing yet" state's actions.
     - $bulkControls (optional) — a view rendered inside the bulk-action bar.
+    - $bulkInlineActions (optional) — keys of bulk actions $bulkControls
+      renders itself, left out of the bar's own buttons.
     - $rowLabel (optional) — a Closure naming a row for its checkbox.
     - $cellContext (optional) — screen state passed to cell views as $context.
 
@@ -208,7 +211,7 @@
             @if ( $tableSelectable && $tableSelectionCount > 0 )
                 <x-artisanpack-ec-bulk-action-bar
                     :count="$tableSelectionCount"
-                    :actions="$tableBulkActions"
+                    :actions="array_diff_key( $tableBulkActions, array_flip( $bulkInlineActions ?? [] ) )"
                     :total="$tableRows->total()"
                     :page-count="$tableRows->count()"
                     :all-matching="$tableAllMatching"
@@ -259,7 +262,11 @@
                     <x-artisanpack-button variant="outline" color="neutral" size="sm" wire:click="resetFilters">{{ __( 'Clear filters' ) }}</x-artisanpack-button>
                 </x-artisanpack-ec-admin-empty-state>
             @else
-                <x-artisanpack-ec-admin-empty-state :icon="$emptyIcon" :title="$emptyTitle" :description="$emptyDescription" />
+                <x-artisanpack-ec-admin-empty-state :icon="$emptyIcon" :title="$emptyTitle" :description="$emptyDescription">
+                    @isset( $emptyActions )
+                        @include( $emptyActions )
+                    @endisset
+                </x-artisanpack-ec-admin-empty-state>
             @endif
         @else
             <x-artisanpack-ec-resource-table

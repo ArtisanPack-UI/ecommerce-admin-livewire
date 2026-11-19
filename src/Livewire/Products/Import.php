@@ -80,6 +80,24 @@ class Import extends Component
     public const REPORT_PREVIEW = 100;
 
     /**
+     * Columns a row can be matched on; the mapping must fill one of them.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const KEY_COLUMNS = [ 'sku', 'slug', 'name', 'variant_sku' ];
+
+    /**
+     * Longest first-row value kept for the column matching.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const SAMPLE_LENGTH = 80;
+
+    /**
      * The uploaded CSV.
      *
      * @since 1.0.0
@@ -142,13 +160,29 @@ class Import extends Component
     }
 
     /**
+     * Clears the mapping's errors when a column changes, so a stale error
+     * from the last check doesn't hide the key-column warning.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    public function updatedMapping(): void
+    {
+        $this->resetErrorBag( [ 'mapping', ...array_map( static fn ( int|string $index ): string => 'mapping.' . $index, array_keys( $this->mapping ) ) ] );
+    }
+
+    /**
      * Stores the upload and moves on to the column mapping.
+     *
+     * Not named `upload`: `$wire.upload()` is Livewire's own file-upload
+     * call, so `wire:submit="upload"` started an upload with no file.
      *
      * @since 1.0.0
      *
      * @return void
      */
-    public function upload(): void
+    public function uploadCsv(): void
     {
         $this->authorizeScreen();
 
@@ -159,7 +193,7 @@ class Import extends Component
         );
 
         $error = Csv::withLocalUpload( $this->csv, function ( string $path ): ?string {
-            $read = Csv::read( $path, 0 );
+            $read = Csv::read( $path, 1 );
 
             if ( [] === $read['headers'] || 0 === $read['total'] ) {
                 return __( 'The file has no rows.' );
@@ -173,7 +207,9 @@ class Import extends Component
                 return __( 'Two columns in the file have the same header.' );
             }
 
-            $state = ProductImports::create( (string) auth()->id(), $path, $this->csv->getClientOriginalName(), $read['headers'], $read['total'] );
+            $state           = ProductImports::create( (string) auth()->id(), $path, $this->csv->getClientOriginalName(), $read['headers'], $read['total'] );
+            $state['sample'] = self::sampleRow( $read['headers'], (array) ( $read['rows'][0] ?? [] ) );
+            $state           = ProductImports::save( $state );
 
             $this->importId = (string) $state['id'];
             $this->mapping  = self::positional( $state );
@@ -231,7 +267,7 @@ class Import extends Component
             return;
         }
 
-        if ( [] === array_intersect( $used, [ 'sku', 'slug', 'name', 'variant_sku' ] ) ) {
+        if ( [] === array_intersect( $used, self::KEY_COLUMNS ) ) {
             $this->addError( 'mapping', __( 'Map at least one of SKU, slug, name, or variant SKU so rows can be matched.' ) );
 
             return;
@@ -395,19 +431,22 @@ class Import extends Component
      */
     public function render(): View
     {
-        $state  = $this->state();
-        $report = (array) ( $state['report'] ?? [] );
-        $rows   = (array) ( $report['rows'] ?? [] );
+        $state    = $this->state();
+        $report   = (array) ( $state['report'] ?? [] );
+        $rows     = (array) ( $report['rows'] ?? [] );
+        $progress = null === $state || 0 === (int) $state['total'] ? 0 : (int) floor( 100 * (int) $state['processed'] / (int) $state['total'] );
 
         return view( 'ecommerce-admin::livewire.products.import', [
             'state'         => $state,
             'step'          => null === $state ? 'upload' : (string) $state['status'],
-            'columnOptions' => array_map( static fn ( string $key, string $label ): array => [ 'id' => $key, 'name' => $label . ' (' . $key . ')' ], array_keys( ProductCsv::columns() ), ProductCsv::columns() ),
+            'columnOptions' => array_map( static fn ( string $key, string $label ): array => [ 'id' => $key, 'name' => $label ], array_keys( ProductCsv::columns() ), ProductCsv::columns() ),
+            'sample'        => array_values( array_map( 'strval', (array) ( $state['sample'] ?? [] ) ) ),
+            'hasKeyColumn'  => [] !== array_intersect( array_filter( array_map( static fn ( mixed $column ): string => is_string( $column ) ? $column : '', $this->mapping ) ), self::KEY_COLUMNS ),
             'reportCounts'  => (array) ( $report['counts'] ?? [] ),
             'reportErrors'  => array_values( array_filter( $rows, static fn ( array $row ): bool => 'error' === $row['action'] ) ),
             'reportPreview' => array_slice( array_values( array_filter( $rows, static fn ( array $row ): bool => 'error' !== $row['action'] ) ), 0, self::REPORT_PREVIEW ),
             'applyToken'    => null !== $state && 'checked' === $state['status'] ? $this->actionToken( 'apply', $state['id'] ) : null,
-            'progress'      => null === $state || 0 === (int) $state['total'] ? 0 : (int) floor( 100 * (int) $state['processed'] / (int) $state['total'] ),
+            'progress'      => $progress,
             'maxRows'       => self::maxRows(),
             'maxUploadMb'   => (int) ( self::MAX_UPLOAD_KB / 1024 ),
         ] );
@@ -454,6 +493,29 @@ class Import extends Component
         return array_map(
             static fn ( mixed $header ): string => (string) ( $state['mapping'][ (string) $header ] ?? '' ),
             array_values( (array) $state['headers'] ),
+        );
+    }
+
+    /**
+     * The file's first data row in header order, each value cut to
+     * {@see self::SAMPLE_LENGTH} characters, for the column matching.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, string>          $headers  Headers.
+     * @param  array<string, int|string>   $row      The first row, keyed by header.
+     *
+     * @return array<int, string>
+     */
+    protected static function sampleRow( array $headers, array $row ): array
+    {
+        return array_map(
+            static function ( string $header ) use ( $row ): string {
+                $value = Csv::uncell( (string) ( $row[ $header ] ?? '' ) );
+
+                return mb_strlen( $value ) > self::SAMPLE_LENGTH ? mb_substr( $value, 0, self::SAMPLE_LENGTH - 1 ) . '…' : $value;
+            },
+            array_values( $headers ),
         );
     }
 

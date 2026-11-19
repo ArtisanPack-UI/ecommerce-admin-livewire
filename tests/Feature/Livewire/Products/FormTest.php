@@ -362,3 +362,155 @@ it( 'translates its strings', function (): void {
 
     Livewire::test( Form::class )->assertSee( 'Nuevo producto' )->assertSee( 'Precios' );
 } );
+
+/**
+ * The component's HTML with whitespace collapsed and Livewire's block
+ * markers removed, so markup assertions don't depend on line breaks.
+ */
+function formMarkup( $component ): string
+{
+    return trim( (string) preg_replace( [ '/<!--\[if (BLOCK|ENDBLOCK)\]><!\[endif\]-->/', '/\s+/' ], [ '', ' ' ], $component->html() ) );
+}
+
+it( 'renders the design-system header: an outline back link, one solid Save and when it was saved', function (): void {
+    $product = existingProduct();
+
+    $component = Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->assertSee( 'Edit Blue Mug' )
+        ->assertSee( 'Saved ' . $product->updated_at->diffForHumans() );
+
+    expect( formMarkup( $component ) )
+        ->toContain( 'data-back-link="data-back-link" data-variant="outline"' )
+        ->and( substr_count( formMarkup( $component ), 'data-variant="solid"' ) )->toBe( 1 );
+
+    Livewire::test( Form::class )->assertDontSee( 'Saved ' );
+} );
+
+it( 'puts every tab in one card as underline tabs named on the tablist', function (): void {
+    $markup = formMarkup( Livewire::test( Form::class ) );
+
+    expect( $markup )
+        ->toContain( 'class="apui-card' )
+        ->toContain( 'class="apui-tabs ec-product-form-tabs"' )
+        ->toContain( 'data-variant="underline"' )
+        ->toContain( 'aria-label="Product details" class="ec-product-form-tablist"' )
+        ->not->toContain( 'data-part="count"' )
+        ->not->toContain( 'rounded-box' )
+        ->not->toContain( 'opacity-75' );
+} );
+
+it( 'names the tabs with errors in the alert and gives each a dot that says so', function (): void {
+    $product = existingProduct();
+
+    $component = Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'name', '' )
+        ->set( 'prices.0.compare_at_amount', 100 )
+        ->call( 'save' )
+        ->assertSee( 'Fix the errors in: General, Pricing.' );
+
+    $markup = formMarkup( $component );
+
+    expect( $markup )
+        ->toContain( 'data-error-tabs="general pricing"' )
+        ->toMatch( '/data-value="general"[^>]*> General <span data-scope="tabs" data-part="count">\(has errors\)<\/span>/' )
+        ->toMatch( '/data-value="pricing"[^>]*> Pricing <span data-scope="tabs" data-part="count">\(has errors\)<\/span>/' )
+        ->and( substr_count( $markup, 'data-part="count"' ) )->toBe( 2 );
+} );
+
+it( 'links the publish date, slug and cost hints to their fields', function (): void {
+    expect( formMarkup( Livewire::test( Form::class ) ) )
+        ->toMatch( '/id="product-slug"[^>]*aria-describedby="product-slug-hint"/' )
+        ->toContain( 'id="product-slug-hint"' )
+        ->toMatch( '/id="product-published-at"[^>]*aria-describedby="product-published-at-hint"/' )
+        ->toContain( 'id="product-published-at-hint"' )
+        ->toContain( 'price-0-cost-hint' );
+} );
+
+it( 'groups each price row under its currency and suggests the conversion for empty ones', function (): void {
+    $component = Livewire::test( Form::class )->assertSee( 'Scheduled prices' );
+
+    expect( formMarkup( $component ) )
+        ->toContain( 'role="group" aria-label="USD"' )
+        ->toContain( 'role="group" aria-label="EUR"' )
+        ->toContain( 'placeholder="From USD"' );
+
+    $component->call( 'addScheduledPrice' );
+
+    expect( formMarkup( $component ) )
+        ->toContain( 'aria-label="Scheduled price 1"' )
+        ->toContain( 'aria-label="Remove scheduled price 1"' );
+} );
+
+it( 'shows how many units a stock change adds, and asks for the reason', function (): void {
+    $product = existingProduct();
+
+    $component = Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->assertDontSeeHtml( 'data-stock-change' )
+        ->set( 'quantity', 14 )
+        ->assertSeeHtml( 'data-stock-change="4"' )
+        ->assertSee( 'Saving adds 4 units.' )
+        ->assertSee( 'The change is recorded in the activity log.' );
+
+    expect( formMarkup( $component ) )->toMatch( '/id="product-stock-reason"[^>]* required/' );
+
+    $component->set( 'quantity', 9 )
+        ->assertSee( 'Saving removes 1 unit.' )
+        ->set( 'quantity', 10 )
+        ->assertDontSeeHtml( 'data-stock-change' );
+} );
+
+it( 'flags gallery images that have no alt text', function (): void {
+    $product = existingProduct( [ 'images' => [
+        [ 'image_url' => 'https://e.test/1.jpg', 'alt_text' => 'Front of the mug' ],
+        [ 'image_url' => 'https://e.test/2.jpg' ],
+    ] ] );
+
+    $component = Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->assertSee( 'Missing alt text' )
+        ->assertSee( 'No alt text yet.' );
+
+    $markup = formMarkup( $component );
+
+    expect( $markup )
+        ->toContain( 'data-gallery-row="1" data-missing-alt' )
+        ->not->toContain( 'data-gallery-row="0" data-missing-alt' )
+        ->and( substr_count( $markup, 'data-alt-missing=' ) )->toBe( 1 );
+
+    $component->set( 'gallery.1.alt_text', 'Back of the mug' )
+        ->assertDontSeeHtml( 'data-missing-alt' )
+        ->assertDontSee( 'Missing alt text' );
+} );
+
+it( 'puts every validated field on its tab', function ( string $field, string $tab ): void {
+    expect( Form::tabFor( $field ) )->toBe( $tab );
+} )->with( [
+    'name'             => [ 'name', 'general' ],
+    'published at'     => [ 'publishedAt', 'general' ],
+    'scheduled start'  => [ 'prices.1.starts_at', 'pricing' ],
+    'stock reason'     => [ 'stockReason', 'inventory' ],
+    'dimension unit'   => [ 'dimUnit', 'shipping' ],
+    'tax class'        => [ 'taxClassKey', 'tax' ],
+    'tags'             => [ 'tagNames', 'organization' ],
+    'linked product'   => [ 'relations.0.related_id', 'linked' ],
+    'gallery alt text' => [ 'gallery.2.alt_text', 'media' ],
+    'type panel'       => [ 'panelState.variants.0.sku', 'panel' ],
+] );
+
+it( 'sends a product service error to the field and tab it belongs to', function ( string $serviceField, string $formField, string $tab ): void {
+    $mapped = ( new ReflectionMethod( Form::class, 'formField' ) )->invoke( new Form(), $serviceField );
+
+    expect( $mapped )->toBe( $formField )
+        ->and( Form::tabFor( $mapped ) )->toBe( $tab );
+} )->with( [
+    'short description' => [ 'short_description', 'shortDescription', 'general' ],
+    'publish date'      => [ 'published_at', 'publishedAt', 'general' ],
+    'barcode'           => [ 'barcode', 'barcode', 'inventory' ],
+    'stock quantity'    => [ 'inventory.quantity', 'quantity', 'inventory' ],
+    'backorders'        => [ 'inventory.allow_backorder', 'allowBackorder', 'inventory' ],
+    'weight'            => [ 'weight', 'weight', 'shipping' ],
+    'dimension unit'    => [ 'dim_unit', 'dimUnit', 'shipping' ],
+    'taxable'           => [ 'is_taxable', 'isTaxable', 'tax' ],
+    'featured media'    => [ 'featured_image_media_id', 'featuredMediaId', 'media' ],
+    'gallery image'     => [ 'images.1.alt_text', 'gallery.1.alt_text', 'media' ],
+    'unknown field'     => [ 'something_new', 'name', 'general' ],
+] );

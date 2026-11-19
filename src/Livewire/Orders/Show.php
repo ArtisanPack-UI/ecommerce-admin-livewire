@@ -296,22 +296,53 @@ class Show extends Component
             : new Collection();
 
         return view( 'ecommerce-admin::livewire.orders.show', [
-            'order'           => $order,
-            'items'           => $order->items,
-            'totals'          => $this->totals( $order ),
-            'customerName'    => Index::customerName( $order ),
-            'customerUrl'     => $this->customerUrl( $order ),
-            'isGuest'         => null === $order->customer || null === $order->customer->user_id,
-            'paymentGateway'  => $this->gatewayLabel( $order ),
-            'assignments'     => $order->boardAssignments,
-            'canMoveBoards'   => $canMove,
-            'boardOptions'    => $boardList->map( static fn ( KanbanBoard $board ): array => [ 'id' => (int) $board->id, 'name' => (string) $board->name ] )->all(),
-            'downloads'       => $this->downloads( $order ),
-            'licenseKeys'     => $this->licenseKeys( $order ),
-            'canViewKeys'     => Authorization::allows( auth()->user(), 'licenseKey.view' ),
-            'mainPanels'      => $panels->forColumn( 'main' ),
-            'sidePanels'      => $panels->forColumn( 'side' ),
+            'order'                 => $order,
+            'items'                 => $order->items,
+            'totals'                => $this->totals( $order ),
+            'customerName'          => Index::customerName( $order ),
+            'customerUrl'           => $this->customerUrl( $order ),
+            'isGuest'               => null === $order->customer || null === $order->customer->user_id,
+            'paymentGateway'        => $this->gatewayLabel( $order ),
+            'assignments'           => $order->boardAssignments,
+            'canMoveBoards'         => $canMove,
+            'boardOptions'          => $boardList->map( static fn ( KanbanBoard $board ): array => [ 'id' => (int) $board->id, 'name' => (string) $board->name ] )->all(),
+            'downloads'             => $this->downloads( $order ),
+            'licenseKeys'           => $this->licenseKeys( $order ),
+            'canViewKeys'           => Authorization::allows( auth()->user(), 'licenseKey.view' ),
+            'mainPanels'            => $panels->forColumn( 'main' ),
+            'sidePanels'            => $panels->forColumn( 'side' ),
+            'billingSameAsShipping' => self::sameAddress( $order->billing_address, $order->shipping_address ),
         ] );
+    }
+
+    /**
+     * Whether the billing address repeats a non-empty shipping address, so the
+     * page can say "Same as shipping" instead of printing it twice. Blank
+     * parts are ignored and the order of the parts doesn't matter.
+     *
+     * @since 2.0.0
+     *
+     * @param  mixed  $billing   The billing address.
+     * @param  mixed  $shipping  The shipping address.
+     *
+     * @return bool
+     */
+    public static function sameAddress( mixed $billing, mixed $shipping ): bool
+    {
+        $normalize = static function ( mixed $address ): array {
+            $parts = array_filter(
+                is_array( $address ) ? $address : [],
+                static fn ( mixed $value ): bool => is_scalar( $value ) && '' !== trim( (string) $value ),
+            );
+            $parts = array_map( static fn ( mixed $value ): string => trim( (string) $value ), $parts );
+            ksort( $parts );
+
+            return $parts;
+        };
+
+        $shippingParts = $normalize( $shipping );
+
+        return [] !== $shippingParts && $normalize( $billing ) === $shippingParts;
     }
 
     /**

@@ -134,3 +134,16 @@ it( 'shows the no-matches empty state inside the table', function (): void {
         ->assertSee( 'No matches' )
         ->assertDontSeeHtml( 'data-resource-table>' );
 } );
+
+it( 'keeps the sort button on a sortable column whose label is visually hidden', function (): void {
+    $table = new ResourceTable(
+        columns: [ [ 'key' => 'order_number', 'label' => 'Order', 'sortable' => true, 'labelHidden' => true, 'class' => '', 'numeric' => false, 'view' => null, 'value' => null, 'export' => null, 'exportable' => true ] ],
+        rows: new LengthAwarePaginator( [], 0, 25 ),
+        caption: 'Orders',
+    );
+
+    $html = $table->render()->with( $table->data() )->render();
+
+    expect( $html )->toMatch( '/<button[^>]*data-part="sort"[^>]*>\s*<span class="apui-sr-only">Order<\/span>/s' )
+        ->and( $html )->toContain( 'aria-sort=' );
+} );

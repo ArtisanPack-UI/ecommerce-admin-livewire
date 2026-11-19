@@ -911,12 +911,40 @@ class Form extends Component
             'panelRegistered' => $registry->has( $panelType ),
             'panelErrors'     => $this->panelErrors(),
             'errorTabs'       => $this->errorTabs( array_keys( $this->getErrorBag()->toArray() ) ),
+            'tabLabels'       => self::tabLabels( null === $panelClass ? null : $panelClass::label() ),
+            'savedAt'         => $product?->updated_at?->diffForHumans(),
             'categoryOptions' => $this->optionsForPicker( 'category', 'categoryIds' ),
             'relationLists'   => $this->relationLists(),
             'canWrite'        => ! $this->readOnly && ( null === $product ? $this->canEcommerce( 'create', Product::class ) : $this->canEcommerce( 'update', $product ) ),
             'quantityDelta'   => null === $product || ! is_numeric( $this->quantity ) ? 0 : (int) $this->quantity - $this->quantityLoaded,
             'indexUrl'        => Route::has( AdminNav::ROUTE_PREFIX . 'products.index' ) ? route( AdminNav::ROUTE_PREFIX . 'products.index' ) : null,
         ] );
+    }
+
+    /**
+     * Each tab's visible name, in tab order: the tab triggers and the error
+     * alert that lists the tabs needing attention both read from it.
+     *
+     * @since 2.0.0
+     *
+     * @param  string|null  $panelLabel  The type panel's own name, if it has one.
+     *
+     * @return array<string, string> Names keyed by tab.
+     */
+    public static function tabLabels( ?string $panelLabel = null ): array
+    {
+        return [
+            'general'      => __( 'General' ),
+            'pricing'      => __( 'Pricing' ),
+            'inventory'    => __( 'Inventory' ),
+            'shipping'     => __( 'Shipping' ),
+            'tax'          => __( 'Tax' ),
+            'organization' => __( 'Organization' ),
+            'linked'       => __( 'Linked products' ),
+            'media'        => __( 'Media' ),
+            'panel'        => $panelLabel ?? __( 'Type settings' ),
+            'activity'     => __( 'Activity' ),
+        ];
     }
 
     /**
@@ -1443,7 +1471,23 @@ class Form extends Component
             'tag_ids'                       => 'tagNames',
             'is_featured'                   => 'isFeatured',
             'position'                      => 'catalogPosition',
+            'short_description'             => 'shortDescription',
+            'description'                   => 'description',
+            'published_at'                  => 'publishedAt',
+            'barcode'                       => 'barcode',
+            'weight'                        => 'weight',
+            'weight_unit'                   => 'weightUnit',
+            'length'                        => 'length',
+            'width'                         => 'width',
+            'height'                        => 'height',
+            'dim_unit'                      => 'dimUnit',
+            'is_taxable'                    => 'isTaxable',
+            'featured_image_media_id'       => 'featuredMediaId',
             'stock_adjustment.reason'       => 'stockReason',
+            'stock_adjustment.quantity'     => 'quantity',
+            'inventory.quantity'            => 'quantity',
+            'inventory.track_inventory'     => 'trackInventory',
+            'inventory.allow_backorder'     => 'allowBackorder',
             'inventory.low_stock_threshold' => 'lowStockThreshold',
             default                         => 'name',
         };

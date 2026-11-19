@@ -53,12 +53,15 @@
                         @if ( $column['sortable'] ) aria-sort="{{ $ariaSort( $column ) }}" @endif
                     >
                         @if ( $column['sortable'] )
+                            {{-- A hidden label keeps the sort button; only the text is visually hidden. --}}
                             <button
                                 type="button"
                                 data-scope="table"
                                 data-part="sort"
                                 wire:click="sort( {{ \Illuminate\Support\Js::from( $column['key'] ) }} )"
-                            >{{ $column['label'] }}<x-artisanpack-icon :name="$sortIcon( $column )" aria-hidden="true" /></button>
+                            >@if ( $column['labelHidden'] ?? false )<span class="apui-sr-only">{{ $column['label'] }}</span>@else{{ $column['label'] }}@endif<x-artisanpack-icon :name="$sortIcon( $column )" aria-hidden="true" /></button>
+                        @elseif ( $column['labelHidden'] ?? false )
+                            <span class="apui-sr-only">{{ $column['label'] }}</span>
                         @else
                             {{ $column['label'] }}
                         @endif
