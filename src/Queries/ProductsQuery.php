@@ -216,7 +216,7 @@ class ProductsQuery extends ResourceQuery
 
         return Product::query()
             ->select( static::column( Product::class, '*' ) )
-            ->selectSub( $this->stockRows()->selectRaw( 'COALESCE(SUM(quantity_on_hand - quantity_reserved), 0)' ), 'stock_available' )
+            ->selectSub( $this->availableStock(), 'stock_available' )
             ->selectSub( $this->stockRows()->selectRaw( 'COUNT(*)' ), 'stock_tracked' )
             ->withCount( 'variants' )
             ->with( [
@@ -288,7 +288,7 @@ class ProductsQuery extends ResourceQuery
      */
     protected function applyStockState( Builder $query, string $state ): void
     {
-        $available = $this->stockRows()->selectRaw( 'COALESCE(SUM(quantity_on_hand - quantity_reserved), 0)' );
+        $available = $this->availableStock();
         $lowRows   = $this->stockRows();
 
         match ( $state ) {
@@ -303,6 +303,21 @@ class ProductsQuery extends ResourceQuery
             ),
             default     => null,
         };
+    }
+
+    /**
+     * The product's available stock (on hand minus reserved, summed over its
+     * tracked rows) as a subquery. Negative when the product is oversold.
+     *
+     * @since 2.0.0
+     *
+     * @return Builder<InventoryItem>
+     */
+    protected function availableStock(): Builder
+    {
+        $rows = $this->stockRows();
+
+        return $rows->selectRaw( 'COALESCE(SUM(' . InventoryQuery::availableSql( $rows ) . '), 0)' );
     }
 
     /**

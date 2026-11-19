@@ -47,7 +47,9 @@ use Throwable;
  * `view` (a Blade view rendered with `$row` and `$column`), `value`
  * (callable returning text), or neither (the row attribute named `key`).
  * `export` (callable) overrides the CSV value; `exportable` false leaves the
- * column out of the CSV.
+ * column out of the CSV. `listed` false keeps a column out of the grid but
+ * in the CSV, and `labelHidden` true keeps its header for screen readers
+ * only (an image or icon column).
  *
  * Filter definition: `key`, `label`, `type` (`select`, `multiselect`, `text`,
  * `boolean`, `date-range`, `number-range`), `options`
@@ -540,7 +542,7 @@ trait WithResourceTable
 
         return [
             'tableRows'           => $rows,
-            'tableColumns'        => $this->tableColumnDefinitions(),
+            'tableColumns'        => array_values( array_filter( $this->tableColumnDefinitions(), static fn ( array $column ): bool => $column['listed'] ) ),
             'tableFilters'        => $this->tableFilterDefinitions(),
             'tableBulkActions'    => $bulkActions,
             'tableCaption'        => $this->tableCaption(),
@@ -625,7 +627,7 @@ trait WithResourceTable
      * A column is `numeric` (aligned to the inline end) when it says so, or,
      * as in 1.x, when its class has `text-end`.
      *
-     * @return array<int, array{key: string, label: string, sortable: bool, class: string, numeric: bool, view: string|null, value: callable|null, export: callable|null, exportable: bool}>
+     * @return array<int, array{key: string, label: string, sortable: bool, class: string, numeric: bool, view: string|null, value: callable|null, export: callable|null, exportable: bool, listed: bool, labelHidden: bool}>
      */
     protected function tableColumnDefinitions(): array
     {
@@ -641,15 +643,17 @@ trait WithResourceTable
             $key = (string) $column['key'];
 
             $result[ $key ] = [
-                'key'        => $key,
-                'label'      => (string) $column['label'],
-                'sortable'   => (bool) ( $column['sortable'] ?? false ) && $query->canSortBy( $key ),
-                'class'      => (string) ( $column['class'] ?? '' ),
-                'numeric'    => (bool) ( $column['numeric'] ?? str_contains( (string) ( $column['class'] ?? '' ), 'text-end' ) ),
-                'view'       => isset( $column['view'] ) ? (string) $column['view'] : null,
-                'value'      => isset( $column['value'] ) && is_callable( $column['value'] ) ? $column['value'] : null,
-                'export'     => isset( $column['export'] ) && is_callable( $column['export'] ) ? $column['export'] : null,
-                'exportable' => (bool) ( $column['exportable'] ?? true ),
+                'key'         => $key,
+                'label'       => (string) $column['label'],
+                'sortable'    => (bool) ( $column['sortable'] ?? false ) && $query->canSortBy( $key ),
+                'class'       => (string) ( $column['class'] ?? '' ),
+                'numeric'     => (bool) ( $column['numeric'] ?? str_contains( (string) ( $column['class'] ?? '' ), 'text-end' ) ),
+                'view'        => isset( $column['view'] ) ? (string) $column['view'] : null,
+                'value'       => isset( $column['value'] ) && is_callable( $column['value'] ) ? $column['value'] : null,
+                'export'      => isset( $column['export'] ) && is_callable( $column['export'] ) ? $column['export'] : null,
+                'exportable'  => (bool) ( $column['exportable'] ?? true ),
+                'listed'      => (bool) ( $column['listed'] ?? true ),
+                'labelHidden' => (bool) ( $column['labelHidden'] ?? false ),
             ];
         }
 

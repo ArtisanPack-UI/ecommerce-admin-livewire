@@ -39,9 +39,11 @@ use Livewire\Component;
  *   parent that is the category itself or one of its descendants; the parent
  *   choices leave those out too.
  * - Deleting a category with subcategories asks where they go: up to its own
- *   parent (the engine's default), or under another category. The delete is
- *   blocked until a choice is made, and carries a one-time action token.
- * - Reordering is "move up" / "move down", so it works by keyboard.
+ *   parent (the engine's default), up to the top level (for a nested
+ *   category), or under another category. The delete carries a one-time
+ *   action token, and never deletes products.
+ * - Reordering is "move up" / "move down", so it works by keyboard. The
+ *   order in the tree is the storefront order.
  *
  * Categories have no policy of their own; the screen uses the product
  * abilities (spec §6).
@@ -121,7 +123,7 @@ class Index extends Component
     public bool $confirmingDelete = false;
 
     /**
-     * Where a deleted category's subcategories go: `parent` or `other`.
+     * Where a deleted category's subcategories go: `parent`, `top` or `other`.
      *
      * @since 1.0.0
      *
@@ -399,7 +401,7 @@ class Index extends Component
         if ( $hasChildren ) {
             $this->validate(
                 [
-                    'childrenTarget'   => [ 'required', Rule::in( [ 'parent', 'other' ] ) ],
+                    'childrenTarget'   => [ 'required', Rule::in( [ 'parent', 'top', 'other' ] ) ],
                     'childrenTargetId' => [
                         'nullable',
                         'required_if:childrenTarget,other',
@@ -413,13 +415,14 @@ class Index extends Component
             );
         }
 
-        $name = (string) $category->name;
+        $name    = (string) $category->name;
+        $focusId = self::focusAfterDelete( $category );
 
         try {
             $deleted = $this->withActionToken( $token, 'delete', fn (): bool => DB::transaction( function () use ( $category, $hasChildren ): bool {
-                if ( $hasChildren && 'other' === $this->childrenTarget ) {
+                if ( $hasChildren && in_array( $this->childrenTarget, [ 'top', 'other' ], true ) ) {
                     $service = app( ProductCategoryService::class );
-                    $target  = (int) $this->childrenTargetId;
+                    $target  = 'other' === $this->childrenTarget ? (int) $this->childrenTargetId : null;
                     $next    = (int) ProductCategory::query()->where( 'parent_id', $target )->max( 'position' ) + 1;
 
                     foreach ( ProductCategory::query()->where( 'parent_id', $category->id )->orderBy( 'position' )->orderBy( 'id' )->get() as $child ) {
@@ -443,6 +446,9 @@ class Index extends Component
 
         if ( true === $deleted ) {
             $this->toastSuccess( __( 'Category ":name" deleted.', [ 'name' => $name ] ) );
+
+            // The row and its delete button are gone; move focus to a neighbour, not the page.
+            $this->dispatch( 'ecommerce-admin-category-deleted', focus: $focusId );
         }
     }
 
@@ -542,6 +548,31 @@ class Index extends Component
     }
 
     /**
+     * The row that takes focus once a category is deleted: the sibling
+     * before it, else its parent, else the sibling after it.
+     *
+     * @since 2.0.0
+     *
+     * @param  ProductCategory  $category  The category being deleted.
+     *
+     * @return int|null Null when the tree will be empty.
+     */
+    protected static function focusAfterDelete( ProductCategory $category ): ?int
+    {
+        $siblings = ProductCategory::query()
+            ->where( 'parent_id', $category->parent_id )
+            ->whereKeyNot( $category->id )
+            ->orderBy( 'position' )
+            ->orderBy( 'id' )
+            ->get( [ 'id', 'position' ] );
+
+        $before = $siblings->filter( static fn ( ProductCategory $sibling ): bool => $sibling->position < $category->position || ( $sibling->position === $category->position && $sibling->id < $category->id ) )->last();
+        $id     = $before?->id ?? $category->parent_id ?? $siblings->first()?->id;
+
+        return null === $id ? null : (int) $id;
+    }
+
+    /**
      * Whether the user holds an ability, for showing controls.
      *
      * @since 1.0.0
@@ -564,7 +595,7 @@ class Index extends Component
      * @param  string                                                                                       $parent    Parent key.
      * @param  int                                                                                          $depth     Depth of the parent's children.
      *
-     * @return array<int, array{category: ProductCategory, depth: int, first: bool, last: bool, children: int}>
+     * @return array<int, array{category: ProductCategory, depth: int, first: bool, last: bool, children: int, position: int, siblings: int}>
      */
     private static function flatten( Collection $byParent, string $parent, int $depth ): array
     {
@@ -580,6 +611,8 @@ class Index extends Component
                 'first'    => 0 === $index,
                 'last'     => $count - 1 === $index,
                 'children' => $children,
+                'position' => $index + 1,
+                'siblings' => $count,
             ];
 
             if ( $depth < 50 ) {

@@ -1,108 +1,259 @@
+{{--
+    Order detail (#118). See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders\Show.
+
+    One order, start to finish. The page header carries the number and the
+    placed date; the four status badges follow the h1 (the header's meta
+    slot would put them before it). Below them, a "changed elsewhere"
+    warning banner offers Reload order (it never reloads on its own). The
+    main column holds what was bought and what happened to it: items,
+    totals, digital deliveries, the main-column panels (fulfillment, refunds,
+    edits), notes and the timeline. The side column holds who and where:
+    status, customer, addresses, payment, boards and the side-column panels.
+    Columns are 2fr / 1fr (side at least 300px); below 1024px they stack
+    with the side column first, so status sits under the header. The side
+    column is first in the DOM too, so the tab order matches what's seen.
+
+    @package    ArtisanPack_UI
+    @subpackage EcommerceAdminLivewire
+
+    @since      1.0.0
+--}}
 @php
+    use ArtisanPack\LivewireUiComponents\View\Components\Avatar;
     use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
+    use ArtisanPackUI\Ecommerce\Support\TaxLabel;
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders\Show;
+    use ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions;
+
+    $customerLabel = $customerName ?? ( null !== $customerUrl ? $order->email : __( 'Guest' ) );
 @endphp
-<div class="flex flex-col gap-4">
+<div class="ec-stack" data-order-detail>
     <x-artisanpack-page-header
         :title="__( 'Order #:number', [ 'number' => $order->order_number ] )"
         :description="null === $order->placed_at ? null : __( 'Placed :date', [ 'date' => LocalizedDate::format( $order->placed_at ) ] )"
         :level="1"
     />
 
+    <div class="ec-badge-row ec-order-badges" role="group" aria-label="{{ __( 'Order status' ) }}" data-order-badges>
+        <x-artisanpack-ec-status-badge type="system" :value="$order->system_status" size="lg" />
+        @if ( null !== $order->substatus )
+            <x-artisanpack-ec-status-badge :substatus="$order->substatus" size="lg" />
+        @endif
+        <x-artisanpack-ec-status-badge type="payment" :value="$order->payment_status" size="lg" />
+        <x-artisanpack-ec-status-badge type="fulfillment" :value="$order->fulfillment_status" size="lg" />
+    </div>
+
     @include( 'ecommerce-admin::partials.live-region', [ 'message' => $liveAnnouncement ] )
 
     @if ( $changedElsewhere )
-        <div class="flex flex-wrap items-center gap-3 rounded-box border border-warning/50 bg-warning/10 px-4 py-2 text-sm" data-changed-elsewhere>
-            <x-artisanpack-icon name="o-arrow-path" class="w-5 h-5" aria-hidden="true" />
-            <span>{{ __( 'This order was changed elsewhere. Reload it to see the latest details.' ) }}</span>
-            <x-artisanpack-button size="sm" class="ms-auto" leading-icon="o-arrow-path" wire:click="reloadOrder" wire:loading.attr="disabled">{{ __( 'Reload order' ) }}</x-artisanpack-button>
+        <div class="ec-banner apui-alert" data-color="warning" data-changed-elsewhere>
+            <x-artisanpack-icon name="refresh-cw" aria-hidden="true" />
+            <p class="ec-banner__text">{{ __( 'This order was changed elsewhere. Reload it to see the latest details.' ) }}</p>
+            <x-artisanpack-button color="warning" size="sm" leading-icon="refresh-cw" wire:click="reloadOrder" wire:loading.attr="disabled" wire:target="reloadOrder">{{ __( 'Reload order' ) }}</x-artisanpack-button>
         </div>
     @endif
 
-    <div class="flex flex-wrap gap-2" aria-label="{{ __( 'Order status' ) }}" role="group">
-        <x-artisanpack-ec-status-badge type="system" :value="$order->system_status" />
-        @if ( null !== $order->substatus )
-            <x-artisanpack-ec-status-badge :substatus="$order->substatus" />
-        @endif
-        <x-artisanpack-ec-status-badge type="payment" :value="$order->payment_status" />
-        <x-artisanpack-ec-status-badge type="fulfillment" :value="$order->fulfillment_status" />
-    </div>
-
-    {{-- The cards' titles are h3s; this keeps the outline from jumping from the page's h1. --}}
+    {{-- The cards' titles are h3s (the Card component's level); this keeps the outline from jumping from the page's h1. --}}
     <h2 class="apui-sr-only">{{ __( 'Order details' ) }}</h2>
 
-    <div class="grid gap-4 lg:grid-cols-3">
-        <div class="flex flex-col gap-4 lg:col-span-2">
-            {{-- Items --}}
-            <x-artisanpack-card :title="__( 'Items' )">
-                <div class="overflow-x-auto">
-                    <table class="table table-sm">
-                        <caption class="sr-only">{{ __( 'Items in order #:number', [ 'number' => $order->order_number ] ) }}</caption>
-                        <thead>
-                            <tr>
-                                <th scope="col">{{ __( 'Item' ) }}</th>
-                                <th scope="col">{{ __( 'SKU' ) }}</th>
-                                <th scope="col" class="text-end">{{ __( 'Qty' ) }}</th>
-                                <th scope="col" class="text-end">{{ __( 'Unit price' ) }}</th>
-                                <th scope="col" class="text-end">{{ __( 'Discount' ) }}</th>
-                                <th scope="col" class="text-end">{{ \ArtisanPackUI\Ecommerce\Support\TaxLabel::for() }}</th>
-                                <th scope="col" class="text-end">{{ __( 'Total' ) }}</th>
-                                <th scope="col">{{ __( 'Fulfillment' ) }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ( $items as $item )
-                                <tr wire:key="order-item-{{ $item->id }}">
-                                    <td>
-                                        <span class="font-semibold">{{ Show::itemName( $item ) }}</span>
-                                        @foreach ( Show::itemOptions( $item ) as $option )
-                                            <span class="block text-xs opacity-75">{{ $option }}</span>
-                                        @endforeach
-                                        @if ( null === $item->product_id )
-                                            <x-artisanpack-badge :value="__( 'No longer in the catalog' )" class="mt-1" variant="ghost" size="sm" />
-                                        @endif
-                                    </td>
-                                    <td>{{ data_get( $item->product_snapshot, 'sku' ) ?: '—' }}</td>
-                                    <td class="text-end tabular-nums">{{ $item->quantity }}</td>
-                                    <td class="text-end"><x-artisanpack-ec-admin-money :amount="$item->unit_price_amount" :currency="$item->unit_price_currency" /></td>
-                                    <td class="text-end"><x-artisanpack-ec-admin-money :amount="$item->discount_amount" :currency="$item->discount_currency" /></td>
-                                    <td class="text-end"><x-artisanpack-ec-admin-money :amount="$item->tax_amount" :currency="$item->tax_currency" /></td>
-                                    <td class="text-end"><x-artisanpack-ec-admin-money :amount="$item->total_amount" :currency="$item->total_currency" /></td>
-                                    <td><x-artisanpack-ec-status-badge type="fulfillment" :value="$item->fulfillment_status" /></td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="8">{{ __( 'This order has no items.' ) }}</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+    <div class="ec-order-detail">
+        <div class="ec-order-col ec-order-col-side" data-order-column="side">
+            {{-- Status --}}
+            @livewire( 'artisanpack-ecommerce-admin-order-status', [ 'order' => $order ], key( 'order-status' ) )
+
+            {{-- Customer --}}
+            <x-artisanpack-card :title="__( 'Customer' )" :classes="[ 'body' => 'ec-stack-sm' ]" data-order-customer>
+                <div class="ec-order-customer">
+                    <x-artisanpack-avatar :initials="Avatar::initialsFor( $customerLabel )" :color="Avatar::colorFor( $customerLabel )" aria-hidden="true" />
+                    <div class="ec-order-customer__text">
+                        @if ( null !== $customerUrl )
+                            <x-artisanpack-link :href="$customerUrl" :navigate="false" standalone class="ec-strong">{{ $customerLabel }}</x-artisanpack-link>
+                        @else
+                            <span class="ec-strong">{{ $customerLabel }}</span>
+                        @endif
+                        <x-artisanpack-link :href="'mailto:' . $order->email" :navigate="false" tone="muted" class="ec-order-email">{{ $order->email }}</x-artisanpack-link>
+                    </div>
+                </div>
+                @if ( null !== $order->phone && '' !== $order->phone )
+                    <p class="ec-muted"><span class="apui-sr-only">{{ __( 'Phone:' ) }}</span> <bdi dir="ltr">{{ $order->phone }}</bdi></p>
+                @endif
+                <div class="ec-badge-row">
+                    <x-artisanpack-badge size="sm" color="neutral">{{ $isGuest ? __( 'Guest checkout' ) : __( 'Has an account' ) }}</x-artisanpack-badge>
+                    <x-artisanpack-badge size="sm" :color="$order->is_claimed ? 'success' : 'warning'">{{ $order->is_claimed ? __( 'Claimed' ) : __( 'Not claimed' ) }}</x-artisanpack-badge>
                 </div>
             </x-artisanpack-card>
 
+            {{-- Addresses --}}
+            <x-artisanpack-card :title="__( 'Addresses' )" data-order-addresses>
+                <section class="ec-order-sub" aria-labelledby="order-shipping-heading">
+                    <h4 id="order-shipping-heading" class="ec-subheading">{{ __( 'Shipping' ) }}</h4>
+                    <x-artisanpack-ec-admin-address :address="$order->shipping_address" />
+                </section>
+                <section class="ec-order-sub" aria-labelledby="order-billing-heading">
+                    <h4 id="order-billing-heading" class="ec-subheading">{{ __( 'Billing' ) }}</h4>
+                    @if ( $billingSameAsShipping )
+                        <p class="ec-muted" data-billing-same>{{ __( 'Same as shipping' ) }}</p>
+                    @else
+                        <x-artisanpack-ec-admin-address :address="$order->billing_address" />
+                    @endif
+                </section>
+            </x-artisanpack-card>
+
+            {{-- Payment --}}
+            <x-artisanpack-card :title="__( 'Payment' )" data-order-payment>
+                <dl class="ec-dl">
+                    <dt>{{ __( 'Gateway' ) }}</dt>
+                    <dd>{{ $paymentGateway ?? __( 'None' ) }}</dd>
+                    <dt>{{ __( 'Reference' ) }}</dt>
+                    <dd class="ec-break">
+                        @if ( null !== $order->payment_reference && '' !== $order->payment_reference )
+                            <bdi dir="ltr" class="ec-mono">{{ $order->payment_reference }}</bdi>
+                        @else
+                            {{ __( 'None' ) }}
+                        @endif
+                    </dd>
+                    <dt>{{ __( 'Status' ) }}</dt>
+                    <dd><x-artisanpack-ec-status-badge type="payment" :value="$order->payment_status" /></dd>
+                </dl>
+            </x-artisanpack-card>
+
+            {{-- Boards --}}
+            <x-artisanpack-card :title="__( 'Boards' )" :classes="[ 'body' => 'ec-stack-sm' ]" data-order-boards>
+                @if ( $assignments->isEmpty() )
+                    <p class="ec-muted">{{ __( 'This order is not on any board.' ) }}</p>
+                @else
+                    <ul class="ec-list">
+                        @foreach ( $assignments as $assignment )
+                            @php
+                                $boardName = $assignment->board?->name ?? __( 'Deleted board' );
+                            @endphp
+                            <li wire:key="order-board-{{ $assignment->board_id }}" class="ec-item-head" data-order-board="{{ (int) $assignment->board_id }}">
+                                <span class="ec-strong">{{ $boardName }}</span>
+                                @if ( null !== $assignment->substatus )
+                                    <x-artisanpack-ec-status-badge :substatus="$assignment->substatus" />
+                                @endif
+                                @if ( $canMoveBoards )
+                                    <x-artisanpack-button
+                                        variant="ghost"
+                                        color="neutral"
+                                        size="xs"
+                                        icon-only
+                                        leading-icon="x"
+                                        class="ec-push-end"
+                                        wire:click="removeFromBoard( {{ (int) $assignment->board_id }} )" wire:loading.attr="disabled"
+                                        wire:target="removeFromBoard"
+                                        :aria-label="__( 'Remove from :board', [ 'board' => $boardName ] )"
+                                        data-remove-board
+                                    />
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+
+                @if ( $canMoveBoards && [] !== $boardOptions )
+                    <form wire:submit="addToBoard" class="ec-order-add-board" data-add-board>
+                        <x-artisanpack-select
+                            id="order-add-board"
+                            class="ec-grow"
+                            size="sm"
+                            :label="__( 'Add to board' )"
+                            :options="ControlOptions::from( $boardOptions )"
+                            :placeholder="__( 'Choose a board' )"
+                            wire:model="boardToAdd"
+                        />
+                        <x-artisanpack-button type="submit" variant="outline" color="neutral" size="sm" wire:loading.attr="disabled" wire:target="addToBoard">{{ __( 'Add' ) }}</x-artisanpack-button>
+                    </form>
+                @endif
+            </x-artisanpack-card>
+
+            @foreach ( $sidePanels as $panel )
+                <div class="ec-order-panel" data-order-panel="{{ $panel['key'] }}" wire:key="order-panel-wrap-{{ $panel['key'] }}">
+                    @livewire( $panel['component'], [ 'order' => $order ], key( 'order-panel-' . $panel['key'] ) )
+                </div>
+            @endforeach
+        </div>
+
+        <div class="ec-order-col" data-order-column="main">
+            {{-- Items --}}
+            <x-artisanpack-card :title="__( 'Items' )" :class="$items->isNotEmpty() ? 'ec-card-flush' : ''" data-order-items>
+                @if ( $items->isEmpty() )
+                    <p class="ec-muted">{{ __( 'This order has no items.' ) }}</p>
+                @else
+                    <div data-scope="table" data-part="scroll" class="ec-table">
+                        <table data-scope="table" data-part="table">
+                            <caption class="apui-sr-only">{{ __( 'Items in order #:number', [ 'number' => $order->order_number ] ) }}</caption>
+                            <thead>
+                                <tr>
+                                    <th data-scope="table" data-part="head-cell" scope="col">{{ __( 'Item' ) }}</th>
+                                    <th data-scope="table" data-part="head-cell" scope="col" data-numeric>{{ __( 'Qty' ) }}</th>
+                                    <th data-scope="table" data-part="head-cell" scope="col" data-numeric>{{ __( 'Unit price' ) }}</th>
+                                    <th data-scope="table" data-part="head-cell" scope="col" data-numeric>{{ __( 'Discount' ) }}</th>
+                                    <th data-scope="table" data-part="head-cell" scope="col" data-numeric>{{ TaxLabel::for() }}</th>
+                                    <th data-scope="table" data-part="head-cell" scope="col" data-numeric>{{ __( 'Total' ) }}</th>
+                                    <th data-scope="table" data-part="head-cell" scope="col">{{ __( 'Fulfillment' ) }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ( $items as $item )
+                                    @php
+                                        $sku      = (string) data_get( $item->product_snapshot, 'sku', '' );
+                                        $options  = Show::itemOptions( $item );
+                                        $discount = (int) $item->discount_amount;
+                                    @endphp
+                                    <tr data-scope="table" data-part="row" wire:key="order-item-{{ $item->id }}">
+                                        <th data-scope="table" data-part="cell" scope="row" class="ec-cell-wrap">
+                                            <span class="ec-strong">{{ Show::itemName( $item ) }}</span>
+                                            @if ( [] !== $options || '' !== $sku )
+                                                <span class="ec-cell-secondary" data-item-details>
+                                                    @foreach ( $options as $option )
+                                                        {{ $option }}@if ( ! $loop->last || '' !== $sku )<span aria-hidden="true"> · </span>@endif
+                                                    @endforeach
+                                                    @if ( '' !== $sku )
+                                                        <span class="apui-sr-only">{{ __( 'SKU' ) }}</span>
+                                                        <bdi dir="ltr" class="ec-mono ec-order-sku">{{ $sku }}</bdi>
+                                                    @endif
+                                                </span>
+                                            @endif
+                                            @if ( null === $item->product_id )
+                                                <x-artisanpack-badge size="sm" color="neutral" class="ec-order-gone" data-item-gone>{{ __( 'No longer in the catalog' ) }}</x-artisanpack-badge>
+                                            @endif
+                                        </th>
+                                        <td data-scope="table" data-part="cell" data-numeric class="ec-money">{{ $item->quantity }}</td>
+                                        <td data-scope="table" data-part="cell" data-numeric><x-artisanpack-ec-admin-money :amount="$item->unit_price_amount" :currency="$item->unit_price_currency" /></td>
+                                        <td data-scope="table" data-part="cell" data-numeric @class( [ 'ec-cell-muted' => 0 === $discount ] )><x-artisanpack-ec-admin-money :amount="$discount > 0 ? -$discount : 0" :currency="$item->discount_currency" /></td>
+                                        <td data-scope="table" data-part="cell" data-numeric><x-artisanpack-ec-admin-money :amount="$item->tax_amount" :currency="$item->tax_currency" /></td>
+                                        <td data-scope="table" data-part="cell" data-numeric><x-artisanpack-ec-admin-money :amount="$item->total_amount" :currency="$item->total_currency" /></td>
+                                        <td data-scope="table" data-part="cell"><x-artisanpack-ec-status-badge type="fulfillment" :value="$item->fulfillment_status" /></td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </x-artisanpack-card>
+
             {{-- Totals --}}
-            <x-artisanpack-card :title="__( 'Totals' )">
-                <div class="overflow-x-auto">
-                    <table class="table table-sm" data-order-totals>
-                        <caption class="sr-only">{{ __( 'Totals for order #:number', [ 'number' => $order->order_number ] ) }}</caption>
+            <x-artisanpack-card :title="__( 'Totals' )" class="ec-card-flush" data-order-totals-card>
+                <div data-scope="table" data-part="scroll" data-density="compact" class="ec-table ec-order-totals">
+                    <table data-scope="table" data-part="table" data-order-totals>
+                        <caption class="apui-sr-only">{{ __( 'Totals for order #:number', [ 'number' => $order->order_number ] ) }}</caption>
                         <thead>
                             <tr>
-                                <th scope="col"><span class="sr-only">{{ __( 'Line' ) }}</span></th>
-                                <th scope="col" class="text-end">{{ $totals['currency'] }}</th>
+                                <th data-scope="table" data-part="head-cell" scope="col"><span class="apui-sr-only">{{ __( 'Line' ) }}</span></th>
+                                <th data-scope="table" data-part="head-cell" scope="col" data-numeric>{{ $totals['currency'] }}</th>
                                 @if ( null !== $totals['baseCurrency'] )
-                                    <th scope="col" class="text-end">
-                                        {{ __( ':currency (store currency)', [ 'currency' => $totals['baseCurrency'] ] ) }}
-                                    </th>
+                                    <th data-scope="table" data-part="head-cell" scope="col" data-numeric>{{ __( ':currency (store currency)', [ 'currency' => $totals['baseCurrency'] ] ) }}</th>
                                 @endif
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ( $totals['lines'] as $line )
-                                <tr wire:key="order-total-{{ $line['key'] }}" @class( [ 'font-semibold' => $line['emphasis'] ] ) data-total-line="{{ $line['key'] }}">
-                                    <th scope="row" class="font-normal">{{ $line['label'] }}</th>
-                                    <td class="text-end"><x-artisanpack-ec-admin-money :amount="$line['amount']" :currency="$totals['currency']" /></td>
+                                <tr data-scope="table" data-part="row" wire:key="order-total-{{ $line['key'] }}" data-total-line="{{ $line['key'] }}" @if ( $line['emphasis'] ) data-emphasis @endif>
+                                    <th data-scope="table" data-part="cell" scope="row">{{ $line['label'] }}</th>
+                                    <td data-scope="table" data-part="cell" data-numeric><x-artisanpack-ec-admin-money :amount="$line['amount']" :currency="$totals['currency']" /></td>
                                     @if ( null !== $totals['baseCurrency'] )
-                                        <td class="text-end"><x-artisanpack-ec-admin-money :amount="$line['base']" :currency="$totals['baseCurrency']" /></td>
+                                        <td data-scope="table" data-part="cell" data-numeric class="ec-cell-muted"><x-artisanpack-ec-admin-money :amount="$line['base']" :currency="$totals['baseCurrency']" /></td>
                                     @endif
                                 </tr>
                             @endforeach
@@ -111,165 +262,78 @@
                 </div>
 
                 @if ( null !== $totals['baseCurrency'] )
-                    <p class="mt-2 text-sm opacity-75">{{ __( 'Store-currency amounts use the exchange rate recorded when the order was placed.' ) }}</p>
+                    <p class="ec-muted ec-order-rate-note" data-rate-note>{{ __( 'Store-currency amounts use the exchange rate recorded when the order was placed.' ) }}</p>
                 @endif
             </x-artisanpack-card>
 
             {{-- Digital --}}
             @if ( $downloads->isNotEmpty() || $licenseKeys->isNotEmpty() )
-                <x-artisanpack-card :title="__( 'Digital' )">
+                <x-artisanpack-card :title="__( 'Digital' )" data-order-digital>
                     @if ( $downloads->isNotEmpty() )
-                        <h2 class="font-semibold mb-2">{{ __( 'Downloads' ) }}</h2>
-                        <ul class="flex flex-col gap-2 mb-4">
-                            @foreach ( $downloads as $download )
-                                <li wire:key="order-download-{{ $download->id }}" class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                    <span class="font-semibold">{{ $download->file?->label ?? __( 'Deleted file' ) }}</span>
-                                    <span class="text-sm opacity-75">
-                                        {{ trans_choice( ':count download|:count downloads', (int) $download->download_count, [ 'count' => (int) $download->download_count ] ) }}
-                                        &middot;
-                                        @if ( null === $download->downloads_remaining )
-                                            {{ __( 'No download limit' ) }}
-                                        @else
-                                            {{ trans_choice( ':count left|:count left', (int) $download->downloads_remaining, [ 'count' => (int) $download->downloads_remaining ] ) }}
+                        <section class="ec-order-sub" aria-labelledby="order-downloads-heading">
+                            <h4 id="order-downloads-heading" class="ec-subheading">{{ __( 'Downloads' ) }}</h4>
+                            <ul class="ec-list">
+                                @foreach ( $downloads as $download )
+                                    <li wire:key="order-download-{{ $download->id }}" class="ec-item-head">
+                                        <span class="ec-strong">{{ $download->file?->label ?? __( 'Deleted file' ) }}</span>
+                                        @if ( $download->isExpired() )
+                                            <x-artisanpack-badge size="sm" color="neutral">{{ __( 'Expired' ) }}</x-artisanpack-badge>
                                         @endif
-                                        &middot;
-                                        {{ null === $download->expires_at ? __( 'Never expires' ) : __( 'Expires :date', [ 'date' => LocalizedDate::format( $download->expires_at ) ] ) }}
-                                    </span>
-                                    @if ( $download->isExpired() )
-                                        <x-artisanpack-badge :value="__( 'Expired' )" size="sm" color="neutral" />
-                                    @endif
-                                </li>
-                            @endforeach
-                        </ul>
+                                        <span class="ec-muted ec-order-meta">
+                                            {{ trans_choice( ':count download|:count downloads', (int) $download->download_count, [ 'count' => (int) $download->download_count ] ) }}
+                                            <span aria-hidden="true">·</span>
+                                            @if ( null === $download->downloads_remaining )
+                                                {{ __( 'No download limit' ) }}
+                                            @else
+                                                {{ trans_choice( ':count left|:count left', (int) $download->downloads_remaining, [ 'count' => (int) $download->downloads_remaining ] ) }}
+                                            @endif
+                                            <span aria-hidden="true">·</span>
+                                            {{ null === $download->expires_at ? __( 'Never expires' ) : __( 'Expires :date', [ 'date' => LocalizedDate::format( $download->expires_at ) ] ) }}
+                                        </span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </section>
                     @endif
 
                     @if ( $licenseKeys->isNotEmpty() )
-                        <h2 class="font-semibold mb-2">{{ __( 'License keys' ) }}</h2>
-                        <ul class="flex flex-col gap-2">
-                            @foreach ( $licenseKeys as $licenseKey )
-                                <li wire:key="order-license-{{ $licenseKey->id }}" class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                    <code class="font-mono">{{ $canViewKeys ? $licenseKey->key : str_repeat( '•', 8 ) . mb_substr( (string) $licenseKey->key, -4 ) }}</code>
-                                    <span class="text-sm opacity-75">
-                                        {{ null === $licenseKey->activations_limit
-                                            ? trans_choice( ':count activation|:count activations', (int) $licenseKey->activations_count, [ 'count' => (int) $licenseKey->activations_count ] )
-                                            : __( ':used of :limit activations', [ 'used' => (int) $licenseKey->activations_count, 'limit' => (int) $licenseKey->activations_limit ] ) }}
-                                    </span>
-                                    @if ( $licenseKey->is_revoked )
-                                        <x-artisanpack-badge :value="__( 'Revoked' )" size="sm" color="error" />
-                                    @elseif ( $licenseKey->isExpired() )
-                                        <x-artisanpack-badge :value="__( 'Expired' )" size="sm" color="neutral" />
-                                    @endif
-                                </li>
-                            @endforeach
-                        </ul>
+                        <section class="ec-order-sub" aria-labelledby="order-license-keys-heading">
+                            <h4 id="order-license-keys-heading" class="ec-subheading">{{ __( 'License keys' ) }}</h4>
+                            <ul class="ec-list">
+                                @foreach ( $licenseKeys as $licenseKey )
+                                    <li wire:key="order-license-{{ $licenseKey->id }}" class="ec-item-head">
+                                        <bdi dir="ltr" class="ec-mono">{{ $canViewKeys ? $licenseKey->key : str_repeat( '•', 8 ) . mb_substr( (string) $licenseKey->key, -4 ) }}</bdi>
+                                        @if ( $licenseKey->is_revoked )
+                                            <x-artisanpack-badge size="sm" color="error">{{ __( 'Revoked' ) }}</x-artisanpack-badge>
+                                        @elseif ( $licenseKey->isExpired() )
+                                            <x-artisanpack-badge size="sm" color="neutral">{{ __( 'Expired' ) }}</x-artisanpack-badge>
+                                        @endif
+                                        <span class="ec-muted ec-order-meta">
+                                            {{ null === $licenseKey->activations_limit
+                                                ? trans_choice( ':count activation|:count activations', (int) $licenseKey->activations_count, [ 'count' => (int) $licenseKey->activations_count ] )
+                                                : __( ':used of :limit activations', [ 'used' => (int) $licenseKey->activations_count, 'limit' => (int) $licenseKey->activations_limit ] ) }}
+                                        </span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </section>
                     @endif
                 </x-artisanpack-card>
             @endif
 
             @foreach ( $mainPanels as $panel )
-                <div data-order-panel="{{ $panel['key'] }}" wire:key="order-panel-wrap-{{ $panel['key'] }}">
+                <div class="ec-order-panel" data-order-panel="{{ $panel['key'] }}" wire:key="order-panel-wrap-{{ $panel['key'] }}">
                     @livewire( $panel['component'], [ 'order' => $order ], key( 'order-panel-' . $panel['key'] ) )
                 </div>
             @endforeach
 
             {{-- Notes (the command palette's "Add note to #…" jumps here) --}}
-            <div id="order-notes" tabindex="-1" class="focus:outline-none">
+            <div id="order-notes" tabindex="-1" class="ec-focus-target">
                 @livewire( 'artisanpack-ecommerce-admin-notes', [ 'subject' => $order ], key( 'order-notes' ) )
             </div>
 
             {{-- Timeline --}}
             @livewire( 'artisanpack-ecommerce-admin-timeline', [ 'subject' => $order ], key( 'order-timeline' ) )
-        </div>
-
-        <div class="flex flex-col gap-4">
-            {{-- Status --}}
-            @livewire( 'artisanpack-ecommerce-admin-order-status', [ 'order' => $order ], key( 'order-status' ) )
-
-            {{-- Customer --}}
-            <x-artisanpack-card :title="__( 'Customer' )">
-                <p class="font-semibold">
-                    @if ( null !== $customerUrl )
-                        <a href="{{ $customerUrl }}" class="link link-hover">{{ $customerName ?? $order->email }}</a>
-                    @else
-                        {{ $customerName ?? __( 'Guest' ) }}
-                    @endif
-                </p>
-                <p><a href="mailto:{{ $order->email }}" class="link link-hover">{{ $order->email }}</a></p>
-                @if ( null !== $order->phone && '' !== $order->phone )
-                    <p><span class="sr-only">{{ __( 'Phone:' ) }}</span> {{ $order->phone }}</p>
-                @endif
-                <div class="mt-2 flex flex-wrap gap-2">
-                    <x-artisanpack-badge :value="$isGuest ? __( 'Guest checkout' ) : __( 'Has an account' )" size="sm" color="neutral" />
-                    <x-artisanpack-badge :value="$order->is_claimed ? __( 'Claimed' ) : __( 'Not claimed' )" size="sm" :color="$order->is_claimed ? 'success' : 'warning'" />
-                </div>
-            </x-artisanpack-card>
-
-            {{-- Addresses --}}
-            <x-artisanpack-card :title="__( 'Addresses' )">
-                <h2 class="font-semibold">{{ __( 'Shipping' ) }}</h2>
-                <x-artisanpack-ec-admin-address :address="$order->shipping_address" class="mb-3" />
-                <h2 class="font-semibold">{{ __( 'Billing' ) }}</h2>
-                <x-artisanpack-ec-admin-address :address="$order->billing_address" />
-            </x-artisanpack-card>
-
-            {{-- Payment --}}
-            <x-artisanpack-card :title="__( 'Payment' )">
-                <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                    <dt class="opacity-75">{{ __( 'Gateway' ) }}</dt>
-                    <dd>{{ $paymentGateway ?? __( 'None' ) }}</dd>
-                    <dt class="opacity-75">{{ __( 'Reference' ) }}</dt>
-                    <dd class="break-all font-mono text-sm">{{ $order->payment_reference ?: __( 'None' ) }}</dd>
-                    <dt class="opacity-75">{{ __( 'Status' ) }}</dt>
-                    <dd><x-artisanpack-ec-status-badge type="payment" :value="$order->payment_status" /></dd>
-                </dl>
-            </x-artisanpack-card>
-
-            {{-- Boards --}}
-            <x-artisanpack-card :title="__( 'Boards' )">
-                @if ( $assignments->isEmpty() )
-                    <p class="opacity-75">{{ __( 'This order is not on any board.' ) }}</p>
-                @else
-                    <ul class="flex flex-col gap-2">
-                        @foreach ( $assignments as $assignment )
-                            <li wire:key="order-board-{{ $assignment->board_id }}" class="flex flex-wrap items-center gap-2">
-                                <span class="font-semibold">{{ $assignment->board?->name ?? __( 'Deleted board' ) }}</span>
-                                @if ( null !== $assignment->substatus )
-                                    <x-artisanpack-ec-status-badge :substatus="$assignment->substatus" />
-                                @endif
-                                @if ( $canMoveBoards )
-                                    <x-artisanpack-button
-                                        variant="ghost"
-                                        size="xs"
-                                        leading-icon="o-x-mark"
-                                        class="ms-auto"
-                                        wire:click="removeFromBoard( {{ (int) $assignment->board_id }} )" wire:loading.attr="disabled"
-                                        wire:loading.attr="disabled"
-                                        :aria-label="__( 'Remove from :board', [ 'board' => $assignment->board?->name ?? '' ] )">{{ __( 'Remove' ) }}</x-artisanpack-button>
-                                @endif
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-
-                @if ( $canMoveBoards && [] !== $boardOptions )
-                    <form wire:submit="addToBoard" class="mt-3 flex flex-wrap items-end gap-2">
-                        <x-artisanpack-select
-                            id="order-add-board"
-                            :label="__( 'Add to board' )"
-                            :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $boardOptions )"
-                            :placeholder="__( 'Choose a board' )"
-                            wire:model="boardToAdd"
-                        />
-                        <x-artisanpack-button type="submit" size="sm" wire:loading.attr="disabled">{{ __( 'Add' ) }}</x-artisanpack-button>
-                    </form>
-                @endif
-            </x-artisanpack-card>
-
-            @foreach ( $sidePanels as $panel )
-                <div data-order-panel="{{ $panel['key'] }}" wire:key="order-panel-wrap-{{ $panel['key'] }}">
-                    @livewire( $panel['component'], [ 'order' => $order ], key( 'order-panel-' . $panel['key'] ) )
-                </div>
-            @endforeach
         </div>
     </div>
 </div>

@@ -229,7 +229,7 @@ const MATRIX = [
             '_finishUpload'  => [ 'args' => [ 'csv', [], true ], 'ability' => 'product.create' ],
             '_uploadErrored' => [ 'args' => [ 'csv', null, false ], 'ability' => 'product.create' ],
             '_removeUpload'  => [ 'args' => [ 'csv', 'missing.csv' ], 'ability' => 'product.create' ],
-            'upload'         => [ 'args' => [], 'ability' => 'product.create' ],
+            'uploadCsv'      => [ 'args' => [], 'ability' => 'product.create' ],
             'check'          => [ 'args' => [], 'ability' => 'product.create' ],
             'editMapping'    => [ 'args' => [], 'ability' => 'product.create' ],
             'apply'          => [ 'args' => [ 'token' ], 'ability' => 'product.create' ],

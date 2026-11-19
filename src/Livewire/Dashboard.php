@@ -25,6 +25,7 @@ use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 use ArtisanPackUI\Ecommerce\Support\MoneyFormatter;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\ListensForAdminBroadcasts;
+use ArtisanPackUI\EcommerceAdminLivewire\Queries\InventoryQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminBroadcasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
@@ -502,15 +503,18 @@ class Dashboard extends Component
      */
     protected function lowStock(): Collection
     {
-        return LowStockReport::query()
+        $query     = LowStockReport::query();
+        $available = InventoryQuery::availableSql( $query );
+
+        return $query
             ->select( ( new InventoryItem() )->qualifyColumn( '*' ) )
-            ->selectRaw( '(quantity_on_hand - quantity_reserved) as quantity_available' )
+            ->selectRaw( $available . ' as quantity_available' )
             ->with( [
                 'stockable' => static fn ( MorphTo $morph ) => $morph->morphWith( [
                     ProductVariant::class => [ 'product:id,name,type,sku' ],
                 ] ),
             ] )
-            ->orderByRaw( '(quantity_on_hand - quantity_reserved) asc' )
+            ->orderByRaw( $available . ' asc' )
             ->orderBy( 'id' )
             ->limit( self::LOW_STOCK_ITEMS )
             ->get();

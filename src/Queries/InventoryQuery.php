@@ -79,6 +79,13 @@ class InventoryQuery extends ResourceQuery
     /**
      * `(on hand - reserved)` for raw SQL, with the columns qualified.
      *
+     * `quantity_reserved` is unsigned, and on MySQL a subtraction with an
+     * unsigned operand is unsigned, so an oversold item (more reserved than
+     * on hand) fails the whole query with "BIGINT UNSIGNED value is out of
+     * range". On hand is cast to a signed DECIMAL first, which every
+     * supported driver understands. Don't drop the cast: SQLite, which the
+     * tests run on, never raises the error.
+     *
      * @since 1.0.0
      *
      * @param  Builder<InventoryItem>  $query  The query whose grammar wraps the columns.
@@ -87,7 +94,7 @@ class InventoryQuery extends ResourceQuery
      */
     public static function availableSql( Builder $query ): string
     {
-        return '(' . static::raw( $query, InventoryItem::class, 'quantity_on_hand' ) . ' - ' . static::raw( $query, InventoryItem::class, 'quantity_reserved' ) . ')';
+        return '(CAST(' . static::raw( $query, InventoryItem::class, 'quantity_on_hand' ) . ' AS DECIMAL(20, 0)) - ' . static::raw( $query, InventoryItem::class, 'quantity_reserved' ) . ')';
     }
 
     /**
