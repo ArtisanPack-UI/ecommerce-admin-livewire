@@ -241,7 +241,7 @@ trait WithRuleBuilder
      *
      * @since 1.0.0
      *
-     * @return array<string, array{registry: string, label: string, add: string, empty: string}>
+     * @return array<string, array{registry: string, label: string, add: string, empty: string, description?: string}>
      */
     abstract protected function ruleBuilderLists(): array;
 
@@ -408,14 +408,15 @@ trait WithRuleBuilder
             }
 
             $lists[ $list ] = [
-                'key'      => $list,
-                'registry' => $definition['registry'],
-                'label'    => $definition['label'],
-                'add'      => $definition['add'],
-                'empty'    => $definition['empty'],
-                'options'  => array_map( static fn ( string $key, string $label ): array => [ 'id' => $key, 'name' => $label ], array_keys( $labels ), $labels ),
-                'rows'     => $rows,
-                'full'     => count( $rows ) >= self::maxRules(),
+                'key'         => $list,
+                'registry'    => $definition['registry'],
+                'label'       => $definition['label'],
+                'description' => $definition['description'] ?? null,
+                'add'         => $definition['add'],
+                'empty'       => $definition['empty'],
+                'options'     => array_map( static fn ( string $key, string $label ): array => [ 'id' => $key, 'name' => $label ], array_keys( $labels ), $labels ),
+                'rows'        => $rows,
+                'full'        => count( $rows ) >= self::maxRules(),
             ];
         }
 

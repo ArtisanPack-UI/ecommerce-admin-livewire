@@ -18,5 +18,5 @@ it( 'shows each state with its own color and icon, behind a hidden prefix', func
     'active'    => [ [], 'active', 'Active', 'success', 'check' ],
     'scheduled' => [ [ 'starts_at' => Carbon::now()->addDay() ], 'scheduled', 'Scheduled', 'info', 'clock' ],
     'expired'   => [ [ 'ends_at' => Carbon::now()->subDay() ], 'expired', 'Expired', 'neutral', 'calendar' ],
-    'disabled'  => [ [ 'is_active' => false ], 'disabled', 'Disabled', 'warning', 'minus' ],
+    'disabled'  => [ [ 'is_active' => false ], 'disabled', 'Switched off', 'warning', 'minus' ],
 ] );

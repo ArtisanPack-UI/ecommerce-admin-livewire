@@ -22,7 +22,7 @@ it( 'renders zones by priority with their methods', function (): void {
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeInOrder( [ 'United States', 'Regions: CA', 'Europe' ] )
+        ->assertSeeInOrder( [ 'United States', 'Regions:', 'CA', 'Europe' ] )
         ->assertSee( 'Germany' )
         ->assertDontSee( 'Flat $5' )
         ->call( 'toggleZone', $us->id )
@@ -112,7 +112,8 @@ it( 'deletes a zone and its methods after confirmation', function (): void {
     $component = Livewire::test( Index::class )
         ->call( 'confirmDeleteZone', $zone->id )
         ->assertSet( 'confirmingDelete', true )
-        ->assertSee( 'its 2 methods are deleted' );
+        ->assertSee( 'Its 2 shipping methods are deleted with it.' )
+        ->assertSee( 'will see no shipping methods unless another zone covers them.' );
 
     $token = $component->viewData( 'deleteToken' );
 
@@ -270,7 +271,7 @@ it( 'hides and refuses controls without the abilities', function (): void {
 
     Livewire::test( Index::class )
         ->call( 'toggleZone', $zone->id )
-        ->assertDontSee( 'New zone' )
+        ->assertDontSeeHtml( 'data-new-zone' )
         ->assertDontSeeHtml( 'data-add-method' )
         ->assertDontSeeHtml( 'wire:click="editZone' )
         ->assertDontSeeHtml( 'wire:click="confirmDeleteZone' )

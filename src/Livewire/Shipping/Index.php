@@ -93,6 +93,15 @@ class Index extends Component
     public const COUNTRIES_TTL = 300;
 
     /**
+     * How many country names a zone row shows before "+N more".
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const COUNTRIES_SHOWN = 3;
+
+    /**
      * Zones whose methods are shown.
      *
      * @since 1.0.0
@@ -299,7 +308,7 @@ class Index extends Component
             'name'            => (string) $zone->name,
             'country_codes'   => array_values( array_map( 'strval', (array) $zone->country_codes ) ),
             'region_codes'    => implode( ', ', (array) ( $zone->region_codes ?? [] ) ),
-            'postal_patterns' => implode( "\n", (array) ( $zone->postal_patterns ?? [] ) ),
+            'postal_patterns' => implode( ', ', (array) ( $zone->postal_patterns ?? [] ) ),
             'priority'        => (int) $zone->priority,
             'is_active'       => (bool) $zone->is_active,
         ];
@@ -711,7 +720,7 @@ class Index extends Component
         if ( $this->confirmingDelete && null !== $this->deletingId ) {
             $deleting = 'zone' === $this->deletingType
                 ? $zones->firstWhere( 'id', $this->deletingId )
-                : ShippingMethod::query()->find( $this->deletingId );
+                : ShippingMethod::query()->with( 'zone' )->find( $this->deletingId );
         }
 
         $user = auth()->user();

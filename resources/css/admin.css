@@ -2820,4 +2820,251 @@
         text-align: end;
         white-space: nowrap;
     }
+
+    /* Customers list (#128): avatar + name cell. */
+    .ec-customers-name {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ec-customers-name > .apui-avatar {
+        flex: none;
+    }
+
+    .ec-customers-name-link[data-tone="primary"],
+    .ec-customers-name-text {
+        color: var(--apui-text-default);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-customers-unnamed,
+    .ec-customers-name-link.ec-customers-unnamed {
+        color: var(--apui-text-muted);
+        font-style: italic;
+        font-weight: var(--apui-font-weight-regular, 400);
+    }
+
+    /* Customer detail (#129): five small Stats, the scrolling tab list, and the delete dialog's erased / kept lists. */
+    .ec-customer-stats {
+        grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+    }
+
+    .ec-customer-tablist {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .ec-customer-tab {
+        min-inline-size: 0;
+    }
+
+    .ec-customer-delete-columns {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+        gap: 20px;
+    }
+
+    .ec-customer-delete-columns > section {
+        display: grid;
+        gap: 8px;
+        align-content: start;
+    }
+
+    .ec-customer-delete-list {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+    }
+
+    .ec-customer-delete-list > li {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .ec-customer-delete-list > li > svg {
+        flex: none;
+        margin-block-start: 2px;
+    }
+
+    .ec-customer-delete-list[data-tone="erased"] > li > svg {
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-customer-delete-list[data-tone="kept"] > li > svg {
+        color: var(--apui-color-success-text);
+    }
+
+    /* Promotions list (#130): the name link reads as body text, like the products list. */
+    .ec-promotions-name {
+        color: var(--apui-text-default);
+    }
+
+    /*
+     * Promotion form (#131): underline tabs that scroll on a phone, the
+     * Details sections (heading and explanation on the start side, fields on
+     * the end side, stacked below 48rem), the segmented Source control with
+     * an icon per option, and the error marker on a tab with errors.
+     */
+    .ec-promotion-form-badges {
+        margin-block-start: calc(10px - var(--apui-panel-gap, 16px));
+    }
+
+    .ec-promotion-form-tablist {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .ec-promotion-form-panel {
+        min-inline-size: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .ec-promotion-form-section {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        gap: 24px;
+        padding-block: 20px;
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-promotion-form-section:first-child {
+        padding-block-start: 0;
+        border-block-start: 0;
+    }
+
+    .ec-promotion-form-section:last-child {
+        padding-block-end: 0;
+    }
+
+    .ec-promotion-form-section__head {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        min-inline-size: 0;
+    }
+
+    .ec-promotion-form-centered {
+        align-self: center;
+    }
+
+    .ec-promotion-source [data-scope="radio-group"][data-part="item-text"] {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /*
+     * A tab with errors: its count part holds "(has errors)", which stays in
+     * the tab's accessible name; it is drawn as a small red badge with "!"
+     * (the content's alt text is empty, so nothing extra is announced).
+     */
+    .ec-promotion-form-tabs [data-scope="tabs"][data-part="trigger"][role="tab"] [data-scope="tabs"][data-part="count"] {
+        position: relative;
+        display: inline-block;
+        flex: none;
+        inline-size: 16px;
+        min-inline-size: 16px;
+        block-size: 16px;
+        margin-inline-start: 6px;
+        padding: 0;
+        overflow: hidden;
+        border-radius: var(--apui-radius-full, 9999px);
+        background: var(--apui-color-error);
+        color: transparent;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .ec-promotion-form-tabs [data-scope="tabs"][data-part="trigger"][role="tab"] [data-scope="tabs"][data-part="count"]::before {
+        content: "!" / "";
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: var(--apui-color-error-foreground);
+        font-size: 11px;
+        font-weight: var(--apui-font-weight-semibold, 600);
+        line-height: 1;
+    }
+
+    @media (max-width: 47.999rem) {
+        .ec-promotion-form-section {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
+        }
+    }
+
+    @media (forced-colors: active) {
+        .ec-promotion-form-tabs [data-scope="tabs"][data-part="trigger"][role="tab"] [data-scope="tabs"][data-part="count"] {
+            border: 1px solid CanvasText;
+        }
+    }
+
+    /* Shipping (#132): zones as one card of expandable rows, methods in a sunken list. */
+    .ec-shipping-zone + .ec-shipping-zone {
+        border-block-start: 1px solid var(--apui-border-muted);
+    }
+
+    .ec-shipping-zone__head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+    }
+
+    .ec-shipping-zone__text {
+        display: grid;
+        flex: 1 1 12rem;
+        gap: 2px;
+        min-inline-size: 0;
+    }
+
+    .ec-shipping-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+    }
+
+    .ec-shipping-zone__body {
+        display: grid;
+        gap: 10px;
+        padding-block-end: 14px;
+        padding-inline: 16px;
+    }
+
+    .ec-shipping-methods {
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-shipping-methods-empty {
+        padding: 10px 12px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-shipping-method {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+    }
+
+    .ec-shipping-method + .ec-shipping-method {
+        border-block-start: 1px solid var(--apui-border-muted);
+    }
+
+    .ec-shipping-method__name {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
 }

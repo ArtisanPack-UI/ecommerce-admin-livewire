@@ -25,13 +25,17 @@
             $listId    = $prefix . '-list-' . $list['key'];
             $rowCount  = count( $list['rows'] );
         @endphp
-        <section class="ec-rule-list" aria-labelledby="{{ $listId }}" data-rule-list="{{ $list['key'] }}">
+        <section class="ec-rule-list" aria-labelledby="{{ $listId }}" @if ( null !== ( $list['description'] ?? null ) ) aria-describedby="{{ $listId }}-description" @endif data-rule-list="{{ $list['key'] }}">
             <div class="ec-rule-list-head">
                 <x-artisanpack-heading :level="3" :size="5" id="{{ $listId }}">{{ $list['label'] }}</x-artisanpack-heading>
                 @if ( $rowCount > 0 )
                     <span class="ec-rule-count">{{ trans_choice( ':count rule|:count rules', $rowCount, [ 'count' => $rowCount ] ) }}</span>
                 @endif
             </div>
+
+            @if ( null !== ( $list['description'] ?? null ) )
+                <p id="{{ $listId }}-description" class="ec-muted" data-rule-list-description>{{ $list['description'] }}</p>
+            @endif
 
             @if ( 0 === $rowCount )
                 <p class="ec-rule-empty">{{ $list['empty'] }}</p>
