@@ -4,6 +4,8 @@
     instead of Livewire's error modal.
 
     Uses Livewire's `request` hook, which Livewire 3 and 4 both support.
+    The toast renders with `x-html`, so the title and message are
+    HTML-escaped first.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -14,6 +16,13 @@
     ( () => {
         const fallback = @js( __( 'Too many changes in a short time. Try again shortly.' ) );
         const title    = @js( __( 'Slow down' ) );
+
+        const escapeHtml = ( text ) => {
+            const node       = document.createElement( 'div' );
+            node.textContent = String( text );
+
+            return node.innerHTML;
+        };
 
         const register = () => {
             if ( window.ecommerceAdminRateLimitNotice || ! window.Livewire ) {
@@ -40,7 +49,7 @@
                     preventDefault();
 
                     if ( 'function' === typeof window.toast ) {
-                        window.toast( { toast: { type: 'warning', title, description: message, icon: '', css: 'alert-warning' } } );
+                        window.toast( { toast: { type: 'warning', title: escapeHtml( title ), description: escapeHtml( message ), icon: '', css: 'alert-warning' } } );
                     }
                 } );
             } );
