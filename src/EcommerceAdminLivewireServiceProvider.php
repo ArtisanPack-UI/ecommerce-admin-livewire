@@ -88,7 +88,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      *
      * @var string
      */
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.0.1';
 
     /**
      * The Composer package name.

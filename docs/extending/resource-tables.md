@@ -97,7 +97,7 @@ addFilter( 'ap.ecommerceAdminLivewire.table.orders.filters', function ( array $f
 | --- | --- |
 | `key` | Required. Unique key |
 | `label` | Required. Button label |
-| `handler` | Required. `callable( Builder $selection, Component $component )`. Return a success message (shown as a toast), a download response, or `null`. |
+| `handler` | Required. `callable( Builder $selection, Component $component )`. Return a success message (shown as a toast, as plain text: markup is escaped), a download response, or `null`. |
 | `icon` | Heroicon name (default `o-bolt`) |
 | `ability` | `{resource}.{action}`. The action is hidden from, and refused for, users without it. |
 | `confirm` | A confirmation message. The action then asks first and carries a one-time token, so it runs once. |
