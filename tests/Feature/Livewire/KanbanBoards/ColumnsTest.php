@@ -205,3 +205,83 @@ it( 'will not delete a column with cards', function (): void {
         ->and( sentToasts( $component ) )->toContain( 'Move the cards out of this column before deleting it.' )
         ->and( ArtisanPackUI\Ecommerce\Models\IdempotencyRecord::query()->count() )->toBe( 0 );
 } );
+
+it( 'renders the design-system card with the colour strip, positions and chips', function (): void {
+    KanbanColumn::factory()->create( [ 'board_id' => $this->board->id, 'substatus_id' => substatusId( 'awaiting-payment' ), 'position' => 0, 'color_override' => '#3B82F6' ] );
+    KanbanColumn::factory()->create( [ 'board_id' => $this->board->id, 'substatus_id' => substatusId( 'in-progress' ), 'position' => 1, 'label_override' => 'Curing' ] );
+
+    Livewire::test( Columns::class, [ 'board' => $this->board ] )
+        ->assertSeeHtml( 'class="apui-card" aria-labelledby="board-columns-heading"' )
+        ->assertSeeHtml( 'data-column-strip' )
+        ->assertSeeHtml( '--ec-column-color: #3B82F6' )
+        ->assertSeeHtml( 'class="ec-column-chip"' )
+        ->assertSeeInOrder( [ 'ec-settings-row__index', '1', 'ec-settings-row__index', '2' ] )
+        ->assertSee( 'Curing' )
+        ->assertSee( '(In Progress)' )
+        ->assertSeeHtml( 'aria-label="Move Curing up"' )
+        ->assertDontSeeHtml( 'class="flex' );
+} );
+
+it( 'marks a column at its WIP limit as full', function (): void {
+    KanbanColumn::factory()->create( [ 'board_id' => $this->board->id, 'substatus_id' => substatusId( 'in-progress' ), 'wip_limit' => 2 ] );
+    KanbanColumn::factory()->create( [ 'board_id' => $this->board->id, 'substatus_id' => substatusId( 'awaiting-payment' ), 'wip_limit' => 5, 'position' => 1 ] );
+    OrderBoardAssignment::factory()->count( 2 )->create( [ 'board_id' => $this->board->id, 'substatus_id' => substatusId( 'in-progress' ) ] );
+
+    $html = Livewire::test( Columns::class, [ 'board' => $this->board ] )
+        ->assertSee( '2 of 2 cards' )
+        ->assertSee( '0 of 5 cards' )
+        ->html();
+
+    expect( substr_count( $html, 'data-column-full=' ) )->toBe( 1 )
+        ->and( substr_count( $html, 'ec-column-count--full' ) )->toBe( 1 );
+} );
+
+it( 'shows a sunken empty state with no columns', function (): void {
+    Livewire::test( Columns::class, [ 'board' => $this->board ] )
+        ->assertSee( 'No columns yet' )
+        ->assertSeeHtml( 'ec-empty-sunken' )
+        ->assertDontSeeHtml( 'data-column-strip' );
+} );
+
+it( 'refuses a WIP limit below the cards already in the column, with the count', function (): void {
+    $column = KanbanColumn::factory()->create( [ 'board_id' => $this->board->id, 'substatus_id' => substatusId( 'in-progress' ), 'wip_limit' => 10 ] );
+    OrderBoardAssignment::factory()->count( 3 )->create( [ 'board_id' => $this->board->id, 'substatus_id' => substatusId( 'in-progress' ) ] );
+
+    $component = Livewire::test( Columns::class, [ 'board' => $this->board ] )
+        ->call( 'edit', $column->id )
+        ->set( 'form.wip_limit', 2 )
+        ->call( 'save' )
+        ->assertHasErrors( [ 'form.wip_limit' ] )
+        ->assertSee( 'The column already holds 3 cards. Set a limit of 3 or more, or move cards out first.' );
+
+    expect( $column->fresh()->wip_limit )->toBe( 10 );
+
+    $component->set( 'form.wip_limit', 3 )->call( 'save' )->assertHasNoErrors();
+
+    expect( $column->fresh()->wip_limit )->toBe( 3 );
+} );
+
+it( 'counts cards already on a sub-status when a new column gets a WIP limit', function (): void {
+    OrderBoardAssignment::factory()->count( 3 )->create( [ 'board_id' => $this->board->id, 'substatus_id' => substatusId( 'in-progress' ) ] );
+
+    $component = Livewire::test( Columns::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->set( 'form.substatus_id', substatusId( 'in-progress' ) )
+        ->set( 'form.wip_limit', 2 )
+        ->call( 'save' )
+        ->assertHasErrors( [ 'form.wip_limit' ] )
+        ->assertSee( 'The column already holds 3 cards. Set a limit of 3 or more, or move cards out first.' );
+
+    expect( KanbanColumn::query()->where( 'board_id', $this->board->id )->count() )->toBe( 0 );
+
+    $component->set( 'form.wip_limit', 3 )->call( 'save' )->assertHasNoErrors();
+
+    expect( KanbanColumn::query()->where( 'board_id', $this->board->id )->value( 'wip_limit' ) )->toBe( 3 );
+} );
+
+it( 'puts the drawer actions in its footer, tied to the form', function (): void {
+    Livewire::test( Columns::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->assertSeeHtml( 'id="board-column-form"' )
+        ->assertSeeHtml( 'form="board-column-form"' );
+} );

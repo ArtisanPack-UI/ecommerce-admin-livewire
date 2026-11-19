@@ -40,6 +40,7 @@ function queryTableNameCases(): array
             'awaiting'           => [ '1', '0' ],
             'board'              => [ 1 ],
             'placed'             => [ [ 'from' => '2026-01-01', 'to' => '2026-12-31' ] ],
+            'total'              => [ [ 'min' => '1.00', 'max' => '50.00' ] ],
         ] ],
         'products'              => [ static fn (): ResourceQuery => new ProductsQuery(), [
             'status'   => [ 'active' ],

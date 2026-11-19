@@ -44,6 +44,8 @@ use Livewire\Component;
  *   empty list falls back to the board's, then the store's, default
  *   widgets. Widgets reorder with Move up / Move down.
  * - Columns reorder with Move up / Move down.
+ * - A WIP limit below the cards the column already holds is refused with
+ *   the current count.
  * - Every write dispatches `kanban-columns-changed`, so the automations
  *   panel refreshes its column choices.
  *
@@ -403,6 +405,20 @@ class Columns extends Component
             return;
         }
 
+        if ( null !== $this->form['wip_limit'] ) {
+            $cards = $this->cardsOn( (int) $this->form['substatus_id'] );
+
+            if ( (int) $this->form['wip_limit'] < $cards ) {
+                $this->addError( 'form.wip_limit', trans_choice(
+                    'The column already holds :count card. Set a limit of :count or more, or move it out first.|The column already holds :count cards. Set a limit of :count or more, or move cards out first.',
+                    $cards,
+                    [ 'count' => $cards ],
+                ) );
+
+                return;
+            }
+        }
+
         $data = [
             'substatus_id'   => (int) $this->form['substatus_id'],
             'label_override' => '' === trim( (string) $this->form['label_override'] ) ? null : sanitizeText( trim( (string) $this->form['label_override'] ) ),
@@ -600,6 +616,24 @@ class Columns extends Component
     protected function formWidgets(): array
     {
         return array_values( array_filter( (array) ( $this->form['card_widgets'] ?? [] ), 'is_string' ) );
+    }
+
+    /**
+     * The cards on this board in a sub-status: the cards its column holds.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $substatusId  Sub-status id.
+     *
+     * @return int
+     */
+    protected function cardsOn( int $substatusId ): int
+    {
+        return OrderBoardAssignment::query()
+            ->active()
+            ->where( 'board_id', $this->boardId )
+            ->where( 'substatus_id', $substatusId )
+            ->count();
     }
 
     /**
