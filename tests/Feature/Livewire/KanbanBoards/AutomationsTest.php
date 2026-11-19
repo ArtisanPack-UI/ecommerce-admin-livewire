@@ -410,3 +410,83 @@ it( 'removes the signing secret with a button that can be undone before saving',
 
     expect( $automation->fresh()->trigger_config['secret'] )->toBe( 's3cret' );
 } );
+
+it( 'opens the add drawer from an ?automation=new link', function (): void {
+    Livewire::withQueryParams( [ 'automation' => 'new' ] )
+        ->test( Automations::class, [ 'board' => $this->board ] )
+        ->assertSet( 'editing', true )
+        ->assertSet( 'automationId', null )
+        ->assertSet( 'form.to_column_id', '' );
+} );
+
+it( 'opens an automation\'s edit drawer from an ?automation={id} link', function (): void {
+    $automation = KanbanAutomation::factory()->create( [
+        'board_id'       => $this->board->id,
+        'from_column_id' => $this->packing->id,
+        'to_column_id'   => $this->shipped->id,
+        'trigger_key'    => 'webhook',
+        'trigger_config' => [ 'url' => 'https://example.test/hook', 'secret' => 's3cret' ],
+    ] );
+
+    Livewire::withQueryParams( [ 'automation' => (string) $automation->id ] )
+        ->test( Automations::class, [ 'board' => $this->board ] )
+        ->assertSet( 'editing', true )
+        ->assertSet( 'automationId', $automation->id )
+        ->assertSet( 'form.to_column_id', $this->shipped->id )
+        ->assertSet( 'secretIsSet', true )
+        ->assertDontSeeHtml( 's3cret' );
+} );
+
+it( 'ignores ?automation= links it cannot act on', function ( Closure $value ): void {
+    Livewire::withQueryParams( [ 'automation' => $value() ] )
+        ->test( Automations::class, [ 'board' => $this->board ] )
+        ->assertOk()
+        ->assertSet( 'editing', false )
+        ->assertSet( 'automationId', null );
+} )->with( [
+    'another board\'s automation' => [ static fn (): string => (string) KanbanAutomation::factory()->create()->id ],
+    'a missing id'                => [ static fn (): string => '999999' ],
+    'an empty value'              => [ static fn (): string => '' ],
+    'a zero id'                   => [ static fn (): string => '0' ],
+    'a signed id'                 => [ static fn (): string => '-1' ],
+    'a word'                      => [ static fn (): string => 'edit' ],
+    'an oversized id'             => [ static fn (): string => str_repeat( '9', 40 ) ],
+    'an array'                    => [ static fn (): array => [ 'new' ] ],
+] );
+
+it( 'opens no drawer from ?automation= links without kanbanBoard.update', function ( string $which ): void {
+    Gate::define( 'ecommerce.kanbanBoard.update', static fn (): bool => false );
+
+    $automation = KanbanAutomation::factory()->create( [ 'board_id' => $this->board->id, 'to_column_id' => $this->shipped->id ] );
+
+    Livewire::withQueryParams( [ 'automation' => 'new' === $which ? 'new' : (string) $automation->id ] )
+        ->test( Automations::class, [ 'board' => $this->board ] )
+        ->assertOk()
+        ->assertSet( 'editing', false )
+        ->assertSet( 'automationId', null );
+} )->with( [ 'new', 'existing' ] );
+
+it( 'opens no add drawer from ?automation=new on a board without columns', function (): void {
+    Livewire::withQueryParams( [ 'automation' => 'new' ] )
+        ->test( Automations::class, [ 'board' => KanbanBoard::factory()->create() ] )
+        ->assertOk()
+        ->assertSet( 'editing', false )
+        ->assertSee( 'Add columns first' );
+} );
+
+it( 'opens the drawer from a link on the board edit page', function (): void {
+    $automation = KanbanAutomation::factory()->create( [ 'board_id' => $this->board->id, 'to_column_id' => $this->shipped->id ] );
+
+    $edit = route( 'artisanpack.ecommerce.admin.kanban-boards.edit', [ 'board' => $this->board->id ] );
+
+    // The automation drawer is the page's only large one.
+    $openDrawer = '/data-part="content"[^>]*data-state="open"[^>]*data-size="lg".{0,2000}?%s/s';
+
+    expect( $this->get( $edit )->assertOk()->getContent() )->not->toMatch( '/data-part="content"[^>]*data-state="open"[^>]*data-size="lg"/' );
+
+    expect( $this->get( $edit . '?automation=' . $automation->id )->assertOk()->getContent() )
+        ->toMatch( sprintf( $openDrawer, 'Edit automation' ) );
+
+    expect( $this->get( $edit . '?automation=new' )->assertOk()->getContent() )
+        ->toMatch( sprintf( $openDrawer, 'New automation' ) );
+} );
