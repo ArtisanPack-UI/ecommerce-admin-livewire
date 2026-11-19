@@ -17,7 +17,7 @@ it( 'draws zones as one card of rows with a muted meta line and no DaisyUI class
         'name'            => 'Canada west',
         'country_codes'   => [ 'CA' ],
         'region_codes'    => [ 'BC', 'ON' ],
-        'postal_patterns' => [ 'V*', 'K0A...M9Z' ],
+        'postal_patterns' => [ 'V*', 'K1A*' ],
         'priority'        => 2,
     ] );
     ShippingMethod::factory()->create( [ 'zone_id' => $zone->id, 'label' => 'Flat', 'key' => 'flat-rate' ] );
@@ -26,7 +26,7 @@ it( 'draws zones as one card of rows with a muted meta line and no DaisyUI class
         ->assertSee( 'Where you ship and the methods shoppers can choose there.' )
         ->assertSeeHtml( 'aria-label="Shipping zones"' )
         ->assertSeeHtml( '<bdi dir="ltr" class="ec-mono">BC, ON</bdi>' )
-        ->assertSeeHtml( '<bdi dir="ltr" class="ec-mono">V*, K0A...M9Z</bdi>' )
+        ->assertSeeHtml( '<bdi dir="ltr" class="ec-mono">V*, K1A*</bdi>' )
         ->assertSeeHtml( '<bdi dir="ltr">Priority 2</bdi>' )
         ->assertSeeHtml( 'aria-expanded="false"' )
         ->assertSeeHtml( 'aria-label="Show the methods of Canada west"' )
@@ -154,4 +154,21 @@ it( 'reads the full country list to screen readers when the row shortens it', fu
 
     expect( $html )->toMatch( '/<span aria-hidden="true"[^>]*>Germany, France, Netherlands, \\+4 more<\\/span>/' )
         ->and( $html )->toContain( '<span class="apui-sr-only">Germany, France, Netherlands, Belgium, Austria, Italy, Spain</span>' );
+} );
+
+it( 'says an active method in an inactive zone is already hidden at checkout', function (): void {
+    $zone   = ShippingZone::factory()->create( [ 'name' => 'Domestic', 'is_active' => false ] );
+    $method = ShippingMethod::factory()->create( [ 'zone_id' => $zone->id, 'label' => 'Express', 'is_active' => true ] );
+
+    Livewire::test( Index::class )
+        ->call( 'confirmDeleteMethod', $method->id )
+        ->assertSee( 'Its zone is inactive, so shoppers don’t see it at checkout now.' )
+        ->assertDontSee( 'Shoppers in Domestic can no longer choose Express at checkout.' );
+} );
+
+it( 'hints only the numeric postal ranges the matcher supports', function (): void {
+    Livewire::test( Index::class )
+        ->call( 'createZone' )
+        ->assertSee( '10001...10099 is a range' )
+        ->assertDontSee( 'K0A...M9Z' );
 } );

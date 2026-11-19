@@ -149,11 +149,12 @@ class Index extends Component
      */
     public static function usesCount( Promotion $promotion ): string
     {
-        $used = Number::format( (int) $promotion->times_used );
+        $locale = app()->getLocale();
+        $used   = Number::format( (int) $promotion->times_used, locale: $locale );
 
         return null === $promotion->usage_limit_total
             ? $used
-            : __( ':used / :limit', [ 'used' => $used, 'limit' => Number::format( (int) $promotion->usage_limit_total ) ] );
+            : __( ':used / :limit', [ 'used' => $used, 'limit' => Number::format( (int) $promotion->usage_limit_total, locale: $locale ) ] );
     }
 
     /**

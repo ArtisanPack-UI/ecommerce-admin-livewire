@@ -248,3 +248,11 @@ it( 'skips promotions a per-record policy denies and says so', function (): void
         ->and( $locked->refresh()->is_active )->toBeFalse()
         ->and( sentToasts( $component ) )->toContain( '1 row skipped because you may not change it.' );
 } );
+
+it( 'groups the uses count in the interface locale', function (): void {
+    $limited = Promotion::factory()->create( [ 'times_used' => 1204, 'usage_limit_total' => 5000 ] );
+
+    app()->setLocale( 'de' );
+
+    expect( Index::usesCount( $limited ) )->toBe( '1.204 / 5.000' );
+} );

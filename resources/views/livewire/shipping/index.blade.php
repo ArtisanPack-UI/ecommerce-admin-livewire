@@ -239,7 +239,7 @@
                     class="ec-mono-input"
                     dir="ltr"
                     :label="__( 'Postal codes' )"
-                    :hint="__( 'Comma-separated; * matches anything and K0A...M9Z is a range. Leave empty for all.' )"
+                    :hint="__( 'Comma-separated; * matches anything and 10001...10099 is a range. Leave empty for all.' )"
                     wire:model="zoneForm.postal_patterns"
                 />
                 <x-artisanpack-input id="zone-priority" type="number" dir="ltr" :label="__( 'Priority' )" :hint="__( 'Zones are matched from the lowest number up; the first match wins.' )" wire:model="zoneForm.priority" />
@@ -316,9 +316,11 @@
             } else {
                 $methodZone   = $deleting->zone;
                 $deleteBody   = null;
-                $deleteImpact = $deleting->is_active
-                    ? __( 'Shoppers in :zone can no longer choose :method at checkout.', [ 'zone' => (string) ( $methodZone?->name ?? '' ), 'method' => $deleteName ] )
-                    : __( 'The method is inactive, so shoppers don’t see it at checkout now.' );
+                $deleteImpact = match ( true ) {
+                    ! $deleting->is_active             => __( 'The method is inactive, so shoppers don’t see it at checkout now.' ),
+                    ! (bool) $methodZone?->is_active   => __( 'Its zone is inactive, so shoppers don’t see it at checkout now.' ),
+                    default                            => __( 'Shoppers in :zone can no longer choose :method at checkout.', [ 'zone' => (string) ( $methodZone?->name ?? '' ), 'method' => $deleteName ] ),
+                };
             }
         @endphp
         <x-artisanpack-dialog
