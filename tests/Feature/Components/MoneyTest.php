@@ -51,6 +51,13 @@ it( 'writes a negative amount with a true minus in the error tone', function ():
         ->not->toContain( '-$132.40' );
 } );
 
+it( 'keeps the minus but drops the error tone when neutral', function (): void {
+    $html = Blade::render( '<x-artisanpack-ec-money :amount="-3720" currency="USD" locale="en" neutral />' );
+
+    expect( $html )->toContain( "\u{2212}\$37.20" )
+        ->not->toContain( 'data-tone' );
+} );
+
 it( 'mutes the dash for a missing amount', function (): void {
     expect( Blade::render( '<x-artisanpack-ec-money :amount="null" />' ) )
         ->toContain( 'data-tone="muted"' )

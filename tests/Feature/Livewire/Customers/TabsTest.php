@@ -56,7 +56,49 @@ describe( 'orders tab', function (): void {
     } );
 
     it( 'shows the empty state', function (): void {
-        Livewire::test( OrdersTab::class, [ 'customer' => Customer::factory()->create() ] )->assertSee( 'No orders yet' );
+        Livewire::test( OrdersTab::class, [ 'customer' => Customer::factory()->create() ] )
+            ->assertSee( 'No orders yet' )
+            ->assertSeeHtml( 'ec-empty-sunken' )
+            ->assertDontSeeHtml( '<table' );
+    } );
+
+    it( 'builds the orders table from design-system parts with no DaisyUI classes', function (): void {
+        $customer = Customer::factory()->create();
+        Order::factory()->create( [ 'customer_id' => $customer->id, 'order_number' => 'TAB00001', 'placed_at' => now() ] );
+
+        $html = Livewire::test( OrdersTab::class, [ 'customer' => $customer ] )->html();
+
+        expect( $html )
+            ->toContain( 'class="apui-table ec-table"' )
+            ->toContain( 'data-part="head-cell"' )
+            ->toContain( '<bdi dir="ltr" class="ec-mono">#TAB00001</bdi>' )
+            ->toContain( 'class="apui-link' )
+            ->toContain( '<time datetime=' )
+            ->toContain( 'data-part="footer"' )
+            ->not->toContain( 'class="table' )
+            ->not->toContain( 'link-hover' )
+            ->not->toContain( 'overflow-x-auto' )
+            ->not->toContain( 'opacity-75' );
+
+        // The three status badges and the total sit in their own cells.
+        expect( substr_count( $html, 'class="apui-badge' ) )->toBeGreaterThanOrEqual( 3 )
+            ->and( $html )->toContain( 'data-money' );
+    } );
+
+    it( 'shows a lock and a sentence instead of a table without order.viewAny', function (): void {
+        Gate::define( 'ecommerce.order.viewAny', static fn (): bool => false );
+
+        $customer = Customer::factory()->create();
+        Order::factory()->create( [ 'customer_id' => $customer->id, 'order_number' => 'HIDDEN01' ] );
+
+        $html = Livewire::test( OrdersTab::class, [ 'customer' => $customer ] )->html();
+
+        expect( Illuminate\Support\Str::betweenFirst( $html, 'data-orders-locked', '</p>' ) )
+            ->toContain( 'You are not allowed to see orders.' )
+            ->toContain( 'aria-hidden="true"' )
+            ->and( $html )->toContain( 'role="status"' )
+            ->not->toContain( 'HIDDEN01' )
+            ->not->toContain( '<table' );
     } );
 
     it( 'is denied without customer.view', function (): void {
@@ -167,8 +209,93 @@ describe( 'addresses tab', function (): void {
 
         Livewire::test( AddressesTab::class, [ 'customer' => $customer ] )
             ->assertDontSeeHtml( 'data-add-address' )
+            ->assertDontSeeHtml( 'data-delete-address' )
+            ->assertDontSee( 'Use for shipping' )
             ->call( 'startAdd' )
             ->assertForbidden();
+    } );
+
+    it( 'builds address cards from design-system parts with no DaisyUI classes', function (): void {
+        $customer = Customer::factory()->create();
+        CustomerAddress::factory()->create( [ 'customer_id' => $customer->id, 'label' => 'Home', 'is_default_shipping' => true, 'is_default_billing' => true ] );
+        CustomerAddress::factory()->create( [ 'customer_id' => $customer->id, 'label' => 'Office' ] );
+
+        $html = Livewire::test( AddressesTab::class, [ 'customer' => $customer ] )->html();
+
+        expect( $html )
+            ->toContain( 'Saved addresses' )
+            ->toContain( 'class="ec-address-grid"' )
+            ->toContain( 'class="apui-card ec-address-card"' )
+            ->toContain( 'aria-label="Delete Home"' )
+            ->toContain( 'aria-label="Delete Office"' )
+            ->not->toContain( 'rounded-box' )
+            ->not->toContain( 'border-base-content' )
+            ->not->toContain( 'text-error' );
+
+        $home   = Illuminate\Support\Str::betweenFirst( $html, '>Home</h4>', '</section>' );
+        $office = Illuminate\Support\Str::betweenFirst( $html, '>Office</h4>', '</section>' );
+
+        // Default badges carry an icon, and "Use for …" only appears where the address isn't already that default.
+        expect( $home )
+            ->toContain( 'Default shipping' )
+            ->toContain( 'Default billing' )
+            ->toContain( 'data-color="primary"' )
+            ->not->toContain( 'Use for shipping' )
+            ->not->toContain( 'Use for billing' )
+            ->and( $office )
+            ->toContain( 'Use for shipping' )
+            ->toContain( 'Use for billing' )
+            ->not->toContain( 'Default shipping' );
+    } );
+
+    it( 'titles an unlabelled address by its first line', function (): void {
+        $customer = Customer::factory()->create();
+        CustomerAddress::factory()->create( [ 'customer_id' => $customer->id, 'label' => null, 'address1' => '88 Harbour Road' ] );
+
+        Livewire::test( AddressesTab::class, [ 'customer' => $customer ] )
+            ->assertSeeHtml( '>88 Harbour Road</h4>' )
+            ->assertSeeHtml( 'aria-label="Delete 88 Harbour Road"' );
+    } );
+
+    it( 'asks in the card footer before deleting', function (): void {
+        $customer = Customer::factory()->create();
+        $address  = CustomerAddress::factory()->create( [ 'customer_id' => $customer->id, 'label' => 'Parents' ] );
+
+        $html = Livewire::test( AddressesTab::class, [ 'customer' => $customer ] )
+            ->call( 'confirmDelete', $address->id )
+            ->html();
+
+        $card = Illuminate\Support\Str::betweenFirst( $html, '>Parents</h4>', '</section>' );
+
+        expect( $card )
+            ->toContain( 'class="ec-confirm ec-confirm-card"' )
+            ->toContain( 'role="alertdialog"' )
+            ->toContain( 'Orders that used it keep their own copy.' )
+            ->toContain( 'data-focus-return="address-delete-' . $address->id . '"' )
+            ->not->toContain( 'data-delete-address' );
+    } );
+
+    it( 'opens the address form in place of the grid', function (): void {
+        $customer = Customer::factory()->create();
+        CustomerAddress::factory()->create( [ 'customer_id' => $customer->id, 'label' => 'Home' ] );
+
+        $html = Livewire::test( AddressesTab::class, [ 'customer' => $customer ] )
+            ->call( 'startAdd' )
+            ->html();
+
+        expect( $html )
+            ->toContain( 'data-address-form' )
+            ->toContain( 'New address' )
+            ->toContain( 'Save address' )
+            ->not->toContain( 'class="ec-address-grid"' )
+            ->not->toContain( 'data-add-address' );
+    } );
+
+    it( 'shows the empty state without addresses', function (): void {
+        Livewire::test( AddressesTab::class, [ 'customer' => Customer::factory()->create() ] )
+            ->assertSee( [ 'Saved addresses', 'No saved addresses' ] )
+            ->assertSeeHtml( 'ec-empty-sunken' )
+            ->assertSeeHtml( 'data-add-address' );
     } );
 } );
 
@@ -179,6 +306,7 @@ describe( 'notification preferences tab', function (): void {
         Livewire::test( PreferencesTab::class, [ 'customer' => $customer ] )
             ->assertOk()
             ->assertSee( [ 'Order and account messages', 'Always on', 'Review requests', 'Marketing' ] )
+            ->assertSee( 'Change them only when the customer asks you to; transactional messages can\'t be turned off.' )
             ->assertSet( 'preferences.mail.marketing', false )
             ->assertSet( 'preferences.mail.review-requests', true );
     } );
@@ -202,7 +330,32 @@ describe( 'notification preferences tab', function (): void {
 
         Livewire::test( PreferencesTab::class, [ 'customer' => Customer::factory()->create() ] )
             ->assertDontSee( 'Save preferences' )
+            ->assertDontSee( 'Change them only when' )
             ->call( 'savePreferences' )
             ->assertForbidden();
+    } );
+
+    it( 'builds the preferences grid from design-system parts with no DaisyUI classes', function (): void {
+        $html = Livewire::test( PreferencesTab::class, [ 'customer' => Customer::factory()->create() ] )->html();
+
+        expect( $html )
+            ->toContain( 'class="apui-table ec-table"' )
+            ->toContain( 'class="apui-toggle' )
+            ->toContain( 'aria-label="Shipping updates by Email"' )
+            ->toContain( 'role="switch"' )
+            ->not->toContain( 'class="table' )
+            ->not->toContain( 'opacity-75' );
+
+        // "Always on" is a badge with a lock, not a disabled switch, so it isn't read as an option.
+        $locked = Illuminate\Support\Str::betweenFirst( $html, 'Order and account messages', '</tr>' );
+
+        expect( $locked )
+            ->toContain( 'data-always-on' )
+            ->toContain( 'data-color="neutral"' )
+            ->toContain( '<svg' )
+            ->not->toContain( 'role="switch"' );
+
+        // The switches are the small size.
+        expect( Illuminate\Support\Str::betweenFirst( $html, 'class="apui-toggle', '>' ) )->toContain( 'data-size="sm"' );
     } );
 } );

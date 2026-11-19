@@ -34,7 +34,8 @@ use Illuminate\View\Component;
  * and the error text role; a missing amount shows an em dash that reads as
  * "No amount". `compare-at` adds a struck-through earlier price that reads as
  * "Was …", and `show-code` adds the currency code for views that mix
- * currencies.
+ * currencies. `neutral` keeps the minus sign but drops the error tone, for
+ * amounts that are negative without being a problem, like a discount.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -54,13 +55,14 @@ class Money extends Component
 
     /**
      * @since 1.0.0
-     * @since 2.0.0 Added `$compareAt` and `$showCode`.
+     * @since 2.0.0 Added `$compareAt`, `$showCode` and `$neutral`.
      *
      * @param  int|null     $amount     The amount in minor units; null renders a dash.
      * @param  string|null  $currency   The ISO 4217 code; defaults to the store's base currency.
      * @param  string|null  $locale     The display locale; defaults to the app locale.
      * @param  int|null     $compareAt  An earlier price in minor units, shown struck through after the amount.
      * @param  bool         $showCode   Whether to show the currency code, for views that mix currencies.
+     * @param  bool         $neutral    Whether a negative amount keeps the default text colour instead of the error tone.
      */
     public function __construct(
         public ?int $amount = null,
@@ -68,6 +70,7 @@ class Money extends Component
         public ?string $locale = null,
         public ?int $compareAt = null,
         public bool $showCode = false,
+        public bool $neutral = false,
     ) {
         $this->currency ??= (string) config( 'artisanpack.ecommerce.base_currency', 'USD' );
     }
@@ -102,7 +105,7 @@ class Money extends Component
     }
 
     /**
-     * The text tone: `negative` below zero, else none.
+     * The text tone: `negative` below zero (unless neutral), else none.
      *
      * @since 2.0.0
      *
@@ -110,7 +113,7 @@ class Money extends Component
      */
     public function tone(): ?string
     {
-        return null !== $this->amount && $this->amount < 0 ? 'negative' : null;
+        return ! $this->neutral && null !== $this->amount && $this->amount < 0 ? 'negative' : null;
     }
 
     /**
