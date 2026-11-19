@@ -31,7 +31,8 @@ it( 'renders subscriptions with their state and failures', function (): void {
         ->assertSee( 'https://partner.example.test/hooks' )
         ->assertSee( 'order.refunded' )
         ->assertSee( 'All events' )
-        ->assertSee( 'Disabled after 10 failures' );
+        ->assertSeeHtml( 'data-webhook-state="disabled"' )
+        ->assertSeeHtml( 'data-failing data-webhook-failures>10</bdi>' );
 } );
 
 it( 'is denied without webhookSubscription.viewAny', function (): void {

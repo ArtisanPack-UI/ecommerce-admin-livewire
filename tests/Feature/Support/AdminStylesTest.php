@@ -34,3 +34,13 @@ it( 'gives body row headers the same cell box as the design system\'s body cells
         ->toContain( 'block-size: var(--apui-row-height)' )
         ->and( $css )->toContain( 'tr:last-child > th[data-scope="table"][data-part="cell"]' );
 } );
+
+it( 'keeps the Add a class inputs level when the Key field shows its hint', function (): void {
+    $css    = AdminStyles::css();
+    $fields = Illuminate\Support\Str::betweenFirst( $css, '.ec-tax-add-fields {', '}' );
+    $submit = Illuminate\Support\Str::betweenFirst( $css, '.ec-tax-add-submit {', '}' );
+
+    // Top-aligned fields, with the button dropped past the field label (18px line + 6px gap).
+    expect( $fields )->toContain( 'align-items: start' )
+        ->and( $submit )->toContain( 'padding-block-start: 24px' );
+} );

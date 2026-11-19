@@ -3067,4 +3067,500 @@
     .ec-shipping-method__name {
         font-weight: var(--apui-font-weight-medium, 500);
     }
+
+    /* Tax (#133): classes table with in-row rename and the sunken add panel, the rates table flush in its card, and the import dialog. */
+    .ec-tax-rename {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        min-inline-size: min(17.5rem, 100%);
+    }
+
+    .ec-tax-rename-field {
+        flex: 1 1 10rem;
+        min-inline-size: 0;
+    }
+
+    .ec-tax-add-fields {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 12px;
+    }
+
+    /* Top-aligned, so a hint or error under either field leaves the inputs level; the button drops past the field label (18px line + 6px gap). */
+    .ec-tax-add-submit {
+        padding-block-start: 24px;
+    }
+
+    .ec-tax-choices {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 24px;
+    }
+
+    .ec-tax-form-actions {
+        gap: 8px;
+    }
+
+    /* The rates Resource table sits flush in its card: the card draws the frame. */
+    .apui-card .ec-tax-rates-table {
+        padding: 0;
+    }
+
+    .ec-tax-rates-table .ec-table {
+        border: 0;
+        border-block-start: var(--apui-border-width) solid var(--apui-border-muted);
+        border-radius: 0 0 calc(var(--apui-card-radius) - var(--apui-border-width)) calc(var(--apui-card-radius) - var(--apui-border-width));
+    }
+
+    .ec-tax-cell-field {
+        min-inline-size: 8rem;
+    }
+
+    .ec-tax-cell-narrow {
+        min-inline-size: 4.5rem;
+        max-inline-size: 6rem;
+    }
+
+    .ec-tax-cell-rate {
+        min-inline-size: 6.5rem;
+        max-inline-size: 7.5rem;
+    }
+
+    .ec-tax-yes {
+        display: inline-flex;
+        color: var(--apui-color-success-text);
+    }
+
+    .ec-tax-import-file {
+        display: grid;
+        gap: 8px;
+    }
+
+    .ec-tax-import-row {
+        display: block;
+    }
+
+    @media (max-width: 40rem) {
+        .ec-tax-add-fields {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .ec-tax-add-submit {
+            padding-block-start: 0;
+        }
+    }
+
+    /* Notification templates list (#134): filters row, one card per notification, channel icon beside its name. */
+    .ec-notif-list-filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 12px;
+    }
+
+    .ec-notif-list-filter {
+        inline-size: 12.5rem;
+        max-inline-size: 100%;
+    }
+
+    .ec-notif-list-groups {
+        display: grid;
+        gap: var(--apui-panel-gap, 16px);
+        min-inline-size: 0;
+    }
+
+    .ec-notif-list-heading {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 10px;
+        min-inline-size: 0;
+    }
+
+    .ec-notif-list-channel {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 30rem) {
+        .ec-notif-list-filter {
+            inline-size: 100%;
+        }
+    }
+
+    /* Notification template editor (#135). */
+    .ec-notif-edit-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 12px;
+    }
+
+    .ec-notif-edit-control {
+        inline-size: 200px;
+        max-inline-size: 100%;
+    }
+
+    .ec-notif-edit-add {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 8px;
+    }
+
+    .ec-notif-edit-active {
+        margin-inline-start: auto;
+        padding-block-end: 8px;
+    }
+
+    .ec-notif-edit-split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--apui-panel-gap, 16px);
+        align-items: start;
+    }
+
+    @media (min-width: 64rem) {
+        .ec-notif-edit-split {
+            grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+        }
+    }
+
+    .ec-notif-edit-col {
+        display: grid;
+        gap: var(--apui-panel-gap, 16px);
+        align-content: start;
+        min-inline-size: 0;
+    }
+
+    .ec-notif-edit-form {
+        display: grid;
+        gap: 18px;
+    }
+
+    /* The field error under Body already says what's wrong and on which line; the gutter marks the line. */
+    .ec-notif-edit-code [data-scope="code-editor"][data-part="diagnostics"] {
+        display: none;
+    }
+
+    .ec-notif-edit-sms-count {
+        margin-block-start: -8px;
+        text-align: end;
+    }
+
+    .ec-notif-edit-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding-block-start: 4px;
+    }
+
+    .ec-notif-edit-spacer {
+        flex: 1 1 auto;
+    }
+
+    .ec-notif-edit-vars {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-notif-edit-var {
+        border: 0;
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        cursor: pointer;
+    }
+
+    .ec-notif-edit-var:hover:not(:disabled) {
+        box-shadow: inset 0 0 0 1px var(--apui-border-default);
+    }
+
+    .ec-notif-edit-var:disabled {
+        cursor: not-allowed;
+        color: var(--apui-text-disabled);
+    }
+
+    .ec-notif-edit-var:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid transparent;
+        box-shadow:
+            0 0 0 var(--apui-focus-ring-offset, 2px) var(--apui-focus-ring-offset-color),
+            0 0 0 calc(var(--apui-focus-ring-offset, 2px) + var(--apui-focus-ring-width, 2px)) var(--apui-focus-ring-color);
+    }
+
+    .ec-notif-edit-vars-hint {
+        margin-block-start: 10px;
+    }
+
+    .ec-notif-edit-preview {
+        display: grid;
+        gap: 10px;
+    }
+
+    .ec-notif-edit-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ec-notif-edit-status .apui-icon {
+        color: var(--apui-color-success-text);
+    }
+
+    .ec-notif-edit-errors {
+        display: grid;
+        gap: 4px;
+        margin: 0;
+        padding-inline-start: 20px;
+        list-style: disc;
+        font-size: 13px;
+        line-height: 18px;
+        color: var(--apui-color-error-text);
+    }
+
+    /* The email preview renders on white, like an inbox, in light and dark alike: fixed gray primitives, not surface tokens. */
+    .ec-notif-edit-email {
+        overflow: hidden;
+        border: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-gray-0);
+        color: var(--apui-gray-900);
+        color-scheme: light;
+    }
+
+    .ec-notif-edit-email-head {
+        margin: 0;
+        padding: 10px 14px;
+        border-block-end: 1px solid var(--apui-gray-150);
+        background: var(--apui-gray-50);
+        color: var(--apui-gray-700);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    .ec-notif-edit-email-head strong {
+        color: var(--apui-gray-900);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-notif-edit-email-frame {
+        display: block;
+        inline-size: 100%;
+        block-size: 24rem;
+        border: 0;
+        background: var(--apui-gray-0);
+    }
+
+    .ec-notif-edit-sms {
+        display: grid;
+        justify-items: start;
+        gap: 6px;
+        padding: 16px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-notif-edit-sms-bubble {
+        max-inline-size: 260px;
+        margin: 0;
+        padding: 10px 14px;
+        border: 1px solid var(--apui-border-muted);
+        border-start-start-radius: 18px;
+        border-start-end-radius: 18px;
+        border-end-end-radius: 18px;
+        border-end-start-radius: 4px;
+        background: var(--apui-surface-raised);
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
+    .ec-notif-edit-text {
+        margin: 0;
+        padding: 12px;
+        border: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+        font-family: var(--apui-font-family-sans);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
+    /* A preview the current source no longer matches. */
+    .ec-notif-edit-stale {
+        opacity: 0.55;
+    }
+
+    @media (max-width: 40rem) {
+        .ec-notif-edit-active {
+            margin-inline-start: 0;
+        }
+
+        .ec-notif-edit-control {
+            inline-size: 100%;
+        }
+    }
+
+    /*
+     * Webhook subscriptions (#136): the name link reads as body text with
+     * the URL below in mono, truncated with the full address in its title;
+     * event keys as mono badges with "+N more"; a red failure count when it
+     * isn't zero; actions at the inline end; and the drawer's events list in
+     * a bordered scroll box, All events first in medium weight above a rule,
+     * every event key left to right in mono.
+     */
+    .ec-webhooks-name {
+        color: var(--apui-text-default);
+    }
+
+    .ec-webhooks-url {
+        display: inline-block;
+        max-inline-size: 22rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: bottom;
+    }
+
+    .ec-webhooks-events {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .ec-webhooks-event-key {
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-webhooks-more {
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-webhooks-failures[data-failing] {
+        color: var(--apui-color-error-text);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-webhooks-actions {
+        justify-content: flex-end;
+    }
+
+    .ec-webhooks-event-list [data-scope="checkbox-group"][data-part="items"] {
+        max-block-size: 340px;
+        overflow: auto;
+        padding: 4px 12px;
+        border: var(--apui-border-width, 1px) solid var(--apui-border-default);
+        border-radius: var(--apui-radius-md, 8px);
+    }
+
+    .ec-webhooks-event-list [data-part="items"] > .apui-checkbox:first-child {
+        padding-block-end: 8px;
+        margin-block-end: 4px;
+        border-block-end: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-webhooks-event-list [data-part="items"] > .apui-checkbox:first-child [data-part="label"] {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-webhooks-event-list [data-part="items"] > .apui-checkbox:not(:first-child) [data-part="label"] {
+        direction: ltr;
+        unicode-bidi: isolate;
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    .ec-webhooks-secret-note {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Webhook subscription detail (#137). */
+    .ec-webhook-detail-facts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
+        gap: 16px 24px;
+        margin: 0;
+    }
+
+    .ec-webhook-detail-facts > div {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        min-inline-size: 0;
+    }
+
+    .ec-webhook-detail-facts dt {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-webhook-detail-facts dd {
+        margin: 0;
+        min-inline-size: 0;
+    }
+
+    .ec-webhook-detail-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-webhook-detail-code {
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-webhook-detail-failures {
+        color: var(--apui-color-error-text);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-webhook-detail-pair {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+    }
+
+    /* Payloads and responses are code: left-to-right even in RTL pages. */
+    .ec-webhook-detail-payload {
+        direction: ltr;
+        text-align: left;
+        margin: 0;
+        max-block-size: 24rem;
+        padding: 12px 14px;
+        overflow: auto;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: 19px;
+        white-space: pre;
+    }
+
+    .ec-webhook-detail-payload:focus-visible {
+        outline: var(--apui-focus-ring-width) solid var(--apui-focus-ring-color);
+        outline-offset: var(--apui-focus-ring-offset);
+    }
 }
