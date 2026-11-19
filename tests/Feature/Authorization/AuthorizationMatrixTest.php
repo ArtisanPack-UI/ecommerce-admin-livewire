@@ -68,6 +68,7 @@ const MATRIX = [
             'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'order.viewAny' ],
             'orderBroadcast'               => [ 'args' => [], 'ability' => 'order.viewAny' ],
             'dismissNewOrders'             => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'showNewOrders'                => [ 'args' => [], 'ability' => 'order.viewAny' ],
         ],
     ],
     'artisanpack-ecommerce-admin-orders-show' => [

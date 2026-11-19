@@ -23,6 +23,10 @@
     }
 
     .ecommerce-admin__brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-inline-size: 0;
         color: var(--apui-text-default);
         font-weight: var(--apui-font-weight-semibold, 600);
         text-decoration: none;
@@ -1729,6 +1733,374 @@
         }
     }
 
+
+    /* Admin layout (#115): store name in the sidebar, breadcrumbs and menu
+       button in the top bar; below 1024px the icon rail (data-collapsed, set
+       by the layout), below 768px the sidebar is a drawer behind the menu. */
+    .ecommerce-admin__brand-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .apui-app-shell[data-collapsed] .ecommerce-admin__brand-name {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .ecommerce-admin__sidebar {
+        display: grid;
+        gap: 4px;
+        min-inline-size: 0;
+    }
+
+    .ecommerce-admin__menu-button,
+    .ecommerce-admin__drawer-close {
+        display: none;
+    }
+
+    .ecommerce-admin__topbar [data-scope="navbar"][data-part="brand"] {
+        gap: 8px;
+        min-inline-size: 0;
+    }
+
+    .ecommerce-admin__breadcrumbs {
+        min-inline-size: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    @media (max-width: 47.999rem) {
+        .ecommerce-admin__menu-button {
+            display: inline-flex;
+        }
+
+        /* On a phone the trail is just the page: the root crumb hides. */
+        .ecommerce-admin__breadcrumbs li:not(:last-child) {
+            display: none;
+        }
+
+        .ecommerce-admin__shell:not([data-nav-open]) [data-scope="app-shell"][data-part="sidebar"] {
+            display: none;
+        }
+
+        .ecommerce-admin__shell[data-nav-open] [data-scope="app-shell"][data-part="sidebar"] {
+            position: fixed;
+            z-index: var(--apui-z-modal);
+            inset-block: var(--apui-shell-gutter, 12px);
+            inset-inline-start: var(--apui-shell-gutter, 12px);
+            inline-size: min(18rem, calc(100vw - 4rem));
+            overflow-y: auto;
+            box-shadow: var(--apui-shadow-lg, none), 0 0 0 100vmax var(--apui-backdrop);
+        }
+
+        .ecommerce-admin__shell[data-nav-open] .ecommerce-admin__drawer-close {
+            display: inline-flex;
+            justify-self: end;
+        }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .ecommerce-admin__shell[data-nav-open] [data-scope="app-shell"][data-part="sidebar"] {
+            animation: ec-drawer-in var(--apui-motion-duration-fast, 150ms) var(--apui-motion-ease-standard, ease-out);
+        }
+    }
+
+    @keyframes ec-drawer-in {
+        from {
+            opacity: 0;
+            translate: -8px 0;
+        }
+    }
+
+    /* Dashboard (#116): registry order, `full` widgets span both columns. */
+    .ec-dashboard-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--apui-panel-gap, 16px);
+    }
+
+    .ec-dashboard-widget {
+        display: grid;
+        min-inline-size: 0;
+    }
+
+    @media (min-width: 64rem) {
+        .ec-dashboard-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .ec-dashboard-widget--full {
+            grid-column: 1 / -1;
+        }
+    }
+
+    .ec-first-run {
+        padding-block: 56px;
+    }
+
+    .ec-dashboard-links {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(16.25rem, 100%), 1fr));
+        gap: var(--apui-panel-gap, 16px);
+    }
+
+    .ec-dashboard-links__list {
+        display: grid;
+        gap: 4px;
+    }
+
+    .ec-dashboard-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-block-size: 36px;
+        padding-inline: 10px;
+        border-radius: var(--apui-radius-md, 8px);
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        text-decoration: none;
+    }
+
+    .ec-dashboard-link:hover {
+        background: var(--apui-state-hover);
+    }
+
+    .ec-dashboard-link:focus-visible {
+        outline: var(--apui-focus-ring-width) solid transparent;
+        box-shadow: 0 0 0 var(--apui-focus-ring-width) var(--apui-focus-ring-color);
+    }
+
+    .ec-dashboard-link > svg {
+        flex: none;
+        inline-size: var(--apui-icon-size-md, 18px);
+        block-size: var(--apui-icon-size-md, 18px);
+        color: var(--apui-text-muted);
+    }
+
+    /* Orders list (#117): the new-orders banner and the bulk bar's parts. */
+    .ec-banner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+    }
+
+    .ec-banner > svg {
+        flex: none;
+        inline-size: var(--apui-icon-size-md, 18px);
+        block-size: var(--apui-icon-size-md, 18px);
+    }
+
+    .ec-banner__text {
+        flex: 1 1 16rem;
+        margin: 0;
+    }
+
+    .ec-focus-target {
+        min-inline-size: 0;
+        border-radius: var(--apui-radius-lg, 12px);
+        outline: none;
+    }
+
+    .ec-focus-target:focus-visible {
+        box-shadow: 0 0 0 var(--apui-focus-ring-width) var(--apui-focus-ring-color);
+    }
+
+    .ec-bulkbar__field {
+        inline-size: 13.75rem;
+        max-inline-size: 100%;
+    }
+
+    .ec-bulkbar__note {
+        color: var(--apui-text-muted);
+        font-weight: var(--apui-font-weight-regular, 400);
+    }
+
+    .ec-muted-text {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-grow {
+        flex: 1 1 12rem;
+        min-inline-size: 0;
+    }
+
+    /* Board columns (#113) and automations (#114): list rows in a card. The
+       design system pads a card header's foot only before a body, so the
+       strip and the list get the same 16px. */
+    [data-scope="card"][data-part="header"]:has(+ :is(.ec-board-strip, .ec-settings-list)) {
+        padding-block-end: 16px;
+    }
+
+    .ec-board-strip {
+        display: flex;
+        gap: 6px;
+        padding: 0 var(--apui-card-padding, 16px) 14px;
+        overflow: hidden;
+    }
+
+    .ec-board-strip__swatch {
+        flex: 1;
+        min-inline-size: 0;
+        block-size: 6px;
+        border-radius: var(--apui-radius-full, 9999px);
+        background: var(--ec-column-color);
+    }
+
+    .ec-settings-list {
+        border-block-start: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-settings-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        min-block-size: 48px;
+        padding-block: 10px;
+        padding-inline: var(--apui-card-padding, 16px) 12px;
+        border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-settings-row:last-child {
+        border-block-end: 0;
+    }
+
+    .ec-settings-row--off {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-settings-row__index {
+        flex: none;
+        inline-size: 14px;
+    }
+
+    .ec-settings-row__icon {
+        flex: none;
+        inline-size: var(--apui-icon-size-md, 18px);
+        block-size: var(--apui-icon-size-md, 18px);
+        color: var(--apui-text-muted);
+    }
+
+    .ec-settings-row__main {
+        display: grid;
+        flex: 1 1 12.5rem;
+        gap: 2px;
+        min-inline-size: 0;
+    }
+
+    .ec-settings-row__title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        min-inline-size: 0;
+    }
+
+    .ec-settings-row__name {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-settings-row__arrow {
+        flex: none;
+        inline-size: 14px;
+        block-size: 14px;
+        color: var(--apui-text-muted);
+    }
+
+    [dir="rtl"] .ec-settings-row__arrow {
+        scale: -1 1;
+    }
+
+    .ec-settings-row__actions {
+        display: flex;
+        gap: 2px;
+    }
+
+    .ec-column-chip {
+        display: inline-grid;
+        flex: none;
+        place-items: center;
+        inline-size: 28px;
+        block-size: 28px;
+        border-radius: var(--apui-radius-full, 9999px);
+        background: color-mix(in oklab, var(--ec-column-color) 16%, transparent);
+        color: var(--ec-column-color);
+    }
+
+    .ec-column-chip > svg {
+        inline-size: 16px;
+        block-size: 16px;
+    }
+
+    .ec-column-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ec-column-count--full {
+        color: var(--apui-color-warning-text);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-fieldset {
+        display: grid;
+        gap: 8px;
+        min-inline-size: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .ec-fieldset.ec-sunken {
+        gap: 14px;
+        padding: 16px;
+    }
+
+    .ec-fieldset__legend {
+        float: inline-start;
+        inline-size: 100%;
+        margin-block-end: 4px;
+        padding: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        font-weight: var(--apui-font-weight-semibold, 600);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+    }
+
+    .ec-widget-list {
+        display: grid;
+        gap: 4px;
+    }
+
+    .ec-widget-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-block: 6px;
+        padding-inline: 12px 8px;
+        border-radius: var(--apui-radius-md, 8px);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-widget-row__label {
+        display: grid;
+        flex: 1;
+        min-inline-size: 0;
+    }
+
+    .ec-widget-row__error {
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
     @media (forced-colors: active) {
         .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item .ec-admin-nav__badge {
             background: CanvasText;
@@ -1739,6 +2111,16 @@
         }
 
         .ec-kpi-link:focus-visible {
+            outline: var(--apui-focus-ring-width) solid Highlight;
+        }
+
+        .ec-board-strip__swatch,
+        .ec-column-chip {
+            forced-color-adjust: none;
+        }
+
+        .ec-dashboard-link:focus-visible,
+        .ec-focus-target:focus-visible {
             outline: var(--apui-focus-ring-width) solid Highlight;
         }
     }

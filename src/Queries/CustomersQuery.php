@@ -127,8 +127,8 @@ class CustomersQuery extends ResourceQuery
             'spent'             => static function ( Builder $query, mixed $value ): void {
                 $range   = (array) $value;
                 $subunit = MinorUnits::subunit( StoreCurrencies::base() );
-                $min     = self::minorBound( $range['min'] ?? null, $subunit, true );
-                $max     = self::minorBound( $range['max'] ?? null, $subunit, false );
+                $min     = static::minorBound( $range['min'] ?? null, $subunit, true );
+                $max     = static::minorBound( $range['max'] ?? null, $subunit, false );
 
                 if ( null !== $min ) {
                     $query->where( static::column( Customer::class, 'total_spent_amount' ), '>=', $min );
@@ -152,39 +152,5 @@ class CustomersQuery extends ResourceQuery
                 }
             },
         ];
-    }
-
-    /**
-     * A spend bound in the store currency's minor units.
-     *
-     * The table sends plain decimals (`.` separator, up to 4 places), which
-     * may be finer than the currency allows (`10.125` USD, `10.5` JPY), so
-     * the bound is rounded inward: a minimum up, a maximum down. Anything
-     * else is ignored rather than thrown.
-     *
-     * @since 1.0.0
-     *
-     * @param  mixed  $major    The bound in major units.
-     * @param  int    $subunit  Decimal places of the currency.
-     * @param  bool   $roundUp  Round up (a minimum) instead of down (a maximum).
-     *
-     * @return int|null
-     */
-    private static function minorBound( mixed $major, int $subunit, bool $roundUp ): ?int
-    {
-        $major = is_int( $major ) || is_string( $major ) ? trim( (string) $major ) : '';
-
-        if ( 1 !== preg_match( '/^\d{1,15}(\.\d{1,4})?$/D', $major ) ) {
-            return null;
-        }
-
-        $scaled = bcmul( $major, bcpow( '10', (string) $subunit, 0 ), 4 );
-        $whole  = bcadd( $scaled, '0', 0 );
-
-        if ( $roundUp && 0 !== bccomp( $scaled, $whole, 4 ) ) {
-            $whole = bcadd( $whole, '1', 0 );
-        }
-
-        return (int) $whole;
     }
 }

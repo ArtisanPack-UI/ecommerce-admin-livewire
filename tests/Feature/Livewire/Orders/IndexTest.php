@@ -261,11 +261,11 @@ it( 'exports every order matching the filters as CSV', function (): void {
 
     $rows = downloadedCsv( Livewire::test( Index::class )->set( 'filters.payment_status', 'paid' )->call( 'exportCsv' ) );
 
-    expect( $rows[0] )->toBe( [ 'Order', 'Placed', 'Customer', 'Status', 'Sub-status', 'Payment', 'Fulfillment', 'Total', 'Items' ] )
+    expect( $rows[0] )->toBe( [ 'Order', 'Customer', 'Placed', 'Status', 'Sub-status', 'Payment', 'Fulfillment', 'Items', 'Total' ] )
         ->and( $rows )->toHaveCount( 2 )
         ->and( $rows[1][0] )->toBe( 'PAID0001' )
         ->and( $rows[1][5] )->toBe( 'Paid' )
-        ->and( $rows[1][7] )->toBe( '10.50 USD' );
+        ->and( $rows[1][8] )->toBe( '10.50 USD' );
 } );
 
 it( 'exports only the selection from the bulk bar', function (): void {
@@ -291,7 +291,7 @@ it( 'neutralizes spreadsheet formulas in exported cells', function (): void {
     $rows = downloadedCsv( Livewire::test( Index::class )->call( 'exportCsv' ) );
 
     // The engine stores emails lowercased; the guard is what matters.
-    expect( strtolower( $rows[1][2] ) )->toStartWith( "'=hyperlink" );
+    expect( strtolower( $rows[1][1] ) )->toStartWith( "'=hyperlink" );
 } );
 
 it( 'caps an export at tables.export_max_rows and says so', function (): void {
@@ -446,4 +446,127 @@ it( 'tells screen readers how many results the table holds', function (): void {
         ->assertSeeHtml( 'data-live-region>3 results</div>' )
         ->set( 'search', 'nothing-matches-this' )
         ->assertSeeHtml( 'data-live-region>0 results</div>' );
+} );
+
+it( 'renders the page header with its description and the table in board order', function (): void {
+    $customer = Customer::factory()->create( [ 'first_name' => 'Maya', 'last_name' => 'Chen' ] );
+    Order::factory()->create( [ 'order_number' => '1048', 'customer_id' => $customer->id, 'email' => 'maya@example.test' ] );
+
+    Livewire::test( Index::class )
+        ->assertSee( 'Every order placed in your store, newest first.' )
+        ->assertSeeHtml( 'placeholder="Search by number, customer or email"' )
+        ->assertSeeInOrder( [ 'Order', 'Customer', 'Placed', 'Status', 'Sub-status', 'Payment', 'Fulfillment', 'Items', 'Total' ] )
+        ->assertSeeHtml( 'class="apui-link" data-standalone><bdi dir="ltr" class="ec-mono">#1048</bdi>' )
+        ->assertSeeHtml( 'data-part="primary"' )
+        ->assertSeeHtml( 'data-part="secondary"><bdi dir="ltr">maya@example.test</bdi>' )
+        ->assertSeeHtml( 'data-orders-table' )
+        ->assertDontSeeHtml( 'link-hover' );
+} );
+
+it( 'shows the new orders at the top of the first page, marked New', function (): void {
+    $old = Order::factory()->create( [ 'order_number' => 'OLD0001', 'placed_at' => now()->subDay() ] );
+
+    $component = Livewire::test( Index::class )
+        ->set( 'sortColumn', 'total' )
+        ->set( 'sortDirection', 'asc' );
+
+    $new = Order::factory()->count( 2 )->create( [ 'placed_at' => now() ] );
+
+    $component->call( 'orderBroadcast' )
+        ->assertSeeHtml( 'data-show-new-orders' )
+        ->assertDontSeeHtml( 'data-new-order=' )
+        ->call( 'showNewOrders' )
+        ->assertSet( 'newOrders', 0 )
+        ->assertSet( 'sortColumn', '' )
+        ->assertSet( 'highlightAfterId', $old->id )
+        ->assertSet( 'liveAnnouncement', '2 new orders shown at the top of the table.' )
+        ->assertDispatched( 'ecommerce-admin-new-orders-shown' )
+        ->assertDontSeeHtml( 'data-new-orders=' );
+
+    expect( substr_count( $component->html(), 'data-new-order=' ) )->toBe( 2 );
+
+    // Orders after that only count toward the next notice.
+    Order::factory()->create();
+
+    $component->call( 'orderBroadcast' )->assertSet( 'newOrders', 1 );
+} );
+
+it( 'does nothing when there are no new orders to show', function (): void {
+    Livewire::test( Index::class )
+        ->call( 'showNewOrders' )
+        ->assertSet( 'highlightAfterId', 0 )
+        ->assertNotDispatched( 'ecommerce-admin-new-orders-shown' );
+} );
+
+it( 'starts the next count from where a dismissed notice left off', function (): void {
+    Order::factory()->create();
+
+    $component = Livewire::test( Index::class );
+
+    Order::factory()->create();
+
+    $component->call( 'orderBroadcast' )->call( 'dismissNewOrders' );
+
+    Order::factory()->create();
+
+    $component->call( 'orderBroadcast' )
+        ->assertSet( 'newOrders', 1 )
+        ->call( 'showNewOrders' );
+
+    expect( substr_count( $component->html(), 'data-new-order=' ) )->toBe( 1 );
+} );
+
+it( 'leaves out the sub-status change when no sub-status fits every selected order', function (): void {
+    OrderSubstatus::factory()->create( [ 'system_status' => 'processing', 'key' => 'packing', 'label' => 'Packing' ] );
+    $processing = Order::factory()->create( [ 'system_status' => 'processing' ] );
+    $pending    = Order::factory()->create( [ 'system_status' => 'pending' ] );
+
+    Livewire::test( Index::class )
+        ->set( 'selected', [ (string) $processing->id ] )
+        ->assertSeeHtml( 'aria-label="Move to sub-status"' )
+        ->assertSee( 'Change sub-status' )
+        ->set( 'selected', [ (string) $processing->id, (string) $pending->id ] )
+        ->assertSeeHtml( 'data-bulk-substatus-mixed' )
+        ->assertDontSee( 'Change sub-status' )
+        ->assertSee( 'Export CSV' );
+} );
+
+it( 'filters by several fulfillment statuses at once', function (): void {
+    Order::factory()->create( [ 'order_number' => 'UNFU0001', 'fulfillment_status' => 'unfulfilled' ] );
+    Order::factory()->create( [ 'order_number' => 'PART0001', 'fulfillment_status' => 'partial' ] );
+    Order::factory()->create( [ 'order_number' => 'FULL0001', 'fulfillment_status' => 'fulfilled' ] );
+
+    Livewire::test( Index::class )
+        ->set( 'filters.fulfillment_status', [ 'unfulfilled', 'partial' ] )
+        ->assertSee( '#UNFU0001' )
+        ->assertSee( '#PART0001' )
+        ->assertDontSee( '#FULL0001' );
+
+    // A single value from an older URL still filters.
+    Livewire::withQueryParams( [ 'filters' => [ 'fulfillment_status' => 'fulfilled' ] ] )
+        ->test( Index::class )
+        ->assertSee( '#FULL0001' )
+        ->assertDontSee( '#PART0001' );
+} );
+
+it( 'filters by a total range in the store currency', function (): void {
+    Order::factory()->create( [ 'order_number' => 'LOW00001', 'total_amount' => 999, 'total_currency' => 'USD' ] );
+    Order::factory()->create( [ 'order_number' => 'MID00001', 'total_amount' => 5000, 'total_currency' => 'USD' ] );
+    Order::factory()->create( [ 'order_number' => 'HIGH0001', 'total_amount' => 20000, 'total_currency' => 'USD' ] );
+    Order::factory()->create( [ 'order_number' => 'EURO0001', 'total_amount' => 5000, 'total_currency' => 'EUR' ] );
+
+    Livewire::test( Index::class )
+        ->assertSee( 'Total (USD)' )
+        ->set( 'filters.total', [ 'min' => '10', 'max' => '100.00' ] )
+        ->assertSee( '#MID00001' )
+        ->assertDontSee( '#LOW00001' )
+        ->assertDontSee( '#HIGH0001' )
+        ->assertDontSee( '#EURO0001' )
+        ->set( 'filters.total', [ 'min' => 'abc' ] )
+        ->assertSee( '#EURO0001' );
+} );
+
+it( 'hides the live region with the design system\'s class, not Tailwind\'s', function (): void {
+    Livewire::test( Index::class )
+        ->assertSeeHtml( '<div class="apui-sr-only" role="status" aria-live="polite" aria-atomic="true" data-live-region>' );
 } );

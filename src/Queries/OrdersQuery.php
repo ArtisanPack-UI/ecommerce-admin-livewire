@@ -15,6 +15,8 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Queries;
 
 use ArtisanPackUI\Ecommerce\Models\Customer;
 use ArtisanPackUI\Ecommerce\Models\Order;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -129,7 +131,7 @@ class OrdersQuery extends ResourceQuery
             'system_status'      => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Order::class, 'system_status' ), (string) $value ),
             'substatus'          => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Order::class, 'substatus_id' ), (int) $value ),
             'payment_status'     => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Order::class, 'payment_status' ), (string) $value ),
-            'fulfillment_status' => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Order::class, 'fulfillment_status' ), (string) $value ),
+            'fulfillment_status' => static fn ( Builder $query, mixed $value ) => $query->whereIn( static::column( Order::class, 'fulfillment_status' ), array_map( 'strval', (array) $value ) ),
             'currency'           => static fn ( Builder $query, mixed $value ) => $query->where( static::column( Order::class, 'currency' ), strtoupper( (string) $value ) ),
             'awaiting'           => static fn ( Builder $query, mixed $value ) => '1' === (string) $value
                 ? $query->where( static::column( Order::class, 'system_status' ), 'processing' )->whereIn( static::column( Order::class, 'fulfillment_status' ), [ 'unfulfilled', 'partial' ] )
@@ -138,6 +140,28 @@ class OrdersQuery extends ResourceQuery
                 'boardAssignments',
                 static fn ( Builder $assignment ) => $assignment->where( 'board_id', (int) $value )->whereNull( 'removed_at' ),
             ),
+            'total'              => static function ( Builder $query, mixed $value ): void {
+                $range    = (array) $value;
+                $currency = StoreCurrencies::base();
+                $subunit  = MinorUnits::subunit( $currency );
+                $min      = static::minorBound( $range['min'] ?? null, $subunit, true );
+                $max      = static::minorBound( $range['max'] ?? null, $subunit, false );
+
+                if ( null === $min && null === $max ) {
+                    return;
+                }
+
+                // Totals in other currencies can't be compared, so they're left out.
+                $query->where( static::column( Order::class, 'total_currency' ), $currency );
+
+                if ( null !== $min ) {
+                    $query->where( static::column( Order::class, 'total_amount' ), '>=', $min );
+                }
+
+                if ( null !== $max ) {
+                    $query->where( static::column( Order::class, 'total_amount' ), '<=', $max );
+                }
+            },
             'placed'             => static function ( Builder $query, mixed $value ): void {
                 $range = (array) $value;
                 $from  = static::dayStart( $range['from'] ?? null );

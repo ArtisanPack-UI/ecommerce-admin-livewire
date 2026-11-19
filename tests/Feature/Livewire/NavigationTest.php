@@ -99,10 +99,12 @@ it( 'marks the active entry with aria-current', function (): void {
         ->assertOk()
         ->assertSeeHtml( 'aria-current="page"' );
 
-    expect( substr_count(
-        $this->actingAs( $user )->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->getContent(),
-        'aria-current="page"',
-    ) )->toBe( 1 );
+    // The breadcrumbs mark the page too; within the navigation, one entry is current.
+    $html = $this->actingAs( $user )->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->getContent();
+
+    $sidebar = Illuminate\Support\Str::between( $html, 'data-ecommerce-admin-navigation', 'data-part="main"' );
+
+    expect( substr_count( $sidebar, 'aria-current="page"' ) )->toBe( 1 );
 } );
 
 it( 'rejects tampering with the active entry', function (): void {

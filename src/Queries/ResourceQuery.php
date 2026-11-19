@@ -337,4 +337,38 @@ abstract class ResourceQuery
     {
         return static::date( $value )?->endOfDay()->setTimezone( (string) config( 'app.timezone', 'UTC' ) );
     }
+
+    /**
+     * An amount bound in a currency's minor units.
+     *
+     * The table sends plain decimals (`.` separator, up to 4 places), which
+     * may be finer than the currency allows (`10.125` USD, `10.5` JPY), so
+     * the bound is rounded inward: a minimum up, a maximum down. Anything
+     * else is ignored rather than thrown.
+     *
+     * @since 1.0.0
+     *
+     * @param  mixed  $major    The bound in major units.
+     * @param  int    $subunit  Decimal places of the currency.
+     * @param  bool   $roundUp  Round up (a minimum) instead of down (a maximum).
+     *
+     * @return int|null
+     */
+    protected static function minorBound( mixed $major, int $subunit, bool $roundUp ): ?int
+    {
+        $major = is_int( $major ) || is_string( $major ) ? trim( (string) $major ) : '';
+
+        if ( 1 !== preg_match( '/^\d{1,15}(\.\d{1,4})?$/D', $major ) ) {
+            return null;
+        }
+
+        $scaled = bcmul( $major, bcpow( '10', (string) $subunit, 0 ), 4 );
+        $whole  = bcadd( $scaled, '0', 0 );
+
+        if ( $roundUp && 0 !== bccomp( $scaled, $whole, 4 ) ) {
+            $whole = bcadd( $whole, '1', 0 );
+        }
+
+        return (int) $whole;
+    }
 }

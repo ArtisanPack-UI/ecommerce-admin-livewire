@@ -218,6 +218,7 @@ class Dashboard extends Component
             'sections'  => $sections,
             'createUrl' => $canCreate ? self::url( 'products.create' ) : null,
             'importUrl' => $canCreate ? self::url( 'products.import' ) : null,
+            'today'     => LocalizedDate::format( now( ReportRange::timezone() ), __( 'l, F j, Y' ) ),
             'dashboard' => [
                 'kpis'         => in_array( DashboardWidgets::KPIS, $keys, true ) ? $this->kpis( $kpiKeys ) : [],
                 'sales'        => in_array( DashboardWidgets::SALES, $keys, true ) ? $this->sales() : null,

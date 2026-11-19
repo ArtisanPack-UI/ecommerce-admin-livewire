@@ -53,7 +53,10 @@ it( 'lists the automations with their trigger and conditions', function (): void
 it( 'asks for columns first on a board without any', function (): void {
     Livewire::test( Automations::class, [ 'board' => KanbanBoard::factory()->create() ] )
         ->assertSee( 'Add columns first' )
-        ->assertDontSee( 'Add automation' );
+        ->assertSeeHtml( 'data-add-automation-unavailable' )
+        ->assertSeeHtml( 'aria-describedby="board-automations-needs-columns"' )
+        ->assertSeeHtml( 'id="board-automations-needs-columns"' )
+        ->assertDontSeeHtml( 'wire:click="create"' );
 } );
 
 it( 'is denied without kanbanBoard.view', function (): void {
@@ -67,6 +70,7 @@ it( 'refuses writes without kanbanBoard.update', function (): void {
 
     Livewire::test( Automations::class, [ 'board' => $this->board ] )
         ->assertDontSee( 'Add automation' )
+        ->assertDontSeeHtml( 'data-automation-switch' )
         ->call( 'create' )
         ->assertForbidden();
 } );
@@ -323,4 +327,86 @@ it( 'refuses a plain-http webhook trigger URL unless insecure URLs are allowed',
         ->set( 'form.trigger_config.url', 'http://hooks.example.test/' )
         ->call( 'save' )
         ->assertHasErrors( 'form.trigger_config.url' );
+} );
+
+it( 'reads each automation as from → into on the design-system card, with a switch', function (): void {
+    $automation = KanbanAutomation::factory()->create( [
+        'board_id'       => $this->board->id,
+        'from_column_id' => $this->packing->id,
+        'to_column_id'   => $this->shipped->id,
+        'trigger_key'    => 'send-email',
+        'trigger_config' => [ 'to' => [ 'customer' ], 'subject' => 'Shipped', 'body' => '' ],
+        'is_active'      => true,
+    ] );
+
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->assertSeeHtml( 'class="apui-card" aria-labelledby="board-automations-heading"' )
+        ->assertSeeInOrder( [ 'Packing', 'to', 'Shipped', 'Send an email' ] )
+        ->assertSeeHtml( 'role="switch"' )
+        ->assertSeeHtml( 'aria-label="Packing to Shipped: Send an email"' )
+        ->assertSeeHtml( 'wire:change="toggleActive( ' . $automation->id . ' )"' )
+        ->assertDontSeeHtml( 'ec-settings-row--off' )
+        ->assertDontSeeHtml( 'class="flex' );
+} );
+
+it( 'dims a switched-off automation and keeps its switch usable', function (): void {
+    $automation = KanbanAutomation::factory()->create( [
+        'board_id'     => $this->board->id,
+        'to_column_id' => $this->shipped->id,
+        'is_active'    => false,
+    ] );
+
+    $component = Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->assertSeeHtml( 'ec-settings-row--off' )
+        ->assertSeeHtml( 'data-inactive-automation' )
+        ->call( 'toggleActive', $automation->id )
+        ->assertDontSeeHtml( 'ec-settings-row--off' );
+
+    expect( $automation->fresh()->is_active )->toBeTrue()
+        ->and( sentToasts( $component ) )->toContain( 'Automation switched on.' );
+} );
+
+it( 'shows the empty state when the board has columns but no automations', function (): void {
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->assertSee( 'No automations yet' )
+        ->assertSeeHtml( 'ec-empty-sunken' )
+        ->assertSeeHtml( 'wire:click="create"' );
+} );
+
+it( 'warns about nested conditions in an alert with a one-click replace', function (): void {
+    $automation = KanbanAutomation::factory()->create( [
+        'board_id'     => $this->board->id,
+        'to_column_id' => $this->shipped->id,
+        'conditions'   => [ 'not' => [ 'type' => 'customer-first-order', 'config' => [] ] ],
+    ] );
+
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->call( 'edit', $automation->id )
+        ->assertSeeHtml( 'class="apui-alert"' )
+        ->assertSee( 'These conditions use &quot;any&quot; or &quot;not&quot; groups, which this screen cannot edit.', false )
+        ->assertSee( 'They are kept as they are when you save.' )
+        ->call( 'replaceComplexConditions' )
+        ->assertDontSeeHtml( 'data-complex-conditions' );
+} );
+
+it( 'removes the signing secret with a button that can be undone before saving', function (): void {
+    $automation = KanbanAutomation::factory()->create( [
+        'board_id'       => $this->board->id,
+        'to_column_id'   => $this->shipped->id,
+        'trigger_key'    => 'webhook',
+        'trigger_config' => [ 'url' => 'https://example.test/hook', 'secret' => 's3cret' ],
+    ] );
+
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->call( 'edit', $automation->id )
+        ->assertSeeHtml( 'data-clear-secret' )
+        ->set( 'clearSecret', true )
+        ->assertSee( 'The signing secret is removed when you save.' )
+        ->assertSeeHtml( 'data-keep-secret' )
+        ->set( 'clearSecret', false )
+        ->assertSeeHtml( 'data-clear-secret' )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( $automation->fresh()->trigger_config['secret'] )->toBe( 's3cret' );
 } );
