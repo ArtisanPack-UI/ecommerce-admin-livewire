@@ -398,3 +398,13 @@ it( 'moves focus to a neighbour after a delete', function ( string $deleted, ?st
     'the sibling after it'          => [ 'Art', 'Mugs' ],
     'nothing when the tree empties' => [ 'Lone', null ],
 ] );
+
+it( 'falls back to a focusable heading when the user who emptied the tree cannot create', function (): void {
+    Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )->not->toContain( 'wire:click="create"' )
+        ->toContain( 'focusPage()' )
+        ->toContain( "target.setAttribute( 'tabindex', '-1' )" );
+} );

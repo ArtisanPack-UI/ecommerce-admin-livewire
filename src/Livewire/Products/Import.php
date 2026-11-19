@@ -511,7 +511,8 @@ class Import extends Component
     {
         return array_map(
             static function ( string $header ) use ( $row ): string {
-                $value = Csv::uncell( (string) ( $row[ $header ] ?? '' ) );
+                // The state is saved as JSON, which a stray non-UTF-8 byte (a Windows-1252 "é") would fail and wipe.
+                $value = mb_scrub( Csv::uncell( (string) ( $row[ $header ] ?? '' ) ), 'UTF-8' );
 
                 return mb_strlen( $value ) > self::SAMPLE_LENGTH ? mb_substr( $value, 0, self::SAMPLE_LENGTH - 1 ) . '…' : $value;
             },

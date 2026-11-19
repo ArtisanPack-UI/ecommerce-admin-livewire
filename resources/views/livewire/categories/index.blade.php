@@ -28,9 +28,19 @@
 <div
     class="ec-stack"
     data-categories-index
-    x-data
-    {{-- With the last category gone the tree (and its own listener) is gone too; focus the page's New category. --}}
-    x-on:ecommerce-admin-category-deleted.window="null === $event.detail.focus && $nextTick( () => ( $root.querySelector( '[data-new-category]' ) ?? $root.querySelector( 'h1' ) )?.focus() )"
+    x-data="{
+        focusPage() {
+            const target = this.$root.querySelector( '[data-new-category]' ) ?? this.$root.querySelector( 'h1' );
+
+            if ( target && 'H1' === target.tagName ) {
+                target.setAttribute( 'tabindex', '-1' );
+            }
+
+            target?.focus();
+        },
+    }"
+    {{-- With the last category gone the tree (and its own listener) is gone too; focus New category, or the heading for a user who can't create. --}}
+    x-on:ecommerce-admin-category-deleted.window="null === $event.detail.focus && $nextTick( () => focusPage() )"
 >
     <x-artisanpack-page-header :title="__( 'Categories' )" :description="__( 'Group products so shoppers can browse them. Order here is the order on the storefront.' )" :level="1">
         @if ( $canCreate )

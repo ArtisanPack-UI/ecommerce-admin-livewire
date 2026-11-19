@@ -584,6 +584,20 @@ it( 'cuts the first row to 80 characters, counting multibyte text by character',
     'cjk'      => '漢',
 ] );
 
+it( 'keeps the import when the first row has a non-UTF-8 byte in an ignored column', function (): void {
+    $component = Livewire::test( Import::class )
+        ->set( 'csv', importUpload( "sku,notes\nA-1,caf\xE9\n" ) )
+        ->call( 'uploadCsv' )
+        ->assertHasNoErrors()
+        ->assertSeeHtml( 'data-import-mapping' );
+
+    $sample = importState( $component )['sample'];
+
+    expect( $sample[0] )->toBe( 'A-1' )
+        ->and( mb_check_encoding( $sample[1], 'UTF-8' ) )->toBeTrue()
+        ->and( $sample[1] )->toStartWith( 'caf' );
+} );
+
 it( 'shows a dash for the first row of an import saved before the sample was kept', function (): void {
     $component = Livewire::test( Import::class )
         ->set( 'csv', importUpload( "sku,colour\nA-1,Navy\n" ) )
