@@ -16,6 +16,11 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns;
 /**
  * Shows `<x-artisanpack-toast>` notices from an admin component.
  *
+ * The toast renders the title and description with Alpine's `x-html`, so
+ * both are HTML-escaped here: they often carry stored names (products,
+ * customers, promotions) and engine messages, which must never run as
+ * markup in another admin's browser.
+ *
  * livewire-ui-components ships a `Toast` trait, but its methods are public,
  * which makes each of them a Livewire action any client could call. These
  * helpers are protected, so they stay server-side.
@@ -75,10 +80,12 @@ trait SendsToasts
     /**
      * Dispatches the toast to the browser.
      *
-     * The payload goes through `json_encode` with the HEX flags, so titles
-     * that contain quotes or markup cannot break out of the script.
+     * The title and description are HTML-escaped for the toast's `x-html`.
+     * The payload then goes through `json_encode` with the HEX flags, so
+     * nothing can break out of the script either.
      *
      * @since 1.0.0
+     * @since 1.0.1 Escapes the title and description.
      *
      * @param  string       $type         The toast type.
      * @param  string       $title        The title.
@@ -93,8 +100,8 @@ trait SendsToasts
             [
                 'toast' => [
                     'type'        => $type,
-                    'title'       => $title,
-                    'description' => $description,
+                    'title'       => e( $title ),
+                    'description' => null === $description ? null : e( $description ),
                     'icon'        => '',
                     'css'         => $css,
                 ],
