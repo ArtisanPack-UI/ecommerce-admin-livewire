@@ -288,7 +288,11 @@ it( 'renames a code in its row', function (): void {
         ->toContain( 'aria-label="Code"' )
         ->toContain( 'data-focus-return="coupon-rename-' . $coupon->id . '"' )
         ->not->toContain( 'aria-label="Rename FALL15"' )
-        ->and( $html )->toContain( 'x-on:keydown.escape.prevent="$wire.cancelRename()"' );
+        ->toContain( 'data-rename-cancel' );
+
+    // Escape clicks the row's Cancel, so the shared focus return sends focus back to Rename.
+    expect( $html )->toContain( 'x-on:keydown.escape.prevent="$el.querySelector( \'[data-rename-cancel]\' )?.click()"' )
+        ->not->toContain( '$wire.cancelRename()' );
 } );
 
 it( 'confirms a delete in place of the row', function (): void {

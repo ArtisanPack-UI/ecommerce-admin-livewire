@@ -20,12 +20,17 @@
     <div class="ec-section-head">
         <x-artisanpack-heading :level="3" :size="6" id="customer-addresses-heading-{{ $this->getId() }}">{{ __( 'Saved addresses' ) }}</x-artisanpack-heading>
         @if ( $canUpdate && ! $showForm )
-            <x-artisanpack-button variant="outline" color="neutral" size="sm" leading-icon="plus" wire:click="startAdd" wire:loading.attr="disabled" wire:target="startAdd" data-add-address>{{ __( 'Add address' ) }}</x-artisanpack-button>
+            <x-artisanpack-button variant="outline" color="neutral" size="sm" leading-icon="plus" wire:click="startAdd" wire:loading.attr="disabled" wire:target="startAdd" data-focus-key="address-add" data-add-address>{{ __( 'Add address' ) }}</x-artisanpack-button>
         @endif
     </div>
 
     @if ( $showForm )
-        <form wire:submit="saveAddress" data-address-form>
+        @php
+            // Where focus goes back to once the form closes: the Edit button of the address being edited, or Add address.
+            $formReturnKey = null === $editingId ? 'address-add' : 'address-edit-' . $editingId;
+        @endphp
+        {{-- The first field takes focus when the form opens. --}}
+        <form wire:submit="saveAddress" x-data x-init="$nextTick( () => $el.querySelector( 'input, select' )?.focus() )" data-address-form>
             <x-artisanpack-card :title="null === $editingId ? __( 'New address' ) : __( 'Edit address' )" :classes="[ 'body' => 'ec-stack' ]">
                 @include( 'ecommerce-admin::partials.error-summary' )
 
@@ -43,8 +48,8 @@
                 @enderror
 
                 <x-slot:footer>
-                    <x-artisanpack-button variant="ghost" color="neutral" wire:click="cancelForm">{{ __( 'Cancel' ) }}</x-artisanpack-button>
-                    <x-artisanpack-button type="submit" wire:loading.attr="disabled" wire:target="saveAddress">{{ __( 'Save address' ) }}</x-artisanpack-button>
+                    <x-artisanpack-button variant="ghost" color="neutral" wire:click="cancelForm" data-focus-return="{{ $formReturnKey }}">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                    <x-artisanpack-button type="submit" wire:loading.attr="disabled" wire:target="saveAddress" data-focus-return="{{ $formReturnKey }}">{{ __( 'Save address' ) }}</x-artisanpack-button>
                 </x-slot:footer>
             </x-artisanpack-card>
         </form>
@@ -108,7 +113,7 @@
                             </div>
                         @elseif ( $canUpdate )
                             <div data-scope="card" data-part="footer" class="ec-address-actions">
-                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="pencil" wire:click="startEdit( {{ $addressId }} )" wire:loading.attr="disabled" wire:target="startEdit">{{ __( 'Edit' ) }}</x-artisanpack-button>
+                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="pencil" wire:click="startEdit( {{ $addressId }} )" wire:loading.attr="disabled" wire:target="startEdit" data-focus-key="address-edit-{{ $addressId }}">{{ __( 'Edit' ) }}</x-artisanpack-button>
                                 @unless ( $savedAddress->is_default_shipping )
                                     <x-artisanpack-button variant="ghost" color="neutral" size="xs" wire:click="makeDefault( {{ $addressId }}, 'shipping' )" wire:loading.attr="disabled" wire:target="makeDefault">{{ __( 'Use for shipping' ) }}</x-artisanpack-button>
                                 @endunless

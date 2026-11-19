@@ -6,7 +6,8 @@
     holds "New code" (one code) and "Generate codes" (a batch with a prefix);
     below it a search, the code count and the CSV export sit above the
     codes table. Codes are mono and shown in capitals, and the hint says
-    lowercase input becomes uppercase. Rename happens in the row; Delete
+    lowercase input becomes uppercase. Rename happens in the row (Escape
+    clicks its Cancel, so focus returns to Rename like a click would); Delete
     confirms in place of the row and warns that the code stops working
     right away. The engine counts uses per promotion, so unless a satellite
     supplies per-code counts (and the Uses column), a note points to the
@@ -151,7 +152,7 @@
                                         <form
                                             wire:submit="saveRename"
                                             class="ec-rename-row"
-                                            x-on:keydown.escape.prevent="$wire.cancelRename()"
+                                            x-on:keydown.escape.prevent="$el.querySelector( '[data-rename-cancel]' )?.click()"
                                             data-rename-code="{{ $couponId }}"
                                         >
                                             <x-artisanpack-input
@@ -166,7 +167,7 @@
                                                 wire:model="editingCode"
                                             />
                                             <x-artisanpack-button type="submit" size="xs" data-focus-return="coupon-rename-{{ $couponId }}" wire:loading.attr="disabled" wire:target="saveRename">{{ __( 'Save' ) }}</x-artisanpack-button>
-                                            <x-artisanpack-button variant="ghost" color="neutral" size="xs" wire:click="cancelRename" data-focus-return="coupon-rename-{{ $couponId }}">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                                            <x-artisanpack-button variant="ghost" color="neutral" size="xs" wire:click="cancelRename" data-focus-return="coupon-rename-{{ $couponId }}" data-rename-cancel>{{ __( 'Cancel' ) }}</x-artisanpack-button>
                                         </form>
                                     @else
                                         <bdi dir="ltr" class="ec-mono ec-strong">{{ $coupon->code }}</bdi>

@@ -291,6 +291,29 @@ describe( 'addresses tab', function (): void {
             ->not->toContain( 'data-add-address' );
     } );
 
+    it( 'moves focus into the address form and back to the control that opened it', function (): void {
+        $customer = Customer::factory()->create();
+        $address  = CustomerAddress::factory()->create( [ 'customer_id' => $customer->id, 'label' => 'Home' ] );
+
+        $component = Livewire::test( AddressesTab::class, [ 'customer' => $customer ] );
+
+        expect( $component->html() )
+            ->toContain( 'data-focus-key="address-add"' )
+            ->toContain( 'data-focus-key="address-edit-' . $address->id . '"' );
+
+        // The first field takes focus when the form opens.
+        expect( Illuminate\Support\Str::betweenFirst( $component->call( 'startAdd' )->html(), '<form', 'data-address-form' ) )
+            ->toContain( 'x-init="$nextTick( () => $el.querySelector( \'input, select\' )?.focus() )"' );
+
+        // Cancel and Save send focus back to Add address after adding…
+        expect( substr_count( $component->html(), 'data-focus-return="address-add"' ) )->toBe( 2 );
+
+        // …and to the address's Edit button after editing, even though cancelForm clears editingId.
+        $html = $component->call( 'cancelForm' )->call( 'startEdit', $address->id )->html();
+
+        expect( substr_count( $html, 'data-focus-return="address-edit-' . $address->id . '"' ) )->toBe( 2 );
+    } );
+
     it( 'shows the empty state without addresses', function (): void {
         Livewire::test( AddressesTab::class, [ 'customer' => Customer::factory()->create() ] )
             ->assertSee( [ 'Saved addresses', 'No saved addresses' ] )
