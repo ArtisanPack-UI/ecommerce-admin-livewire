@@ -23,22 +23,26 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithResourceTable;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Queries\TagsQuery;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
- * The tags table (spec §7.2): name, slug, and product count, with inline
- * create, rename, and delete, and a merge bulk action.
+ * The tags table (spec §7.2, #123): name, slug, and product count, with
+ * a quick-add card, rename in the row, delete, and a merge bulk action.
+ * Product counts link to the Products list filtered by the tag.
  *
  * Merging moves every product of the selected tags to the chosen tag, then
  * deletes the selected tags (the engine's `ProductTagService::merge()`).
- * Deleting a row reuses the bulk delete, so it asks for confirmation and
- * carries a one-time action token.
+ * Merge checks the chosen tag first, then asks for confirmation inline,
+ * like delete. Deleting a row reuses the bulk delete, so it asks for
+ * confirmation and carries a one-time action token.
  *
  * Tags have no policy of their own; the screen uses the product abilities
  * (spec §6).
@@ -53,7 +57,9 @@ class Index extends Component
     use AuthorizesEcommerce;
     use SendsToasts;
     use WithActionToken;
-    use WithResourceTable;
+    use WithResourceTable {
+        runBulkAction as protected runResourceBulkAction;
+    }
 
     /**
      * The name of the tag being created.
@@ -220,6 +226,27 @@ class Index extends Component
     }
 
     /**
+     * Runs a bulk action. Merge checks the tag to merge into before it asks
+     * for confirmation, so a missing choice is reported beside the select.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $key  The bulk action key.
+     *
+     * @return mixed A download response, or null.
+     */
+    public function runBulkAction( string $key ): mixed
+    {
+        if ( 'merge' === $key ) {
+            $this->authorizeTable();
+            $this->authorizeEcommerceAbility( 'product.update' );
+            $this->validateMergeTarget();
+        }
+
+        return $this->runResourceBulkAction( $key );
+    }
+
+    /**
      * Asks to confirm deleting one tag (through the bulk delete).
      *
      * @since 1.0.0
@@ -252,7 +279,23 @@ class Index extends Component
             'canUpdate'    => Authorization::allows( auth()->user(), 'product.update' ),
             'canDelete'    => Authorization::allows( auth()->user(), 'product.delete' ),
             'mergeOptions' => $data['tableSelectionCount'] > 0 ? self::tagOptions() : [],
+            'productsUrl'  => Route::has( AdminNav::ROUTE_PREFIX . 'products.index' ) ? route( AdminNav::ROUTE_PREFIX . 'products.index' ) : null,
         ] );
+    }
+
+    /**
+     * Drops a merge confirmation once the tag to merge into changes, so
+     * Confirm can only ever run the merge its text names.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    public function updatedMergeTargetId(): void
+    {
+        if ( 'merge' === $this->confirmingBulkAction ) {
+            $this->confirmingBulkAction = null;
+        }
     }
 
     /**
@@ -266,11 +309,7 @@ class Index extends Component
      */
     protected function mergeSelection( Builder $selection ): ?string
     {
-        $this->validate(
-            [ 'mergeTargetId' => [ 'required', 'integer', Rule::exists( ProductTag::class, 'id' ) ] ],
-            [],
-            [ 'mergeTargetId' => __( 'tag to merge into' ) ],
-        );
+        $this->validateMergeTarget();
 
         $target  = ProductTag::query()->findOrFail( (int) $this->mergeTargetId );
         $service = app( ProductTagService::class );
@@ -290,6 +329,22 @@ class Index extends Component
             'Merged :count tag into ":tag".|Merged :count tags into ":tag".',
             $merged,
             [ 'count' => $merged, 'tag' => $target->name ],
+        );
+    }
+
+    /**
+     * Checks the tag to merge into.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    protected function validateMergeTarget(): void
+    {
+        $this->validate(
+            [ 'mergeTargetId' => [ 'required', 'integer', Rule::exists( ProductTag::class, 'id' ) ] ],
+            [],
+            [ 'mergeTargetId' => __( 'tag to merge into' ) ],
         );
     }
 
@@ -383,21 +438,23 @@ class Index extends Component
                 'key'      => 'slug',
                 'label'    => __( 'Slug' ),
                 'sortable' => true,
+                'view'     => $cells . 'slug',
+                'export'   => static fn ( ProductTag $tag ): string => (string) $tag->slug,
             ],
             [
                 'key'      => 'products',
                 'label'    => __( 'Products' ),
                 'sortable' => true,
-                'class'    => 'text-end',
-                'value'    => static fn ( ProductTag $tag ): string => (string) (int) $tag->products_count,
+                'numeric'  => true,
+                'view'     => $cells . 'products',
                 'export'   => static fn ( ProductTag $tag ): int => (int) $tag->products_count,
             ],
             [
-                'key'        => 'actions',
-                'label'      => __( 'Actions' ),
-                'class'      => 'text-end',
-                'view'       => $cells . 'actions',
-                'exportable' => false,
+                'key'         => 'actions',
+                'label'       => __( 'Actions' ),
+                'labelHidden' => true,
+                'view'        => $cells . 'actions',
+                'exportable'  => false,
             ],
         ];
     }
@@ -422,21 +479,40 @@ class Index extends Component
         return [
             [
                 'key'     => 'merge',
-                'label'   => __( 'Merge into tag' ),
-                'icon'    => 'o-arrows-pointing-in',
+                'label'   => __( 'Merge' ),
+                'icon'    => 'zap',
                 'ability' => 'product.update',
+                'confirm' => $this->mergeConfirmation(),
                 'handler' => fn ( Builder $selection ): ?string => $this->mergeSelection( $selection ),
             ],
             [
                 'key'     => 'delete',
                 'label'   => __( 'Delete' ),
-                'icon'    => 'o-trash',
+                'icon'    => 'trash',
                 'ability' => 'product.delete',
                 'confirm' => __( 'Delete the selected tags? Products keep everything else; only these tags are removed from them.' ),
                 'handler' => fn ( Builder $selection ): ?string => $this->deleteSelection( $selection ),
             ],
             $this->exportBulkAction(),
         ];
+    }
+
+    /**
+     * The merge confirmation, naming the tag the selection merges into.
+     *
+     * @since 2.0.0
+     *
+     * @return string
+     */
+    private function mergeConfirmation(): string
+    {
+        $target = null === $this->mergeTargetId || '' === $this->mergeTargetId ? null : ProductTag::query()->find( (int) $this->mergeTargetId );
+
+        if ( null === $target ) {
+            return __( 'Move every product from the selected tags onto the chosen tag, then delete the selected tags?' );
+        }
+
+        return __( 'Move every product from the selected tags onto ":tag", then delete the other selected tags? This can\'t be undone.', [ 'tag' => $target->name ] );
     }
 
     /**

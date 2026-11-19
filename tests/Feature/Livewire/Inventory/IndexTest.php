@@ -184,6 +184,8 @@ it( 'edits the threshold and toggles backorders inline', function (): void {
     Livewire::test( Index::class )
         ->call( 'editThreshold', $item->id )
         ->assertSeeHtml( 'data-threshold-form="' . $item->id . '"' )
+        ->assertSeeHtml( 'x-on:keydown.escape.prevent.stop="$el.querySelector( \'[data-threshold-cancel]\' )?.click()"' )
+        ->assertSeeHtml( 'data-threshold-cancel' )
         ->set( 'thresholdValue', -2 )
         ->call( 'saveThreshold' )
         ->assertHasErrors( [ 'thresholdValue' => 'min' ] )
@@ -335,4 +337,104 @@ it( 'filters items at or below their threshold, out of stock included', function
         ->assertSee( 'Empty Mug' )
         ->assertDontSee( 'Full Mug' )
         ->assertDontSee( 'Loose Mug' );
+} );
+
+it( 'draws the design-system rows: product and variant, LTR SKU and counts, and named controls', function (): void {
+    $tote    = Product::factory()->variable()->create( [ 'name' => 'Canvas tote' ] );
+    $natural = ProductVariant::factory()->create( [ 'product_id' => $tote->id, 'name' => 'Natural', 'sku' => 'TOT-CNV-NAT' ] );
+    $item    = inventoryRow( $natural, 4, 15, 2 );
+    $item->forceFill( [ 'allow_backorder' => true ] )->save();
+
+    $html = Livewire::test( Index::class )
+        ->assertSee( 'Stock for every product and variant that tracks it.' )
+        ->assertSeeHtml( 'placeholder="Search by product or SKU"' )
+        ->assertSeeHtml( '<span data-scope="table" data-part="secondary" data-variant-name>Natural</span>' )
+        ->assertSeeHtml( '<bdi dir="ltr" class="ec-mono">TOT-CNV-NAT</bdi>' )
+        ->assertSeeHtml( 'data-low-stock' )
+        ->assertSeeHtml( 'data-icon-only' )
+        ->assertSeeHtml( 'aria-label="Allow backorders of Canvas tote — Natural"' )
+        ->assertSeeHtml( 'aria-label="Adjust stock of Canvas tote — Natural"' )
+        ->assertSeeHtml( 'aria-label="Edit the low-stock threshold of Canvas tote — Natural"' )
+        ->assertSeeHtml( 'data-focus-key="inventory-threshold-' . $item->id . '"' )
+        ->html();
+
+    expect( $html )
+        ->toContain( '>Allowed<' )
+        ->not->toMatch( '/class="[^"]*\b(btn|badge-|link-hover|text-end|tabular-nums|font-semibold|opacity-75|table-sm|text-error)\b/' );
+} );
+
+it( 'shows a disabled backorder switch and no pencil or Adjust on read-only stock', function (): void {
+    $item = inventoryRow( Product::factory()->create( [ 'name' => 'Coffee club', 'type' => 'subscription' ] ), 120 );
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )
+        ->toContain( 'data-read-only' )
+        ->toMatch( '/<input[^>]*aria-label="Allow backorders of Coffee club"[^>]*disabled/s' )
+        ->not->toContain( 'editThreshold( ' . $item->id . ' )' )
+        ->not->toContain( 'toggleBackorder( ' . $item->id . ' )' )
+        ->not->toContain( 'data-focus-key="inventory-adjust-' . $item->id . '"' );
+} );
+
+it( 'disables the backorder switch for users who may not adjust stock', function (): void {
+    Gate::define( 'ecommerce.inventory.adjust', static fn (): bool => false );
+    $item = inventoryRow( Product::factory()->create( [ 'name' => 'Mug' ] ), 3 );
+
+    expect( Livewire::test( Index::class )->html() )
+        ->toMatch( '/<input[^>]*aria-label="Allow backorders of Mug"[^>]*disabled/s' )
+        ->not->toContain( 'toggleBackorder( ' . $item->id . ' )' )
+        ->not->toContain( 'data-bulk-adjust-open' );
+} );
+
+it( 'previews the new on hand and available counts while adjusting', function (): void {
+    $item = inventoryRow( Product::factory()->create( [ 'name' => 'Beanie' ] ), 1, null, 1 );
+
+    Livewire::test( Index::class )
+        ->call( 'startAdjust', $item->id )
+        ->assertSee( 'On hand: 1. Reserved: 1. Available: 0.' )
+        ->assertDontSee( 'New on hand:' )
+        ->set( 'adjustQuantity', '+24' )
+        ->assertSee( 'New on hand: 25. New available: 24.' )
+        ->set( 'adjustMode', 'set' )
+        ->set( 'adjustQuantity', 10 )
+        ->assertSee( 'New count' )
+        ->assertSee( 'New on hand: 10. New available: 9.' )
+        ->set( 'adjustQuantity', 'abc' )
+        ->assertDontSee( 'New on hand:' );
+} );
+
+it( 'returns focus to the opener from the adjust dialog and the threshold editor', function (): void {
+    $item = inventoryRow( Product::factory()->create(), 5, 2 );
+
+    Livewire::test( Index::class )
+        ->call( 'startAdjust', $item->id )
+        ->assertSeeHtml( 'data-focus-key="inventory-adjust-' . $item->id . '"' )
+        ->assertSeeHtml( 'data-focus-return="inventory-adjust-' . $item->id . '"' )
+        ->call( 'closeAdjust' )
+        ->call( 'editThreshold', $item->id )
+        ->assertSeeHtml( 'data-focus-return="inventory-threshold-' . $item->id . '"' )
+        ->assertSeeHtml( 'aria-label="Low-stock threshold of ' );
+} );
+
+it( 'summarizes the checked CSV in an alert and shows each row error in place of its product', function (): void {
+    $mug = Product::factory()->create( [ 'name' => 'Mug', 'sku' => 'MUG-1' ] );
+    inventoryRow( $mug, 4 );
+
+    $html = Livewire::test( Index::class )
+        ->call( 'openBulkAdjust' )
+        ->assertSeeHtml( 'data-focus-return="inventory-bulk-adjust"' )
+        ->set( 'bulkMode', 'delta' )
+        ->set( 'stockCsv', stockCsvUpload( "sku,quantity\nMUG-1,-1\nXYZ-404,3\n" ) )
+        ->set( 'bulkReason', 'Count' )
+        ->call( 'dryRunBulkAdjust' )
+        ->assertSeeHtml( 'data-bulk-summary' )
+        ->assertSee( '1 row will change stock.' )
+        ->assertSee( '1 row has an error and will be skipped.' )
+        ->assertSee( 'Apply 1 change' )
+        ->html();
+
+    expect( $html )
+        ->toMatch( '/data-tone="negative"\s*>−1<\/bdi>/u' )
+        ->toMatch( '/data-bulk-error.*?<span class="ec-text-error">No product or variant has this SKU\.<\/span>/s' )
+        ->not->toContain( '>Problem<' );
 } );

@@ -18,7 +18,6 @@ use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use ArtisanPackUI\Ecommerce\Services\DigitalFileService;
-use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
@@ -29,8 +28,10 @@ use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
+use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
@@ -219,7 +220,7 @@ class Index extends Component
                 'form.source'             => [ 'required', Rule::in( [ 'path', 'media' ] ) ],
                 'form.disk'               => [ 'nullable', 'required_if:form.source,path', Rule::in( DigitalDisks::allowed() ) ],
                 'form.path'               => [ 'nullable', 'required_if:form.source,path', 'string', 'max:1000', DigitalDisks::relativePath() ],
-                'form.media_id'           => [ 'nullable', 'required_if:form.source,media', 'integer', 'min:1', DigitalDisks::privateMedia() ],
+                'form.media_id'           => [ 'bail', 'nullable', 'required_if:form.source,media', 'integer', 'min:1', self::viewableMedia( $file ), DigitalDisks::privateMedia() ],
             ],
             [],
             [
@@ -281,16 +282,6 @@ class Index extends Component
     }
 
     /**
-     * Receives the drawer's file from the media library.
-     *
-     * @since 1.0.0
-     *
-     * @param  array<int, array<string, mixed>>  $media    Selected media.
-     * @param  string                            $context  Modal context.
-     *
-     * @return void
-     */
-    /**
      * Archives the files the last delete kept because customers bought
      * them. Archived files stay downloadable for existing buyers.
      *
@@ -324,6 +315,16 @@ class Index extends Component
         $this->keptIds = [];
     }
 
+    /**
+     * Receives the drawer's file from the media library.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<int, array<string, mixed>>  $media    Selected media.
+     * @param  string                            $context  Modal context.
+     *
+     * @return void
+     */
     #[On( 'media-selected' )]
     public function mediaSelected( array $media = [], string $context = '' ): void
     {
@@ -366,11 +367,17 @@ class Index extends Component
         $productId = is_numeric( $this->form['product_id'] ?? null ) ? (int) $this->form['product_id'] : null;
         $version   = trim( (string) ( $this->form['version'] ?? '' ) );
 
-        return view( 'ecommerce-admin::livewire.digital-files.index', $this->resourceTableData() + [
-            'canCreate'      => $this->canEcommerce( 'create', DigitalFile::class ),
-            'canUpdate'      => Authorization::allows( $user, 'digitalFile.update' ),
-            'canDelete'      => Authorization::allows( $user, 'digitalFile.delete' ),
-            'variantOptions' => null === $productId ? [] : ProductVariant::query()
+        $table     = $this->resourceTableData();
+        $rowMedia  = isset( $table['tableRows'] ) ? $table['tableRows']->getCollection()->pluck( 'media_id' )->filter()->map( static fn ( mixed $id ): int => (int) $id )->all() : [];
+        $formMedia = is_numeric( $this->form['media_id'] ?? null ) ? (int) $this->form['media_id'] : null;
+
+        return view( 'ecommerce-admin::livewire.digital-files.index', $table + [
+            'canCreate'       => $this->canEcommerce( 'create', DigitalFile::class ),
+            'canViewProducts' => $this->canEcommerce( 'viewAny', Product::class ),
+            'mediaNames'      => self::mediaNames( null === $formMedia ? $rowMedia : [ ...$rowMedia, $formMedia ] ),
+            'canUpdate'       => Authorization::allows( $user, 'digitalFile.update' ),
+            'canDelete'       => Authorization::allows( $user, 'digitalFile.delete' ),
+            'variantOptions'  => null === $productId ? [] : ProductVariant::query()
                 ->where( 'product_id', $productId )
                 ->orderBy( 'position' )
                 ->orderBy( 'id' )
@@ -382,6 +389,87 @@ class Index extends Component
             'keptCount'      => count( $this->keptIds ),
             'mediaLibrary'   => ProductMedia::libraryInstalled(),
         ] );
+    }
+
+    /**
+     * The file names of media-library items, by id, for the items the user
+     * may view. The rest are left out, so they read "Media library file #id":
+     * a saved file says nothing about who may see its media's name.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, int>  $ids  Media ids.
+     *
+     * @return array<int, string>
+     */
+    public static function mediaNames( array $ids ): array
+    {
+        $model = DigitalFile::MEDIA_MODEL;
+        $ids   = array_values( array_unique( $ids ) );
+
+        if ( [] === $ids || ! class_exists( $model ) ) {
+            return [];
+        }
+
+        $names = [];
+
+        foreach ( $model::query()->whereKey( $ids )->get() as $media ) {
+            $id   = (int) $media->getKey();
+            $name = (string) ( $media->getAttribute( 'file_name' ) ?? '' );
+
+            if ( '' === $name || ! Gate::allows( 'view', $media ) ) {
+                continue;
+            }
+
+            $names[ $id ] = $name;
+        }
+
+        return $names;
+    }
+
+    /**
+     * A validation rule: a media item newly attached to a file must be one
+     * the user may view in the media library. It fails with the same message
+     * as a missing item, so it can't be used to learn which ids exist. The
+     * file's saved media, and installs without the media library, pass.
+     *
+     * @since 2.0.0
+     *
+     * @param  DigitalFile|null  $file  The file being edited, or null for a new one.
+     *
+     * @return Closure
+     */
+    public static function viewableMedia( ?DigitalFile $file ): Closure
+    {
+        return static function ( string $attribute, mixed $value, Closure $fail ) use ( $file ): void {
+            $model = DigitalFile::MEDIA_MODEL;
+
+            if ( ! is_numeric( $value ) || ! class_exists( $model ) || ( null !== $file && (int) $file->media_id === (int) $value ) ) {
+                return;
+            }
+
+            $media = $model::query()->find( (int) $value );
+
+            if ( null !== $media && ! Gate::allows( 'view', $media ) ) {
+                $fail( __( 'That media item can\'t be found.' ) );
+            }
+        };
+    }
+
+    /**
+     * The id of the product a file belongs to, directly or through its variant.
+     *
+     * @since 2.0.0
+     *
+     * @param  DigitalFile  $file  File with `product` and `variant.product` loaded.
+     *
+     * @return int|null
+     */
+    public static function ownerProductId( DigitalFile $file ): ?int
+    {
+        $product = null !== $file->variant ? $file->variant->product : $file->product;
+
+        return null === $product ? null : (int) $product->getKey();
     }
 
     /**
@@ -527,11 +615,14 @@ class Index extends Component
      */
     protected function tableColumns(): array
     {
+        $cells = 'ecommerce-admin::livewire.digital-files.cells.';
+
         return [
             [
-                'key'   => 'product',
-                'label' => __( 'Product' ),
-                'value' => static fn ( DigitalFile $file ): string => self::owner( $file ),
+                'key'    => 'product',
+                'label'  => __( 'Product' ),
+                'view'   => $cells . 'product',
+                'export' => static fn ( DigitalFile $file ): string => self::owner( $file ),
             ],
             [
                 'key'      => 'label',
@@ -542,22 +633,32 @@ class Index extends Component
                 'key'      => 'version',
                 'label'    => __( 'Version' ),
                 'sortable' => true,
-                'value'    => static fn ( DigitalFile $file ): string => (string) ( $file->version ?? '' ),
+                'view'     => $cells . 'version',
+                'export'   => static fn ( DigitalFile $file ): string => (string) ( $file->version ?? '' ),
             ],
             [
-                'key'   => 'file',
-                'label' => __( 'File' ),
-                'value' => static fn ( DigitalFile $file ): string => self::location( $file ),
+                'key'    => 'file',
+                'label'  => __( 'File' ),
+                'view'   => $cells . 'file',
+                'export' => static fn ( DigitalFile $file ): string => self::location( $file ),
+            ],
+            [
+                'key'        => 'status',
+                'label'      => __( 'Status' ),
+                'view'       => $cells . 'status',
+                'exportable' => false,
             ],
             [
                 'key'    => 'archived',
                 'label'  => __( 'Archived' ),
+                'listed' => false,
                 'value'  => static fn ( DigitalFile $file ): string => null === $file->archived_at ? __( 'No' ) : __( 'Yes' ),
                 'export' => static fn ( DigitalFile $file ): int => null === $file->archived_at ? 0 : 1,
             ],
             [
                 'key'    => 'streaming',
                 'label'  => __( 'Streaming only' ),
+                'listed' => false,
                 'value'  => static fn ( DigitalFile $file ): string => $file->is_streaming_only ? __( 'Yes' ) : __( 'No' ),
                 'export' => static fn ( DigitalFile $file ): int => $file->is_streaming_only ? 1 : 0,
             ],
@@ -565,15 +666,15 @@ class Index extends Component
                 'key'      => 'updated',
                 'label'    => __( 'Updated' ),
                 'sortable' => true,
-                'value'    => static fn ( DigitalFile $file ): string => null === $file->updated_at ? '' : LocalizedDate::format( $file->updated_at ),
+                'view'     => $cells . 'updated',
                 'export'   => static fn ( DigitalFile $file ): string => $file->updated_at?->format( DATE_ATOM ) ?? '',
             ],
             [
-                'key'        => 'actions',
-                'label'      => __( 'Actions' ),
-                'class'      => 'text-end',
-                'view'       => 'ecommerce-admin::livewire.digital-files.cells.actions',
-                'exportable' => false,
+                'key'         => 'actions',
+                'label'       => __( 'Actions' ),
+                'labelHidden' => true,
+                'view'        => $cells . 'actions',
+                'exportable'  => false,
             ],
         ];
     }
@@ -602,7 +703,7 @@ class Index extends Component
             [
                 'key'     => 'delete',
                 'label'   => __( 'Delete' ),
-                'icon'    => 'o-trash',
+                'icon'    => 'trash',
                 'ability' => 'digitalFile.delete',
                 'confirm' => __( 'Delete the selected files? Files customers already bought are kept, and you can archive them instead.' ),
                 'handler' => fn ( Builder $selection ): ?string => $this->deleteSelection( $selection ),
@@ -610,7 +711,7 @@ class Index extends Component
             [
                 'key'     => 'archive',
                 'label'   => __( 'Archive' ),
-                'icon'    => 'o-archive-box',
+                'icon'    => 'archive',
                 'ability' => 'digitalFile.update',
                 'confirm' => null,
                 'handler' => fn ( Builder $selection ): ?string => $this->archiveSelection( $selection ),

@@ -122,6 +122,19 @@ it( 'toggles the sort direction and resets to page one', function (): void {
         ->assertSet( 'sortColumn', 'number' );
 } );
 
+it( 'hides the toolbar\'s Clear filters behind the open drawer\'s own, but keeps it for a search alone', function (): void {
+    Order::factory()->create();
+
+    $searched = Livewire::test( Index::class )->set( 'search', 'nothing-like-this' )->html();
+
+    expect( $searched )->toMatch( '/x-bind:hidden="false"[^>]*data-toolbar-clear-filters/' );
+
+    $filtered = Livewire::test( Index::class )->set( 'filters.system_status', 'pending' )->html();
+
+    expect( $filtered )->toMatch( '/x-bind:hidden="filtersOpen"[^>]*data-toolbar-clear-filters/' )
+        ->and( substr_count( $filtered, 'Clear filters' ) )->toBe( 2 );
+} );
+
 it( 'shows the "nothing yet" and "no matches" empty states', function (): void {
     Livewire::test( Index::class )
         ->assertSee( 'No orders yet' )
