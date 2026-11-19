@@ -27,11 +27,13 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Webhooks;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Locked;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
- * The webhook subscriptions table (spec §7.8): name, URL, events, state,
- * last success, last failure, and consecutive failures.
+ * The webhook subscriptions table (spec §7.8, #136): name with its URL
+ * below, events, state, last success, last failure, and consecutive
+ * failures. The URL has no column of its own but stays in the CSV.
  *
  * - Create and edit happen in a drawer. The engine's URL rules (HTTPS
  *   unless insecure URLs are allowed; no private or loopback hosts) come
@@ -92,6 +94,17 @@ class Index extends Component
     ];
 
     /**
+     * The subscription whose drawer opens on load, from `?edit=` (#137's
+     * Edit button links here). Cleared once the drawer closes.
+     *
+     * @since 2.0.0
+     *
+     * @var string
+     */
+    #[Url( as: 'edit', except: '' )]
+    public string $editFromUrl = '';
+
+    /**
      * The subscription waiting for delete confirmation.
      *
      * @since 1.0.0
@@ -120,6 +133,7 @@ class Index extends Component
     public function mount(): void
     {
         $this->authorizeTable();
+        $this->openFromUrl();
     }
 
     /**
@@ -137,6 +151,7 @@ class Index extends Component
         $this->subscriptionId = null;
         $this->form           = [ 'name' => '', 'url' => '', 'events' => [], 'is_active' => true ];
         $this->editing        = true;
+        $this->editFromUrl    = '';
     }
 
     /**
@@ -167,6 +182,7 @@ class Index extends Component
             'is_active' => (bool) $subscription->is_active,
         ];
         $this->editing        = true;
+        $this->editFromUrl    = (string) $subscription->id;
     }
 
     /**
@@ -326,6 +342,10 @@ class Index extends Component
      */
     public function render(): View
     {
+        if ( ! $this->editing ) {
+            $this->editFromUrl = '';
+        }
+
         $user     = auth()->user();
         $rotating = null === $this->rotatingId || ! $this->confirmingRotate ? null : WebhookSubscription::query()->find( $this->rotatingId );
         $deleting = null === $this->deletingId || ! $this->confirmingDelete ? null : WebhookSubscription::query()->find( $this->deletingId );
@@ -341,6 +361,36 @@ class Index extends Component
             'deleting'         => $deleting,
             'deleteToken'      => null === $deleting ? null : $this->actionToken( 'delete', $deleting ),
         ] );
+    }
+
+    /**
+     * Opens the edit drawer for the subscription named by `?edit=`. An id
+     * that isn't a number, doesn't exist, or that the person may not edit
+     * is ignored, leaving the list as it is.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    protected function openFromUrl(): void
+    {
+        $id = trim( $this->editFromUrl );
+
+        if ( '' === $id || ! ctype_digit( $id ) ) {
+            $this->editFromUrl = '';
+
+            return;
+        }
+
+        $subscription = WebhookSubscription::query()->find( (int) $id );
+
+        if ( null === $subscription || ! Authorization::allows( auth()->user(), 'webhookSubscription.update', $subscription ) ) {
+            $this->editFromUrl = '';
+
+            return;
+        }
+
+        $this->edit( (int) $subscription->id );
     }
 
     /**
@@ -403,7 +453,7 @@ class Index extends Component
             [
                 'key'    => 'url',
                 'label'  => __( 'URL' ),
-                'view'   => $cells . 'url',
+                'listed' => false,
                 'export' => static fn ( WebhookSubscription $subscription ): string => (string) $subscription->url,
             ],
             [
@@ -434,18 +484,19 @@ class Index extends Component
             ],
             [
                 'key'      => 'failures',
-                'label'    => __( 'Consecutive failures' ),
+                'label'    => __( 'Failures' ),
                 'sortable' => true,
-                'class'    => 'text-end',
-                'value'    => static fn ( WebhookSubscription $subscription ): string => (string) (int) $subscription->consecutive_failures,
+                'numeric'  => true,
+                'view'     => $cells . 'failures',
                 'export'   => static fn ( WebhookSubscription $subscription ): int => (int) $subscription->consecutive_failures,
             ],
             [
-                'key'        => 'actions',
-                'label'      => __( 'Actions' ),
-                'class'      => 'text-end',
-                'view'       => $cells . 'actions',
-                'exportable' => false,
+                'key'         => 'actions',
+                'label'       => __( 'Actions' ),
+                'numeric'     => true,
+                'labelHidden' => true,
+                'view'        => $cells . 'actions',
+                'exportable'  => false,
             ],
         ];
     }

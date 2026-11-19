@@ -215,7 +215,7 @@ it( 'blocks deleting a class that rates or products use', function (): void {
     $component = Livewire::test( Index::class )
         ->call( 'confirmDeleteClass', $class->id )
         ->assertSeeHtml( 'data-class-blocked' )
-        ->assertSee( '1 rate, 1 product' );
+        ->assertSee( '1 rate and 1 product use it. Move them to another class first.' );
 
     $component->call( 'deleteClass', $component->viewData( 'deleteClassToken' ) );
 

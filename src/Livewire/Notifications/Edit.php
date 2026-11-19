@@ -226,10 +226,22 @@ class Edit extends Component
      *
      * @since 1.0.0
      *
-     * @var array<int, array{field: string, message: string}>
+     * @var array<int, array{field: string, message: string, line?: int|null}>
      */
     #[Locked]
     public array $previewErrors = [];
+
+    /**
+     * Whether the last save failed. The error summary shows only then, so
+     * the errors a live preview finds while typing don't pull focus away
+     * from the field being edited.
+     *
+     * @since 2.0.0
+     *
+     * @var bool
+     */
+    #[Locked]
+    public bool $saveFailed = false;
 
     /**
      * The loaded row, per request.
@@ -285,6 +297,8 @@ class Edit extends Component
     public function updated( string $property ): void
     {
         if ( in_array( $property, [ 'subject', 'body', 'previewJson' ], true ) ) {
+            $this->saveFailed = false;
+
             // Only editors re-render: a view-only user sees the stored copy,
             // so their edits are dropped instead of being rendered.
             if ( ! $this->canEcommerce( 'update', $this->template() ) ) {
@@ -320,6 +334,10 @@ class Edit extends Component
     {
         $template = $this->template();
         $this->authorizeEcommerce( 'update', $template );
+
+        // Cleared once the save goes through; a validation failure throws
+        // past the rest of this method and leaves it set.
+        $this->saveFailed = true;
 
         $this->validate(
             [
@@ -362,6 +380,7 @@ class Edit extends Component
             return;
         }
 
+        $this->saveFailed = false;
         $this->renderPreview();
         $this->dispatch( UnsavedChanges::SAVED_EVENT );
         $this->toastSuccess( __( 'Template saved.' ) );
@@ -429,8 +448,9 @@ class Edit extends Component
             return;
         }
 
-        $this->subject = (string) ( $template->subject ?? '' );
-        $this->body    = (string) $template->body;
+        $this->subject    = (string) ( $template->subject ?? '' );
+        $this->body       = (string) $template->body;
+        $this->saveFailed = false;
         $this->resetErrorBag();
         $this->renderPreview();
         $this->dispatch( UnsavedChanges::SAVED_EVENT );
@@ -557,6 +577,9 @@ class Edit extends Component
             'label'         => null === $definition ? Str::headline( (string) $template->key ) : (string) $definition->label(),
             'hasSubject'    => $this->hasSubject(),
             'isHtml'        => 'mail' === $template->channel,
+            'isSms'         => 'sms' === $template->channel,
+            'sms'           => 'sms' === $template->channel ? self::smsSegments( $this->previewBody ) : null,
+            'diagnostics'   => self::diagnosticsFor( $this->previewErrors, 'body' ),
             'hasDefault'    => null !== $definition,
             'canUpdate'     => $this->canEcommerce( 'update', $template ),
             'variables'     => self::variableSnippets( $service->declaredVariables( $template ) ),
@@ -565,6 +588,143 @@ class Edit extends Component
             'channelLabel'  => Index::channelLabel( (string) $template->channel ),
             'indexUrl'      => Route::has( AdminNav::ROUTE_PREFIX . 'notifications.index' ) ? route( AdminNav::ROUTE_PREFIX . 'notifications.index' ) : null,
         ] );
+    }
+
+    /**
+     * The line a template error points at, read from its "Line N:" prefix.
+     *
+     * The engine puts the line only in the message, so this matches the
+     * translated prefixes of its two line-bearing messages. Null when the
+     * message carries no line.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $message  The error message.
+     *
+     * @return int|null
+     */
+    public static function errorLine( string $message ): ?int
+    {
+        $templates = [
+            __( 'Line :line: :message' ),
+            __( 'Line :line: ":variable" is not an available variable for this template.' ),
+        ];
+
+        foreach ( $templates as $template ) {
+            $position = strpos( $template, ':line' );
+
+            if ( false === $position ) {
+                continue;
+            }
+
+            $prefix  = substr( $template, 0, $position );
+            $pattern = '' === $prefix ? '/^(\d+)/u' : '/' . preg_quote( $prefix, '/' ) . '(\d+)/u';
+
+            if ( 1 === preg_match( $pattern, $message, $matches ) ) {
+                return max( 1, (int) $matches[1] );
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Code editor diagnostics for one field: each preview error with a line.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, array{field: string, message: string, line?: int|null}>  $errors  Preview errors.
+     * @param  string                                                              $field   Field name.
+     *
+     * @return array<int, array{line: int, message: string, severity: string}>
+     */
+    public static function diagnosticsFor( array $errors, string $field ): array
+    {
+        $diagnostics = [];
+
+        foreach ( $errors as $error ) {
+            $line = $error['line'] ?? null;
+
+            if ( $field !== ( $error['field'] ?? null ) || ! is_int( $line ) ) {
+                continue;
+            }
+
+            $diagnostics[] = [ 'line' => $line, 'message' => (string) $error['message'], 'severity' => 'error' ];
+        }
+
+        return $diagnostics;
+    }
+
+    /**
+     * How an SMS splits: its length, the most the messages it takes can
+     * hold, and how many messages that is.
+     *
+     * Text in the GSM 7-bit alphabet fits 160 characters in one message and
+     * 153 in each part of a longer one (extension characters such as `€`
+     * count twice); anything else is sent as UCS-2, at 70 and 67 (emoji
+     * count twice). A character never splits across two messages, so an
+     * extension character or emoji that would straddle a boundary starts
+     * the next message.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $text  The rendered message.
+     *
+     * @return array{characters: int, limit: int, messages: int}
+     */
+    public static function smsSegments( string $text ): array
+    {
+        $basic     = "@£\$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+        $extension = "^{}\\[~]|€\f";
+        $septets   = [];
+        $isGsm     = true;
+
+        foreach ( mb_str_split( $text ) as $character ) {
+            if ( str_contains( $basic, $character ) ) {
+                $septets[] = 1;
+            } elseif ( str_contains( $extension, $character ) ) {
+                $septets[] = 2;
+            } else {
+                $isGsm = false;
+
+                break;
+            }
+        }
+
+        if ( $isGsm ) {
+            $units  = $septets;
+            $single = 160;
+            $part   = 153;
+        } else {
+            $units = array_map(
+                static fn ( string $character ): int => intdiv( strlen( (string) mb_convert_encoding( $character, 'UTF-16BE', 'UTF-8' ) ), 2 ),
+                mb_str_split( $text ),
+            );
+            $single = 70;
+            $part   = 67;
+        }
+
+        $characters = array_sum( $units );
+        $messages   = 1;
+
+        if ( $characters > $single ) {
+            $used = 0;
+
+            foreach ( $units as $unit ) {
+                if ( $used + $unit > $part ) {
+                    $messages++;
+                    $used = 0;
+                }
+
+                $used += $unit;
+            }
+        }
+
+        return [
+            'characters' => $characters,
+            'limit'      => 1 === $messages ? $single : $messages * $part,
+            'messages'   => $messages,
+        ];
     }
 
     /**
@@ -669,7 +829,11 @@ class Edit extends Component
             };
             $message = (string) ( $error['message'] ?? $exception->getMessage() );
 
-            $this->previewErrors[] = [ 'field' => $field, 'message' => $message ];
+            $this->previewErrors[] = [
+                'field'   => $field,
+                'message' => $message,
+                'line'    => isset( $error['line'] ) && is_numeric( $error['line'] ) ? (int) $error['line'] : self::errorLine( $message ),
+            ];
             $this->addError( $field, $message );
         }
     }
