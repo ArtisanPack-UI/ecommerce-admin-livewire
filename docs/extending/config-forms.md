@@ -23,6 +23,7 @@ If your satellite adds an entry to one of these engine registries, register a sc
 
 ```php
 public function register( string $registry, string $key, array|Closure $schema ): void
+public function refine( string $registry, string $key, array $rules ): void
 public function has( string $registry, string $key ): bool
 public function schema( string $registry, string $key ): ?array
 public function keys(): array
@@ -33,6 +34,9 @@ public function keys(): array
 - An array schema is checked immediately; a closure is checked when resolved. A malformed field throws `InvalidArgumentException`.
 - An empty schema (`[]`) says the entry has no settings. The form says so instead of showing the JSON editor.
 - If the engine entry declares its own schema with a `configSchema()` method, that schema wins.
+- `refine()` adds validation rules to an entry's fields. See [Cross-field validation](#cross-field-validation).
+
+The registry's other public methods (`rules()`, `defaults()`, `cast()`, and so on) are listed in the [PHP API reference](../reference/php-api.md#configformregistry).
 
 ## Field definition
 
@@ -45,7 +49,7 @@ public function keys(): array
 | `rules` | No | Extra Laravel rules (an array or a pipe-delimited string). Fields are optional unless the rules include `required`. A rule may name a sibling field as `@name`, e.g. `required_without:@amount`. |
 | `options` | No | For `select` and `multiselect`: `[ value => label ]` or `[ [ 'id' => …, 'name' => … ] ]` |
 | `default` | No | Starting value for a new entry |
-| `multiple` | No | For `product`: pick many (default `true`) or one |
+| `multiple` | No | For `product`, `category`, and `product-tag`: pick many (default `true`) or one |
 | `source` | No | For `product`: `product` (default) or `variant` |
 | `fields` | No | For `repeater`: the row's fields (no nested repeaters) |
 
@@ -54,6 +58,7 @@ public function keys(): array
 | Type | Input | Stored as |
 | --- | --- | --- |
 | `text` | Text input (max 1,000 characters) | string |
+| `textarea` | Multi-line text (max 10,000 characters) | string |
 | `template` | Long text (max 10,000 characters) | string |
 | `number` | Number input | number |
 | `money` | Money input in the base currency | integer minor units |
@@ -62,11 +67,13 @@ public function keys(): array
 | `select` | Select from `options` | string |
 | `multiselect` | Multi-select from `options` | list of strings |
 | `product` | Product or variant picker | id or list of ids |
-| `category` | Category picker | list of ids |
+| `category` | Category picker | list of ids, or one id when `multiple` is `false` |
 | `tag` | Free-form tags | list of strings |
+| `product-tag` | Product tag picker | list of ids, or one id when `multiple` is `false` |
 | `date` | Date picker | `Y-m-d` |
 | `daterange` | Start and end dates | `[ 'start' => 'Y-m-d', 'end' => 'Y-m-d' ]` |
 | `weekday` | Days of the week | list of ISO day numbers (1 = Monday) |
+| `json` | JSON text editor | the decoded JSON value |
 | `repeater` | Rows of the `fields` (up to 50) | list of row arrays |
 
 On save, keys outside the schema and empty values are dropped and the rest are cast to their types.
@@ -108,6 +115,47 @@ app( ConfigFormRegistry::class )->register( 'promotion-action', 'points-multipli
     ],
 ] );
 ```
+
+## Cross-field validation
+
+A field's `rules` can already name a sibling with `@name`. `refine()` adds rules to an entry you don't own, most often an entry whose schema the engine declares with `configSchema()`, where you can't edit the field definitions. Use it for checks the schema can't express, such as "one of these two fields is required".
+
+### `ConfigFormRegistry::refine()`
+
+Appends validation rules to fields of an entry's schema, whether the schema is registered here or declared by the engine.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `$registry` | `string` | The registry name, such as `promotion-action`. |
+| `$key` | `string` | The entry key. |
+| `$rules` | `array<string, array>` | Rules keyed by field path. `amount` is a top-level field; `tiers.percent` is the `percent` column of the `tiers` repeater. |
+
+**Returns:** `void`
+
+**Since:** 1.0.0
+
+```php
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\ConfigFormRegistry;
+
+$forms = app( ConfigFormRegistry::class );
+
+// Each tier needs a percent or a fixed amount.
+$forms->refine( 'promotion-action', 'tiered-discount', [
+    'tiers.percent' => [ 'required_without:@amount' ],
+    'tiers.amount'  => [ 'required_without:@percent' ],
+] );
+
+// A top-level field: a tier is required once a minimum is set.
+$forms->refine( 'promotion-condition', 'customer-has-points', [
+    'tier' => [ 'required_with:@min_points' ],
+] );
+```
+
+- Rules are appended to the field's own rules. Calling `refine()` again for the same path adds to what is there; it never replaces.
+- `@name` points at a sibling field: a top-level field for a top-level path, or a column of the same row for a repeater column. `required_without:@amount` on `tiers.percent` becomes `required_without:config.tiers.*.amount`, and Laravel matches the `*` to the same row.
+- A `required` rule makes an optional field required.
+- A path that names no field in the schema is ignored.
+- Refinements apply when the schema is read, so call `refine()` in `boot()` before or after the schema is registered.
 
 ## Describing a rule in the promotion summary
 

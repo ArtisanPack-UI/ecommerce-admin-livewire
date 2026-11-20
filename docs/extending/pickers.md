@@ -47,6 +47,7 @@ public array $productIds = [];
 | `single` | Pick one value instead of many |
 | `live` | Bind with `wire:model.live` |
 | `id` | A distinct id when the same model appears twice on a page |
+| `placeholder` | The text in the empty input (default "Search…" or the type's own) |
 
 Typing calls `searchPicker( $term, $type, $model )` on your component. It authorizes the source's ability before searching, and answers a user who may not search the source with a 403. `optionsForPicker()` returns no options for that user instead of failing, so a form can still render the picker.
 
