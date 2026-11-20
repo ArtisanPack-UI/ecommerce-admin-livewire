@@ -252,13 +252,13 @@ class Index extends Component
             ],
             [
                 'form.key.regex'   => __( 'Use lowercase letters, numbers, hyphens, or underscores, like "awaiting-label".' ),
-                'form.color.regex' => __( 'Enter the colour as a hex code like #3B82F6.' ),
+                'form.color.regex' => __( 'Enter the color as a hex code like #3B82F6.' ),
                 'form.icon.in'     => __( 'Choose an icon from the list.' ),
             ],
             [
                 'form.key'         => __( 'key' ),
                 'form.label'       => __( 'label' ),
-                'form.color'       => __( 'colour' ),
+                'form.color'       => __( 'color' ),
                 'form.icon'        => __( 'icon' ),
                 'form.is_terminal' => __( 'terminal' ),
             ],

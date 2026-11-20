@@ -384,7 +384,7 @@ class Columns extends Component
             ],
             [
                 'form.substatus_id.unique'     => __( 'This board already has a column for that sub-status.' ),
-                'form.color_override.regex'    => __( 'Enter the colour as a hex code like #3B82F6.' ),
+                'form.color_override.regex'    => __( 'Enter the color as a hex code like #3B82F6.' ),
                 'form.icon_override.in'        => __( 'Choose an icon from the list.' ),
                 'form.card_widgets.*.in'       => __( 'This widget is no longer available. Remove it.' ),
                 'form.card_widgets.*.distinct' => __( 'This widget is on the card twice.' ),
@@ -392,7 +392,7 @@ class Columns extends Component
             [
                 'form.substatus_id'   => __( 'sub-status' ),
                 'form.label_override' => __( 'label' ),
-                'form.color_override' => __( 'colour' ),
+                'form.color_override' => __( 'color' ),
                 'form.icon_override'  => __( 'icon' ),
                 'form.wip_limit'      => __( 'WIP limit' ),
                 'form.card_widgets'   => __( 'card widgets' ),

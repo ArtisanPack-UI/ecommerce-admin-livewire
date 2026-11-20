@@ -132,7 +132,7 @@
                 <x-artisanpack-input id="substatus-key" class="ec-mono-input" dir="ltr" :label="__( 'Key' )" :hint="__( 'Automations and integrations refer to the key, so it cannot be changed.' )" :value="$form['key']" readonly data-key-locked />
             @endif
 
-            <x-artisanpack-color-picker id="substatus-color" :label="__( 'Colour' )" :hint="__( 'A hex code like #3B82F6. Leave empty for a neutral badge.' )" wire:model.live.debounce.300ms="form.color" />
+            <x-artisanpack-color-picker id="substatus-color" :label="__( 'Color' )" :hint="__( 'A hex code like #3B82F6. Leave empty for a neutral badge.' )" wire:model.live.debounce.300ms="form.color" />
 
             @if ( null !== $contrastWarning )
                 <x-artisanpack-alert color="warning" icon="triangle-alert" :description="$contrastWarning" data-contrast-warning />

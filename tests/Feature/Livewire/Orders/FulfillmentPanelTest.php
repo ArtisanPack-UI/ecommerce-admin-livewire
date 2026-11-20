@@ -171,7 +171,7 @@ it( 'shows why an unshippable order cannot ship', function ( string $status, str
         ->call( 'createShipment', 'token' )
         ->assertHasErrors( [ 'shipment' ] );
 } )->with( [
-    'cancelled' => [ 'cancelled', 'This order was cancelled' ],
+    'cancelled' => [ 'cancelled', 'This order was canceled' ],
     'refunded'  => [ 'refunded', 'This order was refunded' ],
     'failed'    => [ 'failed', 'payment failed' ],
 ] );
@@ -367,5 +367,5 @@ it( 'disables the ship-now input for a line with nothing left and shows gateway 
     $component->call( 'createShipment', fulfillmentShipmentToken( $component ) )
         ->assertHasErrors( [ 'shipment' ] )
         ->assertSeeHtml( 'data-shipment-error' )
-        ->assertSee( 'This order was cancelled, so nothing more can ship.' );
+        ->assertSee( 'This order was canceled, so nothing more can ship.' );
 } );

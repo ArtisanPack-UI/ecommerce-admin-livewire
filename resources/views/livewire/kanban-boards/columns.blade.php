@@ -132,7 +132,7 @@
             <x-artisanpack-input id="column-label" :label="__( 'Label' )" :hint="__( 'Leave empty to use the sub-status label.' )" wire:model="form.label_override" maxlength="120" />
 
             <div class="ec-field-grid">
-                <x-artisanpack-color-picker id="column-color" :label="__( 'Colour' )" :hint="__( 'A hex code like #3B82F6. Leave empty to use the sub-status colour.' )" wire:model.live.debounce.300ms="form.color_override" />
+                <x-artisanpack-color-picker id="column-color" :label="__( 'Color' )" :hint="__( 'A hex code like #3B82F6. Leave empty to use the sub-status color.' )" wire:model.live.debounce.300ms="form.color_override" />
 
                 @if ( $iconPicker )
                     <div data-icon-picker>

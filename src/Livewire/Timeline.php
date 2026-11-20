@@ -732,7 +732,7 @@ class Timeline extends Component
      */
     protected function describeCancel( array $payload, string $currency ): string
     {
-        $parts = [ __( 'Order cancelled' ) . $this->withReason( $payload ) ];
+        $parts = [ __( 'Order canceled' ) . $this->withReason( $payload ) ];
         $units = array_sum( array_map( static fn ( mixed $line ): int => is_array( $line ) ? (int) ( $line['quantity'] ?? 0 ) : 0, (array) ( $payload['released'] ?? [] ) ) );
 
         if ( $units > 0 ) {
