@@ -148,13 +148,6 @@ trait WithPickers
     }
 
     /**
-     * How many options a search returns.
-     *
-     * @since 1.0.0
-     *
-     * @return int
-     */
-    /**
      * Whether `$field` is a property path into one of this component's public
      * properties (not the picker cache itself).
      *
@@ -181,6 +174,13 @@ trait WithPickers
         return $property->isPublic() && ! $property->isStatic();
     }
 
+    /**
+     * How many options a search returns.
+     *
+     * @since 1.0.0
+     *
+     * @return int
+     */
     protected static function pickerLimit(): int
     {
         return 20;
