@@ -46,12 +46,15 @@ The products screen also runs the engine's `ap.ecommerce.product.listQuery` filt
 | --- | --- |
 | `key` | Required. Unique key; also the row attribute shown when there is no `view` or `value`. |
 | `label` | Required. Column heading |
-| `sortable` | Whether the column sorts. Only honoured when the screen's query class can sort by `key`. |
+| `sortable` | Whether the column sorts. Only honored when the screen's query class can sort by `key`. |
 | `class` | Extra classes on the cell |
+| `numeric` | `true` aligns the column to the inline end, for numbers and money. Defaults to `true` when `class` contains `text-end`. |
 | `view` | A Blade view, rendered with `$row` and `$column` |
 | `value` | A callable receiving the row and returning text |
 | `export` | A callable overriding the CSV value |
 | `exportable` | `false` leaves the column out of CSV exports |
+| `listed` | `false` keeps the column out of the grid but in CSV exports |
+| `labelHidden` | `true` keeps the heading for screen readers only, for an image or icon column |
 
 ```php
 addFilter( 'ap.ecommerceAdminLivewire.table.customers.columns', function ( array $columns ): array {
@@ -155,6 +158,10 @@ protected function bulkActionTokenSubject( string $key ): mixed
 Return a model, a scalar, or `null` (the default) for actions that depend on nothing else. Also clear the pending confirmation when that input changes, so the confirmation text always names what will run. The Tags screen does both for **Merge into**.
 
 **Since:** 2.0.0
+
+## Building your own index screen
+
+Your own Livewire component can use `WithResourceTable` and get the same search, filters, selection, bulk actions, and export as the core screens, along with the `table.{screen}.*` filters under its own screen key. You supply a `ResourceQuery` subclass and the screen's definitions, and render the resource-table partial. See [WithResourceTable](../reference/php-api.md#withresourcetable) and [the resource-table partial](blade-components.md#the-resource-table-partial).
 
 ## Other screens
 

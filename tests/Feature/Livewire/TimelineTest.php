@@ -63,7 +63,7 @@ it( 'describes cancellations, edits, notes, and board moves', function (): void 
     timelineEntry( $this->order, 'kanban.assignment_added', [ 'board_id' => $board->id, 'board_key' => 'prod' ] );
 
     Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
-        ->assertSee( 'Order cancelled' )
+        ->assertSee( 'Order canceled' )
         ->assertSee( '2 reserved units released' )
         ->assertSee( 'payment voided' )
         ->assertSee( 'total $10.00 → $12.00' )

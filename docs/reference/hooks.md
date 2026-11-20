@@ -79,7 +79,7 @@ addFilter( 'ap.ecommerceAdminLivewire.timeline.entry', function ( array $present
 ```
 
 - `icon` is a name in the icon registry (`IconRegistry::names()`: the design-system Lucide set plus the icons the admin registers, `gift` among them) or a Heroicon `o-*` / `s-*` name. Any other name renders nothing; register its SVG with `IconRegistry::register()` first. See [Icon names](../extending/navigation.md#icon-names).
-- `tone` is optional and colours the entry's marker: `success`, `warning`, `error`, or `info`. Any other value leaves the marker neutral. Leaving `tone` out keeps the event's own tone, so a filter that only changes a core event's description doesn't change its colour; a satellite's event has no tone of its own, so its marker stays neutral. The core events take a tone only when they need attention (failed, blocked, or mismatched is `error`; challenged or action required is `warning`) or complete a money movement (captured or refunded is `success`). **Since:** 2.0.0
+- `tone` is optional and colors the entry's marker: `success`, `warning`, `error`, or `info`. Any other value leaves the marker neutral. Leaving `tone` out keeps the event's own tone, so a filter that only changes a core event's description doesn't change its color; a satellite's event has no tone of its own, so its marker stays neutral. The core events take a tone only when they need attention (failed, blocked, or mismatched is `error`; challenged or action required is `warning`) or complete a money movement (captured or refunded is `success`). **Since:** 2.0.0
 
 The timeline covers orders, products, customers, and promotions.
 
@@ -95,7 +95,7 @@ addFilter( 'ap.ecommerceAdminLivewire.statusBadge', function ( array $presented,
 } );
 ```
 
-Unknown values otherwise show a headline-cased label in the neutral colour. Colours are design-system badge colours: `neutral`, `primary`, `secondary`, `accent`, `info`, `success`, `warning`, `error`. An unknown colour falls back to `neutral`.
+Unknown values otherwise show a headline-cased label in the neutral color. Colors are design-system badge colors: `neutral`, `primary`, `secondary`, `accent`, `info`, `success`, `warning`, `error`. An unknown color falls back to `neutral`.
 
 ### Add columns to a report
 
@@ -115,7 +115,7 @@ Column types are `text`, `int`, `money`, `percent`, and `rate`. The same table d
 
 ### Show a jurisdiction tax breakdown
 
-An order's tax lines come from `meta.tax_breakdown`, the per-rate rows the engine records when the order is placed or edited (the legacy `meta.tax_lines` is still read), otherwise one line labelled with the engine's `TaxLabel`:
+An order's tax lines come from `meta.tax_breakdown`, the per-rate rows the engine records when the order is placed or edited (the legacy `meta.tax_lines` is still read), otherwise one line labeled with the engine's `TaxLabel`:
 
 ```php
 addFilter( 'ap.ecommerceAdminLivewire.order.taxBreakdown', function ( array $lines, $order ): array {

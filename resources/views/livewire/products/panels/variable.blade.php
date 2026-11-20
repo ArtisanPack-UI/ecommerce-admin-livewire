@@ -35,7 +35,7 @@
             @enderror
 
             @if ( [] === $attributes )
-                <p class="ec-muted">{{ __( 'Add attributes such as size or colour, then generate a variant for each combination.' ) }}</p>
+                <p class="ec-muted">{{ __( 'Add attributes such as size or color, then generate a variant for each combination.' ) }}</p>
             @else
                 <ol class="ec-list">
                     @foreach ( $attributes as $a => $attribute )

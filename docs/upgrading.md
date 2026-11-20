@@ -77,11 +77,11 @@ A custom layout must now use `<x-artisanpack-toaster />` instead of `<x-artisanp
 | The admin palette route (`artisanpack.ecommerce.admin.spotlight`) returns groups, `[ { id, label, items } ]`, instead of one flat list. | Read `items` from each group. Your host spotlight's results are in the first group, with a `null` label. `AdminSpotlight::search()` and `appendTo()` still return flat lists. See [Command palette](usage/command-palette.md#how-it-fits-with-your-own-spotlight). |
 | `AdminSpotlight::icon()` returns a design-system icon name instead of SVG markup. | Render it with `<x-artisanpack-icon :name="…" />`. |
 | Toasts are a `toast` browser event shown by `<x-artisanpack-toaster>`, not `window.toast()`. | Dispatch the `toast` event, or use the `SendsToasts` concern. |
-| `Webhooks::statusClass()` is replaced by `Webhooks::statusColor()`, which returns a badge colour instead of daisyUI classes. | Pass the colour to `<x-artisanpack-badge :color="…">`. |
+| `Webhooks::statusClass()` is replaced by `Webhooks::statusColor()`, which returns a badge color instead of daisyUI classes. | Pass the color to `<x-artisanpack-badge :color="…">`. |
 | The error-summary partial's `message` parameter is removed. | Pass `failure`, plus optional `failureDescription`, `actionLabel`, and `actionMethod`. See [Blade components](extending/blade-components.md#error-summary). |
 | `ReportPresenter::chartOptions()` is removed. The report chart is drawn by the admin. | Use `ReportPresenter::plot()` (over-time series), `bars()` (ranked reports), and `tone()` (whether a change is good news). |
 | `Promotions\Index::usesLabel()` is removed. | The Uses column renders "used / limit" itself. |
-| Status badge, timeline, and navigation colours are design-system colours, not daisyUI names. | `ap.ecommerceAdminLivewire.statusBadge` colours are `neutral`, `primary`, `secondary`, `accent`, `info`, `success`, `warning`, or `error`. |
+| Status badge, timeline, and navigation colors are design-system colors, not daisyUI names. | `ap.ecommerceAdminLivewire.statusBadge` colors are `neutral`, `primary`, `secondary`, `accent`, `info`, `success`, `warning`, or `error`. |
 | Timeline and navigation icons are icon-registry names. | Use a name from `IconRegistry::names()` (the design-system Lucide set plus the icons the admin registers, such as `gift`, `tag` or `truck`) or a Heroicon `o-*` / `s-*` name, such as `o-truck`. Any other name renders nothing until you register its SVG with `IconRegistry::register()`. The palette draws icons in the browser, so it shows only the design-system icons `livewire-ui-components` ships there. See [Icon names](extending/navigation.md#icon-names). |
 | Multi-word table and report filter names are camelCase: `ap.ecommerceAdminLivewire.table.licenseKeys.columns`, `table.digitalFiles.*`, `table.taxRates.*`, `table.webhookDeliveries.*`, `reports.topProducts.table`, `reports.revenueByCategory.table`, `reports.lowStock.table`. | Rename your subscribers. The 1.x kebab-case names (`table.license-keys.columns`, `reports.top-products.table`) are deprecated but still applied, after the camelCase name, until 3.0. See [Resource tables](extending/resource-tables.md#the-filters) and [Hooks](reference/hooks.md#filters-the-admin-applies). |
 | `Orders\RefundsPanel::refund()` takes the total the user confirmed: `refund( $token, $expectedTotal )`. It refuses, without using the token, when the lines no longer add up to it. | A custom refunds view passes the total shown on its confirm button. |
@@ -89,7 +89,7 @@ A custom layout must now use `<x-artisanpack-toaster />` instead of `<x-artisanp
 | `Notes::deleteNote()` takes no argument. It deletes the note chosen with `confirmDelete( $id )`. | Call `confirmDelete()` first, as the built-in view does. |
 
 
-### Behaviour changes
+### Behavior changes
 
 These need no code changes, but staff or hosts may notice them.
 
@@ -113,7 +113,7 @@ These need no code changes, but staff or hosts may notice them.
 - A queued or running import that hasn't progressed for about an hour is marked failed, so it can be resumed or discarded.
 - A webhook delivery held back while its subscription was off is shown as Pending rather than Failed. Re-enabling a subscription says how many were missed, and **Send missed deliveries** queues them.
 - Notes, promotion and kanban names, customer details, addresses, and review replies keep `<` and anything after it ("Orders < 5 items"). Text is escaped when shown.
-- The colour warnings on sub-statuses and kanban columns check the 3:1 non-text contrast of the icon and dot against the light and dark surfaces, so different colours warn than in 1.x.
+- The color warnings on sub-statuses and kanban columns check the 3:1 non-text contrast of the icon and dot against the light and dark surfaces, so different colors warn than in 1.x.
 - The timeline hides email, phone, IP, address, card, token, and secret values when it falls back to showing an unknown event's raw data.
 - Saving an order edit needs a preview of exactly those changes.
 
@@ -136,14 +136,14 @@ Every screen's layout and copy changed with the rebuild, so check any browser te
 
 ### Translations
 
-The catalogues now load in the service provider's `register()` instead of `boot()`, so the admin's strings are translated even when another package calls `__()` while booting. They also load while the satellite is inactive. If you override strings in `lang/vendor/ecommerce-admin/`, re-check them against the new keys: many strings changed with the rebuild. 2.0 adds Brazilian Portuguese, Japanese, Simplified Chinese, Italian, and Arabic. See [Localization](localization.md).
+The catalogs now load in the service provider's `register()` instead of `boot()`, so the admin's strings are translated even when another package calls `__()` while booting. They also load while the satellite is inactive. If you override strings in `lang/vendor/ecommerce-admin/`, re-check them against the new keys: many strings changed with the rebuild. 2.0 adds Brazilian Portuguese, Japanese, Simplified Chinese, Italian, and Arabic. See [Localization](localization.md).
 
 ### New for extenders
 
 These are additions, so nothing breaks if you ignore them:
 
 - **Palette group labels.** A `SpotlightProvider` may define `label()` to name its group. See [Command palette providers](extending/command-palette.md).
-- **Badge colours.** `NavBadges::tone()` picks a navigation badge's colour. See [Navigation](extending/navigation.md#badge-colour).
+- **Badge colors.** `NavBadges::tone()` picks a navigation badge's color. See [Navigation](extending/navigation.md#badge-color).
 - **Timeline tones.** `ap.ecommerceAdminLivewire.timeline.entry` accepts an optional `tone`. See [Hooks](reference/hooks.md#describe-a-satellites-timeline-event).
 - **Board links.** `ap.ecommerceAdminLivewire.kanban.boardUrl` receives a third `$query` argument, and `KanbanBoards::boardUrl()` takes it too. See [Hooks](reference/hooks.md#kanban-open-board-link).
 - **Bulk confirmations.** Override `WithResourceTable::bulkActionTokenSubject()` to bind a confirmation to other input. See [Resource tables](extending/resource-tables.md#binding-a-confirmation-to-other-input).

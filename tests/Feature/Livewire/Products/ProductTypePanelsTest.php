@@ -520,7 +520,7 @@ it( 'confirms a large generation inline with an Add variants button', function (
 it( 'shows the empty attributes and variants copy', function (): void {
     Livewire::test( VariablePanel::class )
         ->set( 'state', VariablePanel::initialState( null ) )
-        ->assertSee( 'Add attributes such as size or colour, then generate a variant for each combination.' )
+        ->assertSee( 'Add attributes such as size or color, then generate a variant for each combination.' )
         ->assertSee( '0 variants' )
         ->assertSee( 'No variants yet.' )
         ->assertDontSeeHtml( 'class="ec-list"' );

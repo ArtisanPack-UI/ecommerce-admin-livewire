@@ -495,7 +495,7 @@ class FulfillmentPanel extends Component
         $status = (string) $order->system_status;
 
         $reason = match ( $status ) {
-            'cancelled' => __( 'This order was cancelled, so nothing more can ship.' ),
+            'cancelled' => __( 'This order was canceled, so nothing more can ship.' ),
             'refunded'  => __( 'This order was refunded, so nothing more can ship.' ),
             'failed'    => __( 'This order\'s payment failed, so it cannot ship.' ),
             default     => in_array( $status, ShipmentService::UNSHIPPABLE_STATUSES, true )

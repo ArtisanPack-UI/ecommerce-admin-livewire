@@ -216,7 +216,7 @@ it( 'says a paid order still needs refunding when cancelled', function (): void 
 
     Livewire::test( StatusPanel::class, [ 'order' => $order ] )
         ->set( 'confirmingCancel', true )
-        ->assertSee( 'Cancelling does not refund: $42.00 is still owed' );
+        ->assertSee( 'Canceling does not refund: $42.00 is still owed' );
 } );
 
 it( 'requires a reason to cancel', function (): void {
@@ -315,7 +315,7 @@ it( 'opens the cancel dialog on Reason, bolds the money owed and holds the butto
     expect( $html )
         ->toContain( 'data-cancel-form' )
         ->toMatch( '/<textarea[^>]*data-autofocus/' )
-        ->toContain( 'Why is this order being cancelled?' )
+        ->toContain( 'Why is this order being canceled?' )
         ->toContain( 'class="ec-strong" data-refund-owed' )
         ->toContain( 'Keep order' )
         ->toMatch( '/x-bind:disabled="! \( \$wire\.cancelReason/' );

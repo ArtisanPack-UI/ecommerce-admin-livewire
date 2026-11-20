@@ -21,7 +21,7 @@ Composer installs these ArtisanPack UI packages with it:
 | `artisanpack-ui/hooks` | `^1.2` | The filters used for [extension](../extending.md) |
 | `artisanpack-ui/security` | `^1.0.3` or `^2.0` | Output escaping and sanitization |
 
-`livewire-ui-components` 3.0 also brings in `artisanpack-ui/icons` (the icon pickers for categories and order sub-statuses) and `artisanpack-ui/accessibility` (the contrast warnings on sub-status and kanban column colours), so both are always available.
+`livewire-ui-components` 3.0 also brings in `artisanpack-ui/icons` (the icon pickers for categories and order sub-statuses) and `artisanpack-ui/accessibility` (the contrast warnings on sub-status and kanban column colors), so both are always available.
 
 ## Front-end requirements
 

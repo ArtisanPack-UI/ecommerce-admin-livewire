@@ -142,7 +142,7 @@
                         <li>{{ __( 'The pending payment is voided at the gateway.' ) }}</li>
                     @endif
                     @if ( null !== $cancellation['refundOwed'] )
-                        <li class="ec-strong" data-refund-owed>{{ __( 'The customer has paid. Cancelling does not refund: :amount is still owed and must be refunded separately.', [ 'amount' => $cancellation['refundOwed'] ] ) }}</li>
+                        <li class="ec-strong" data-refund-owed>{{ __( 'The customer has paid. Canceling does not refund: :amount is still owed and must be refunded separately.', [ 'amount' => $cancellation['refundOwed'] ] ) }}</li>
                     @else
                         <li>{{ __( 'No refund is owed.' ) }}</li>
                     @endif
@@ -152,7 +152,7 @@
             <x-artisanpack-textarea
                 id="order-cancel-reason"
                 :label="__( 'Reason' )"
-                :placeholder="__( 'Why is this order being cancelled?' )"
+                :placeholder="__( 'Why is this order being canceled?' )"
                 rows="3"
                 maxlength="500"
                 required

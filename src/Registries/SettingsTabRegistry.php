@@ -59,19 +59,19 @@ class SettingsTabRegistry
      *
      * @since 1.0.0
      *
-     * @param  string                    $key        Unique kebab-case key; also the URL segment.
+     * @param  string                    $key        Unique key of lower-case letters and digits, separated by `-` or `_`; also the URL segment.
      * @param  Closure(): string|string  $label      The label, or a closure returning it (so it is translated per request).
      * @param  string                    $component  The Livewire component name or class.
      * @param  int                       $position   Lower positions come first. The engine's groups sit at 10–100.
      *
-     * @throws InvalidArgumentException When the key or component is blank.
+     * @throws InvalidArgumentException When the key is malformed or the component is blank.
      *
      * @return void
      */
     public function register( string $key, string|Closure $label, string $component, int $position = 100 ): void
     {
         if ( 1 !== preg_match( '/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/D', $key ) || '' === trim( $component ) ) {
-            throw new InvalidArgumentException( 'A settings tab needs a kebab-case key and a Livewire component.' );
+            throw new InvalidArgumentException( 'A settings tab needs a key of lower-case letters and digits (separated by - or _) and a Livewire component.' );
         }
 
         $this->tabs[ $key ] = [

@@ -134,13 +134,13 @@ final class ColorContrast
         $dark  = self::ratio( $hex, self::DARK_SURFACE );
 
         if ( $light < self::NON_TEXT_MIN_RATIO ) {
-            return __( 'The icon and dot in this colour have a contrast of :ratio:1 on the light background, below the 3:1 that WCAG asks for. Pick a darker colour so they stay visible.', [
+            return __( 'The icon and dot in this color have a contrast of :ratio:1 on the light background, below the 3:1 that WCAG asks for. Pick a darker color so they stay visible.', [
                 'ratio' => number_format( $light, 2 ),
             ] );
         }
 
         if ( $dark < self::NON_TEXT_MIN_RATIO ) {
-            return __( 'The icon and dot in this colour have a contrast of :ratio:1 on the dark background, below the 3:1 that WCAG asks for. Pick a lighter colour so they stay visible.', [
+            return __( 'The icon and dot in this color have a contrast of :ratio:1 on the dark background, below the 3:1 that WCAG asks for. Pick a lighter color so they stay visible.', [
                 'ratio' => number_format( $dark, 2 ),
             ] );
         }

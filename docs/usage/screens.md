@@ -54,9 +54,9 @@ Every screen that can't be changed by the current user shows its controls disabl
 - **Main:** items with per-item fulfillment, totals (with the base-currency equivalent when the order was placed in another currency), fulfillment (create shipments, update tracking, buy a label when a label provider is registered), refunds (per item or a free amount, restock per item, reason), order edits (items, quantities, addresses, shipping method, with a before/after totals diff and a rollback of the latest edit), digital downloads and license keys, notes, and the timeline.
 - **Side:** status and sub-status, customer, addresses, payment, and board assignments.
 
-Each board the order is on shows its column as a badge (the column's label and colour dot, or the sub-status when the board has no column for it) and how long the order has been in that column. With `artisanpack-ui/ecommerce-kanban-livewire` installed, **Open board** opens the board with the order's card focused, for users with `kanbanBoard.view` on that board.
+Each board the order is on shows its column as a badge (the column's label and color dot, or the sub-status when the board has no column for it) and how long the order has been in that column. With `artisanpack-ui/ecommerce-kanban-livewire` installed, **Open board** opens the board with the order's card focused, for users with `kanbanBoard.view` on that board.
 
-Only the status transitions the engine's state machine allows are offered. Cancelling needs a reason and shows what will be released. Editing an order after fulfillment has started needs `order.edit-fulfilled`.
+Only the status transitions the engine's state machine allows are offered. Canceling needs a reason and shows what will be released. Editing an order after fulfillment has started needs `order.edit-fulfilled`.
 
 ## Products
 

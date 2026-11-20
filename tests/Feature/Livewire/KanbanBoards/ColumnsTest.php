@@ -152,7 +152,7 @@ it( 'warns about low contrast colours', function (): void {
         ->call( 'create' )
         ->set( 'form.color_override', '#FDE68A' )
         ->assertSeeHtml( 'data-contrast-warning' )
-        ->assertSee( 'The icon and dot in this colour have a contrast of 1.21:1 on the light background' )
+        ->assertSee( 'The icon and dot in this color have a contrast of 1.21:1 on the light background' )
         ->set( 'form.color_override', '#3B82F6' )
         ->assertDontSeeHtml( 'data-contrast-warning' );
 } );

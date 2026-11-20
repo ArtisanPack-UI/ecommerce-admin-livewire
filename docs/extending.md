@@ -22,7 +22,7 @@ Other packages (satellites) and host applications extend the admin through regis
 - [Layout](extending/layout.md): Change which Vite entries the layout loads
 - [Blade Components](extending/blade-components.md): The `x-artisanpack-ec-*` components to reuse in your panels
 
-Every filter the admin applies, and the browser events its components exchange, are listed in the [hooks reference](reference/hooks.md).
+Every filter the admin applies, and the browser events its components exchange, are listed in the [hooks reference](reference/hooks.md). Every public class and method, including the Livewire concerns for your own components, is listed in the [PHP API reference](reference/php-api.md).
 
 ## Two kinds of extension point
 
