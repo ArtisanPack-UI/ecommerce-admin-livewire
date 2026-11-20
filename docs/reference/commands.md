@@ -1,5 +1,7 @@
 ---
 title: Artisan Commands
+menu_order: 20
+redirect_from: advanced/artisan-commands
 ---
 
 # Artisan Commands
@@ -14,11 +16,11 @@ Sets up the admin in a host application. It:
 
 1. publishes `config/artisanpack/ecommerce-admin-livewire.php` (tag `ecommerce-admin-config`); `--force` overwrites a config you published before;
 2. prints the front-end steps:
-   - the Tailwind `@source` lines to add to your main stylesheet;
-   - the npm packages to install (`@artisanpack-ui/livewire-drag-and-drop`, `apexcharts`, `flatpickr`);
-   - the lines that load them in `resources/js/app.js` (`window.ApexCharts`, `window.flatpickr`);
+   - the lines to add to your main stylesheet: the `@layer` order, `@import '@artisanpack-ui/css';`, and the admin's `@source` lines;
+   - the npm packages to install (`@artisanpack-ui/css@^1`, `@artisanpack-ui/behavior@^1`, `@artisanpack-ui/livewire-drag-and-drop`);
+   - the lines that load them in `resources/js/app.js` (drag-and-drop, and the behavior engine registered as an Alpine plugin);
    - the command that publishes TinyMCE (`php artisan vendor:publish --tag=artisanpack-assets`);
-   - a reminder to pin daisyUI to `~5.0`, and a link to [Front-End Setup](Installation-Front-End);
+   - a reminder to remove daisyUI, and a link to [Front-End Setup](../installation/front-end.md);
 3. checks that something grants access:
    - with `cms-framework`, runs `ecommerce:sync-permissions` and reminds you to assign the `shop-manager` role or individual permissions;
    - reports when the `ecommerce.admin` gate is defined;
@@ -50,12 +52,12 @@ php artisan ecommerce-admin:sync-permissions
 
 Deprecated in 1.0.0. The engine owns the abilities and their permissions now: the command prints a notice and runs `php artisan ecommerce:sync-permissions`, which registers every engine ability as a `cms-framework` RBAC permission (slug `ecommerce.{resource}.{action}`) and creates the `shop-manager` role holding all of them. Use the engine command instead.
 
-You rarely need either by hand: the engine command runs from `ecommerce-admin:install` and after every `php artisan migrate`. See [Authorization](Authorization).
+You rarely need either by hand: the engine command runs from `ecommerce-admin:install` and after every `php artisan migrate`. See [Authorization](../authorization.md).
 
 ## Engine commands the admin relies on
 
 | Command | Use |
 | --- | --- |
 | `php artisan ecommerce:sync-permissions` | Register the ecommerce abilities as `cms-framework` permissions and the `shop-manager` role. |
-| `php artisan ecommerce:seed-demo` | Seed a demo store to explore the admin. See [Quick Start Guide](Getting-Started). |
-| `vendor/bin/testbench ecommerce:lint:translations` | Check translations in this package. See [Localization](Localization). |
+| `php artisan ecommerce:seed-demo` | Seed a demo store to explore the admin. See [Getting Started](../getting-started.md). |
+| `vendor/bin/testbench ecommerce:lint:translations` | Check translations in this package. See [Localization](../localization.md). |

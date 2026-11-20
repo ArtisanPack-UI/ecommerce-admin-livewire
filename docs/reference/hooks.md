@@ -1,8 +1,10 @@
 ---
-title: Hooks Reference
+title: Hooks
+menu_order: 10
+redirect_from: extending/hooks-reference
 ---
 
-# Hooks Reference
+# Hooks
 
 Every filter the admin applies, the hooks from other packages it uses, and the browser events its components exchange. Register filters with `addFilter()` from `artisanpack-ui/hooks`, usually in a service provider's `boot()`. A filter must return a value of the same shape it received.
 
@@ -12,25 +14,25 @@ The admin fires no actions (`doAction`).
 
 | Filter | Arguments | Return | Applied when | Docs |
 | --- | --- | --- | --- | --- |
-| `ap.ecommerceAdminLivewire.nav.items` | `array $items` | Navigation entries | Building the navigation (every admin page) | [Navigation](Extending-Navigation) |
-| `ap.ecommerceAdminLivewire.nav.sections` | `array $sections` (key => `[ label, position ]`) | Sections | Building the navigation | [Navigation](Extending-Navigation) |
-| `ap.ecommerceAdminLivewire.nav.badge` | `null $count`, `string $badge` | `int\|null` count | Resolving a badge key the core does not know | [Navigation](Extending-Navigation) |
-| `ap.ecommerceAdminLivewire.nav.badgeLabel` | `string $label`, `string $badge`, `int $count` | Accessible badge description | Describing a badge the core does not know | [Navigation](Extending-Navigation) |
-| `ap.ecommerceAdminLivewire.dashboard.widgets` | `array $widgets`, `?Authenticatable $user` | Widgets | Rendering the dashboard | [Dashboard Widgets](Extending-Dashboard-Widgets) |
-| `ap.ecommerceAdminLivewire.spotlight.providers` | `array $providers` (name => provider or class), `?Authenticatable $user` | Providers | Every palette search | [Command Palette Providers](Extending-Command-Palette) |
-| `ap.ecommerceAdminLivewire.table.{screen}.columns` | `array $columns`, `Component $component` | Columns | Rendering or exporting an index screen | [Resource Tables](Extending-Resource-Tables) |
-| `ap.ecommerceAdminLivewire.table.{screen}.filters` | `array $filters`, `Component $component` | Filters | Rendering or querying an index screen | [Resource Tables](Extending-Resource-Tables) |
-| `ap.ecommerceAdminLivewire.table.{screen}.bulkActions` | `array $actions`, `Component $component` | Bulk actions | Rendering or running a bulk action | [Resource Tables](Extending-Resource-Tables) |
-| `ap.ecommerceAdminLivewire.layout.viteEntries` | `array $entries` | Vite entry paths | Rendering either layout | [Layout](Extending-Layout) |
-| `ap.ecommerceAdminLivewire.timeline.entry` | `array $presented` (`icon`, `description`, `known`), `Model $row`, `Model $subject` | `array` with `icon`, `description`, `known` | Rendering each activity timeline entry | Below |
+| `ap.ecommerceAdminLivewire.nav.items` | `array $items` | Navigation entries | Building the navigation (every admin page) | [Navigation](../extending/navigation.md) |
+| `ap.ecommerceAdminLivewire.nav.sections` | `array $sections` (key => `[ label, position ]`) | Sections | Building the navigation | [Navigation](../extending/navigation.md) |
+| `ap.ecommerceAdminLivewire.nav.badge` | `null $count`, `string $badge` | `int\|null` count | Resolving a badge key the core does not know | [Navigation](../extending/navigation.md) |
+| `ap.ecommerceAdminLivewire.nav.badgeLabel` | `string $label`, `string $badge`, `int $count` | Accessible badge description | Describing a badge the core does not know | [Navigation](../extending/navigation.md) |
+| `ap.ecommerceAdminLivewire.dashboard.widgets` | `array $widgets`, `?Authenticatable $user` | Widgets | Rendering the dashboard | [Dashboard Widgets](../extending/dashboard-widgets.md) |
+| `ap.ecommerceAdminLivewire.spotlight.providers` | `array $providers` (name => provider or class), `?Authenticatable $user` | Providers | Every palette search | [Command Palette Providers](../extending/command-palette.md) |
+| `ap.ecommerceAdminLivewire.table.{screen}.columns` | `array $columns`, `Component $component` | Columns | Rendering or exporting an index screen | [Resource Tables](../extending/resource-tables.md) |
+| `ap.ecommerceAdminLivewire.table.{screen}.filters` | `array $filters`, `Component $component` | Filters | Rendering or querying an index screen | [Resource Tables](../extending/resource-tables.md) |
+| `ap.ecommerceAdminLivewire.table.{screen}.bulkActions` | `array $actions`, `Component $component` | Bulk actions | Rendering or running a bulk action | [Resource Tables](../extending/resource-tables.md) |
+| `ap.ecommerceAdminLivewire.layout.viteEntries` | `array $entries` | Vite entry paths | Rendering either layout | [Layout](../extending/layout.md) |
+| `ap.ecommerceAdminLivewire.timeline.entry` | `array $presented` (`icon`, `tone`, `description`, `known`), `Model $row`, `Model $subject` | `array` with `icon`, `description`, `known`, and optionally `tone` | Rendering each activity timeline entry | Below |
 | `ap.ecommerceAdminLivewire.statusBadge` | `array $presented` (`label`, `color`), `string $type`, `string $value` | `array` with `label`, `color` | Rendering any status badge | Below |
-| `ap.ecommerceAdminLivewire.ruleBuilder.describe` | `?string $text`, `string $registry`, `string $type`, `array $config` | Lower-case phrase or `null` | Building a promotion's summary sentence | [Config Forms](Extending-Config-Forms) |
+| `ap.ecommerceAdminLivewire.ruleBuilder.describe` | `?string $text`, `string $registry`, `string $type`, `array $config` | Lower-case phrase or `null` | Building a promotion's summary sentence | [Config Forms](../extending/config-forms.md) |
 | `ap.ecommerceAdminLivewire.reports.{report}.table` | `array $table` (`columns`, `rows`, `totals`), `array $result` | Table | Rendering or exporting a report | Below |
 | `ap.ecommerceAdminLivewire.order.taxBreakdown` | `array $lines` (`[ label, amount ]`), `Order $order` | Tax lines | Rendering an order's totals | Below |
 | `ap.ecommerceAdminLivewire.currencies` | `array $currencies` (ISO codes), `?Product $product` | ISO codes | Building the product form's price rows | Below |
 | `ap.ecommerceAdminLivewire.coupons.usage` | `array $counts` (empty), `Promotion $promotion`, `array $codes` | code => count | Rendering a coupon promotion's Coupons tab | Below |
 | `ap.ecommerceAdminLivewire.notifications.locales` | `array $locales` | Locale codes | Offering locales to add to a notification template | Below |
-| `ap.ecommerceAdminLivewire.kanban.boardUrl` | `?string $url`, `KanbanBoard $board` | URL or `null` | Rendering an "Open board" link | Below |
+| `ap.ecommerceAdminLivewire.kanban.boardUrl` | `?string $url`, `KanbanBoard $board`, `array $query` | URL or `null` | Rendering an "Open board" link | Below |
 
 `{screen}` is one of `orders`, `reviews`, `products`, `tags`, `inventory`, `digital-files`, `license-keys`, `customers`, `promotions`, `tax-rates`, `webhooks`, `webhook-deliveries`. `{report}` is a report key from the engine's `ReportRegistry`, such as `sales`.
 
@@ -40,7 +42,7 @@ The admin fires no actions (`doAction`).
 | --- | --- | --- |
 | `ap.ecommerce.abilities.{resource}.{action}` | Engine | Applies (through the engine) when deciding an ability. With `cms-framework`, the admin adds one per ability so RBAC permissions grant it. |
 | `ap.ecommerce.product.listQuery` | Engine | Applied to the products index query, with the screen's filters and search |
-| `ap.livewireUiComponents.spotlightCommands` | livewire-ui-components | The admin appends its palette results |
+| `ap.livewireUiComponents.spotlightCommands` | livewire-ui-components | The admin's palette route applies it to your own spotlight's results and shows them first, in an unlabeled group. On the library's own spotlight route the admin adds nothing. |
 | `ap.cmsFramework.admin.menu` | cms-framework | The admin adds its navigation to the CMS menu |
 
 ## Browser events
@@ -57,7 +59,7 @@ Livewire events the admin's components dispatch and listen for. Use the class co
 
 ### Describe a satellite's timeline event
 
-Entries the admin does not know show their raw event type and a collapsible payload. Describe yours:
+Entries the admin doesn't know show their raw event type and the payload in a "Details" disclosure. Describe yours:
 
 ```php
 addFilter( 'ap.ecommerceAdminLivewire.timeline.entry', function ( array $presented, $row, $subject ): array {
@@ -66,12 +68,16 @@ addFilter( 'ap.ecommerceAdminLivewire.timeline.entry', function ( array $present
     }
 
     return [
-        'icon'        => 'o-gift',
+        'icon'        => 'gift',
+        'tone'        => 'success',
         'description' => __( ':points points awarded', [ 'points' => $row->payload['points'] ?? 0 ] ),
         'known'       => true,
     ];
 } );
 ```
+
+- `icon` is a design-system (Lucide) icon name.
+- `tone` is optional and colours the entry's marker: `success`, `warning`, `error`, or `info`. Any other value, or none, leaves the marker neutral. The core events take a tone only when they need attention (failed, blocked, or mismatched is `error`; challenged or action required is `warning`) or complete a money movement (captured or refunded is `success`). **Since:** 2.0.0
 
 The timeline covers orders, products, customers, and promotions.
 
@@ -87,7 +93,7 @@ addFilter( 'ap.ecommerceAdminLivewire.statusBadge', function ( array $presented,
 } );
 ```
 
-Unknown values otherwise show a headline-cased label in the neutral colour. Colours are daisyUI names: `neutral`, `info`, `success`, `warning`, `error`.
+Unknown values otherwise show a headline-cased label in the neutral colour. Colours are design-system badge colours: `neutral`, `primary`, `secondary`, `accent`, `info`, `success`, `warning`, `error`. An unknown colour falls back to `neutral`.
 
 ### Add columns to a report
 
@@ -152,8 +158,12 @@ addFilter( 'ap.ecommerceAdminLivewire.notifications.locales', fn ( array $locale
 
 ### Kanban "Open board" link
 
-The link appears when `artisanpack-ui/ecommerce-kanban-livewire` is installed. Point it somewhere else, or show it for your own board UI:
+The link appears on order detail and in kanban settings when `artisanpack-ui/ecommerce-kanban-livewire` is installed and the user has `kanbanBoard.view` on the board. Point it somewhere else, or show it for your own board UI:
 
 ```php
-addFilter( 'ap.ecommerceAdminLivewire.kanban.boardUrl', fn ( ?string $url, $board ): ?string => route( 'my-boards.show', $board ) );
+addFilter( 'ap.ecommerceAdminLivewire.kanban.boardUrl', fn ( ?string $url, $board, array $query = [] ): ?string => route( 'my-boards.show', [ $board, ...$query ] ) );
 ```
+
+`$query` holds extra query parameters for the link. Order detail passes `[ 'card' => $order->id ]`, so the board opens with that order's card focused. It's `[]` for a plain board link. **Since:** 2.0.0 (`$query`)
+
+`KanbanBoards::boardUrl( $board, array $query = [] )` builds the same link, filter included.

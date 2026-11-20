@@ -1,8 +1,9 @@
 ---
-title: Quick Start Guide
+title: Getting Started
+menu_order: 10
 ---
 
-# Quick Start Guide
+# Getting Started
 
 Get from `composer require` to a working store admin. This assumes the `artisanpack-ui/ecommerce` engine is installed and migrated.
 
@@ -16,35 +17,39 @@ php artisan ecommerce-admin:install
 The service provider is auto-discovered. The install command:
 
 - publishes `config/artisanpack/ecommerce-admin-livewire.php`;
-- prints the front-end steps: the Tailwind `@source` lines, the npm packages, and the script lines;
+- prints the front-end steps: the stylesheet lines, the npm packages, and the script lines;
 - registers RBAC permissions (through the engine's `ecommerce:sync-permissions`) when `cms-framework` is installed;
 - warns when it finds neither RBAC support nor an `ecommerce.admin` gate (it does not check role assignments).
 
 ## 2. Set up the front end
 
-The package ships no CSS or JavaScript build. Your application's Vite build styles it. Add the printed lines to your Tailwind entry (for example `resources/css/app.css`):
+The admin renders on the ArtisanPack UI design system. The package ships no CSS or JavaScript build: your application's Vite build loads the design system. Remove daisyUI if the admin was its only user, then install the packages the install command prints:
+
+```bash
+npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop
+```
+
+Add the printed lines to your main stylesheet (for example `resources/css/app.css`). The `@layer` line comes first:
 
 ```css
+@layer theme, base, apui, components, utilities;
+@import 'tailwindcss';
+@import '@artisanpack-ui/css';
+
 @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/resources/views/**/*.blade.php";
 @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/src/**/*.php";
 ```
 
-Install the scripts the components need and load them in `resources/js/app.js` (the install command prints these too):
-
-```bash
-npm install @artisanpack-ui/livewire-drag-and-drop apexcharts flatpickr
-```
+Then register the behavior engine and drag-and-drop in `resources/js/app.js`:
 
 ```js
+import apuiBehavior from '@artisanpack-ui/behavior/alpine';
 import '@artisanpack-ui/livewire-drag-and-drop';
-import ApexCharts from 'apexcharts';
-import flatpickr from 'flatpickr';
 
-window.ApexCharts = ApexCharts;
-window.flatpickr = flatpickr;
+document.addEventListener( 'alpine:init', () => window.Alpine.plugin( apuiBehavior ) );
 ```
 
-The product description editor needs TinyMCE (`php artisan vendor:publish --tag=artisanpack-assets`), and daisyUI must stay on `~5.0`. See [Front-End Setup](Installation-Front-End) for every step, then build:
+The product description editor needs TinyMCE (`php artisan vendor:publish --tag=artisanpack-assets`). See [Front-End Setup](installation/front-end.md) for every step, then build:
 
 ```bash
 npm run build
@@ -60,7 +65,7 @@ use Illuminate\Support\Facades\Gate;
 Gate::define( 'ecommerce.admin', fn ( $user ) => $user->is_admin );
 ```
 
-With `cms-framework`, assign the `shop-manager` role (or individual `ecommerce.*` permissions) instead. See [Authorization](Authorization).
+With `cms-framework`, assign the `shop-manager` role (or individual `ecommerce.*` permissions) instead. See [Authorization](authorization.md).
 
 ## 4. Open the admin
 
@@ -88,7 +93,7 @@ Do not run it against a live store.
 
 ## Next steps
 
-- [Configuration](Installation-Configuration) — every config key
-- [Screens](Usage-Screens) — what each screen does
-- [Authorization](Authorization) — the ability each screen and action needs
-- [Extending](Extending) — add panels, tabs, widgets, and table columns from your own package
+- [Configuration](installation/configuration.md) — every config key
+- [Screens](usage/screens.md) — what each screen does
+- [Authorization](authorization.md) — the ability each screen and action needs
+- [Extending](extending.md) — add panels, tabs, widgets, and table columns from your own package

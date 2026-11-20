@@ -1,5 +1,6 @@
 ---
 title: Resource Tables
+menu_order: 100
 ---
 
 # Resource Tables
@@ -102,6 +103,8 @@ addFilter( 'ap.ecommerceAdminLivewire.table.orders.filters', function ( array $f
 | `ability` | `{resource}.{action}`. The action is hidden from, and refused for, users without it. |
 | `confirm` | A confirmation message. The action then asks first and carries a one-time token, so it runs once. |
 
+Destructive actions (delete, revoke, and similar) show in red in the bulk-action bar. A `confirm` action asks inline in the bar (`role="alertdialog"`) before it runs.
+
 `$selection` is a query for the selected rows, or for every row matching the current search and filters when the user chose "select all matching". The `ability` is an account-level check. Authorize each record in your handler when your rules depend on the record:
 
 ```php
@@ -133,6 +136,21 @@ addFilter( 'ap.ecommerceAdminLivewire.table.orders.bulkActions', function ( arra
 ```
 
 Every table also offers an export of the selection as CSV, capped at `tables.export_max_rows`.
+
+### Binding a confirmation to other input
+
+A confirmation token is bound to the component and the action. When what an action does depends on other input on the screen, such as the target tag of a merge, override `bulkActionTokenSubject()` in your component so a token minted for one value can't confirm the action for another:
+
+```php
+protected function bulkActionTokenSubject( string $key ): mixed
+{
+    return 'merge' === $key ? 'target:' . (int) $this->mergeTargetId : null;
+}
+```
+
+Return a model, a scalar, or `null` (the default) for actions that depend on nothing else. Also clear the pending confirmation when that input changes, so the confirmation text always names what will run. The Tags screen does both for **Merge into**.
+
+**Since:** 2.0.0
 
 ## Other screens
 

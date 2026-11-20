@@ -1,5 +1,6 @@
 ---
 title: Dashboard
+menu_order: 20
 ---
 
 # Dashboard
@@ -14,24 +15,24 @@ Each figure links to the screen that explains it. Each is hidden unless the user
 | --- | --- | --- | --- |
 | Sales today | Sales placed today, in the base currency, with the order count | Sales report, preset "today" | `report.view` |
 | Sales, last 30 days | Sales over the last 30 days, in the base currency, with the order count | Sales report | `report.view` |
-| Awaiting fulfillment | Orders to ship | Orders, filtered to orders awaiting fulfillment | `order.viewAny` |
+| Awaiting fulfillment | Orders to ship. Emphasized while orders wait. | Orders, filtered to orders awaiting fulfillment | `order.viewAny` |
 | Low stock | Tracked items at or below their low-stock threshold | Inventory, filtered to items to reorder | `inventory.viewAny` |
 | Reviews to moderate | Reviews with status pending | Reviews, filtered to pending | `review.viewAny` |
 
-The row is hidden when the user can see none of the figures.
+Each figure is one link, named with its value and what it means ("Awaiting fulfillment: 12. 12 orders to ship"). The row is hidden when the user can see none of the figures.
 
 ## Widgets
 
 | Widget | Shows | Width | Ability |
 | --- | --- | --- | --- |
 | Key figures (`kpis`) | The figures above | Full | Per figure |
-| Sales, last 30 days (`sales`) | A daily sales sparkline with a text summary (total and best day) for screen readers | Half | `report.view` |
-| Lowest stock (`low-stock`) | The five tracked items with the least stock available | Half | `inventory.viewAny` |
+| Sales, last 30 days (`sales`) | The total, and a daily sales sparkline marking the best day, with the first and last dates under it. A caption carries the same data as text. | Half | `report.view` |
+| Lowest stock (`low-stock`) | The five tracked items with the least stock available, with an Out of stock badge on empty rows and a bar showing how much of the threshold is left | Half | `inventory.viewAny` |
 | Recent orders (`recent-orders`) | The ten most recently placed orders | Full | `order.viewAny` |
 
-Only the data for visible widgets is queried. Other packages add widgets with the `ap.ecommerceAdminLivewire.dashboard.widgets` filter. See [Dashboard Widgets](Extending-Dashboard-Widgets).
+Only the data for visible widgets is queried. Other packages add widgets with the `ap.ecommerceAdminLivewire.dashboard.widgets` filter. See [Dashboard Widgets](../extending/dashboard-widgets.md).
 
-The sparkline needs ApexCharts on the page. See [Front-End Setup](Installation-Front-End).
+The admin draws the sparkline itself, so it needs no chart library.
 
 ## First run
 
@@ -45,4 +46,4 @@ A user who can open the admin but sees none of the widgets gets a list of the sc
 
 ## Live updates
 
-With [real-time updates](Usage-Real-Time) on, the dashboard refreshes when an order changes status, a payment succeeds, stock changes, or a review is submitted. A screen-reader announcement says what changed.
+With [real-time updates](real-time.md) on, the dashboard refreshes when an order changes status, a payment succeeds, stock changes, or a review is submitted. A screen-reader announcement says what changed.

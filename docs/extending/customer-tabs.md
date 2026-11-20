@@ -1,5 +1,6 @@
 ---
 title: Customer Tabs
+menu_order: 60
 ---
 
 # Customer Tabs

@@ -1,0 +1,21 @@
+name: Docs lint
+
+# Checks docs/ against the org docs standard:
+# https://github.com/ArtisanPack-UI/.github/blob/main/DOCS_STANDARD.md
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs-lint.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+
+jobs:
+  docs-lint:
+    uses: ArtisanPack-UI/.github/.github/workflows/docs-lint.yml@main
+    with:
+      archetype: package

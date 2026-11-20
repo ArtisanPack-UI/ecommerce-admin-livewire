@@ -1,5 +1,6 @@
 ---
 title: Navigation
+menu_order: 10
 ---
 
 # Navigation
@@ -18,7 +19,7 @@ An entry has the shape of the engine's `AdminMenuRegistry` entries:
 | `parameters` | No | Route parameters |
 | `section` | No | Section key. Unknown sections fall back to the top section. |
 | `position` | No | Order within the section (default `100`) |
-| `icon` | No | Heroicon name (default `o-squares-2x2`) |
+| `icon` | No | A design-system (Lucide) icon name, or a Heroicon name such as `o-gift` that the admin maps to its design-system counterpart (default `o-squares-2x2`). Unmapped names pass through unchanged. |
 | `permission` | No | `{resource}.{action}` ability (`ecommerce.` prefix allowed). Hidden without it. `null` shows it to anyone who can enter the admin, but never grants access on its own. |
 | `badge` | No | Badge key; see below |
 
@@ -99,8 +100,16 @@ addFilter( 'ap.ecommerceAdminLivewire.nav.badgeLabel', function ( string $label,
 } );
 ```
 
+The link's accessible name includes the description ("Orders (12 orders awaiting fulfillment)"). In the collapsed icon rail, the count becomes a dot.
+
+### Badge colour
+
+`NavBadges::tone( ?string $badge ): string` picks the badge's colour: `primary` for `orders-awaiting-fulfillment` (the one call to action), `warning` for `low-stock`, and `neutral` for everything else, your own badge keys included.
+
+**Since:** 2.0.0
+
 Keep badge queries cheap and cached: they run on every admin page.
 
 ## In the cms-framework menu
 
-With `cms-framework` installed and `admin.auto_register_cms_nav` on, every visible entry is added to the CMS menu with the slug `ecommerce-{key}`, and every section becomes a CMS section with the slug `ecommerce-{section}`. See [Layouts](Installation-Layouts).
+With `cms-framework` installed and `admin.auto_register_cms_nav` on, every visible entry is added to the CMS menu with the slug `ecommerce-{key}`, and every section becomes a CMS section with the slug `ecommerce-{section}`. See [Layouts](../installation/layouts.md).
