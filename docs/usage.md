@@ -5,7 +5,7 @@ menu_order: 30
 
 # Usage
 
-How the admin's screens work for the staff who use them, and the shared behaviour every screen follows.
+How the admin's screens work for the staff who use them, and the shared behavior every screen follows.
 
 ## In this section
 
@@ -15,7 +15,7 @@ How the admin's screens work for the staff who use them, and the shared behaviou
 - [Real-Time Updates](usage/real-time.md): Live order and stock updates over Laravel Echo
 - [Product CSV Import and Export](usage/product-csv.md): The catalog CSV format and the import flow
 
-## Behaviour every screen shares
+## Behavior every screen shares
 
 - **Index screens** have search, filters, sortable columns, pagination, row selection, bulk actions, and CSV export of the selection. Search, filters, sort, page size, and page live in the URL, so a filtered list can be bookmarked or shared.
 - **Bulk actions** only show when the user holds their ability. Destructive ones ask for confirmation first.

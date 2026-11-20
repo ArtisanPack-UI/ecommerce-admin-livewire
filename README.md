@@ -11,7 +11,7 @@ action checks the engine's abilities, and other packages extend it through regis
 
 ![The store admin dashboard: key figures for sales, orders awaiting fulfillment, low stock, and reviews to moderate, a 30-day sales sparkline, the lowest-stock items, and recent orders](docs/images/dashboard.png)
 
-![An order's detail page: status badges, the items table, totals in the order currency and the store currency, and fulfillment with a shipment in transit, beside a status panel for changing status and sub-status or cancelling the order](docs/images/order.png)
+![An order's detail page: status badges, the items table, totals in the order currency and the store currency, and fulfillment with a shipment in transit, beside a status panel for changing status and sub-status or canceling the order](docs/images/order.png)
 
 ![The product form editing a simple product, on the General tab with name, slug, type, status, publish date, short description, and a rich-text description editor](docs/images/product-form.png)
 

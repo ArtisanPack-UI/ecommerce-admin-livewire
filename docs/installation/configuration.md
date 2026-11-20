@@ -67,7 +67,7 @@ The import job can run for up to an hour. Set the queue connection's `retry_afte
 
 ## Settings that live elsewhere
 
-Some behaviour the admin shows is configured in the engine, not here:
+Some behavior the admin shows is configured in the engine, not here:
 
 | Engine key | Effect in the admin |
 | --- | --- |

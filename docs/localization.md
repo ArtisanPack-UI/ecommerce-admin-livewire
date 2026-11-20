@@ -5,7 +5,7 @@ menu_order: 55
 
 # Localization
 
-Every user-facing string in the admin goes through Laravel's translation functions. The package ships JSON catalogues for nine languages.
+Every user-facing string in the admin goes through Laravel's translation functions. The package ships JSON catalogs for nine languages.
 
 ## Shipped languages
 
@@ -21,21 +21,21 @@ Every user-facing string in the admin goes through Laravel's translation functio
 | Italian | `it` | `lang/it.json` |
 | Arabic | `ar` | `lang/ar.json` |
 
-> **Note:** The Brazilian Portuguese, Japanese, Simplified Chinese, Italian, and Arabic catalogues are machine-translated and waiting for review by native speakers. Corrections are welcome as issues or pull requests.
+> **Note:** The Brazilian Portuguese, Japanese, Simplified Chinese, Italian, and Arabic catalogs are machine-translated and waiting for review by native speakers. Corrections are welcome as issues or pull requests.
 
 The admin follows the application locale (`app()->getLocale()`). The layout's `<html lang>` follows it too.
 
-The catalogues load in the service provider's `register()`, so they're read even when another package calls `__()` while booting, and even when the satellite is inactive. Where a key is shared with the engine, the admin's wording wins.
+The catalogs load in the service provider's `register()`, so they're read even when another package calls `__()` while booting, and even when the satellite is inactive. Where a key is shared with the engine, the admin's wording wins.
 
 ## Overriding strings
 
-Publish the catalogues:
+Publish the catalogs:
 
 ```bash
 php artisan vendor:publish --tag=ecommerce-admin-lang
 ```
 
-They are copied to `lang/vendor/ecommerce-admin/`. The package loads that directory as well as its own, so you can change individual strings there. Strings are keyed by their English text, as with any JSON catalogue.
+They are copied to `lang/vendor/ecommerce-admin/`. The package loads that directory as well as its own, so you can change individual strings there. Strings are keyed by their English text, as with any JSON catalog.
 
 ## Adding a language
 
@@ -43,10 +43,10 @@ Copy `lang/en.json` to `lang/vendor/ecommerce-admin/{locale}.json` in your appli
 
 ### Plural forms
 
-Laravel picks a plural segment by the locale's plural rule, so a catalogue needs as many segments as its language has forms:
+Laravel picks a plural segment by the locale's plural rule, so a catalog needs as many segments as its language has forms:
 
 - **Arabic** has six forms (zero, one, two, 3–10, 11–99, other). Each plain `singular|plural` key has six segments in `ar.json`, and an override in `lang/vendor/ecommerce-admin/ar.json` must have six too. With only two, Arabic shows the plural for one.
-- **Japanese and Chinese** have one form, and Laravel always shows the first segment for them. Their catalogues give each plain `singular|plural` key a single segment that carries `:count`, written for any number (interval keys such as `{0} …|[2,*] …` keep their segments, because the interval picks one before the plural rule runs).
+- **Japanese and Chinese** have one form, and Laravel always shows the first segment for them. Their catalogs give each plain `singular|plural` key a single segment that carries `:count`, written for any number (interval keys such as `{0} …|[2,*] …` keep their segments, because the interval picks one before the plural rule runs).
 
 Notification templates are separate: add a locale per template on the Notifications screen. The locales offered come from the `ap.ecommerceAdminLivewire.notifications.locales` filter. See [Hooks Reference](reference/hooks.md).
 
@@ -70,10 +70,10 @@ Under `cms-framework` the CMS admin layout controls `dir`, not the admin. See [c
 
 ## Translation lint
 
-CI fails when a user-facing string is not wrapped in a translation function, or when a key is missing from any catalogue. Run the same check locally:
+CI fails when a user-facing string is not wrapped in a translation function, or when a key is missing from any catalog. Run the same check locally:
 
 ```bash
 vendor/bin/testbench ecommerce:lint:translations --no-engine --path=src --path=resources --lang=lang
 ```
 
-It scans `src/` and `resources/` (Blade included) and compares against every catalogue in `lang/`. `--no-engine` leaves the engine's own sources out. When you add a string, add it to all nine catalogues; when you stop using one, remove it from all nine. The test suite fails on a catalogue key that `src/`, `resources/`, `config/`, and `routes/` no longer use (`tests/Feature/Localization/CataloguesTest.php`).
+It scans `src/` and `resources/` (Blade included) and compares against every catalog in `lang/`. `--no-engine` leaves the engine's own sources out. When you add a string, add it to all nine catalogs; when you stop using one, remove it from all nine. The test suite fails on a catalog key that `src/`, `resources/`, `config/`, and `routes/` no longer use (`tests/Feature/Localization/CataloguesTest.php`).

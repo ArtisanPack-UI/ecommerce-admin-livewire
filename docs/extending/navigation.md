@@ -119,9 +119,9 @@ addFilter( 'ap.ecommerceAdminLivewire.nav.badgeLabel', function ( string $label,
 
 The link's accessible name includes the description ("Orders (12 orders awaiting fulfillment)"). In the collapsed icon rail, the count becomes a dot.
 
-### Badge colour
+### Badge color
 
-`NavBadges::tone( ?string $badge ): string` picks the badge's colour: `primary` for `orders-awaiting-fulfillment` (the one call to action), `warning` for `low-stock`, and `neutral` for everything else, your own badge keys included.
+`NavBadges::tone( ?string $badge ): string` picks the badge's color: `primary` for `orders-awaiting-fulfillment` (the one call to action), `warning` for `low-stock`, and `neutral` for everything else, your own badge keys included.
 
 **Since:** 2.0.0
 
