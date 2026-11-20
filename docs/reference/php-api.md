@@ -1870,7 +1870,7 @@ if ( AdminNav::canAccess( $request->user() ) ) {
 
 ### `AdminNav::url()`
 
-An entry's URL, or `#` when its route isn't registered.
+An entry's URL: its registered route, else its `url`, else `#`. An entry with a `url` stays in the navigation even when its route isn't registered, so a satellite can link to a page outside the admin's routes.
 
 | Parameter | Type | Description |
 | --- | --- | --- |

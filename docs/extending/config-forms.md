@@ -49,7 +49,7 @@ The registry's other public methods (`rules()`, `defaults()`, `cast()`, and so o
 | `rules` | No | Extra Laravel rules (an array or a pipe-delimited string). Fields are optional unless the rules include `required`. A rule may name a sibling field as `@name`, e.g. `required_without:@amount`. |
 | `options` | No | For `select` and `multiselect`: `[ value => label ]` or `[ [ 'id' => …, 'name' => … ] ]` |
 | `default` | No | Starting value for a new entry |
-| `multiple` | No | For `product`, `category`, and `product-tag`: pick many (default `true`) or one |
+| `multiple` | No | For `product`, `category`, and `product-tag`: pick many or one. Defaults to `true` (a list of IDs) in schemas you register, and to `false` (one ID) in fields the engine declares. |
 | `source` | No | For `product`: `product` (default) or `variant` |
 | `fields` | No | For `repeater`: the row's fields (no nested repeaters) |
 

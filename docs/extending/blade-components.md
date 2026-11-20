@@ -175,6 +175,25 @@ The bar offers "Select all N matching rows" once the whole page is selected and 
 @endif
 ```
 
+The bar doesn't render a confirmation. When an action has a `confirm` message, its button only marks the action as pending (`$tableConfirming`), and nothing runs until the user confirms. If you render the bar yourself instead of using the `ecommerce-admin::partials.resource-table` partial, render the confirmation as well. Call `confirmBulkAction()` with `$tableConfirmToken` to run the action, and `cancelBulkAction()` to dismiss it:
+
+```blade
+@if ( null !== $tableConfirming )
+    <div class="ec-confirm" role="alertdialog" aria-labelledby="bulk-confirm-title" aria-describedby="bulk-confirm-text">
+        <p id="bulk-confirm-title">{{ $tableConfirming['label'] }}</p>
+        <p id="bulk-confirm-text">{{ $tableConfirming['confirm'] }}</p>
+
+        <x-artisanpack-button
+            color="error"
+            size="sm"
+            wire:click="confirmBulkAction( {{ \Illuminate\Support\Js::from( $tableConfirmToken ) }} )"
+            wire:loading.attr="disabled"
+        >{{ __( 'Confirm' ) }}</x-artisanpack-button>
+        <x-artisanpack-button variant="ghost" color="neutral" size="sm" wire:click="cancelBulkAction">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+    </div>
+@endif
+```
+
 **Since:** 1.0.0
 
 ## Error summary
