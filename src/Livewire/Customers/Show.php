@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Customers;
 
+use ArtisanPack\LivewireUiComponents\Support\Toasts;
 use ArtisanPackUI\Ecommerce\Models\Customer;
 use ArtisanPackUI\Ecommerce\Models\Order;
 use ArtisanPackUI\Ecommerce\Services\CustomerService;
@@ -23,6 +24,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Registries\CustomerTabRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
 use Livewire\Attributes\Locked;
@@ -32,8 +34,10 @@ use Livewire\Component;
 /**
  * A customer's detail page (spec §7.4).
  *
- * The header shows lifetime value, order count, average order value, and
- * the first and last order dates. Below it, the tabs from the
+ * The header shows the account and marketing badges, then lifetime value,
+ * order count, average order value, and the first and last order dates
+ * (#129). The Contact card sits beside the tabs; editing swaps it for the
+ * form in place. Below it, the tabs from the
  * {@see CustomerTabRegistry}: orders, addresses, notification preferences,
  * notes, activity, and any a satellite registers.
  *
@@ -121,13 +125,16 @@ class Show extends Component
     public bool $acceptsMarketing = false;
 
     /**
-     * Whether the delete confirmation is open.
+     * Whether the delete dialog is open.
+     *
+     * Not locked: the dialog closes itself (Escape, the close button) by
+     * setting it false. Setting it true only shows the dialog to a user who
+     * may delete, and deleting re-checks the ability.
      *
      * @since 1.0.0
      *
      * @var bool
      */
-    #[Locked]
     public bool $confirmingDelete = false;
 
     /**
@@ -160,7 +167,11 @@ class Show extends Component
     /**
      * Loads and authorizes the customer.
      *
+     * A missing customer is a 404 only for users who may list customers;
+     * anyone else gets a 403, so ids can't be probed.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Checks `viewAny` before answering 404.
      *
      * @param  int|string  $customer  The customer id.
      *
@@ -169,6 +180,14 @@ class Show extends Component
     public function mount( int|string $customer ): void
     {
         $this->customerId = (int) $customer;
+
+        try {
+            $this->customer();
+        } catch ( ModelNotFoundException $exception ) {
+            $this->authorizeEcommerce( 'viewAny', Customer::class );
+
+            throw $exception;
+        }
 
         $this->authorizeEcommerce( 'view', $this->customer() );
     }
@@ -244,9 +263,9 @@ class Show extends Component
 
         $this->authorizeEcommerce( 'update', $customer );
 
-        $this->firstName = sanitizeText( $this->firstName );
-        $this->lastName  = sanitizeText( $this->lastName );
-        $this->phone     = sanitizeText( $this->phone );
+        $this->firstName = trim( $this->firstName );
+        $this->lastName  = trim( $this->lastName );
+        $this->phone     = trim( $this->phone );
 
         $this->validate(
             [
@@ -311,6 +330,22 @@ class Show extends Component
     }
 
     /**
+     * Clears the typed email when the dialog closes itself.
+     *
+     * @since 2.0.0
+     *
+     * @param  bool  $open  Whether the dialog is open.
+     *
+     * @return void
+     */
+    public function updatedConfirmingDelete( bool $open ): void
+    {
+        if ( ! $open ) {
+            $this->cancelDelete();
+        }
+    }
+
+    /**
      * Deletes and anonymizes the customer, then returns to the list.
      *
      * @since 1.0.0
@@ -331,7 +366,7 @@ class Show extends Component
             [ 'deleteConfirmation' => __( 'email' ) ],
         );
 
-        if ( mb_strtolower( trim( $this->deleteConfirmation ) ) !== mb_strtolower( trim( (string) $customer->email ) ) ) {
+        if ( ! $this->deleteConfirmationMatches( $customer ) ) {
             $this->addError( 'deleteConfirmation', __( 'Type the customer\'s email exactly to confirm.' ) );
 
             return;
@@ -347,13 +382,20 @@ class Show extends Component
             return;
         }
 
-        $this->toastSuccess( __( 'Customer deleted. Their orders were kept and anonymized.' ) );
-
+        $message    = __( 'Customer deleted. Their orders were kept and anonymized.' );
         $indexRoute = AdminNav::ROUTE_PREFIX . 'customers.index';
 
-        if ( Route::has( $indexRoute ) ) {
-            $this->redirectRoute( $indexRoute );
+        if ( ! Route::has( $indexRoute ) ) {
+            $this->toastSuccess( $message );
+
+            return;
         }
+
+        // A browser event would be lost with the page it was sent to, so the
+        // toast is flashed for the toaster on the page the redirect opens.
+        Toasts::flash( title: $message, color: 'success' );
+
+        $this->redirectRoute( $indexRoute );
     }
 
     /**
@@ -363,23 +405,25 @@ class Show extends Component
      */
     public function render(): View
     {
-        $customer = $this->customer();
-        $tabs     = $this->visibleTabs();
-        $keys     = array_column( $tabs, 'key' );
+        $customer  = $this->customer();
+        $tabs      = $this->visibleTabs();
+        $keys      = array_column( $tabs, 'key' );
+        $canDelete = $this->canEcommerce( 'delete', $customer );
 
         if ( ! in_array( $this->tab, $keys, true ) ) {
             $this->tab = $keys[0] ?? '';
         }
 
         return view( 'ecommerce-admin::livewire.customers.show', [
-            'customer'     => $customer,
-            'name'         => Index::customerName( $customer ),
-            'stats'        => $this->stats( $customer ),
-            'tabs'         => $tabs,
-            'canUpdate'    => $this->canEcommerce( 'update', $customer ),
-            'canDelete'    => $this->canEcommerce( 'delete', $customer ),
-            'deleteToken'  => $this->confirmingDelete ? $this->actionToken( 'delete', $customer ) : null,
-            'indexUrl'     => Route::has( AdminNav::ROUTE_PREFIX . 'customers.index' ) ? route( AdminNav::ROUTE_PREFIX . 'customers.index' ) : null,
+            'customer'      => $customer,
+            'name'          => Index::customerName( $customer ),
+            'stats'         => $this->stats( $customer ),
+            'tabs'          => $tabs,
+            'canUpdate'     => $this->canEcommerce( 'update', $customer ),
+            'canDelete'     => $canDelete,
+            'deleteToken'   => $this->confirmingDelete && $canDelete ? $this->actionToken( 'delete', $customer ) : null,
+            'deleteMatches' => $this->deleteConfirmationMatches( $customer ),
+            'indexUrl'      => Route::has( AdminNav::ROUTE_PREFIX . 'customers.index' ) ? route( AdminNav::ROUTE_PREFIX . 'customers.index' ) : null,
         ] );
     }
 
@@ -410,6 +454,23 @@ class Show extends Component
             'firstOrderAt'      => null === $first ? null : Carbon::parse( $first ),
             'lastOrderAt'       => $customer->last_ordered_at,
         ];
+    }
+
+    /**
+     * Whether the typed email matches the customer's, ignoring case and
+     * surrounding spaces.
+     *
+     * @since 2.0.0
+     *
+     * @param  Customer  $customer  The customer.
+     *
+     * @return bool
+     */
+    protected function deleteConfirmationMatches( Customer $customer ): bool
+    {
+        $typed = mb_strtolower( trim( $this->deleteConfirmation ) );
+
+        return '' !== $typed && $typed === mb_strtolower( trim( (string) $customer->email ) );
     }
 
     /**

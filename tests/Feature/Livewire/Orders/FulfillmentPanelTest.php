@@ -171,10 +171,26 @@ it( 'shows why an unshippable order cannot ship', function ( string $status, str
         ->call( 'createShipment', 'token' )
         ->assertHasErrors( [ 'shipment' ] );
 } )->with( [
-    'cancelled' => [ 'cancelled', 'This order was cancelled' ],
+    'cancelled' => [ 'cancelled', 'This order was canceled' ],
     'refunded'  => [ 'refunded', 'This order was refunded' ],
     'failed'    => [ 'failed', 'payment failed' ],
 ] );
+
+it( 'does not offer a shipment on an unpaid order unless the store allows it', function (): void {
+    $this->order->forceFill( [ 'system_status' => 'pending', 'payment_status' => 'pending' ] )->save();
+
+    Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )
+        ->assertSee( 'This order hasn’t been paid yet, so it can’t ship.' )
+        ->assertDontSee( 'Create shipment' )
+        ->call( 'createShipment', 'token' )
+        ->assertHasErrors( [ 'shipment' ] );
+
+    config()->set( 'artisanpack.ecommerce.fulfillment.allow_unpaid_shipments', true );
+
+    Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )
+        ->assertDontSee( 'This order hasn’t been paid yet' )
+        ->assertSee( 'Create shipment' );
+} );
 
 it( 'pastes a tracking number and updates the status', function (): void {
     $shipment = Shipment::factory()->create( [ 'order_id' => $this->order->id, 'status' => 'pending' ] );
@@ -232,6 +248,53 @@ it( 'buys a label only when a label provider is registered', function (): void {
         ->assertDontSee( 'Buy label' );
 } );
 
+it( 'keeps each shipment\'s label provider choice separate', function (): void {
+    fulfillmentLabelProvider();
+
+    app( ShippingLabelProviderRegistry::class )->register( 'other-labels', new class implements ShippingLabelProvider {
+        public function key(): string
+        {
+            return 'other-labels';
+        }
+
+        public function buyLabel( Shipment $shipment ): ShippingLabel
+        {
+            return new ShippingLabel( 5151, 'other-labels', 'OTHER-' . $shipment->id, 'https://track.example.test/o/' . $shipment->id, 'ups', 'ground' );
+        }
+
+        public function voidLabel( ShippingLabel $label ): void
+        {
+        }
+
+        public function trackLabel( ShippingLabel $label ): TrackingStatus
+        {
+            return new TrackingStatus( 'in_transit' );
+        }
+    } );
+
+    $first  = Shipment::factory()->create( [ 'order_id' => $this->order->id ] );
+    $second = Shipment::factory()->create( [ 'order_id' => $this->order->id ] );
+
+    $tokenFor = static function ( $component, Shipment $shipment ): string {
+        preg_match( '/buyLabel\(\s*' . $shipment->id . ',\s*(?:&quot;|&#039;|\'|")([^&\'"]+)/', $component->html(), $matches );
+
+        return $matches[1] ?? '';
+    };
+
+    $component = Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )
+        ->assertSeeHtml( 'wire:model="labelProviderFor.' . $first->id . '"' )
+        ->assertSeeHtml( 'wire:model="labelProviderFor.' . $second->id . '"' )
+        ->set( 'labelProviderFor.' . $first->id, 'other-labels' );
+
+    $component->call( 'buyLabel', $second->id, $tokenFor( $component, $second ) )->assertHasNoErrors();
+
+    expect( $second->fresh()->tracking_number )->toBe( 'TRACK-' . $second->id );
+
+    $component->call( 'buyLabel', $first->id, $tokenFor( $component, $first ) )->assertHasNoErrors();
+
+    expect( $first->fresh()->tracking_number )->toBe( 'OTHER-' . $first->id );
+} );
+
 it( 'clears a tracking link', function (): void {
     $shipment = Shipment::factory()->create( [ 'order_id' => $this->order->id, 'tracking_number' => '1Z1', 'tracking_url' => 'https://wrong.example.test' ] );
 
@@ -258,4 +321,51 @@ it( 'does not buy a second label for a shipment', function (): void {
     $component->call( 'buyLabel', $shipment->id, fulfillmentLabelToken( Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] ) ) );
 
     expect( $shipment->fresh()->label_id )->toBe( 1 );
+} );
+
+it( 'builds the panel from design-system parts with the status beside the title', function (): void {
+    $shipment = Shipment::factory()->create( [
+        'order_id'        => $this->order->id,
+        'carrier'         => 'UPS',
+        'tracking_number' => '1Z999',
+        'tracking_url'    => 'https://ups.example.test/1Z999',
+        'status'          => 'in_transit',
+    ] );
+    $shipment->items()->create( [ 'order_item_id' => $this->shirt->id, 'quantity' => 1 ] );
+
+    $html = Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )->html();
+
+    expect( $html )
+        ->toContain( 'class="ec-card-title-row"' )
+        ->toContain( 'class="ec-item" data-shipment="' . $shipment->id . '"' )
+        ->toContain( 'target="_blank" rel="noopener noreferrer"' )
+        ->toContain( '(opens in a new tab)' )
+        ->toContain( 'aria-label="Update tracking for shipment #' . $shipment->id . '"' )
+        ->not->toContain( 'rounded-box' )
+        ->not->toContain( 'border-base-300' );
+} );
+
+it( 'shows the empty state before the first shipment', function (): void {
+    Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )
+        ->assertSee( 'No shipments yet' )
+        ->assertSee( 'Create a shipment when items leave the warehouse.' );
+} );
+
+it( 'disables the ship-now input for a line with nothing left and shows gateway errors as an alert', function (): void {
+    $shipment = Shipment::factory()->create( [ 'order_id' => $this->order->id ] );
+    $shipment->items()->create( [ 'order_item_id' => $this->mug->id, 'quantity' => 1 ] );
+
+    $component = Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )->call( 'startShipment' );
+
+    expect( $component->html() )
+        ->toContain( 'Choose how many units of each item are in this parcel.' )
+        ->toMatch( '/<input[^>]*id="ship-item-' . $this->mug->id . '"[^>]*\sdisabled/s' );
+
+    // The order is cancelled while the dialog is open: the refusal shows at the top of the dialog.
+    $this->order->forceFill( [ 'system_status' => 'cancelled' ] )->save();
+
+    $component->call( 'createShipment', fulfillmentShipmentToken( $component ) )
+        ->assertHasErrors( [ 'shipment' ] )
+        ->assertSeeHtml( 'data-shipment-error' )
+        ->assertSee( 'This order was canceled, so nothing more can ship.' );
 } );

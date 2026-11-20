@@ -1,5 +1,5 @@
 {{--
-    Notification templates list. See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notifications\Index.
+    Notification templates list (#134). See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notifications\Index.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -9,104 +9,129 @@
 @php
     use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Notifications\Index;
+    use ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions;
 @endphp
-<div>
-    <x-artisanpack-header :title="__( 'Notifications' )" :subtitle="__( 'Edit the emails and messages the store sends.' )" :level="1" separator />
+<div class="ec-stack" data-notifications-index>
+    <x-artisanpack-page-header :title="__( 'Notifications' )" :description="__( 'Edit the emails and messages the store sends.' )" :level="1" />
 
     @if ( 0 === $total )
-        <x-artisanpack-ec-empty-state
-            icon="o-bell"
-            :title="__( 'No notification templates' )"
-            :description="__( 'No notifications are registered with the store yet.' )"
-        />
+        <div class="apui-card">
+            <x-artisanpack-ec-admin-empty-state
+                icon="bell"
+                :heading-level="2"
+                :title="__( 'No notification templates' )"
+                :description="__( 'No notifications are registered with the store yet.' )"
+            />
+        </div>
     @else
-        <div class="mb-4 flex flex-wrap items-end gap-3" role="group" aria-label="{{ __( 'Filters' ) }}">
-            <x-artisanpack-select
-                id="notifications-channel"
-                :label="__( 'Channel' )"
-                :options="$channelOptions"
-                :placeholder="__( 'Any' )"
-                placeholder-value=""
-                wire:model.live="channel"
-            />
-            <x-artisanpack-select
-                id="notifications-locale"
-                :label="__( 'Language' )"
-                :options="$localeOptions"
-                :placeholder="__( 'Any' )"
-                placeholder-value=""
-                wire:model.live="locale"
-            />
+        <div class="ec-notif-list-filters" role="group" aria-label="{{ __( 'Filters' ) }}" data-notification-filters>
+            <div class="ec-notif-list-filter">
+                <x-artisanpack-select
+                    id="notifications-channel"
+                    size="sm"
+                    :label="__( 'Channel' )"
+                    :options="ControlOptions::from( $channelOptions )"
+                    :placeholder="__( 'Any' )"
+                    wire:model.live="channel"
+                />
+            </div>
+            <div class="ec-notif-list-filter">
+                <x-artisanpack-select
+                    id="notifications-locale"
+                    size="sm"
+                    :label="__( 'Language' )"
+                    :options="ControlOptions::from( $localeOptions )"
+                    :placeholder="__( 'Any' )"
+                    wire:model.live="locale"
+                />
+            </div>
             @if ( $filtersActive )
-                <x-artisanpack-button variant="ghost" size="sm" icon="o-x-mark" wire:click="resetFilters" :label="__( 'Clear filters' )" />
+                <x-artisanpack-button variant="ghost" color="neutral" size="sm" leading-icon="x" wire:click="resetFilters" data-clear-filters>{{ __( 'Clear filters' ) }}</x-artisanpack-button>
             @endif
         </div>
 
         @if ( $groups->isEmpty() )
-            <x-artisanpack-ec-empty-state
-                icon="o-magnifying-glass"
-                :title="__( 'No matches' )"
-                :description="__( 'No templates match these filters.' )"
-            />
+            <div class="apui-card">
+                <x-artisanpack-ec-admin-empty-state
+                    size="sm"
+                    icon="search"
+                    :heading-level="2"
+                    :title="__( 'No matches' )"
+                    :description="__( 'No templates match these filters.' )"
+                >
+                    <x-artisanpack-button variant="outline" color="neutral" leading-icon="x" wire:click="resetFilters" data-empty-clear-filters>{{ __( 'Clear filters' ) }}</x-artisanpack-button>
+                </x-artisanpack-ec-admin-empty-state>
+            </div>
+        @else
+            <div class="ec-notif-list-groups">
+                @foreach ( $groups as $group )
+                    <section class="apui-card" wire:key="notification-group-{{ $group['key'] }}" aria-labelledby="notification-group-{{ $loop->index }}" data-template-group="{{ $group['key'] }}">
+                        <div data-scope="card" data-part="header">
+                            <div class="ec-notif-list-heading">
+                                <h2 id="notification-group-{{ $loop->index }}" data-scope="card" data-part="title">{{ $group['label'] }}</h2>
+                                <bdi dir="ltr" class="ec-mono ec-cell-muted" data-template-key>{{ $group['key'] }}</bdi>
+                            </div>
+                        </div>
+
+                        <div data-scope="card" data-part="body" class="ec-card-body-flush">
+                            <div class="apui-table">
+                                <div data-scope="table" data-part="scroll">
+                                    <table data-scope="table" data-part="table">
+                                        <caption class="apui-sr-only">{{ __( ':template templates', [ 'template' => $group['label'] ] ) }}</caption>
+                                        <thead>
+                                            <tr>
+                                                <th data-scope="table" data-part="head-cell" scope="col">{{ __( 'Channel' ) }}</th>
+                                                <th data-scope="table" data-part="head-cell" scope="col">{{ __( 'Language' ) }}</th>
+                                                <th data-scope="table" data-part="head-cell" scope="col">{{ __( 'Status' ) }}</th>
+                                                <th data-scope="table" data-part="head-cell" scope="col">{{ __( 'Last edited' ) }}</th>
+                                                <th data-scope="table" data-part="head-cell" scope="col" data-numeric>{{ __( 'Actions' ) }}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ( $group['templates'] as $template )
+                                                @php
+                                                    $channelLabel = Index::channelLabel( (string) $template->channel );
+                                                    $localeLabel  = Index::localeLabel( (string) $template->locale );
+                                                @endphp
+                                                <tr data-scope="table" data-part="row" wire:key="notification-template-{{ $template->id }}" data-template="{{ $template->id }}">
+                                                    <td data-scope="table" data-part="cell">
+                                                        <span class="ec-notif-list-channel" data-channel="{{ $template->channel }}">
+                                                            <x-artisanpack-icon :name="Index::channelIcon( (string) $template->channel )" aria-hidden="true" />{{ $channelLabel }}
+                                                        </span>
+                                                    </td>
+                                                    <td data-scope="table" data-part="cell">{{ $localeLabel }}</td>
+                                                    <td data-scope="table" data-part="cell">
+                                                        <x-artisanpack-badge dot :color="$template->is_active ? 'success' : 'neutral'" :data-template-state="$template->is_active ? 'active' : 'off'">{{ $template->is_active ? __( 'Active' ) : __( 'Off' ) }}</x-artisanpack-badge>
+                                                    </td>
+                                                    <td data-scope="table" data-part="cell" class="ec-cell-muted ec-nowrap">
+                                                        @php( $templateEdited = Index::wasEdited( $template ) )
+                                                        @if ( $templateEdited && null !== $template->updated_at )
+                                                            <time datetime="{{ $template->updated_at->toIso8601String() }}">{{ LocalizedDate::format( $template->updated_at ) }}</time>
+                                                        @elseif ( $templateEdited )
+                                                            <span data-edited-unknown>{{ __( 'Unknown' ) }}</span>
+                                                        @else
+                                                            <span data-never-edited>{{ __( 'Never' ) }}</span>
+                                                        @endif
+                                                    </td>
+                                                    <td data-scope="table" data-part="cell" data-numeric>
+                                                        <x-artisanpack-button
+                                                            variant="ghost"
+                                                            color="neutral"
+                                                            size="xs"
+                                                            leading-icon="pencil"
+                                                            :href="route( 'artisanpack.ecommerce.admin.notifications.edit', [ 'template' => $template->id ] )"
+                                                            :aria-label="__( 'Edit :template (:channel, :language)', [ 'template' => $group['label'], 'channel' => $channelLabel, 'language' => $localeLabel ] )">{{ __( 'Edit' ) }}</x-artisanpack-button>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                @endforeach
+            </div>
         @endif
-
-        <div class="flex flex-col gap-6">
-            @foreach ( $groups as $group )
-                <section wire:key="notification-group-{{ $group['key'] }}" aria-labelledby="notification-group-{{ $loop->index }}" data-template-group="{{ $group['key'] }}">
-                    <h2 id="notification-group-{{ $loop->index }}" class="text-lg font-semibold">
-                        {{ $group['label'] }}
-                        <span class="ms-2 text-sm font-normal opacity-75">{{ $group['key'] }}</span>
-                    </h2>
-
-                    {{-- A plain table, not x-artisanpack-table: see src/View/Components/ResourceTable.php for why. --}}
-                    <div class="overflow-x-auto">
-                        <table class="table table-sm">
-                            <caption class="sr-only">{{ __( ':template templates', [ 'template' => $group['label'] ] ) }}</caption>
-                            <thead>
-                                <tr>
-                                    <th scope="col">{{ __( 'Channel' ) }}</th>
-                                    <th scope="col">{{ __( 'Language' ) }}</th>
-                                    <th scope="col">{{ __( 'Status' ) }}</th>
-                                    <th scope="col">{{ __( 'Last edited' ) }}</th>
-                                    <th scope="col" class="text-end">{{ __( 'Actions' ) }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ( $group['templates'] as $template )
-                                    <tr wire:key="notification-template-{{ $template->id }}" data-template="{{ $template->id }}">
-                                        <td>{{ Index::channelLabel( (string) $template->channel ) }}</td>
-                                        <td>{{ Index::localeLabel( (string) $template->locale ) }}</td>
-                                        <td>
-                                            @if ( $template->is_active )
-                                                <x-artisanpack-badge :value="__( 'Active' )" color="success" class="badge-sm" />
-                                            @else
-                                                <x-artisanpack-badge :value="__( 'Off' )" class="badge-sm badge-ghost" />
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if ( null !== $template->updated_at )
-                                                <time datetime="{{ $template->updated_at->toIso8601String() }}">{{ LocalizedDate::format( $template->updated_at ) }}</time>
-                                            @else
-                                                <span class="opacity-75">{{ __( 'Never' ) }}</span>
-                                            @endif
-                                        </td>
-                                        <td class="text-end">
-                                            <x-artisanpack-button
-                                                variant="ghost"
-                                                size="sm"
-                                                icon="o-pencil"
-                                                :link="route( 'artisanpack.ecommerce.admin.notifications.edit', [ 'template' => $template->id ] )"
-                                                :label="__( 'Edit' )"
-                                                :aria-label="__( 'Edit :template (:locale)', [ 'template' => $group['label'], 'locale' => $template->locale ] )"
-                                            />
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            @endforeach
-        </div>
     @endif
 </div>

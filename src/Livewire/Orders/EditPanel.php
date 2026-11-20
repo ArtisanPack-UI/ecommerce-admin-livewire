@@ -172,6 +172,18 @@ class EditPanel extends Component
     public ?array $preview = null;
 
     /**
+     * A hash of the edit the latest preview was worked out for. Saving
+     * requires the draft to still hash the same, so a change that lands in
+     * the same request as the click is never saved unseen.
+     *
+     * @since 2.0.0
+     *
+     * @var string|null
+     */
+    #[Locked]
+    public ?string $previewHash = null;
+
+    /**
      * Why the order is being edited.
      *
      * @since 1.0.0
@@ -179,6 +191,36 @@ class EditPanel extends Component
      * @var string
      */
     public string $reason = '';
+
+    /**
+     * Whether the roll-back confirmation is open.
+     *
+     * @since 2.0.0
+     *
+     * @var bool
+     */
+    public bool $confirmingRollback = false;
+
+    /**
+     * The edit the roll-back confirmation was opened for. Fixed while the
+     * dialog is open, so a newer edit saved meanwhile is never rolled back
+     * in its place.
+     *
+     * @since 2.0.0
+     *
+     * @var int|null
+     */
+    #[Locked]
+    public ?int $rollbackEditId = null;
+
+    /**
+     * The address sections open in the editor (`shipping`, `billing`).
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public array $openAddresses = [];
 
     /**
      * Re-render when another panel changes the order.
@@ -221,7 +263,9 @@ class EditPanel extends Component
         $this->billing        = $this->addressDraft( $order->billing_address );
         $this->shippingMethod = (string) ( $order->shipping_method_key ?? '' );
         $this->preview        = null;
+        $this->previewHash    = null;
         $this->reason         = '';
+        $this->openAddresses  = [];
         $this->reset( 'addProductId', 'addVariantId', 'addQuantity' );
 
         $this->editing = true;
@@ -238,8 +282,15 @@ class EditPanel extends Component
      */
     public function updated( string $property ): void
     {
+        if ( 'openAddresses' === Str::before( $property, '.' ) ) {
+            $this->openAddresses = self::addressSections( $this->openAddresses );
+
+            return;
+        }
+
         if ( in_array( Str::before( $property, '.' ), [ 'draftItems', 'shipping', 'billing', 'shippingMethod' ], true ) ) {
-            $this->preview = null;
+            $this->preview     = null;
+            $this->previewHash = null;
         }
     }
 
@@ -294,8 +345,9 @@ class EditPanel extends Component
             return;
         }
 
-        $this->newItems[] = [ RowKeys::KEY => RowKeys::make(), 'product_id' => (int) $product->id, 'variant_id' => $line['variant_id'], 'quantity' => (int) $this->addQuantity ];
-        $this->preview    = null;
+        $this->newItems[]  = [ RowKeys::KEY => RowKeys::make(), 'product_id' => (int) $product->id, 'variant_id' => $line['variant_id'], 'quantity' => (int) $this->addQuantity ];
+        $this->preview     = null;
+        $this->previewHash = null;
         $this->reset( 'addProductId', 'addVariantId', 'addQuantity' );
     }
 
@@ -316,8 +368,9 @@ class EditPanel extends Component
 
         unset( $this->newItems[ $index ] );
 
-        $this->newItems = array_values( $this->newItems );
-        $this->preview  = null;
+        $this->newItems    = array_values( $this->newItems );
+        $this->preview     = null;
+        $this->previewHash = null;
     }
 
     /**
@@ -359,7 +412,8 @@ class EditPanel extends Component
 
         $currency = (string) $order->currency;
 
-        $this->preview = [
+        $this->previewHash = self::editHash( $edit );
+        $this->preview     = [
             'lines'        => self::describeDiff( $result['diff'], $this->itemNames( $order ), $currency ),
             'before'       => (int) ( $result['diff']['totals']['before']['total_amount'] ?? 0 ),
             'after'        => (int) ( $result['diff']['totals']['after']['total_amount'] ?? 0 ),
@@ -372,7 +426,12 @@ class EditPanel extends Component
     /**
      * Applies the draft through {@see OrderEditService::apply()}.
      *
+     * Only the edit that was last previewed is saved: when the draft no
+     * longer matches the preview, the preview is dropped and the user is
+     * asked to preview again.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Requires a matching preview.
      *
      * @param  string  $token  The action token minted with the editor.
      *
@@ -402,6 +461,14 @@ class EditPanel extends Component
             return;
         }
 
+        if ( null === $this->previewHash || ! hash_equals( $this->previewHash, self::editHash( $edit ) ) ) {
+            $this->preview     = null;
+            $this->previewHash = null;
+            $this->addError( 'edit', __( 'The changes were edited after the preview. Preview them again.' ) );
+
+            return;
+        }
+
         try {
             $result = $this->withActionToken(
                 $token,
@@ -419,7 +486,7 @@ class EditPanel extends Component
             return;
         }
 
-        $this->reset( 'editing', 'draftItems', 'newItems', 'shipping', 'billing', 'shippingMethod', 'preview', 'reason' );
+        $this->reset( 'editing', 'draftItems', 'newItems', 'shipping', 'billing', 'shippingMethod', 'preview', 'previewHash', 'reason', 'openAddresses' );
         $this->orderChanged();
 
         if ( null !== $result->paymentActionRequired ) {
@@ -435,6 +502,34 @@ class EditPanel extends Component
             __( 'Order updated.' ),
             null === $result->refundDelta ? null : __( 'The total fell by :amount; refund it from Refunds if it was paid.', [ 'amount' => MoneyFormatter::format( (int) $result->refundDelta['delta_amount'], (string) $result->refundDelta['currency'] ) ] ),
         );
+    }
+
+    /**
+     * Opens the roll-back confirmation for `$editId`, which must be the
+     * order's latest edit.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $editId  The edit to roll back.
+     *
+     * @return void
+     */
+    public function confirmRollback( int $editId ): void
+    {
+        $order = $this->order();
+
+        if ( ! $this->authorizeEdit( $order ) ) {
+            return;
+        }
+
+        if ( $this->latestEditId( $order ) !== $editId ) {
+            $this->toastError( __( 'Only the latest edit can be rolled back.' ) );
+
+            return;
+        }
+
+        $this->rollbackEditId     = $editId;
+        $this->confirmingRollback = true;
     }
 
     /**
@@ -456,6 +551,9 @@ class EditPanel extends Component
         }
 
         $latest = OrderEdit::query()->where( 'order_id', $order->id )->orderByDesc( 'id' )->first();
+
+        $this->confirmingRollback = false;
+        $this->rollbackEditId     = null;
 
         if ( null === $latest || (int) $latest->id !== $editId ) {
             $this->toastError( __( 'Only the latest edit can be rolled back.' ) );
@@ -496,8 +594,23 @@ class EditPanel extends Component
     {
         $order   = $this->order()->load( 'items' );
         $user    = auth()->user();
+
+        $this->openAddresses = self::addressSections( $this->openAddresses );
+
+        // An address with an error opens, so its message is never hidden in a collapsed section.
+        foreach ( [ 'shipping', 'billing' ] as $address ) {
+            if ( $this->getErrorBag()->hasAny( array_map( static fn ( string $field ): string => $address . '.' . $field, self::ADDRESS_FIELDS ) ) && ! in_array( $address, $this->openAddresses, true ) ) {
+                $this->openAddresses[] = $address;
+            }
+        }
+
         $edits   = OrderEdit::query()->where( 'order_id', $order->id )->orderByDesc( 'id' )->get();
         $blocked = $this->blockedReason( $order );
+
+        // The edit the open confirmation was opened for, never whichever edit is latest now.
+        $rollbackTarget = $this->confirmingRollback && null !== $this->rollbackEditId
+            ? $edits->firstWhere( 'id', $this->rollbackEditId )
+            : null;
         $canEdit = null === $blocked
             && $this->canEcommerce( 'update', $order )
             && ( ! $this->fulfillmentStarted( $order ) || Authorization::allows( $user, 'order.edit-fulfilled', $order ) );
@@ -516,7 +629,10 @@ class EditPanel extends Component
             'addVariantOptions'  => $this->editing ? $this->addVariantOptions() : [],
             'methodOptions'      => $this->editing ? ShippingMethods::options( $order->shipping_method_key ) : [],
             'editToken'          => $this->editing && $canEdit ? $this->actionToken( 'edit', $order ) : null,
-            'rollbackToken'      => $canEdit && $edits->isNotEmpty() ? $this->actionToken( 'rollback', $edits->first() ) : null,
+            'canRollback'        => $canEdit && $edits->isNotEmpty(),
+            'rollbackTarget'     => $rollbackTarget,
+            'rollbackStale'      => null !== $rollbackTarget && (int) $rollbackTarget->id !== (int) $edits->first()?->id,
+            'rollbackToken'      => $canEdit && null !== $rollbackTarget ? $this->actionToken( 'rollback', $rollbackTarget ) : null,
         ] );
     }
 
@@ -593,6 +709,39 @@ class EditPanel extends Component
         }
 
         return $lines;
+    }
+
+    /**
+     * The id of the order's latest edit, or null when it has none.
+     *
+     * @since 2.0.0
+     *
+     * @param  Order  $order  The order.
+     *
+     * @return int|null
+     */
+    protected function latestEditId( Order $order ): ?int
+    {
+        $id = OrderEdit::query()->where( 'order_id', $order->id )->orderByDesc( 'id' )->value( 'id' );
+
+        return null === $id ? null : (int) $id;
+    }
+
+    /**
+     * The address sections a client may open: `shipping` and `billing`,
+     * once each, in that order. Anything else in the array is dropped.
+     *
+     * @since 2.0.0
+     *
+     * @param  mixed  $sections  The requested sections.
+     *
+     * @return array<int, string>
+     */
+    protected static function addressSections( mixed $sections ): array
+    {
+        $sections = is_array( $sections ) ? $sections : [];
+
+        return array_values( array_filter( [ 'shipping', 'billing' ], static fn ( string $section ): bool => in_array( $section, $sections, true ) ) );
     }
 
     /**
@@ -673,6 +822,15 @@ class EditPanel extends Component
      */
     protected function validatedEdit( Order $order ): ?array
     {
+        // `editing` can't be locked (the dialog closes it), so a tampered
+        // request could reach here without a draft; empty address drafts
+        // would then clear the order's addresses.
+        if ( ! self::isFullAddressDraft( $this->shipping ) || ! self::isFullAddressDraft( $this->billing ) ) {
+            $this->addError( 'edit', __( 'Open the editor before saving changes.' ) );
+
+            return null;
+        }
+
         $rules = [
             'draftItems'                => [ 'array' ],
             'draftItems.*.quantity'     => [ 'required', 'integer', 'min:1', 'max:9999' ],
@@ -781,6 +939,45 @@ class EditPanel extends Component
         }
 
         return $edit;
+    }
+
+    /**
+     * A stable hash of an edit, to tie a save to the preview it was shown.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>  $edit  The edit.
+     *
+     * @return string
+     */
+    protected static function editHash( array $edit ): string
+    {
+        return hash( 'sha256', (string) json_encode( $edit ) );
+    }
+
+    /**
+     * Whether an address draft holds every form field, as
+     * {@see self::addressDraft()} builds it.
+     *
+     * @since 2.0.0
+     *
+     * @param  mixed  $draft  The draft.
+     *
+     * @return bool
+     */
+    protected static function isFullAddressDraft( mixed $draft ): bool
+    {
+        if ( ! is_array( $draft ) ) {
+            return false;
+        }
+
+        $keys     = array_keys( $draft );
+        $expected = self::ADDRESS_FIELDS;
+
+        sort( $keys );
+        sort( $expected );
+
+        return $keys === $expected;
     }
 
     /**

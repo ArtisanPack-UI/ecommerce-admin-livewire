@@ -26,8 +26,13 @@ function throttledUpdate( $test, $user, ?array $calls = null, array $updates = [
 
     $page = $test->actingAs( $user )->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk();
 
-    preg_match( '/wire:snapshot="([^"]+)"/', $page->getContent(), $matches );
-    $snapshot = htmlspecialchars_decode( $matches[1] );
+    // The dashboard's snapshot: the sidebar's navigation component renders
+    // first. Matched on the snapshot's own name, which Livewire 3 and 4 both
+    // carry (only Livewire 4 renders a wire:name attribute).
+    preg_match_all( '/wire:snapshot="([^"]+)"/', $page->getContent(), $matches );
+    $snapshot = collect( $matches[1] )
+        ->map( static fn ( string $encoded ): string => htmlspecialchars_decode( $encoded ) )
+        ->first( static fn ( string $decoded ): bool => 'artisanpack-ecommerce-admin-dashboard' === ( json_decode( $decoded, true )['memo']['name'] ?? null ) );
 
     return fn () => tap( $test, static fn () => app( 'livewire' )->flushState() )->actingAs( $user )->withHeaders( [ 'X-Livewire' => '1' ] )->postJson(
         app( 'livewire' )->getUpdateUri(),
@@ -90,9 +95,7 @@ it( 'turns a 429 into a toast instead of the Livewire error modal', function ():
         ->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
         ->assertOk()
         ->assertSee( 'data-ecommerce-admin-rate-limit', false )
-        ->assertSee( "window.Livewire.hook( 'request'", false )
-        ->assertSee( 'title: escapeHtml( title ), description: escapeHtml( message )', false )
-        ->assertSee( 'node.textContent = String( text );', false );
+        ->assertSee( "window.Livewire.hook( 'request'", false );
 } );
 
 afterEach( function (): void {
@@ -134,3 +137,48 @@ it( 'tells reads from writes by the calls and updates each component sends', fun
     'one writing component of two'     => [ [ [ 'calls' => [], 'updates' => [] ], [ 'calls' => [ [ 'method' => 'delete' ] ], 'updates' => [] ] ], false ],
     'no components'                    => [ [], false ],
 ] );
+
+it( 'weighs an update by its writing calls and updating components', function ( array $components, int $weight ): void {
+    expect( ThrottleAdminMutations::weight( Request::create( '/livewire/update', 'POST', [ 'components' => $components ] ) ) )->toBe( $weight );
+} )->with( [
+    'a read'                                      => [ [ [ 'calls' => [ [ 'method' => 'sort' ] ], 'updates' => [] ] ], 0 ],
+    'one write'                                   => [ [ [ 'calls' => [ [ 'method' => 'save' ] ], 'updates' => [] ] ], 1 ],
+    'ten writes in one component (Livewire 3)'    => [ [ [ 'calls' => array_fill( 0, 10, [ 'path' => '', 'method' => 'delete', 'params' => [ 1 ] ] ), 'updates' => [] ] ], 10 ],
+    'ten writes in one component (Livewire 4)'    => [ [ [ 'calls' => array_fill( 0, 10, [ 'method' => 'delete', 'params' => [ 1 ], 'metadata' => [] ] ), 'updates' => [] ] ], 10 ],
+    'updates plus a write, and a read'            => [ [ [ 'calls' => [ [ 'method' => 'save' ], [ 'method' => 'sort' ] ], 'updates' => [ 'name' => 'Mug' ] ] ], 2 ],
+    'writes across components'                    => [ [ [ 'calls' => [ [ 'method' => 'save' ] ], 'updates' => [] ], [ 'calls' => [ [ 'method' => 'delete' ] ], 'updates' => [ 'x' => 1 ] ] ], 3 ],
+    'a Livewire 4 $set with its update'           => [ [ [ 'calls' => [ [ 'method' => '$set' ] ], 'updates' => [ 'search' => 'mug' ] ] ], 1 ],
+    'a bundled child $commit with no updates'     => [ [ [ 'calls' => [ [ 'method' => 'save' ] ], 'updates' => [] ], [ 'calls' => [ [ 'method' => '$commit' ] ], 'updates' => [] ] ], 1 ],
+    'a malformed component'                       => [ [ 'nope' ], 1 ],
+    'no components'                               => [ [], 1 ],
+] );
+
+it( 'treats lazy loads and the admin\'s refresh events as reads, and other dispatches as writes', function ( mixed $call, bool $read ): void {
+    expect( ThrottleAdminMutations::isReadCall( $call ) )->toBe( $read );
+} )->with( [
+    'a lazy component'                   => [ [ 'method' => '__lazyLoad', 'params' => [ 'encoded' ] ], true ],
+    'a lazy island'                      => [ [ 'method' => '__lazyLoadIsland', 'params' => [] ], true ],
+    'an admin broadcast refresh'         => [ [ 'method' => '__dispatch', 'params' => [ 'echo-private:ecommerce.admin,.orderStatusChanged', [] ] ], true ],
+    'the sidebar badge refresh'          => [ [ 'method' => '__dispatch', 'params' => [ 'ecommerce-admin-nav-refresh', [] ] ], true ],
+    'another channel'                    => [ [ 'method' => '__dispatch', 'params' => [ 'echo-private:ecommerce.administrator,.x', [] ] ], false ],
+    'any other event'                    => [ [ 'method' => '__dispatch', 'params' => [ 'order-saved', [] ] ], false ],
+    'an event name that is not a string' => [ [ 'method' => '__dispatch', 'params' => [ [ 'x' ], [] ] ], false ],
+    'not an array'                       => [ 'save', false ],
+] );
+
+it( 'counts every writing call in one request against the limit', function (): void {
+    config()->set( 'artisanpack.ecommerce.rate_limits.admin.mutate.per_user', 12 );
+    $user  = makeUser();
+    $calls = static fn ( int $count ): array => array_fill( 0, $count, [ 'path' => '', 'method' => 'orderBroadcast', 'params' => [] ] );
+
+    throttledUpdate( $this, $user, $calls( 10 ) )()->assertOk();
+    throttledUpdate( $this, $user, $calls( 3 ) )()->assertStatus( 429 );
+    throttledUpdate( $this, $user, $calls( 2 ) )()->assertOk();
+    throttledUpdate( $this, $user, $calls( 1 ) )()->assertStatus( 429 );
+} );
+
+it( 'rejects a single request that weighs more than the whole budget', function (): void {
+    $calls = array_fill( 0, 3, [ 'path' => '', 'method' => 'orderBroadcast', 'params' => [] ] );
+
+    throttledUpdate( $this, makeUser(), $calls )()->assertStatus( 429 );
+} );

@@ -43,11 +43,49 @@ it( 'renders the sub-statuses grouped under the six system statuses', function (
         ->assertSeeHtml( 'data-substatus="in-progress"' );
 } );
 
-it( 'shows how many orders use each sub-status', function (): void {
-    $printing = processingSubstatus();
-    Order::factory()->count( 3 )->create( [ 'system_status' => 'processing', 'substatus_id' => $printing->id ] );
+it( 'counts the sub-statuses on each status card and marks terminal ones', function (): void {
+    processingSubstatus( [ 'icon' => 'o-printer' ] );
+    processingSubstatus( [ 'key' => 'boxed', 'label' => 'Boxed', 'is_terminal' => true, 'position' => 6 ] );
 
-    Livewire::test( Index::class )->assertSeeHtml( 'data-order-count="3"' )->assertSee( '3 orders' );
+    Livewire::test( Index::class )
+        ->assertSeeHtml( 'data-substatus-count="3"' )
+        ->assertSee( '3 sub-statuses' )
+        ->assertSeeHtml( 'data-terminal' )
+        ->assertSeeHtml( 'class="ec-column-chip" viewBox="0 0 28 28" color="#1E3A8A"' )
+        ->assertSeeHtml( '<svg x="6" y="6" width="16" height="16"><svg' )
+        ->assertDontSeeHtml( '--ec-column-color' )
+        ->assertSeeHtml( '<bdi dir="ltr" class="ec-mono ec-muted">boxed</bdi>' );
+} );
+
+it( 'previews the badge live and keeps the last valid colour while the hex is rejected', function (): void {
+    $substatus = processingSubstatus( [ 'key' => 'awaiting-label', 'label' => 'Awaiting label', 'color' => '#EC4899' ] );
+
+    Livewire::test( Index::class )
+        ->call( 'edit', $substatus->id )
+        ->assertSeeHtml( 'data-key-locked' )
+        ->assertSee( 'Order status: Processing' )
+        ->set( 'form.label', 'Awaiting a label' )
+        ->set( 'form.color', '#EC48' )
+        ->assertViewHas( 'previewColor', '#EC4899' )
+        ->assertSee( 'Awaiting a label' )
+        ->call( 'save' )
+        ->assertHasErrors( [ 'form.color' ] );
+
+    Livewire::test( Index::class )
+        ->call( 'create', 'processing' )
+        ->assertDontSeeHtml( 'data-key-locked' )
+        ->assertSee( 'Add a label to see the badge.' )
+        ->set( 'form.color', '#10b981' )
+        ->assertViewHas( 'previewColor', '#10B981' );
+} );
+
+it( 'previews a neutral badge once the colour is cleared', function (): void {
+    $substatus = processingSubstatus( [ 'key' => 'awaiting-label', 'label' => 'Awaiting label', 'color' => '#EC4899' ] );
+
+    Livewire::test( Index::class )
+        ->call( 'edit', $substatus->id )
+        ->set( 'form.color', '' )
+        ->assertViewHas( 'previewColor', null );
 } );
 
 it( 'is denied without orderSubstatus.viewAny', function (): void {
@@ -142,7 +180,8 @@ it( 'deletes an unused sub-status after confirmation', function (): void {
     $component = Livewire::test( Index::class )
         ->call( 'confirmDelete', $printing->id )
         ->assertSeeHtml( 'data-delete-substatus="printing"' )
-        ->assertSee( 'Nothing uses this sub-status.' );
+        ->assertSee( 'Nothing uses this sub-status.' )
+        ->assertSeeHtml( 'data-delete-button' );
 
     $token = $component->viewData( 'deleteToken' );
 
@@ -158,7 +197,9 @@ it( 'blocks deleting a sub-status that orders use, with the count', function ():
     $component = Livewire::test( Index::class )
         ->call( 'confirmDelete', $printing->id )
         ->assertSeeHtml( 'data-delete-in-use' )
-        ->assertSee( '14 orders' )
+        ->assertSee( 'It is still in use by 14 orders, 0 cards, and 0 columns.' )
+        ->assertSee( 'Move them to another sub-status first.' )
+        ->assertDontSeeHtml( 'data-delete-button' )
         ->assertViewHas( 'deleteBlocked', true );
 
     $component->call( 'delete', $component->viewData( 'deleteToken' ) );
@@ -173,7 +214,7 @@ it( 'counts kanban columns that use the sub-status', function (): void {
 
     Livewire::test( Index::class )
         ->call( 'confirmDelete', $printing->id )
-        ->assertSee( '1 kanban column' )
+        ->assertSee( '1 column' )
         ->assertViewHas( 'deleteBlocked', true );
 } );
 
@@ -183,6 +224,8 @@ it( 'blocks deleting the last sub-status of a system status', function (): void 
     $component = Livewire::test( Index::class )
         ->call( 'confirmDelete', $only->id )
         ->assertSeeHtml( 'data-delete-last' )
+        ->assertSee( 'Add another sub-status to Pending first.' )
+        ->assertDontSeeHtml( 'data-delete-button' )
         ->assertViewHas( 'deleteBlocked', true );
 
     $component->call( 'delete', $component->viewData( 'deleteToken' ) );
@@ -195,10 +238,23 @@ it( 'warns about a low-contrast colour when the accessibility package is install
 
     Livewire::test( Index::class )
         ->call( 'create', 'processing' )
-        ->set( 'form.color', '#3B82F6' )
+        ->set( 'form.color', '#FDE68A' )
         ->assertSeeHtml( 'data-contrast-warning' )
+        ->assertSee( 'on the light background, below the 3:1 that WCAG asks for' )
         ->set( 'form.color', '#1E3A8A' )
+        ->assertSeeHtml( 'data-contrast-warning' )
+        ->assertSee( 'on the dark background, below the 3:1 that WCAG asks for' )
+        ->set( 'form.color', '#3B82F6' )
         ->assertDontSeeHtml( 'data-contrast-warning' );
+} );
+
+it( 'checks a status colour as a dot or icon, with 3:1 non-text contrast (L-C12)', function (): void {
+    ColorContrast::fake( true );
+
+    expect( ColorContrast::warning( '#808080' ) )->toBeNull()
+        ->and( ColorContrast::warning( '#FDE68A' ) )->toContain( 'icon and dot' )
+        ->and( ColorContrast::badgeTextColor( '#808080' ) )->toBe( '#000000' )
+        ->and( ColorContrast::badgeTextColor( '#1E3A8A' ) )->toBe( '#FFFFFF' );
 } );
 
 it( 'skips the contrast warning without the accessibility package', function (): void {
@@ -323,9 +379,23 @@ it( 'renders a non-hex colour from the API as transparent', function (): void {
     Livewire::test( Index::class )
         ->assertSee( 'Odd' )
         ->assertDontSeeHtml( 'red;x:y' )
-        ->assertSeeHtml( 'background-color: transparent' );
+        ->assertSeeHtml( 'color="transparent"' );
 
     expect( $substatus->exists )->toBeTrue()
         ->and( ColorContrast::safeHex( '#a1B2c3' ) )->toBe( '#a1B2c3' )
         ->and( ColorContrast::safeHex( '#abc' ) )->toBe( 'transparent' );
+} );
+
+it( 'authorizes edit, move and delete against the sub-status record (L-S6)', function (): void {
+    $locked = processingSubstatus();
+    $open   = OrderSubstatus::query()->where( 'key', 'in-progress' )->sole();
+
+    Gate::define( 'ecommerce.orderSubstatus.update', static fn ( $user, $substatus = null ): bool => ! ( $substatus instanceof OrderSubstatus && $substatus->is( $locked ) ) );
+    Gate::define( 'ecommerce.orderSubstatus.delete', static fn ( $user, $substatus = null ): bool => ! ( $substatus instanceof OrderSubstatus && $substatus->is( $locked ) ) );
+
+    Livewire::test( Index::class )->call( 'edit', $open->id )->assertSet( 'editing', true );
+    Livewire::test( Index::class )->call( 'edit', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'move', $locked->id, -1 )->assertForbidden();
+    Livewire::test( Index::class )->call( 'confirmDelete', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'confirmDelete', $open->id )->assertSet( 'confirmingDelete', true );
 } );

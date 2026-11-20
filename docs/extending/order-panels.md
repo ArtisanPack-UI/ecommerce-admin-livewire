@@ -1,5 +1,6 @@
 ---
 title: Order Panels
+menu_order: 40
 ---
 
 # Order Panels
@@ -91,6 +92,67 @@ app( OrderPanelRegistry::class )->register( 'loyalty', 'loyalty-order-panel', 's
 
 - **Dispatch it** after your panel changes the order. The page and every listening panel re-render.
 - **Listen for it** if your panel shows order state, so it updates when another panel (a refund, a shipment) changes the order.
+
+## Using the order panel concern
+
+The built-in panels share their plumbing through the `InteractsWithOrderPanel` concern, and your panel can use it too. It needs `AuthorizesEcommerce` alongside it. The concern:
+
+- defines `mount( Order|int|string $order )`, which stores the id in a locked `$orderId` property and authorizes `view` on the order;
+- re-authorizes `view` in `hydrate()`, on every request;
+- gives you `order()`, which loads the order once per request;
+- gives you `orderChanged()`, which drops the loaded order and dispatches `ORDER_UPDATED_EVENT` with the order id;
+- gives you `actorId()`, the signed-in user's id as an `int` (or `null`), for the engine's audit columns.
+
+The panel from the example above, rewritten with the concern:
+
+```php
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\InteractsWithOrderPanel;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
+use Illuminate\Contracts\View\View;
+use Livewire\Component;
+
+class LoyaltyOrderPanel extends Component
+{
+    use AuthorizesEcommerce;
+    use InteractsWithOrderPanel;
+
+    protected $listeners = [ OrderPanelRegistry::ORDER_UPDATED_EVENT => '$refresh' ];
+
+    public function award(): void
+    {
+        $this->authorizeEcommerce( 'update', $this->order() );
+
+        app( PointsService::class )->awardFor( $this->order(), $this->actorId() );
+
+        $this->orderChanged();
+    }
+
+    public function render(): View
+    {
+        return view( 'loyalty::admin.order-panel', [ 'order' => $this->order() ] );
+    }
+}
+```
+
+To run your own setup on mount, alias the concern's `mount()` and call it first:
+
+```php
+use ArtisanPackUI\Ecommerce\Models\Order;
+
+use InteractsWithOrderPanel {
+    mount as mountOrderPanel;
+}
+
+public function mount( Order|int|string $order ): void
+{
+    $this->mountOrderPanel( $order );
+
+    // … your own setup.
+}
+```
+
+See the [PHP API reference](../reference/php-api.md#interactswithorderpanel) for every method.
 
 ## Replacing or removing a built-in panel
 

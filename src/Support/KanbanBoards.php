@@ -74,6 +74,22 @@ final class KanbanBoards
     public const KEY_PATTERN = '/^(?:[a-z0-9]+(?:-[a-z0-9]+)*:)?[a-z0-9]+(?:-[a-z0-9]+)*$/';
 
     /**
+     * Trims a board or column name and drops control characters. Markup is
+     * kept as typed (every view escapes it), so `Spend <$50` or `O<Brien`
+     * isn't cut short the way `strip_tags()` would.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $text  Text as typed.
+     *
+     * @return string
+     */
+    public static function plainText( string $text ): string
+    {
+        return trim( (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $text ) );
+    }
+
+    /**
      * Makes `$board` the only default board.
      *
      * @since 1.0.0
@@ -301,21 +317,27 @@ final class KanbanBoards
 
     /**
      * The "Open board" URL, or null when the kanban satellite is not
-     * installed. Filterable through `ap.ecommerceAdminLivewire.kanban.boardUrl`.
+     * installed. Filterable through `ap.ecommerceAdminLivewire.kanban.boardUrl`,
+     * which also receives `$query`.
+     *
+     * `$query` adds query parameters, such as `[ 'card' => $orderId ]`,
+     * which the kanban reads to focus that order's card.
      *
      * @since 1.0.0
+     * @since 2.0.0 Added `$query`.
      *
-     * @param  KanbanBoard  $board  The board.
+     * @param  KanbanBoard                $board  The board.
+     * @param  array<string, int|string>  $query  Extra query parameters.
      *
      * @return string|null
      */
-    public static function boardUrl( KanbanBoard $board ): ?string
+    public static function boardUrl( KanbanBoard $board, array $query = [] ): ?string
     {
         $url = self::kanbanInstalled() && Route::has( self::BOARD_ROUTE )
-            ? route( self::BOARD_ROUTE, [ 'board' => $board->id ] )
+            ? route( self::BOARD_ROUTE, [ 'board' => $board->id ] + $query )
             : null;
 
-        $url = applyFilters( 'ap.ecommerceAdminLivewire.kanban.boardUrl', $url, $board );
+        $url = applyFilters( 'ap.ecommerceAdminLivewire.kanban.boardUrl', $url, $board, $query );
 
         return is_string( $url ) && '' !== $url ? $url : null;
     }

@@ -1,8 +1,9 @@
 ---
-title: Product CSV import and export
+title: Product CSV Import and Export
+menu_order: 50
 ---
 
-# Product CSV import and export
+# Product CSV Import and Export
 
 The products screen exports the catalog as CSV, and **Products → Import** reads the same format back. A file exported,
 edited in a spreadsheet, and imported again updates the products it came from.
@@ -15,7 +16,7 @@ On the products screen:
 - With rows selected, the **Export catalog** bulk action exports just those products.
 
 A product with variants is written as one product row followed by one row per variant. Exports stop at
-`tables.export_max_rows` rows (see [Configuration](Installation-Configuration)).
+`tables.export_max_rows` rows (see [Configuration](../installation/configuration.md)).
 
 ## Import
 
@@ -34,12 +35,12 @@ A product with variants is written as one product row followed by one row per va
 - Only one worker runs an import at a time. The job may run for up to an hour, so set the queue connection's
   `retry_after` above 3600 seconds, or the queue will hand the job out again while it is still running.
 - A leading apostrophe that the export added in front of `=`, `+`, `-`, or `@` is removed again on import.
-- Imports untouched for seven days (completed, failed, or abandoned) are deleted by `ecommerce-admin:prune-imports`. Schedule it daily; see [Artisan Commands](Advanced-Artisan-Commands).
+- Imports untouched for seven days (completed, failed, or abandoned) are deleted by `ecommerce-admin:prune-imports`. Schedule it daily; see [Artisan Commands](../reference/commands.md).
 - Up to 500 failed rows are listed per import; the report says when there were more.
 - The failed rows can be downloaded as CSV.
 - The uploaded file is deleted when the import completes or is discarded.
 - The screen needs `product.create`. Each row also needs `product.create` (new products) or `product.update` (existing
-  ones) for the user who started the import. See [Authorization](Authorization).
+  ones) for the user who started the import. See [Authorization](../authorization.md).
 
 ### How rows are matched
 
@@ -89,5 +90,5 @@ defaults (`simple` type, `draft` status). A new product needs a `sku` or a `slug
 ## Sample file
 
 **Download a sample file** on the import screen, or copy
-[`resources/samples/products-import-sample.csv`](../../resources/samples/products-import-sample.csv). It creates a simple
+[`resources/samples/products-import-sample.csv`](https://github.com/ArtisanPack-UI/ecommerce-admin-livewire/blob/main/resources/samples/products-import-sample.csv). It creates a simple
 product, a variable product with two variants, and a digital product.

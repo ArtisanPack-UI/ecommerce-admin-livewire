@@ -38,4 +38,16 @@ class CategoryPicker extends Picker
     {
         return __( 'Picking categories becomes available once the store engine manages categories.' );
     }
+
+    /**
+     * The type's own placeholder.
+     *
+     * @since 2.0.0
+     *
+     * @return string
+     */
+    public function defaultPlaceholder(): string
+    {
+        return __( 'Search categories' );
+    }
 }

@@ -22,7 +22,7 @@
 --}}
 <div
     id="ecommerce-admin-announcer"
-    class="sr-only"
+    class="apui-sr-only"
     role="status"
     aria-live="polite"
     aria-atomic="true"
@@ -110,7 +110,17 @@
 
         // The Livewire component a click belongs to, so only that component's
         // update settles it (not a real-time refresh elsewhere on the page).
-        const componentOf = ( element ) => element.closest( '[wire\\:id]' )?.getAttribute( 'wire:id' ) ?? null;
+        // Dialogs teleport to <body>, so step back through Alpine's teleport
+        // link to the component that owns them.
+        const componentOf = ( element ) => {
+            for ( let node = element; node; node = node._x_teleportBack ?? node.parentElement ) {
+                if ( node.hasAttribute( 'wire:id' ) ) {
+                    return node.getAttribute( 'wire:id' );
+                }
+            }
+
+            return null;
+        };
 
         document.addEventListener( 'click', ( event ) => {
             const move = event.target.closest( '[data-reorder]' );

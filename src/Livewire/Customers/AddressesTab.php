@@ -207,7 +207,7 @@ class AddressesTab extends Component
         $this->authorizeEcommerce( 'update', $customer );
 
         $this->address = array_map(
-            static fn ( mixed $value ): mixed => is_string( $value ) ? sanitizeText( $value ) : $value,
+            static fn ( mixed $value ): mixed => is_string( $value ) ? trim( $value ) : $value,
             array_intersect_key( $this->address, self::emptyAddress() ) + self::emptyAddress(),
         );
 

@@ -18,6 +18,9 @@ use ArtisanPackUI\Ecommerce\Models\ProductChild;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use ArtisanPackUI\Ecommerce\Services\ProductService;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithPickers;
+use ArtisanPackUI\EcommerceAdminLivewire\Pickers\PickerSource;
+use ArtisanPackUI\EcommerceAdminLivewire\Registries\PickerSourceRegistry;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
@@ -225,12 +228,58 @@ class ChildrenPanel extends ProductTypePanel
             ->groupBy( 'product_id' );
 
         return view( 'ecommerce-admin::livewire.products.panels.children', [
-            'pickerOptions'  => array_map( fn ( int $index ): array => $this->optionsForPicker( 'product', "state.children.{$index}.product_id" ), array_keys( $rows ) ),
-            'variantOptions' => array_map( static fn ( array $row ): array => $variants->get( (int) ( $row['product_id'] ?? 0 ), collect() )->map( static fn ( ProductVariant $variant ): array => [
+            'childPickerOptions' => $this->childPickerOptions( count( $rows ) ),
+            'variantOptions'     => array_map( static fn ( array $row ): array => $variants->get( (int) ( $row['product_id'] ?? 0 ), collect() )->map( static fn ( ProductVariant $variant ): array => [
                 'id'   => (string) $variant->id,
                 'name' => (string) ( $variant->name ?: $variant->sku ?: __( 'Variant #:id', [ 'id' => $variant->id ] ) ),
             ] )->values()->all(), $rows ),
         ] );
+    }
+
+    /**
+     * Each row's product picker options. The first page of products is the
+     * same for every row and the selected products load in one query, so
+     * the panel costs two queries a render rather than two per row. A row
+     * whose picker was searched keeps its search results.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $count  Number of rows.
+     *
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    protected function childPickerOptions( int $count ): array
+    {
+        $source = app( PickerSourceRegistry::class )->get( 'product' );
+
+        if ( 0 === $count || null === $source || ! Authorization::allows( auth()->user(), $source->ability() ) ) {
+            return array_fill( 0, $count, [] );
+        }
+
+        $fields   = array_map( static fn ( int $index ): string => "state.children.{$index}.product_id", range( 0, $count - 1 ) );
+        $selected = [];
+
+        foreach ( $fields as $field ) {
+            array_push( $selected, ...$this->pickerSelection( $field ) );
+        }
+
+        $found     = [];
+        $firstPage = null;
+
+        foreach ( $source->find( array_slice( array_values( array_unique( $selected ) ), 0, PickerSource::MAX_IDS ) ) as $option ) {
+            $found[ (string) $option['id'] ] = $option;
+        }
+
+        return array_map( function ( string $field ) use ( $source, $found, &$firstPage ): array {
+            if ( isset( $this->pickerOptions[ 'product:' . $field ] ) ) {
+                return $this->optionsForPicker( 'product', $field );
+            }
+
+            $firstPage ??= $source->search( '', self::pickerLimit() );
+            $own         = array_values( array_intersect_key( $found, array_flip( array_map( 'strval', $this->pickerSelection( $field ) ) ) ) );
+
+            return $this->withoutExcluded( 'product', $field, $this->mergePickerOptions( $own, $firstPage ) );
+        }, $fields );
     }
 
     /**

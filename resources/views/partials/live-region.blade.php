@@ -9,4 +9,4 @@
 
     @since      1.0.0
 --}}
-<div class="sr-only" role="status" aria-live="polite" aria-atomic="true" data-live-region>{{ ( $message ?? '' ) . ( 1 === ( (int) ( $revision ?? 0 ) ) % 2 ? "\u{200B}" : '' ) }}</div>
+<div class="apui-sr-only" role="status" aria-live="polite" aria-atomic="true" data-live-region>{{ ( $message ?? '' ) . ( 1 === ( (int) ( $revision ?? 0 ) ) % 2 ? "\u{200B}" : '' ) }}</div>

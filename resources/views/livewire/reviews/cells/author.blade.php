@@ -1,4 +1,2 @@
-<span class="block">{{ $row->author_name }}</span>
-@if ( filled( $row->author_email ) )
-    <span class="block text-xs opacity-75">{{ $row->author_email }}</span>
-@endif
+{{-- Reviews cell (#125): the author's name as they gave it. --}}
+<span class="ec-reviews-author">{{ $row->author_name }}</span>

@@ -1,5 +1,14 @@
 {{--
-    Reviews moderation queue. See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reviews\Index.
+    Reviews (#125). See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reviews\Index.
+
+    The moderation queue on the shared Resource table (#79): the rating as
+    stars named "2 out of 5", the author, a Verified badge, the review clamped
+    to two lines and its status. Rows open the review drawer and delete it;
+    approving, rejecting and marking spam happen in the drawer, or across the
+    selection from the bulk bar, where Approve is the soft success button and
+    the reason field feeds Reject (bulk-controls). The drawer shows the whole
+    review and its photos with the moderation buttons in its footer. Reject
+    asks for an optional private reason in a small dialog.
 
     Review text is customer input: it is only ever printed escaped.
 
@@ -9,89 +18,136 @@
     @since      1.0.0
 --}}
 @php
-    use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Reviews\Index;
+    $productRoute = \ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav::ROUTE_PREFIX . 'products.edit';
+    $orderRoute   = \ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav::ROUTE_PREFIX . 'orders.show';
 @endphp
-<div>
-    <x-artisanpack-header :title="__( 'Reviews' )" :level="1" separator />
+<div class="ec-stack" data-reviews-index>
+    <x-artisanpack-page-header :title="__( 'Reviews' )" :description="__( 'What customers say about your products, waiting for you to approve before it goes live.' )" :level="1" />
 
     @include( 'ecommerce-admin::partials.resource-table', [
-        'emptyIcon'        => 'o-star',
-        'emptyTitle'       => __( 'No reviews yet' ),
-        'emptyDescription' => __( 'Reviews customers leave on products appear here for moderation.' ),
-        'bulkControls'     => 'ecommerce-admin::livewire.reviews.bulk-controls',
-        'rowLabel'         => static fn ( \ArtisanPackUI\Ecommerce\Models\ProductReview $review ): string => __( 'Review by :author', [ 'author' => $review->author_name ] ),
-        'cellContext'      => [ 'canModerate' => $canModerate, 'canDelete' => $canDelete, 'canView' => $canView ],
+        'emptyIcon'         => 'star',
+        'emptyTitle'        => __( 'No reviews yet' ),
+        'emptyDescription'  => __( 'Reviews customers leave on products appear here for moderation.' ),
+        'searchHint'        => __( 'Search reviews, products or authors' ),
+        'bulkControls'      => 'ecommerce-admin::livewire.reviews.bulk-controls',
+        'bulkInlineActions' => [ 'approve' ],
+        'rowLabel'          => static fn ( \ArtisanPackUI\Ecommerce\Models\ProductReview $review ): string => (string) $review->author_name,
+        'cellContext'       => [ 'canModerate' => $canModerate, 'canDelete' => $canDelete, 'canView' => $canView ],
     ] )
 
-    <x-artisanpack-drawer wire:model="viewing" :title="__( 'Review' )" right separator with-close-button close-on-escape class="w-full max-w-xl">
+    <x-artisanpack-drawer
+        wire:model="viewing"
+        :title="null === $reviewing ? __( 'Review' ) : __( 'Review by :author', [ 'author' => $reviewing->author_name ] )"
+        side="end"
+        size="md"
+        :close-label="__( 'Close' )"
+    >
         @if ( null !== $reviewing )
-            <article class="flex flex-col gap-4" data-review-detail="{{ $reviewing->id }}">
-                <div class="flex flex-wrap items-center gap-2">
+            <article class="ec-stack" data-review-detail="{{ $reviewing->id }}">
+                <div class="ec-reviews-badges">
                     <x-artisanpack-ec-status-badge type="review" :value="$reviewing->status" />
                     @if ( $reviewing->is_verified_purchase )
-                        <x-artisanpack-badge :value="__( 'Verified purchase' )" color="success" class="badge-sm" />
+                        <x-artisanpack-badge color="success" leading-icon="check" data-verified>{{ __( 'Verified purchase' ) }}</x-artisanpack-badge>
                     @endif
                 </div>
 
-                <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-                    <dt class="font-semibold">{{ __( 'Product' ) }}</dt>
-                    <dd>{{ $reviewing->product?->name ?? __( 'Deleted product' ) }}</dd>
-                    <dt class="font-semibold">{{ __( 'Rating' ) }}</dt>
-                    <dd>{{ __( ':rating out of 5', [ 'rating' => $reviewing->rating ] ) }}</dd>
-                    <dt class="font-semibold">{{ __( 'Author' ) }}</dt>
-                    <dd>{{ $reviewing->author_name }}@if ( $reviewing->author_email ) &lt;{{ $reviewing->author_email }}&gt;@endif</dd>
+                <dl class="ec-dl">
+                    <dt>{{ __( 'Product' ) }}</dt>
+                    <dd>
+                        @if ( null === $reviewing->product )
+                            <span class="ec-muted-text">{{ __( 'Deleted product' ) }}</span>
+                        @elseif ( \Illuminate\Support\Facades\Route::has( $productRoute ) )
+                            <a href="{{ route( $productRoute, [ 'product' => $reviewing->product_id ] ) }}" class="apui-link">{{ $reviewing->product->name }}</a>
+                        @else
+                            {{ $reviewing->product->name }}
+                        @endif
+                    </dd>
+                    <dt>{{ __( 'Rating' ) }}</dt>
+                    <dd><x-artisanpack-rating :value="max( 0, min( 5, (int) $reviewing->rating ) )" readonly size="md" /></dd>
+                    <dt>{{ __( 'Author' ) }}</dt>
+                    <dd>
+                        {{ $reviewing->author_name }}
+                        @if ( filled( $reviewing->author_email ) )
+                            <span class="ec-reviews-email"><bdi dir="ltr">{{ $reviewing->author_email }}</bdi></span>
+                        @endif
+                    </dd>
                     @if ( null !== $reviewing->order )
-                        <dt class="font-semibold">{{ __( 'Order' ) }}</dt>
-                        <dd>#{{ $reviewing->order->order_number }}</dd>
+                        <dt>{{ __( 'Order' ) }}</dt>
+                        <dd>
+                            @if ( \Illuminate\Support\Facades\Route::has( $orderRoute ) )
+                                <a href="{{ route( $orderRoute, [ 'order' => $reviewing->order->id ] ) }}" class="apui-link"><bdi dir="ltr" class="ec-mono">#{{ $reviewing->order->order_number }}</bdi></a>
+                            @else
+                                <bdi dir="ltr" class="ec-mono">#{{ $reviewing->order->order_number }}</bdi>
+                            @endif
+                        </dd>
                     @endif
-                    <dt class="font-semibold">{{ __( 'Submitted' ) }}</dt>
+                    <dt>{{ __( 'Submitted' ) }}</dt>
                     <dd>{{ null === $reviewing->created_at ? '' : \ArtisanPackUI\Ecommerce\Support\LocalizedDate::format( $reviewing->created_at ) }}</dd>
                 </dl>
 
-                @if ( filled( $reviewing->title ) )
-                    <h3 class="text-lg font-semibold">{{ $reviewing->title }}</h3>
-                @endif
-                <div class="whitespace-pre-line break-words" data-review-body>{{ $reviewing->body }}</div>
+                <div class="ec-reviews-text">
+                    @if ( filled( $reviewing->title ) )
+                        <p class="ec-reviews-title">{{ $reviewing->title }}</p>
+                    @endif
+                    <p class="ec-reviews-body" data-review-body>{{ $reviewing->body }}</p>
+                </div>
 
                 @if ( [] !== $reviewMedia )
-                    <section aria-labelledby="review-media-heading">
-                        <h3 id="review-media-heading" class="mb-2 font-semibold">{{ __( 'Media' ) }}</h3>
-                        <ul class="flex list-none flex-wrap gap-2">
+                    <section class="ec-reviews-media" aria-labelledby="review-media-heading">
+                        <h3 id="review-media-heading" class="ec-reviews-media-heading">{{ __( 'Media' ) }}</h3>
+                        <ul class="ec-reviews-media-list" role="list">
                             @foreach ( $reviewMedia as $media )
                                 <li wire:key="review-media-{{ $media['id'] }}">
                                     @if ( null !== $media['url'] )
-                                        <a href="{{ $media['url'] }}" target="_blank" rel="noopener noreferrer">
-                                            <img src="{{ $media['url'] }}" alt="{{ __( 'Photo :number from the review', [ 'number' => $loop->iteration ] ) }}" class="size-24 rounded object-cover" />
-                                            <span class="sr-only">{{ __( '(opens in a new tab)' ) }}</span>
+                                        <a href="{{ $media['url'] }}" class="ec-reviews-photo" target="_blank" rel="noopener noreferrer">
+                                            <img src="{{ $media['url'] }}" alt="{{ __( 'Photo :number from the review', [ 'number' => $loop->iteration ] ) }}" />
+                                            <span class="apui-sr-only">{{ __( '(opens in a new tab)' ) }}</span>
                                         </a>
                                     @else
-                                        <span class="text-sm">{{ __( 'Media library file #:id', [ 'id' => $media['id'] ] ) }}</span>
+                                        <span class="ec-muted-text">{{ __( 'Media library file #:id', [ 'id' => $media['id'] ] ) }}</span>
                                     @endif
                                 </li>
                             @endforeach
                         </ul>
                     </section>
                 @endif
-
-                @if ( $canModerate )
-                    <div class="flex flex-wrap gap-2">
-                        @include( 'ecommerce-admin::livewire.reviews.moderation-buttons', [ 'review' => $reviewing, 'canDelete' => $canDelete ] )
-                    </div>
-                @endif
             </article>
+        @endif
+
+        @if ( null !== $reviewing && ( $canModerate || $canDelete ) )
+            <x-slot:footer>
+                <div class="ec-reviews-moderation" data-review-moderation>
+                    @include( 'ecommerce-admin::livewire.reviews.moderation-buttons', [ 'review' => $reviewing, 'canModerate' => $canModerate, 'canDelete' => $canDelete, 'size' => 'md' ] )
+                </div>
+            </x-slot:footer>
         @endif
     </x-artisanpack-drawer>
 
     @if ( $rejecting )
-        <x-artisanpack-modal wire:model="rejecting" :title="__( 'Reject review' )" separator>
+        <x-artisanpack-dialog
+            wire:model="rejecting"
+            size="sm"
+            color="error"
+            icon="circle-x"
+            :title="__( 'Reject review' )"
+            :close-label="__( 'Close' )"
+            :classes="[ 'footer' => 'ec-dialog-footer-divided' ]"
+        >
             <form wire:submit="reject" id="review-reject-form" data-reject-form>
-                <x-artisanpack-textarea id="review-reject-reason" :label="__( 'Reason' )" :hint="__( 'For your team. The reviewer is not told.' )" wire:model="rejectReason" rows="3" required />
+                <x-artisanpack-textarea
+                    id="review-reject-reason"
+                    :label="__( 'Reason (optional)' )"
+                    :hint="__( 'For your team. The reviewer is not told.' )"
+                    wire:model="rejectReason"
+                    :rows="3"
+                    data-autofocus
+                />
             </form>
 
-            <x-slot:actions>
-                <x-artisanpack-button variant="ghost" wire:click="closeReject" :label="__( 'Cancel' )" />
-                <x-artisanpack-button type="submit" form="review-reject-form" color="error" wire:loading.attr="disabled" :label="__( 'Reject review' )" />
-            </x-slot:actions>
-        </x-artisanpack-modal>
+            <x-slot:footer>
+                <x-artisanpack-button variant="ghost" color="neutral" wire:click="closeReject">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" form="review-reject-form" color="error" wire:loading.attr="disabled" wire:target="reject" data-reject-submit>{{ __( 'Reject review' ) }}</x-artisanpack-button>
+            </x-slot:footer>
+        </x-artisanpack-dialog>
     @endif
 </div>

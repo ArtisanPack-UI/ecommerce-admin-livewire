@@ -16,6 +16,8 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\View\Components;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\ConfigFormRegistry;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
+use IntlCalendar;
+use Livewire\Component as LivewireComponent;
 use Livewire\Livewire;
 
 /**
@@ -38,6 +40,15 @@ use Livewire\Livewire;
  */
 class ConfigForm extends Component
 {
+    /**
+     * The field types that take the full width of the field grid.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const WIDE_TYPES = [ 'boolean', 'tag', 'repeater', 'template', 'textarea', 'json', 'product', 'category', 'product-tag' ];
+
     /**
      * The schema, or null for the JSON fallback.
      *
@@ -89,7 +100,7 @@ class ConfigForm extends Component
     {
         $component = Livewire::current();
 
-        return null === $component ? null : data_get( $component->all(), $path );
+        return $component instanceof LivewireComponent ? data_get( $component->all(), $path ) : null;
     }
 
     /**
@@ -107,7 +118,7 @@ class ConfigForm extends Component
     {
         $component = Livewire::current();
 
-        if ( null === $component || ! method_exists( $component, 'optionsForPicker' ) ) {
+        if ( ! $component instanceof LivewireComponent || ! method_exists( $component, 'optionsForPicker' ) ) {
             return [];
         }
 
@@ -115,23 +126,43 @@ class ConfigForm extends Component
     }
 
     /**
-     * The ISO weekdays as checkbox options.
+     * Whether a field spans both columns of the field grid.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>  $field  The schema field.
+     *
+     * @return bool
+     */
+    public function spansBothColumns( array $field ): bool
+    {
+        return in_array( $field['type'] ?? '', self::WIDE_TYPES, true );
+    }
+
+    /**
+     * The weekdays as ISO numbers (1 = Monday) with full and short names,
+     * starting on the current locale's first day of the week.
      *
      * @since 1.0.0
+     * @since 2.0.0 Adds `short` and follows the locale's first day.
      *
-     * @return array<int, array{id: int, name: string}>
+     * @return array<int, array{id: int, name: string, short: string}>
      */
     public function weekdays(): array
     {
-        return [
-            [ 'id' => 1, 'name' => __( 'Monday' ) ],
-            [ 'id' => 2, 'name' => __( 'Tuesday' ) ],
-            [ 'id' => 3, 'name' => __( 'Wednesday' ) ],
-            [ 'id' => 4, 'name' => __( 'Thursday' ) ],
-            [ 'id' => 5, 'name' => __( 'Friday' ) ],
-            [ 'id' => 6, 'name' => __( 'Saturday' ) ],
-            [ 'id' => 7, 'name' => __( 'Sunday' ) ],
+        $days = [
+            1 => [ 'id' => 1, 'name' => __( 'Monday' ), 'short' => __( 'Mon' ) ],
+            2 => [ 'id' => 2, 'name' => __( 'Tuesday' ), 'short' => __( 'Tue' ) ],
+            3 => [ 'id' => 3, 'name' => __( 'Wednesday' ), 'short' => __( 'Wed' ) ],
+            4 => [ 'id' => 4, 'name' => __( 'Thursday' ), 'short' => __( 'Thu' ) ],
+            5 => [ 'id' => 5, 'name' => __( 'Friday' ), 'short' => __( 'Fri' ) ],
+            6 => [ 'id' => 6, 'name' => __( 'Saturday' ), 'short' => __( 'Sat' ) ],
+            7 => [ 'id' => 7, 'name' => __( 'Sunday' ), 'short' => __( 'Sun' ) ],
         ];
+
+        $first = self::firstDayOfWeek();
+
+        return [ ...array_values( array_slice( $days, $first - 1 ) ), ...array_values( array_slice( $days, 0, $first - 1 ) ) ];
     }
 
     /**
@@ -144,5 +175,21 @@ class ConfigForm extends Component
     public function render(): View
     {
         return view( 'ecommerce-admin::components.config-form' );
+    }
+
+    /**
+     * The current locale's first day of the week as an ISO number.
+     *
+     * @since 2.0.0
+     *
+     * @return int 1 (Monday) to 7 (Sunday).
+     */
+    private static function firstDayOfWeek(): int
+    {
+        $calendar = IntlCalendar::createInstance( null, str_replace( '-', '_', app()->getLocale() ) );
+        $first    = null === $calendar ? IntlCalendar::DOW_MONDAY : $calendar->getFirstDayOfWeek();
+
+        // IntlCalendar counts from Sunday (1); ISO counts from Monday (1).
+        return IntlCalendar::DOW_SUNDAY === $first ? 7 : $first - 1;
     }
 }

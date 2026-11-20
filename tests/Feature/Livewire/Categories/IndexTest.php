@@ -36,18 +36,42 @@ it( 'renders the tree with depth and product counts', function (): void {
         ->assertSee( '1 subcategory' );
 } );
 
-it( 'lists categories without claiming tree keyboard behaviour, announcing depth instead', function (): void {
-    $parent = ProductCategory::query()->create( [ 'name' => 'Apparel', 'slug' => 'apparel' ] );
-    ProductCategory::query()->create( [ 'name' => 'Shirts', 'slug' => 'shirts', 'parent_id' => $parent->id ] );
+it( 'renders an ARIA tree with levels, positions and names from the row', function (): void {
+    $parent = ProductCategory::query()->create( [ 'name' => 'Apparel', 'slug' => 'apparel', 'position' => 0 ] );
+    $shirts = ProductCategory::query()->create( [ 'name' => 'Shirts', 'slug' => 'shirts', 'parent_id' => $parent->id, 'position' => 0 ] );
+    ProductCategory::query()->create( [ 'name' => 'Hats', 'slug' => 'hats', 'parent_id' => $parent->id, 'position' => 1 ] );
+    ProductCategory::query()->create( [ 'name' => 'Mugs', 'slug' => 'mugs', 'position' => 1 ] );
 
     Livewire::test( Index::class )
-        ->assertDontSeeHtml( 'role="tree"' )
-        ->assertDontSeeHtml( 'role="treeitem"' )
-        ->assertSee( 'Level 2' );
+        ->assertSee( 'Group products so shoppers can browse them. Order here is the order on the storefront.' )
+        ->assertSeeHtml( 'role="tree"' )
+        ->assertSeeHtml( 'role="treeitem"' )
+        ->assertSeeHtml( 'aria-level="2"' )
+        ->assertSeeHtml( 'aria-posinset="2"' )
+        ->assertSeeHtml( 'aria-setsize="2"' )
+        ->assertSeeHtml( 'aria-labelledby="category-' . $parent->id . '-name category-' . $parent->id . '-children category-' . $parent->id . '-products"' )
+        ->assertSeeHtml( 'aria-labelledby="category-' . $shirts->id . '-name category-' . $shirts->id . '-products"' )
+        ->assertSeeHtml( 'data-subcategory-count="2"' )
+        ->assertSeeHtml( 'x-bind:tabindex="isTabStop( ' . $parent->id . ', true ) ? 0 : -1"' )
+        ->assertSeeHtml( 'x-bind:tabindex="isTabStop( ' . $shirts->id . ', false ) ? 0 : -1"' )
+        ->assertSeeHtml( 'aria-label="Add a subcategory to Apparel"' )
+        ->assertDontSee( 'Level 2' )
+        ->assertDontSeeHtml( 'divide-base-300' );
 } );
 
 it( 'shows the empty state', function (): void {
-    Livewire::test( Index::class )->assertSee( 'No categories yet' );
+    Livewire::test( Index::class )
+        ->assertSee( 'No categories yet' )
+        ->assertSeeHtml( 'data-empty-state' )
+        ->assertDontSeeHtml( 'role="tree"' );
+} );
+
+it( 'leaves the empty state without its action when the user cannot create', function (): void {
+    Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+
+    Livewire::test( Index::class )
+        ->assertSee( 'No categories yet' )
+        ->assertDontSeeHtml( 'wire:click="create"' );
 } );
 
 it( 'is denied without product.viewAny', function (): void {
@@ -190,10 +214,68 @@ it( 'moves subcategories up to the parent when deleting', function (): void {
     $component = Livewire::test( Index::class )->call( 'confirmDelete', $prints->id );
 
     $component->assertSeeHtml( 'data-children-choice' )
-        ->assertSee( 'Up to "Art"' )
+        ->assertSeeInOrder( [ 'Up to the top level', 'Up to "Art"', 'Under another category' ] )
+        ->assertSeeHtml( 'role="alertdialog"' )
         ->call( 'delete', categoryDeleteToken( $component ) );
 
     expect( $canvas->refresh()->parent_id )->toBe( $root->id );
+} );
+
+it( 'moves subcategories up to the top level when chosen for a nested category', function (): void {
+    $root   = ProductCategory::factory()->create( [ 'name' => 'Art', 'position' => 0 ] );
+    $prints = ProductCategory::factory()->create( [ 'name' => 'Prints', 'parent_id' => $root->id ] );
+    $canvas = ProductCategory::factory()->create( [ 'name' => 'Canvas', 'parent_id' => $prints->id ] );
+    ProductCategory::factory()->create( [ 'name' => 'Mugs', 'position' => 4 ] );
+
+    $component = Livewire::test( Index::class )->call( 'confirmDelete', $prints->id );
+
+    $component->set( 'childrenTarget', 'top' )
+        ->call( 'delete', categoryDeleteToken( $component ) )
+        ->assertHasNoErrors();
+
+    $canvas->refresh();
+
+    expect( ProductCategory::query()->find( $prints->id ) )->toBeNull()
+        ->and( $canvas->parent_id )->toBeNull()
+        ->and( $canvas->position )->toBe( 5 );
+} );
+
+it( 'offers one top-level choice when the deleted category is already at the top', function (): void {
+    $prints = ProductCategory::factory()->create( [ 'name' => 'Prints' ] );
+    ProductCategory::factory()->create( [ 'name' => 'Canvas', 'parent_id' => $prints->id ] );
+
+    $component = Livewire::test( Index::class )->call( 'confirmDelete', $prints->id );
+
+    $choices = $component->html();
+
+    expect( substr_count( $choices, 'Up to the top level' ) )->toBe( 1 )
+        ->and( $choices )->not->toContain( 'value="top"' );
+} );
+
+it( 'keeps the new parent select disabled until "Under another category" is chosen', function (): void {
+    $prints = ProductCategory::factory()->create( [ 'name' => 'Prints' ] );
+    ProductCategory::factory()->create( [ 'name' => 'Canvas', 'parent_id' => $prints->id ] );
+
+    $component = Livewire::test( Index::class )->call( 'confirmDelete', $prints->id );
+
+    expect( $component->html() )->toMatch( '/<select[^>]*id="category-children-target-id"[^>]*disabled/s' );
+
+    $component->set( 'childrenTarget', 'other' );
+
+    expect( $component->html() )->not->toMatch( '/<select[^>]*id="category-children-target-id"[^>]*disabled/s' );
+} );
+
+it( 'rejects an unknown subcategory target', function (): void {
+    $prints = ProductCategory::factory()->create( [ 'name' => 'Prints' ] );
+    ProductCategory::factory()->create( [ 'name' => 'Canvas', 'parent_id' => $prints->id ] );
+
+    $component = Livewire::test( Index::class )->call( 'confirmDelete', $prints->id );
+
+    $component->set( 'childrenTarget', 'nowhere' )
+        ->call( 'delete', categoryDeleteToken( $component ) )
+        ->assertHasErrors( [ 'childrenTarget' ] );
+
+    expect( ProductCategory::query()->find( $prints->id ) )->not->toBeNull();
 } );
 
 it( 'moves subcategories under another category when chosen', function (): void {
@@ -265,4 +347,104 @@ it( 'reports an engine refusal during delete and keeps everything in place', fun
     expect( sentToasts( $component ) )->toContain( 'Refused by the engine.' )
         ->and( ProductCategory::query()->find( $prints->id ) )->not->toBeNull()
         ->and( $canvas->refresh()->parent_id )->toBe( $prints->id );
+} );
+
+it( 'appends several subcategories moved to the top level in their order', function (): void {
+    $root   = ProductCategory::factory()->create( [ 'name' => 'Art', 'position' => 0 ] );
+    $prints = ProductCategory::factory()->create( [ 'name' => 'Prints', 'parent_id' => $root->id ] );
+    $second = ProductCategory::factory()->create( [ 'name' => 'Posters', 'parent_id' => $prints->id, 'position' => 1 ] );
+    $first  = ProductCategory::factory()->create( [ 'name' => 'Canvas', 'parent_id' => $prints->id, 'position' => 0 ] );
+    ProductCategory::factory()->create( [ 'name' => 'Mugs', 'position' => 4 ] );
+
+    $component = Livewire::test( Index::class )->call( 'confirmDelete', $prints->id );
+
+    $component->set( 'childrenTarget', 'top' )
+        ->call( 'delete', categoryDeleteToken( $component ) )
+        ->assertHasNoErrors();
+
+    expect( [ $first->refresh()->parent_id, $first->position ] )->toBe( [ null, 5 ] )
+        ->and( [ $second->refresh()->parent_id, $second->position ] )->toBe( [ null, 6 ] );
+} );
+
+it( 'marks rows with subcategories as expanded', function (): void {
+    $root = ProductCategory::factory()->create( [ 'name' => 'Art' ] );
+    $leaf = ProductCategory::factory()->create( [ 'name' => 'Prints', 'parent_id' => $root->id ] );
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )->toMatch( '/data-category="' . $root->id . '"/' )
+        ->and( preg_match( '/<li[^>]*aria-expanded="true"[^>]*data-category="' . $root->id . '"/s', $html ) )->toBe( 1 )
+        ->and( preg_match( '/<li[^>]*aria-expanded[^>]*data-category="' . $leaf->id . '"/s', $html ) )->toBe( 0 );
+} );
+
+it( 'moves focus to a neighbour after a delete', function ( string $deleted, ?string $focused ): void {
+    $art    = ProductCategory::factory()->create( [ 'name' => 'Art', 'position' => 0 ] );
+    $mugs   = ProductCategory::factory()->create( [ 'name' => 'Mugs', 'position' => 1 ] );
+    $prints = ProductCategory::factory()->create( [ 'name' => 'Prints', 'parent_id' => $art->id, 'position' => 0 ] );
+    $ids    = [ 'Art' => $art->id, 'Mugs' => $mugs->id, 'Prints' => $prints->id ];
+
+    if ( 'Lone' === $deleted ) {
+        ProductCategory::query()->whereKey( [ $art->id, $mugs->id, $prints->id ] )->delete();
+        $ids['Lone'] = ProductCategory::factory()->create( [ 'name' => 'Lone' ] )->id;
+    }
+
+    $component = Livewire::test( Index::class )->call( 'confirmDelete', $ids[ $deleted ] );
+
+    $component->call( 'delete', categoryDeleteToken( $component ) )
+        ->assertDispatched( 'ecommerce-admin-category-deleted', focus: null === $focused ? null : $ids[ $focused ] );
+} )->with( [
+    'the sibling before it'         => [ 'Mugs', 'Art' ],
+    'its parent, when it is first'  => [ 'Prints', 'Art' ],
+    'the sibling after it'          => [ 'Art', 'Mugs' ],
+    'nothing when the tree empties' => [ 'Lone', null ],
+] );
+
+it( 'falls back to a focusable heading when the user who emptied the tree cannot create', function (): void {
+    Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )->not->toContain( 'wire:click="create"' )
+        ->toContain( 'focusPage()' )
+        ->toContain( "target.setAttribute( 'tabindex', '-1' )" );
+} );
+
+it( 'indents rows with a bounded data attribute and counts products in the badge slot, with no inline style', function (): void {
+    $parent = ProductCategory::factory()->create( [ 'name' => 'Prints', 'position' => 0 ] );
+    $child  = $parent;
+
+    foreach ( range( 1, 9 ) as $depth ) {
+        $child = ProductCategory::factory()->create( [ 'name' => "Level {$depth}", 'parent_id' => $child->id ] );
+    }
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )->not->toContain( '--ec-category-depth' )
+        ->toContain( 'data-indent="0"' )
+        ->toContain( 'data-indent="8"' )
+        ->not->toContain( 'data-indent="9"' )
+        ->toMatch( '/data-product-count="0"[^>]*>(?:(?!<\/span>).)*?0 products/s' );
+} );
+
+it( 'refuses a category image the user may not view, keeping the saved one', function (): void {
+    ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::fakeViewableMedia( [] );
+
+    try {
+        $category = ProductCategory::factory()->create( [ 'name' => 'Prints', 'image_media_id' => 5 ] );
+
+        Livewire::test( Index::class )
+            ->call( 'edit', $category->id )
+            ->call( 'save' )
+            ->assertHasNoErrors();
+
+        Livewire::test( Index::class )
+            ->call( 'edit', $category->id )
+            ->set( 'form.image_media_id', 6 )
+            ->call( 'save' )
+            ->assertHasErrors( 'form.image_media_id' );
+
+        expect( $category->refresh()->image_media_id )->toBe( 5 );
+    } finally {
+        ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::fakeViewableMedia( null );
+    }
 } );

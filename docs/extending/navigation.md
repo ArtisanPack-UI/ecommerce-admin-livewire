@@ -1,5 +1,6 @@
 ---
 title: Navigation
+menu_order: 10
 ---
 
 # Navigation
@@ -18,7 +19,7 @@ An entry has the shape of the engine's `AdminMenuRegistry` entries:
 | `parameters` | No | Route parameters |
 | `section` | No | Section key. Unknown sections fall back to the top section. |
 | `position` | No | Order within the section (default `100`) |
-| `icon` | No | Heroicon name (default `o-squares-2x2`) |
+| `icon` | No | An icon name (default `o-squares-2x2`); see [Icon names](#icon-names). |
 | `permission` | No | `{resource}.{action}` ability (`ecommerce.` prefix allowed). Hidden without it. `null` shows it to anyone who can enter the admin, but never grants access on its own. |
 | `badge` | No | Badge key; see below |
 
@@ -34,7 +35,7 @@ addFilter( 'ap.ecommerceAdminLivewire.nav.items', function ( array $items ): arr
         'key'        => 'loyalty',
         'section'    => 'customers',
         'label'      => __( 'Loyalty points' ),
-        'icon'       => 'o-gift',
+        'icon'       => 'gift',
         'route'      => 'loyalty.admin.index',
         'position'   => 20,
         'permission' => 'customer.viewAny',
@@ -45,7 +46,24 @@ addFilter( 'ap.ecommerceAdminLivewire.nav.items', function ( array $items ): arr
 } );
 ```
 
-When the engine's `AdminMenuRegistry` is bound, its entries are merged in before the filter runs. Until then, the filter is the way to add entries.
+The engine's `AdminMenuRegistry` entries are merged in before the filter runs, so a satellite can register its entry there instead.
+
+## Icon names
+
+An `icon` renders when it is one of these:
+
+- A name in the icon registry, `IconRegistry::names()` (`ArtisanPack\LivewireUiComponents\Support\IconRegistry`). That is the design-system (Lucide) set `livewire-ui-components` ships, plus the icons the admin registers (`gift`, `tag`, `truck`, `users`, `zap` and the rest of `EcommerceAdminLivewireServiceProvider::ICONS`), plus any you register with `IconRegistry::register()` or the `registered_icons` config key.
+- Any Heroicon outline (`o-*`) or solid (`s-*`) name, such as `o-truck`. Heroicons in the admin's icon map (`AdminSpotlight::HEROICON_ICONS`) are swapped for their design-system counterpart; the rest render through Blade Icons.
+
+Any other name, such as a bare `gift-card` that nothing registers, renders nothing. To use one, register its SVG first:
+
+```php
+use ArtisanPack\LivewireUiComponents\Support\IconRegistry;
+
+IconRegistry::register( [
+    'gift-card' => '<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/>',
+] );
+```
 
 ## Add a section
 
@@ -99,8 +117,16 @@ addFilter( 'ap.ecommerceAdminLivewire.nav.badgeLabel', function ( string $label,
 } );
 ```
 
+The link's accessible name includes the description ("Orders (12 orders awaiting fulfillment)"). In the collapsed icon rail, the count becomes a dot.
+
+### Badge color
+
+`NavBadges::tone( ?string $badge ): string` picks the badge's color: `primary` for `orders-awaiting-fulfillment` (the one call to action), `warning` for `low-stock`, and `neutral` for everything else, your own badge keys included.
+
+**Since:** 2.0.0
+
 Keep badge queries cheap and cached: they run on every admin page.
 
 ## In the cms-framework menu
 
-With `cms-framework` installed and `admin.auto_register_cms_nav` on, every visible entry is added to the CMS menu with the slug `ecommerce-{key}`, and every section becomes a CMS section with the slug `ecommerce-{section}`. See [Layouts](Installation-Layouts).
+With `cms-framework` installed and `admin.auto_register_cms_nav` on, every visible entry is added to the CMS menu with the slug `ecommerce-{key}`, and every section becomes a CMS section with the slug `ecommerce-{section}`. See [Layouts](../installation/layouts.md).

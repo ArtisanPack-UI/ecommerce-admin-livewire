@@ -1,19 +1,15 @@
 /*
- * The scripts livewire-ui-components expects a host to load. Alpine comes
- * with Livewire, so nothing here imports it.
+ * The scripts the admin expects a host to load: the design system's
+ * behavior engine and drag-and-drop. Alpine comes with Livewire, so the
+ * engine registers as Alpine starts.
  */
-import ApexCharts from 'apexcharts';
-import flatpickr from 'flatpickr';
-import 'flatpickr/dist/flatpickr.min.css';
+import apuiBehavior from '@artisanpack-ui/behavior/alpine';
 import '@artisanpack-ui/livewire-drag-and-drop';
-import '../../../../../vendor/artisanpack-ui/livewire-ui-components/resources/js/sparkline.js';
-import '../../../../../vendor/artisanpack-ui/livewire-ui-components/resources/js/tinymce-editor.js';
 
-window.ApexCharts = ApexCharts;
-window.flatpickr = flatpickr;
+document.addEventListener( 'alpine:init', () => window.Alpine.plugin( apuiBehavior ) );
 
-// TinyMCE itself comes from the library's published assets; the Alpine
-// integration above waits for it to load.
+// TinyMCE comes from the library's published assets; the rich-text editor
+// uses it once it has loaded.
 const tinymce = document.createElement( 'script' );
 tinymce.src = '/vendor/artisanpack-ui/js/tinymce/tinymce.min.js';
 tinymce.referrerPolicy = 'origin';

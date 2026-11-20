@@ -49,8 +49,9 @@ it( 'renders order entries newest first with actor, time, and descriptions', fun
     Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
         ->assertOk()
         ->assertSeeInOrder( [ 'Refunded $15.00', 'Reason: Damaged', 'Grace Hopper', 'Status changed from Pending to Processing', 'Order placed', '$45.00', 'System' ] )
-        ->assertSeeHtml( '<ol class="list-none"' )
-        ->assertSeeHtml( '<time datetime="' );
+        ->assertSeeHtml( 'class="apui-timeline"' )
+        ->assertSeeHtml( 'aria-label="Activity, newest first"' )
+        ->assertSeeHtml( 'data-part="time" datetime="' );
 } );
 
 it( 'describes cancellations, edits, notes, and board moves', function (): void {
@@ -62,7 +63,7 @@ it( 'describes cancellations, edits, notes, and board moves', function (): void 
     timelineEntry( $this->order, 'kanban.assignment_added', [ 'board_id' => $board->id, 'board_key' => 'prod' ] );
 
     Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
-        ->assertSee( 'Order cancelled' )
+        ->assertSee( 'Order canceled' )
         ->assertSee( '2 reserved units released' )
         ->assertSee( 'payment voided' )
         ->assertSee( 'total $10.00 → $12.00' )
@@ -126,6 +127,36 @@ it( 'falls back to the raw type and a collapsible payload for unknown events', f
         ->assertSee( 'loyalty.points_awarded' )
         ->assertSeeHtml( '<details' )
         ->assertSee( '"points": 120' );
+} );
+
+it( 'hides personal and secret values in an unknown event\'s payload', function (): void {
+    timelineEntry( $this->order, 'gateway.webhook_received', [
+        'event'            => 'charge.updated',
+        'description'      => 'Shipping upgraded',
+        'customer_email'   => 'ada@example.test',
+        'ipAddress'        => '203.0.113.9',
+        'client_ip'        => '198.51.100.7',
+        'api_token'        => 'tok_live_123',
+        'card'             => [ 'brand' => 'visa', 'last4' => '4242' ],
+        'cardFingerprint'  => 'fp_abc',
+        'nested'           => [ 'billing_address' => [ 'line1' => '1 Analytical Way' ], 'phone' => '+44 20 7946 0000', 'amount' => 500 ],
+        'shipping_method'  => 'express',
+    ] );
+
+    Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
+        ->assertSee( '"event": "charge.updated"' )
+        ->assertSee( '"description": "Shipping upgraded"' )
+        ->assertSee( '"shipping_method": "express"' )
+        ->assertSee( '"amount": 500' )
+        ->assertSee( '"customer_email": "(hidden)"' )
+        ->assertDontSee( 'ada@example.test' )
+        ->assertDontSee( '203.0.113.9' )
+        ->assertDontSee( '198.51.100.7' )
+        ->assertDontSee( 'tok_live_123' )
+        ->assertDontSee( '4242' )
+        ->assertDontSee( 'fp_abc' )
+        ->assertDontSee( '1 Analytical Way' )
+        ->assertDontSee( '7946' );
 } );
 
 it( 'describes refund and payment problems in words', function ( string $type, array $payload, string $sentence ): void {
@@ -216,3 +247,102 @@ it( 'does not let the client raise the page size', function (): void {
 
     Livewire::test( Timeline::class, [ 'subject' => $order ] )->set( 'limit', 10_000_000 );
 } )->throws( \Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class );
+
+it( 'shows the compact empty state under the card title when a filter leaves nothing', function (): void {
+    Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
+        ->set( 'filter', 'notes' )
+        ->assertSeeHtml( 'data-size="sm"' )
+        ->assertSeeHtml( '<h4 data-scope="empty-state" data-part="title">Nothing here yet</h4>' );
+} );
+
+it( 'tones a marker only for events that need attention or complete money movement', function (): void {
+    timelineEntry( $this->order, 'order.placed', [ 'total' => 1_000 ], null, Carbon::now()->subHours( 4 ) );
+    timelineEntry( $this->order, 'payment.captured', [ 'amount' => 1_000, 'gateway' => 'stripe' ], null, Carbon::now()->subHours( 3 ) );
+    timelineEntry( $this->order, 'payment.fraud_challenged', [ 'score' => 60 ], null, Carbon::now()->subHours( 2 ) );
+    timelineEntry( $this->order, 'payment.capture_failed', [ 'message' => 'card_declined' ], null, Carbon::now()->subHour() );
+
+    $html = Livewire::test( Timeline::class, [ 'subject' => $this->order ] )->html();
+
+    $marker = static fn ( string $type ): string => preg_match( '/data-event-type="' . preg_quote( $type, '/' ) . '".*?<span data-scope="timeline" data-part="marker"([^>]*)>/s', $html, $match ) ? $match[1] : '';
+
+    expect( $marker( 'payment.capture_failed' ) )->toContain( 'data-color="error"' )
+        ->and( $marker( 'payment.fraud_challenged' ) )->toContain( 'data-color="warning"' )
+        ->and( $marker( 'payment.captured' ) )->toContain( 'data-color="success"' )
+        ->and( $marker( 'order.placed' ) )->not->toContain( 'data-color' )
+        ->and( $marker( 'order.placed' ) )->toContain( 'aria-hidden="true"' );
+} );
+
+it( 'draws markers with the design system\'s Lucide icons', function (): void {
+    timelineEntry( $this->order, 'order.placed', [ 'total' => 1_000 ] );
+    timelineEntry( $this->order, 'payment.capture_failed', [ 'message' => 'card_declined' ] );
+
+    expect( Livewire::test( Timeline::class, [ 'subject' => $this->order ] )->html() )
+        ->toContain( ArtisanPack\LivewireUiComponents\Support\IconRegistry::svg( 'shopping-bag' ) )
+        ->toContain( ArtisanPack\LivewireUiComponents\Support\IconRegistry::svg( 'triangle-alert' ) );
+} );
+
+it( 'lets a satellite tone its own events, ignoring tones the design system lacks', function ( mixed $tone, ?string $expected ): void {
+    addFilter( 'ap.ecommerceAdminLivewire.timeline.entry', static fn ( array $presented ): array => [ ...$presented, 'description' => 'Synced', 'tone' => $tone ] );
+
+    timelineEntry( $this->order, 'erp.synced' );
+
+    $html = Livewire::test( Timeline::class, [ 'subject' => $this->order ] )->html();
+
+    null === $expected
+        ? expect( $html )->not->toMatch( '/data-part="marker" data-color/' )
+        : expect( $html )->toContain( 'data-part="marker" data-color="' . $expected . '"' );
+} )->with( [
+    'info'    => [ 'info', 'info' ],
+    'unknown' => [ 'magenta', null ],
+    'array'   => [ [ 'error' ], null ],
+] );
+
+it( 'filters with pressed toggle buttons in a labelled group, not tabs', function (): void {
+    Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
+        ->assertSeeHtml( 'role="group" aria-label="Filter the timeline"' )
+        ->assertSeeHtml( 'aria-pressed="true"' )
+        ->assertDontSeeHtml( 'role="tab"' )
+        ->set( 'filter', 'system' )
+        ->assertSeeHtmlInOrder( [ 'aria-pressed="false"', '>All</button>', 'aria-pressed="false"', '>Notes</button>', 'aria-pressed="true"', '>System events</button>' ] );
+} );
+
+it( 'shows a relative time with the full date hidden after it', function (): void {
+    timelineEntry( $this->order, 'order.placed', [ 'total' => 1_000 ], null, Carbon::now()->subHours( 2 ) );
+
+    expect( Livewire::test( Timeline::class, [ 'subject' => $this->order ] )->html() )
+        ->toMatch( '/<time data-scope="timeline" data-part="time" datetime="[^"]+">2 hours ago<span class="apui-sr-only"> \([^)]+\)<\/span><\/time>/' );
+} );
+
+it( 'keeps a raw payload left to right', function (): void {
+    timelineEntry( $this->order, 'loyalty.points_awarded', [ 'points' => 120 ] );
+
+    Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
+        ->assertSeeHtml( '<pre class="ec-payload" dir="ltr">' );
+} );
+
+it( 'marks each entry with its id for the Load more focus hand-off', function (): void {
+    $entry = timelineEntry( $this->order, 'note.added', [ 'body' => 'Only note' ] );
+
+    Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
+        ->assertSeeHtml( 'data-timeline-entry="' . $entry->id . '"' )
+        ->assertSeeHtml( 'tabindex="-1"' );
+} );
+
+it( 'announces loading from a status region outside any busy or hidden element', function (): void {
+    $html = Livewire::test( Timeline::class, [ 'subject' => $this->order ] )->html();
+
+    expect( $html )->toContain( '<p class="apui-sr-only" role="status" data-timeline-status><span wire:loading wire:target="filter">Loading activity…</span></p>' )
+        ->not->toContain( 'aria-busy' );
+} );
+
+it( 'renders with no uncompiled component tags', function (): void {
+    timelineEntry( $this->order, 'order.placed', [ 'total' => 1_000 ] );
+
+    Livewire::test( Timeline::class, [ 'subject' => $this->order ] )->assertDontSeeHtml( '<x-' );
+} );
+
+it( 'sizes the loading skeleton without inline styles the admin CSP would block', function (): void {
+    expect( Livewire::test( Timeline::class, [ 'subject' => $this->order ] )->html() )
+        ->toContain( 'ec-skel-marker' )
+        ->not->toMatch( '/class="apui-skeleton[^"]*"[^>]*style=/' );
+} );

@@ -20,13 +20,23 @@ use Illuminate\View\Component;
 
 /**
  * `<x-artisanpack-ec-status-badge type="payment" :value="$order->payment_status" />`
- * `<x-artisanpack-ec-status-badge :substatus="$order->substatus" />`
+ * `<x-artisanpack-ec-status-badge :substatus="$order->substatus" size="lg" />`
  *
  * Types: `system`, `payment`, `fulfillment`, `review`, `shipment`, and
- * sub-statuses. The badge always shows the status as text, preceded by a
- * visually hidden type label, so status is never conveyed by colour alone.
- * A sub-status colour is a hex value; livewire-ui-components picks an
- * accessible text colour for it.
+ * sub-statuses.
+ *
+ * A soft design-system Badge with a leading dot (#81), so status is carried
+ * by the label and the dot, never by color alone. The color follows
+ * `StatusPresenter`: warning needs action, info is in progress, success is
+ * done, error failed, neutral is closed or unknown. A visually hidden type
+ * prefix ("Payment status:") keeps the badge unambiguous out of its column.
+ *
+ * A merchant-picked hex (a sub-status's color, or one the `statusBadge`
+ * filter returns) renders as a neutral badge with the hex as its dot, so the
+ * label's contrast holds whatever color was picked.
+ *
+ * Sizes: `md` (the default) in tables and headers, `sm` in dense lists, `lg`
+ * in page headers.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -35,6 +45,24 @@ use Illuminate\View\Component;
  */
 class StatusBadge extends Component
 {
+    /**
+     * The sizes the badge takes.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const SIZES = [ 'sm', 'md', 'lg' ];
+
+    /**
+     * The design-system colors a status may take; anything else is neutral.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const COLORS = [ 'primary', 'secondary', 'accent', 'neutral', 'success', 'warning', 'error', 'info' ];
+
     /**
      * The visible label.
      *
@@ -45,7 +73,7 @@ class StatusBadge extends Component
     public string $label;
 
     /**
-     * The badge colour: a daisyUI variant or a hex value.
+     * The badge color: one of {@see self::COLORS}.
      *
      * @since 1.0.0
      *
@@ -54,26 +82,50 @@ class StatusBadge extends Component
     public string $color;
 
     /**
+     * The merchant-picked `#rrggbb` color for the dot, if any.
+     *
+     * @since 2.0.0
+     *
+     * @var string|null
+     */
+    public ?string $hex = null;
+
+    /**
      * @since 1.0.0
+     * @since 2.0.0 Added `$size`.
      *
      * @param  string               $type       The status type, or `substatus`.
      * @param  string|null          $value      The stored status value.
      * @param  OrderSubstatus|null  $substatus  A sub-status (sets the type to `substatus`).
+     * @param  string               $size       `sm`, `md` or `lg`.
      */
     public function __construct(
         public string $type = 'system',
         public ?string $value = null,
         public ?OrderSubstatus $substatus = null,
+        public string $size = 'md',
     ) {
+        $this->size = in_array( $this->size, self::SIZES, true ) ? $this->size : 'md';
+
         if ( null !== $this->substatus ) {
             $this->type  = 'substatus';
             $this->label = (string) $this->substatus->label;
-            $this->color = self::isHex( $this->substatus->color ) ? (string) $this->substatus->color : 'neutral';
+            $this->color = 'neutral';
+            $this->hex   = self::isHex( $this->substatus->color ) ? (string) $this->substatus->color : null;
 
             return;
         }
 
-        [ 'label' => $this->label, 'color' => $this->color ] = StatusPresenter::present( $this->type, (string) $this->value );
+        [ 'label' => $this->label, 'color' => $color ] = StatusPresenter::present( $this->type, (string) $this->value );
+
+        if ( self::isHex( $color ) ) {
+            $this->color = 'neutral';
+            $this->hex   = (string) $color;
+
+            return;
+        }
+
+        $this->color = in_array( $color, self::COLORS, true ) ? (string) $color : 'neutral';
     }
 
     /**
@@ -103,7 +155,7 @@ class StatusBadge extends Component
     }
 
     /**
-     * Whether a value is a `#rrggbb` colour.
+     * Whether a value is a `#rrggbb` color.
      *
      * @since 1.0.0
      *

@@ -1,23 +1,75 @@
 {{--
-    Opens the command palette, for pointer users and anyone who does not
-    know the shortcut. The click stops here: if it reached the document, the
-    palette's own click-outside handler would close it straight away.
+    The command palette (spec §8.1, #94) with its open button, for pointer
+    users and anyone who does not know the shortcut. The design-system
+    Spotlight renders both: the button where this partial sits (a field-like
+    trigger with its shortcut; an icon button on phones), and the dialog,
+    teleported to the end of the page.
+
+    An empty query lists the actions the person may run, filtered as they
+    type; a search fetches every provider they can see, grouped by provider
+    (see AdminScreenController::spotlight()). Results open as plain links,
+    as in 1.x: the admin's pages don't run under wire:navigate.
+
+    Mounted once per page: in the standalone layout's top bar, or above the
+    page under cms-framework's layout, which mounts none of its own.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
 
     @since      1.0.0
 --}}
-@if ( \ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::mountable() )
-    @php( $ecommerceAdminShortcut = \ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight::ariaShortcut() )
-    <x-artisanpack-button
-        icon="o-magnifying-glass"
-        class="btn-ghost btn-sm"
-        :label="__( 'Search' )"
-        :tooltip-bottom="__( 'Search and run commands (:shortcut)', [ 'shortcut' => $ecommerceAdminShortcut ] )"
-        aria-keyshortcuts="{{ $ecommerceAdminShortcut }}"
-        x-data
-        x-on:click.stop="$dispatch( 'mary-search-open' )"
+@php
+    use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight;
+@endphp
+@if ( AdminSpotlight::mountable() )
+    @php
+        $actionGroup = AdminSpotlight::actionGroup( auth()->user() );
+    @endphp
+    <x-artisanpack-spotlight
+        :url="\Illuminate\Support\Facades\Route::has( AdminSpotlight::ADMIN_ROUTE ) ? route( AdminSpotlight::ADMIN_ROUTE, absolute: false ) : null"
+        :groups="null === $actionGroup ? [] : [ $actionGroup ]"
+        :shortcut="AdminSpotlight::paletteShortcut()"
+        :navigate="false"
+        :label="__( 'Search and run commands' )"
+        :placeholder="__( 'Search orders, products, customers, or type a command…' )"
+        :empty-label="__( 'Nothing found.' )"
+        :loading-label="__( 'Searching…' )"
+        :close-label="__( 'Close' )"
+        :classes="[ 'trigger' => 'ec-admin-search-trigger' ]"
         data-spotlight-open
-    />
+    >
+        <x-slot:trigger>
+            <x-artisanpack-icon name="search" />
+            <span class="ec-admin-search-trigger__label">{{ __( 'Search' ) }}</span>
+        </x-slot:trigger>
+
+        <x-slot:empty>
+            <x-artisanpack-empty-state
+                size="sm"
+                icon="search"
+                :heading-level="3"
+                :title="__( 'Nothing found.' )"
+                :description="__( 'Try an order number, a SKU, or a customer’s email.' )"
+            />
+        </x-slot:empty>
+
+        <x-slot:footer>
+            @php
+                /*
+                 * One translation per legend item, so each locale orders the
+                 * keys and the verb itself. The keys are glyphs for sighted
+                 * users (hidden from screen readers) plus their spoken names;
+                 * `%keys%` marks where they go in the escaped sentence.
+                 */
+                $legendItem = static function ( string $sentence, string $glyphs, string $spoken ): string {
+                    $keys = '<span data-scope="spotlight" data-part="shortcut" aria-hidden="true">' . $glyphs . '</span><span class="apui-sr-only">' . e( $spoken ) . '</span>';
+
+                    return str_replace( '%keys%', $keys, e( $sentence ) );
+                };
+            @endphp
+            <span class="ec-admin-spotlight-legend">{!! $legendItem( __( ':keys to move', [ 'keys' => '%keys%' ] ), '<kbd>↑</kbd><kbd>↓</kbd>', __( 'Up and Down arrows' ) ) !!}</span>
+            <span class="ec-admin-spotlight-legend">{!! $legendItem( __( ':keys to open', [ 'keys' => '%keys%' ] ), '<kbd>↵</kbd>', __( 'Enter' ) ) !!}</span>
+            <span class="ec-admin-spotlight-legend">{!! $legendItem( __( ':keys to close', [ 'keys' => '%keys%' ] ), '<kbd>Esc</kbd>', __( 'Escape' ) ) !!}</span>
+        </x-slot:footer>
+    </x-artisanpack-spotlight>
 @endif

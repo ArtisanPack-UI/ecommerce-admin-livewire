@@ -13,7 +13,12 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Http\Controllers;
 
+use ArtisanPackUI\Ecommerce\Models\Customer;
+use ArtisanPackUI\Ecommerce\Models\Order;
+use ArtisanPackUI\Ecommerce\Models\Promotion;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Customers\Index as CustomersIndex;
 use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -33,32 +38,46 @@ use Illuminate\Routing\Controller;
 class AdminScreenController extends Controller
 {
     /**
+     * The command palette's results, as groups: the host's own spotlight
+     * results (through the component library's results filter) in an
+     * unlabeled group, then one group per admin provider. The actions are
+     * left out when the palette lists them itself (see
+     * AdminSpotlight::actionGroup()), so they don't show twice.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Returns groups of results instead of one flat list.
+     *
+     * @param  Request  $request  The request (`search` query).
+     *
+     * @return array<int, array{id: string, label: string|null, items: array<int, mixed>}>
+     */
+    public function spotlight( Request $request ): array
+    {
+        $class   = config( 'artisanpack.livewire-ui-components.components.spotlight.class' );
+        $user    = $request->user();
+        $search  = $request->query( 'search' );
+        $results = is_string( $class ) && '' !== $class && ( class_exists( $class ) || app()->bound( $class ) )
+            ? (array) app()->make( $class )->search( $request )
+            : [];
+        $results = array_values( (array) applyFilters( AdminSpotlight::COMMANDS_FILTER, $results, $user ) );
+        $groups  = [] === $results ? [] : [ [ 'id' => 'results', 'label' => null, 'items' => $results ] ];
+
+        if ( ! AdminSpotlight::enabled() || ! $user instanceof Authenticatable || ! is_string( $search ) ) {
+            return $groups;
+        }
+
+        $except = null === AdminSpotlight::actionsProvider( $user ) ? [] : [ 'actions' ];
+
+        return [ ...$groups, ...AdminSpotlight::groups( $search, $user, $except ) ];
+    }
+
+    /**
      * The dashboard.
      *
      * @since 1.0.0
      *
      * @return View
      */
-    /**
-     * The command palette's results: the host's own spotlight results, then
-     * the admin's (through the component library's results filter).
-     *
-     * @since 1.0.0
-     *
-     * @param  Request  $request  The request (`search` query).
-     *
-     * @return array<int, mixed>
-     */
-    public function spotlight( Request $request ): array
-    {
-        $class   = config( 'artisanpack.livewire-ui-components.components.spotlight.class' );
-        $results = is_string( $class ) && '' !== $class && ( class_exists( $class ) || app()->bound( $class ) )
-            ? (array) app()->make( $class )->search( $request )
-            : [];
-
-        return array_values( (array) applyFilters( AdminSpotlight::COMMANDS_FILTER, $results, $request->user() ) );
-    }
-
     public function dashboard(): View
     {
         return view( 'ecommerce-admin::pages.dashboard' );
@@ -79,10 +98,12 @@ class AdminScreenController extends Controller
     /**
      * An order's detail page.
      *
-     * The id is passed through unresolved: the component loads and
-     * authorizes the order, so the access check answers before the lookup.
+     * The id is passed to the component, which loads and authorizes the
+     * order. The page title names the order number (WCAG 2.4.2); it is only
+     * sent when the component lets the page render.
      *
      * @since 1.0.0
+     * @since 2.0.0 Passes a `screenTitle` naming the order.
      *
      * @param  string  $order  The order id.
      *
@@ -90,7 +111,12 @@ class AdminScreenController extends Controller
      */
     public function ordersShow( string $order ): View
     {
-        return view( 'ecommerce-admin::pages.orders.show', [ 'order' => (int) $order ] );
+        $number = Order::query()->whereKey( (int) $order )->value( 'order_number' );
+
+        return view( 'ecommerce-admin::pages.orders.show', [
+            'order'       => (int) $order,
+            'screenTitle' => null === $number || '' === $number ? __( 'Order' ) : __( 'Order #:number', [ 'number' => $number ] ),
+        ] );
     }
 
     /**
@@ -229,9 +255,10 @@ class AdminScreenController extends Controller
 
     /**
      * A customer's detail page. The component loads and authorizes the
-     * customer.
+     * customer; the page title names them (WCAG 2.4.2).
      *
      * @since 1.0.0
+     * @since 2.0.0 Passes a `screenTitle` naming the customer.
      *
      * @param  string  $customer  The customer id.
      *
@@ -239,7 +266,13 @@ class AdminScreenController extends Controller
      */
     public function customersShow( string $customer ): View
     {
-        return view( 'ecommerce-admin::pages.customers.show', [ 'customer' => (int) $customer ] );
+        $model = Customer::query()->find( (int) $customer, [ 'id', 'first_name', 'last_name', 'email' ] );
+        $name  = null === $model ? null : ( CustomersIndex::customerName( $model ) ?? (string) $model->email );
+
+        return view( 'ecommerce-admin::pages.customers.show', [
+            'customer'    => (int) $customer,
+            'screenTitle' => null === $name || '' === $name ? __( 'Customer' ) : $name,
+        ] );
     }
 
     /**
@@ -268,9 +301,10 @@ class AdminScreenController extends Controller
 
     /**
      * The edit-promotion form. The component loads and authorizes the
-     * promotion.
+     * promotion; the page title names it (WCAG 2.4.2).
      *
      * @since 1.0.0
+     * @since 2.0.0 Passes a `screenTitle` naming the promotion.
      *
      * @param  string  $promotion  The promotion id.
      *
@@ -278,7 +312,12 @@ class AdminScreenController extends Controller
      */
     public function promotionsEdit( string $promotion ): View
     {
-        return view( 'ecommerce-admin::pages.promotions.form', [ 'promotion' => (int) $promotion ] );
+        $name = Promotion::query()->whereKey( (int) $promotion )->value( 'name' );
+
+        return view( 'ecommerce-admin::pages.promotions.form', [
+            'promotion'   => (int) $promotion,
+            'screenTitle' => null === $name || '' === $name ? __( 'Edit promotion' ) : __( 'Edit :name', [ 'name' => $name ] ),
+        ] );
     }
 
     /**

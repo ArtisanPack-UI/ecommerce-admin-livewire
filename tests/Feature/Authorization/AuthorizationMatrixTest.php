@@ -68,6 +68,7 @@ const MATRIX = [
             'setPage'                      => [ 'args' => [ 1 ], 'ability' => 'order.viewAny' ],
             'orderBroadcast'               => [ 'args' => [], 'ability' => 'order.viewAny' ],
             'dismissNewOrders'             => [ 'args' => [], 'ability' => 'order.viewAny' ],
+            'showNewOrders'                => [ 'args' => [], 'ability' => 'order.viewAny' ],
         ],
     ],
     'artisanpack-ecommerce-admin-orders-show' => [
@@ -92,7 +93,7 @@ const MATRIX = [
         'mount'   => [ 'params' => [ 'order' => '@order' ], 'ability' => 'order.view' ],
         'actions' => [
             'startRefund' => [ 'args' => [], 'ability' => 'order.refund' ],
-            'refund'      => [ 'args' => [ 'token' ], 'ability' => 'order.refund' ],
+            'refund'      => [ 'args' => [ 'token', 0 ], 'ability' => 'order.refund' ],
         ],
     ],
     'artisanpack-ecommerce-admin-order-fulfillment' => [
@@ -114,6 +115,7 @@ const MATRIX = [
             'previewEdit'      => [ 'args' => [], 'ability' => 'order.update' ],
             'applyEdit'        => [ 'args' => [ 'token' ], 'ability' => 'order.update' ],
             'rollbackEdit'     => [ 'args' => [ 1, 'token' ], 'ability' => 'order.update' ],
+            'confirmRollback'  => [ 'args' => [ 1 ], 'ability' => 'order.update' ],
             // The page re-authorizes order.view on every request; the picker source then needs product.viewAny.
             'searchPicker'     => [ 'args' => [ 'a', 'product', 'addProductId' ], 'ability' => 'product.viewAny' ],
             'optionsForPicker' => [ 'args' => [ 'product', 'addProductId' ], 'ability' => 'product.viewAny' ],
@@ -129,9 +131,11 @@ const MATRIX = [
     'artisanpack-ecommerce-admin-notes' => [
         'mount'   => [ 'params' => [ 'subject' => '@order-model' ], 'ability' => 'order.view' ],
         'actions' => [
-            'addNote'    => [ 'args' => [], 'ability' => 'order.update' ],
-            // Deleting needs authorship or order.update on an existing note; a missing note only needs the view check.
-            'deleteNote' => [ 'args' => [ 1 ], 'ability' => 'order.view' ],
+            'addNote'       => [ 'args' => [], 'ability' => 'order.update' ],
+            // Deleting (and confirming it) needs order.update on an existing note; a missing note only needs the view check.
+            'confirmDelete' => [ 'args' => [ 1 ], 'ability' => 'order.view' ],
+            'cancelDelete'  => [ 'args' => [], 'ability' => 'order.view' ],
+            'deleteNote'    => [ 'args' => [ 1 ], 'ability' => 'order.view' ],
         ],
     ],
 
@@ -225,7 +229,7 @@ const MATRIX = [
             '_finishUpload'  => [ 'args' => [ 'csv', [], true ], 'ability' => 'product.create' ],
             '_uploadErrored' => [ 'args' => [ 'csv', null, false ], 'ability' => 'product.create' ],
             '_removeUpload'  => [ 'args' => [ 'csv', 'missing.csv' ], 'ability' => 'product.create' ],
-            'upload'         => [ 'args' => [], 'ability' => 'product.create' ],
+            'uploadCsv'      => [ 'args' => [], 'ability' => 'product.create' ],
             'check'          => [ 'args' => [], 'ability' => 'product.create' ],
             'editMapping'    => [ 'args' => [], 'ability' => 'product.create' ],
             'apply'          => [ 'args' => [ 'token' ], 'ability' => 'product.create' ],
@@ -506,14 +510,14 @@ const MATRIX = [
     'artisanpack-ecommerce-admin-promotion-coupons' => [
         'mount'   => [ 'params' => [ 'promotion' => '@promotion-model' ], 'ability' => 'promotion.view' ],
         'actions' => [
-            'addCode'                      => [ 'args' => [], 'ability' => 'coupon.create' ],
+            'addCode'                      => [ 'args' => [], 'ability' => 'coupon.create', 'also' => [ 'promotion.update' ] ],
             'startRename'                  => [ 'args' => [ 1 ], 'ability' => 'coupon.update' ],
             'saveRename'                   => [ 'args' => [], 'ability' => 'coupon.update' ],
             'cancelRename'                 => [ 'args' => [], 'ability' => 'promotion.view' ],
             'confirmDelete'                => [ 'args' => [ 1 ], 'ability' => 'coupon.delete' ],
             'cancelDelete'                 => [ 'args' => [], 'ability' => 'promotion.view' ],
             'deleteCode'                   => [ 'args' => [ 'token' ], 'ability' => 'coupon.delete' ],
-            'generateCodes'                => [ 'args' => [], 'ability' => 'coupon.create' ],
+            'generateCodes'                => [ 'args' => [], 'ability' => 'coupon.create', 'also' => [ 'promotion.update' ] ],
             'exportCodes'                  => [ 'args' => [], 'ability' => 'promotion.update' ],
             'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'promotion.view' ],
             'getPage'                      => [ 'args' => [], 'ability' => 'promotion.view' ],
@@ -648,6 +652,7 @@ const MATRIX = [
             'cancelRotate'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
             'rotateSecret'                 => [ 'args' => [ 'token' ], 'ability' => 'webhookSubscription.update' ],
             'reEnable'                     => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
+            'sendMissedDeliveries'         => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
             'dismissSecret'                => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
         ],
     ],
@@ -677,6 +682,7 @@ const MATRIX = [
             'cancelRotate'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
             'rotateSecret'                 => [ 'args' => [ 'token' ], 'ability' => 'webhookSubscription.update' ],
             'reEnable'                     => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
+            'sendMissedDeliveries'         => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
             'dismissSecret'                => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
         ],
     ],
@@ -777,6 +783,8 @@ const MATRIX = [
         'actions' => [
             'save'                      => [ 'args' => [], 'ability' => 'settings.update' ],
             'confirmBaseCurrencyChange' => [ 'args' => [], 'ability' => 'settings.update' ],
+            'confirmReset'              => [ 'args' => [ 'tax.prices_include_tax' ], 'ability' => 'settings.update' ],
+            'cancelReset'               => [ 'args' => [], 'ability' => 'settings.view' ],
             'resetToDefault'            => [ 'args' => [ 'tax.prices_include_tax' ], 'ability' => 'settings.update' ],
             'addMapRow'                 => [ 'args' => [ 'localization.tax_labels' ], 'ability' => 'settings.update' ],
             'removeMapRow'              => [ 'args' => [ 'localization.tax_labels', 0 ], 'ability' => 'settings.update' ],
@@ -1058,7 +1066,7 @@ it( 'allows the action with only its ability', function ( ?string $name, ?string
 
     $mount      = MATRIX[ $name ]['mount'];
     $definition = MATRIX[ $name ]['actions'][ $action ];
-    matrixGrant( [ $mount['ability'], $definition['ability'] ] );
+    matrixGrant( [ $mount['ability'], $definition['ability'], ...( $definition['also'] ?? [] ) ] );
 
     Livewire::actingAs( makeUser() )
         ->test( $name, matrixParams( $mount['params'] ) )

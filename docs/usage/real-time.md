@@ -1,5 +1,6 @@
 ---
 title: Real-Time Updates
+menu_order: 40
 ---
 
 # Real-Time Updates

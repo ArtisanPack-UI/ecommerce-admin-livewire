@@ -8,7 +8,7 @@
 --}}
 @extends( $ecommerceAdminLayout )
 
-@section( 'title', __( 'Customer' ) )
+@section( 'title', $screenTitle ?? __( 'Customer' ) )
 
 @section( 'content' )
     @include( 'ecommerce-admin::partials.page-assets' )

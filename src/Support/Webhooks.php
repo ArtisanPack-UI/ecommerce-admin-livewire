@@ -15,6 +15,7 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
 use ArtisanPackUI\Ecommerce\Models\WebhookDelivery;
 use ArtisanPackUI\Ecommerce\Models\WebhookSubscription;
+use ArtisanPackUI\Ecommerce\Services\WebhookDeliveryService;
 use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 use ArtisanPackUI\Ecommerce\Webhooks\WebhookPayloadFactory;
 use DateTimeInterface;
@@ -28,9 +29,12 @@ use Illuminate\Support\Str;
  * A delivery's status is read from its ledger columns:
  *
  * - `delivered` — `delivered_at` is set;
- * - `pending`   — queued, never attempted (`attempts` is 0, `next_retry_at` set);
+ * - `pending`   — never attempted (`attempts` is 0). This includes deliveries
+ *                 the engine parked (`next_retry_at` cleared) because their
+ *                 subscription was inactive, which matches the engine's API;
  * - `retrying`  — attempted, another try is scheduled (`next_retry_at` set);
- * - `failed`    — not delivered and nothing scheduled (the engine gave up).
+ * - `failed`    — attempted, not delivered and nothing scheduled (the engine
+ *                 gave up).
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -133,6 +137,29 @@ final class Webhooks
     }
 
     /**
+     * How many of a subscription's deliveries are parked: not delivered,
+     * taken off the retry schedule, with attempts left. These are the ones
+     * `WebhookSubscriptionService::replayParked()` puts back on the schedule.
+     *
+     * @since 2.0.0
+     *
+     * @param  WebhookSubscription  $subscription  Subscription.
+     *
+     * @return int
+     */
+    public static function parkedCount( WebhookSubscription $subscription ): int
+    {
+        $maxAttempts = max( 1, (int) config( 'artisanpack.ecommerce.webhooks.max_attempts', WebhookDeliveryService::DEFAULT_MAX_ATTEMPTS ) );
+
+        return WebhookDelivery::query()
+            ->where( 'subscription_id', $subscription->id )
+            ->whereNull( 'delivered_at' )
+            ->whereNull( 'next_retry_at' )
+            ->where( 'attempts', '<', $maxAttempts )
+            ->count();
+    }
+
+    /**
      * A delivery's status.
      *
      * @since 1.0.0
@@ -145,8 +172,8 @@ final class Webhooks
     {
         return match ( true ) {
             null !== $delivery->delivered_at  => 'delivered',
-            null === $delivery->next_retry_at => 'failed',
             0 === (int) $delivery->attempts   => 'pending',
+            null === $delivery->next_retry_at => 'failed',
             default                           => 'retrying',
         };
     }
@@ -186,21 +213,21 @@ final class Webhooks
     }
 
     /**
-     * A status's badge class.
+     * A status's design-system badge color.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
      * @param  string  $status  Status.
      *
      * @return string
      */
-    public static function statusClass( string $status ): string
+    public static function statusColor( string $status ): string
     {
         return match ( $status ) {
-            'delivered' => 'badge-success',
-            'pending'   => 'badge-ghost',
-            'retrying'  => 'badge-warning',
-            default     => 'badge-error',
+            'delivered' => 'success',
+            'pending'   => 'neutral',
+            'retrying'  => 'warning',
+            default     => 'error',
         };
     }
 
@@ -218,8 +245,8 @@ final class Webhooks
     {
         match ( $status ) {
             'delivered' => $query->whereNotNull( $query->qualifyColumn( 'delivered_at' ) ),
-            'failed'    => $query->whereNull( $query->qualifyColumn( 'delivered_at' ) )->whereNull( $query->qualifyColumn( 'next_retry_at' ) ),
-            'pending'   => $query->whereNull( $query->qualifyColumn( 'delivered_at' ) )->whereNotNull( $query->qualifyColumn( 'next_retry_at' ) )->where( $query->qualifyColumn( 'attempts' ), 0 ),
+            'failed'    => $query->whereNull( $query->qualifyColumn( 'delivered_at' ) )->whereNull( $query->qualifyColumn( 'next_retry_at' ) )->where( $query->qualifyColumn( 'attempts' ), '>', 0 ),
+            'pending'   => $query->whereNull( $query->qualifyColumn( 'delivered_at' ) )->where( $query->qualifyColumn( 'attempts' ), 0 ),
             'retrying'  => $query->whereNull( $query->qualifyColumn( 'delivered_at' ) )->whereNotNull( $query->qualifyColumn( 'next_retry_at' ) )->where( $query->qualifyColumn( 'attempts' ), '>', 0 ),
             default     => null,
         };

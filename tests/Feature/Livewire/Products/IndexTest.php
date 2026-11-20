@@ -69,9 +69,9 @@ it( 'renders products with price, stock, categories, and type', function (): voi
     priceFor( $mug, 1100, 'EUR' );
     stockFor( $mug, 7 );
 
-    Livewire::test( Index::class )
+    $html = Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">Products</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Products</caption>' )
         ->assertSee( 'Price (USD)' )
         ->assertSee( 'Blue Mug' )
         ->assertSee( 'MUG-1' )
@@ -79,7 +79,15 @@ it( 'renders products with price, stock, categories, and type', function (): voi
         ->assertSee( 'Active' )
         ->assertSee( '$12.50' )
         ->assertDontSee( '€11.00' )
-        ->assertSee( 'Kitchen' );
+        ->html();
+
+    preg_match( '/<tbody>(.*?)<\/tbody>/s', $html, $body );
+
+    expect( $body[1] )->not->toContain( 'Kitchen' );
+
+    $rows = productsCsv( Livewire::test( Index::class )->set( 'selected', [ (string) $mug->id ] )->call( 'runBulkAction', 'export' ) );
+
+    expect( $rows[0] )->toContain( 'Categories' )->and( $rows[1] )->toContain( 'Kitchen' );
 } );
 
 it( 'shows a price range and summed stock for products with variants', function (): void {
@@ -288,7 +296,7 @@ it( 'exports the selection as CSV', function (): void {
 
     $rows = productsCsv( Livewire::test( Index::class )->set( 'selected', [ (string) $mug->id ] )->call( 'runBulkAction', 'export' ) );
 
-    expect( $rows[0] )->toContain( 'Name', 'SKU', 'Type', 'Status', 'Price (USD)', 'Stock' )
+    expect( $rows[0] )->toContain( 'Product', 'SKU', 'Type', 'Status', 'Price (USD)', 'Stock', 'Featured', 'Position', 'Categories', 'Updated' )
         ->and( $rows[1] )->toContain( 'Blue Mug', 'MUG-1', 'Simple product', 'Active', '12.50', '4' );
 } );
 
@@ -403,4 +411,191 @@ it( 'shows the price the storefront charges when scheduled prices overlap', func
 
     expect( ArtisanPackUI\EcommerceAdminLivewire\Queries\ProductsQuery::priceRange( $loaded )['min'] )->toBe( 1_100 )
         ->and( (int) $resolved->getAmount() )->toBe( 1_100 );
+} );
+
+it( 'renders the page header with one solid action', function (): void {
+    $html = Livewire::test( Index::class )
+        ->assertSee( 'Everything you sell, with its type, status, price and stock.' )
+        ->assertSeeHtml( 'data-export-catalog' )
+        ->assertSeeHtml( 'data-import-products' )
+        ->assertSeeHtml( 'data-new-product' )
+        ->html();
+
+    expect( $html )->not->toContain( 'btn' )
+        ->and( substr_count( $html, 'data-variant="outline"' ) )->toBeGreaterThanOrEqual( 2 );
+} );
+
+it( 'shows the board columns and keeps SKU, position, categories and updated for the CSV', function (): void {
+    Product::factory()->create( [ 'name' => 'Blue Mug' ] );
+
+    $html = Livewire::test( Index::class )->html();
+
+    preg_match( '/<thead>(.*?)<\/thead>/s', $html, $head );
+    $headers = array_map( static fn ( string $cell ): string => trim( strip_tags( $cell ) ), explode( '</th>', $head[1] ) );
+
+    expect( array_values( array_filter( $headers ) ) )->toBe( [ 'Image', 'Product', 'Type', 'Status', 'Price (USD)', 'Stock', 'Featured' ] )
+        ->and( $head[1] )->toContain( '<span class="apui-sr-only">Image</span>' )
+        ->and( $head[1] )->toContain( '<span class="apui-sr-only">Featured</span>' )
+        ->and( $head[1] )->not->toContain( 'Updated' )
+        ->and( $head[1] )->not->toContain( 'Position' );
+} );
+
+it( 'puts the variant count or the SKU under the product name', function (): void {
+    $tee = Product::factory()->variable()->create( [ 'name' => 'Tee', 'sku' => 'TEE' ] );
+    ProductVariant::factory()->count( 2 )->create( [ 'product_id' => $tee->id ] );
+    Product::factory()->create( [ 'name' => 'Blue Mug', 'sku' => 'MUG-1' ] );
+
+    Livewire::test( Index::class )
+        ->assertSee( '2 variants' )
+        ->assertSeeHtml( '<bdi dir="ltr" class="ec-mono" data-product-sku>MUG-1</bdi>' )
+        ->assertDontSeeHtml( 'data-product-sku>TEE</bdi>' );
+} );
+
+it( 'shows the type as an outline badge and a missing type as a warning badge', function (): void {
+    Product::factory()->create( [ 'name' => 'Mug' ] );
+    Product::factory()->create( [ 'name' => 'Box', 'type' => 'subscription' ] );
+
+    Livewire::test( Index::class )
+        ->assertSeeHtml( 'data-variant="outline"' )
+        ->assertSeeHtml( '<bdi dir="ltr">subscription</bdi> &middot; Missing type' )
+        ->assertSeeHtml( 'data-color="warning"' );
+} );
+
+it( 'shows out of stock as a badge, keeping an oversold count', function (): void {
+    $empty = Product::factory()->create( [ 'name' => 'Empty' ] );
+    stockFor( $empty, 0 );
+
+    Livewire::test( Index::class )
+        ->assertSeeHtml( 'data-out-of-stock' )
+        ->assertSee( 'Out of stock' )
+        ->assertDontSeeHtml( '<bdi dir="ltr">0</bdi>' );
+
+    $empty->delete();
+    $oversold = Product::factory()->create( [ 'name' => 'Oversold' ] );
+    stockFor( $oversold, 2, null, 5 );
+
+    Livewire::test( Index::class )
+        ->assertSeeHtml( '<bdi dir="ltr">-3</bdi>' )
+        ->assertSeeHtml( 'data-out-of-stock' );
+} );
+
+it( 'names the featured star and the thumbnail placeholder', function (): void {
+    Product::factory()->create( [ 'name' => 'Star', 'is_featured' => true ] );
+    Product::factory()->create( [ 'name' => 'Plain', 'is_featured' => false ] );
+
+    Livewire::test( Index::class )
+        ->assertSeeHtml( 'role="img" aria-label="Featured" data-featured' )
+        ->assertSeeHtml( 'role="img" aria-label="Not featured" data-not-featured' )
+        ->assertSeeHtml( 'aria-label="Star: no image"' );
+} );
+
+it( 'tells search what it matches', function (): void {
+    Livewire::test( Index::class )->assertSeeHtml( 'placeholder="Search by name or SKU"' );
+} );
+
+it( 'offers New product and Import in the empty state', function (): void {
+    Livewire::test( Index::class )
+        ->assertSee( 'No products yet' )
+        ->assertSeeHtml( 'data-empty-new-product' )
+        ->assertSeeHtml( 'data-empty-import' );
+} );
+
+it( 'leaves the empty state actions out for a user who may not add products', function (): void {
+    Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+    Gate::define( 'ecommerce.product.update', static fn (): bool => false );
+
+    Livewire::test( Index::class )
+        ->assertSee( 'No products yet' )
+        ->assertDontSeeHtml( 'data-empty-new-product' )
+        ->assertDontSeeHtml( 'data-empty-import' );
+} );
+
+it( 'puts Add and Remove beside the category and tag selects, once each', function (): void {
+    $product = Product::factory()->create();
+    ProductCategory::factory()->create( [ 'name' => 'Prints' ] );
+    ProductTag::factory()->create( [ 'name' => 'Sale' ] );
+
+    $html = Livewire::test( Index::class )->set( 'selected', [ (string) $product->id ] )->html();
+
+    foreach ( [ 'add-category' => 'Add category', 'remove-category' => 'Remove category', 'add-tag' => 'Add tag', 'remove-tag' => 'Remove tag' ] as $key => $label ) {
+        expect( substr_count( $html, "runBulkAction( '{$key}' )" ) )->toBe( 1 )
+            ->and( $html )->toContain( 'aria-label="' . $label . '"' );
+    }
+
+    expect( $html )->toContain( 'aria-label="Category to add or remove"' )
+        ->and( $html )->toContain( "runBulkAction( 'publish' )" )
+        ->and( $html )->toContain( "runBulkAction( 'archive' )" )
+        ->and( $html )->toContain( "runBulkAction( 'delete' )" );
+} );
+
+it( 'disables the category controls when there are no categories yet', function (): void {
+    $product = Product::factory()->create();
+
+    $html = Livewire::test( Index::class )->set( 'selected', [ (string) $product->id ] )->html();
+
+    $start = strpos( $html, 'aria-label="Category to add or remove"' );
+    $group = substr( $html, (int) $start, (int) strpos( $html, 'aria-label="Tag to add or remove"' ) - (int) $start );
+
+    expect( $start )->not->toBeFalse()
+        ->and( $group )->toContain( 'No categories yet' )
+        ->and( substr_count( $group, 'disabled' ) )->toBeGreaterThanOrEqual( 3 );
+} );
+
+it( 'hides the category and tag controls without product.update', function (): void {
+    Gate::define( 'ecommerce.product.update', static fn (): bool => false );
+    $product = Product::factory()->create();
+
+    Livewire::test( Index::class )
+        ->set( 'selected', [ (string) $product->id ] )
+        ->assertDontSeeHtml( 'ec-products-bulk-group' )
+        ->assertDontSeeHtml( "runBulkAction( 'add-category' )" );
+} );
+
+it( 'draws each category and tag bulk action once, in the bulk controls, and keeps the rest in the bar', function (): void {
+    $mug = Product::factory()->create( [ 'name' => 'Mug' ] );
+
+    $html = Livewire::test( Index::class )->set( 'selected', [ (string) $mug->id ] )->html();
+
+    foreach ( [ ...Index::INLINE_BULK_ACTIONS, 'publish', 'archive', 'delete' ] as $action ) {
+        expect( preg_match_all( '/runBulkAction\(\s*(?:\'|&quot;|")' . preg_quote( $action, '/' ) . '(?:\'|&quot;|")\s*\)/', $html ) )->toBe( 1, $action );
+    }
+} );
+
+it( 'still sorts by columns that left the grid, from the URL', function ( string $column, string $direction, array $expected ): void {
+    $apron = Product::factory()->create( [ 'name' => 'Apron', 'sku' => 'B-2', 'position' => 2 ] );
+    $mug   = Product::factory()->create( [ 'name' => 'Mug', 'sku' => 'A-1', 'position' => 1 ] );
+    $apron->forceFill( [ 'updated_at' => now()->subDay() ] )->saveQuietly();
+
+    $html = Livewire::withQueryParams( [ 'sort' => $column, 'dir' => $direction ] )->test( Index::class )->html();
+
+    expect( strpos( $html, $expected[0] ) )->toBeLessThan( strpos( $html, $expected[1] ) );
+} )->with( [
+    'sku'              => [ 'sku', 'asc', [ 'Mug', 'Apron' ] ],
+    'position'         => [ 'position', 'desc', [ 'Apron', 'Mug' ] ],
+    'updated, default' => [ '', '', [ 'Mug', 'Apron' ] ],
+] );
+
+it( 'resolves the page\'s thumbnails at once instead of a gallery lookup per row', function (): void {
+    $products = Product::factory()->count( 10 )->create();
+
+    foreach ( $products as $index => $product ) {
+        ArtisanPackUI\Ecommerce\Models\ProductImage::query()->create( [ 'product_id' => $product->id, 'image_url' => "https://example.com/{$index}.jpg", 'alt_text' => "Photo {$index}", 'position' => 0 ] );
+    }
+
+    $component = Livewire::test( Index::class );
+
+    $thumbnails = $component->viewData( 'thumbnails' );
+
+    expect( $thumbnails )->toHaveCount( 10 )
+        ->and( $thumbnails[ $products[3]->id ] )->toBe( [ 'url' => 'https://example.com/3.jpg', 'alt' => 'Photo 3' ] )
+        ->and( $component->html() )->toContain( 'src="https://example.com/3.jpg"' );
+
+    Illuminate\Support\Facades\DB::enableQueryLog();
+    Illuminate\Support\Facades\DB::flushQueryLog();
+
+    $component->call( '$refresh' );
+
+    $imageQueries = array_filter( Illuminate\Support\Facades\DB::getQueryLog(), static fn ( array $query ): bool => str_contains( $query['query'], 'product_images' ) );
+
+    expect( $imageQueries )->toHaveCount( 1 );
 } );

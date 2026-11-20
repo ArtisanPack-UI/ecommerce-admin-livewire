@@ -50,7 +50,8 @@ use Throwable;
  *   `reason` columns), shows a dry-run report, and applies the valid rows.
  *
  * Abilities: `inventory.viewAny` for the screen and `inventory.adjust` for
- * every change. They are separate from `product.*`, so staff can count stock
+ * every change, checked against the stock row (and per row of a bulk
+ * upload). They are separate from `product.*`, so staff can count stock
  * without editing products.
  *
  * @package    ArtisanPack_UI
@@ -74,6 +75,16 @@ class Index extends Component
      * @var int
      */
     public const MAX_UPLOAD_KB = 2048;
+
+    /**
+     * The largest change (or count) one adjustment may make, for the
+     * dialog and the bulk upload alike.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const MAX_ADJUST = 1000000;
 
     /**
      * The stock row being adjusted.
@@ -150,6 +161,16 @@ class Index extends Component
     public bool $bulkAdjusting = false;
 
     /**
+     * Bumped when a backorder switch fails to save, so the switches are
+     * rendered afresh instead of keeping the state the click gave them.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public int $backorderRevision = 0;
+
+    /**
      * The uploaded bulk-adjust CSV.
      *
      * @since 1.0.0
@@ -209,9 +230,9 @@ class Index extends Component
      */
     public function startAdjust( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'inventory.adjust' );
-
         $item = InventoryItem::query()->find( $id );
+
+        $this->authorizeEcommerceAbility( 'inventory.adjust', $item );
 
         $this->resetErrorBag();
         $this->adjustingId    = null === $item || StockLevels::isReadOnly( $item ) ? null : (int) $item->id;
@@ -232,9 +253,9 @@ class Index extends Component
      */
     public function adjust( string $token ): void
     {
-        $this->authorizeEcommerceAbility( 'inventory.adjust' );
-
         $item = null === $this->adjustingId ? null : InventoryItem::query()->find( $this->adjustingId );
+
+        $this->authorizeEcommerceAbility( 'inventory.adjust', $item );
 
         if ( null === $item || ! $this->adjusting ) {
             $this->closeAdjust();
@@ -245,7 +266,7 @@ class Index extends Component
         $this->validate(
             [
                 'adjustMode'     => [ 'required', Rule::in( StockLevels::MODES ) ],
-                'adjustQuantity' => [ 'required', 'integer', 'between:-1000000,1000000', 'set' === $this->adjustMode ? 'min:0' : 'not_in:0' ],
+                'adjustQuantity' => [ 'required', 'integer', 'between:-' . self::MAX_ADJUST . ',' . self::MAX_ADJUST, 'set' === $this->adjustMode ? 'min:0' : 'not_in:0' ],
                 'adjustReason'   => [ 'required', 'string', 'max:255' ],
             ],
             [ 'adjustQuantity.not_in' => __( 'Enter a number of units other than 0.' ) ],
@@ -300,9 +321,9 @@ class Index extends Component
      */
     public function editThreshold( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'inventory.adjust' );
-
         $item = InventoryItem::query()->find( $id );
+
+        $this->authorizeEcommerceAbility( 'inventory.adjust', $item );
 
         $this->resetErrorBag();
         $this->editingThresholdId = null === $item || StockLevels::isReadOnly( $item ) ? null : (int) $item->id;
@@ -318,9 +339,9 @@ class Index extends Component
      */
     public function saveThreshold(): void
     {
-        $this->authorizeEcommerceAbility( 'inventory.adjust' );
-
         $item = null === $this->editingThresholdId ? null : InventoryItem::query()->find( $this->editingThresholdId );
+
+        $this->authorizeEcommerceAbility( 'inventory.adjust', $item );
 
         if ( null === $item ) {
             $this->cancelThreshold();
@@ -372,17 +393,23 @@ class Index extends Component
      */
     public function toggleBackorder( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'inventory.adjust' );
-
         $item = InventoryItem::query()->find( $id );
 
+        $this->authorizeEcommerceAbility( 'inventory.adjust', $item );
+
         if ( null === $item ) {
+            ++$this->backorderRevision;
+
             return;
         }
 
         try {
             StockLevels::updateSettings( $item, [ 'allow_backorder' => ! $item->allow_backorder ] );
         } catch ( ProductWriteException $exception ) {
+            // The switch already flipped in the browser: re-key it so it
+            // shows the saved setting again.
+            ++$this->backorderRevision;
+
             $this->toastError( __( 'The setting was not changed.' ), (string) ( $exception->errors[0]['message'] ?? '' ) );
         }
     }
@@ -511,12 +538,13 @@ class Index extends Component
         $adjusting = null === $this->adjustingId || ! $this->adjusting ? null : InventoryItem::query()->with( 'stockable' )->find( $this->adjustingId );
 
         return view( 'ecommerce-admin::livewire.inventory.index', $this->resourceTableData() + [
-            'canAdjust'       => $canAdjust,
-            'adjustingItem'   => $adjusting,
-            'adjustToken'     => null === $adjusting ? null : $this->actionToken( 'adjust', $adjusting ),
-            'bulkToken'       => null === $this->bulkReport ? null : $this->actionToken( 'bulk-adjust' ),
-            'bulkValidRows'   => count( array_filter( (array) $this->bulkReport, static fn ( array $row ): bool => null === $row['error'] ) ),
-            'maxRows'         => self::maxRows(),
+            'canAdjust'         => $canAdjust,
+            'backorderRevision' => $this->backorderRevision,
+            'adjustingItem'     => $adjusting,
+            'adjustToken'       => null === $adjusting ? null : $this->actionToken( 'adjust', $adjusting ),
+            'bulkToken'         => null === $this->bulkReport ? null : $this->actionToken( 'bulk-adjust' ),
+            'bulkValidRows'     => count( array_filter( (array) $this->bulkReport, static fn ( array $row ): bool => null === $row['error'] ) ),
+            'maxRows'           => self::maxRows(),
         ] );
     }
 
@@ -577,31 +605,32 @@ class Index extends Component
                 'export' => static fn ( InventoryItem $item ): string => StockLevels::label( $item ),
             ],
             [
-                'key'   => 'sku',
-                'label' => __( 'SKU' ),
-                'value' => static fn ( InventoryItem $item ): string => StockLevels::sku( $item ),
+                'key'    => 'sku',
+                'label'  => __( 'SKU' ),
+                'view'   => $cells . 'sku',
+                'export' => static fn ( InventoryItem $item ): string => StockLevels::sku( $item ),
             ],
             [
                 'key'      => 'on_hand',
                 'label'    => __( 'On hand' ),
                 'sortable' => true,
-                'class'    => 'text-end tabular-nums',
-                'value'    => static fn ( InventoryItem $item ): string => (string) $item->quantity_on_hand,
+                'numeric'  => true,
+                'view'     => $cells . 'quantity',
                 'export'   => static fn ( InventoryItem $item ): int => (int) $item->quantity_on_hand,
             ],
             [
                 'key'      => 'reserved',
                 'label'    => __( 'Reserved' ),
                 'sortable' => true,
-                'class'    => 'text-end tabular-nums',
-                'value'    => static fn ( InventoryItem $item ): string => (string) $item->quantity_reserved,
+                'numeric'  => true,
+                'view'     => $cells . 'quantity',
                 'export'   => static fn ( InventoryItem $item ): int => (int) $item->quantity_reserved,
             ],
             [
                 'key'      => 'available',
                 'label'    => __( 'Available' ),
                 'sortable' => true,
-                'class'    => 'text-end',
+                'numeric'  => true,
                 'view'     => $cells . 'available',
                 'export'   => static fn ( InventoryItem $item ): int => $item->availableQuantity(),
             ],
@@ -619,11 +648,11 @@ class Index extends Component
                 'export' => static fn ( InventoryItem $item ): int => $item->allow_backorder ? 1 : 0,
             ],
             [
-                'key'        => 'actions',
-                'label'      => __( 'Actions' ),
-                'class'      => 'text-end',
-                'view'       => $cells . 'actions',
-                'exportable' => false,
+                'key'         => 'actions',
+                'label'       => __( 'Actions' ),
+                'labelHidden' => true,
+                'view'        => $cells . 'actions',
+                'exportable'  => false,
             ],
         ];
     }
@@ -708,28 +737,34 @@ class Index extends Component
 
         $plan      = [];
         $projected = [];
+        $user      = auth()->user();
+        $lookup    = StockLevels::preload( array_map( static fn ( array $row ): string => (string) $row['sku'], $csv['rows'] ) );
 
         foreach ( $csv['rows'] as $row ) {
             $sku       = (string) $row['sku'];
             $mode      = '' === (string) ( $row['mode'] ?? '' ) ? $this->bulkMode : strtolower( (string) $row['mode'] );
             $reason    = sanitizeText( '' === (string) ( $row['reason'] ?? '' ) ? $this->bulkReason : (string) $row['reason'] );
-            $stockable = StockLevels::findStockable( $sku );
+            $stockable = StockLevels::preloadedStockable( $lookup, $sku );
+            $item      = null === $stockable ? null : StockLevels::preloadedItem( $lookup, $stockable );
             $quantity  = (string) $row['quantity'];
             $error     = match ( true ) {
-                '' === trim( $sku )                               => __( 'The SKU is missing.' ),
-                null === $stockable                               => __( 'No product or variant has this SKU.' ),
-                StockLevels::stockableIsReadOnly( $stockable )    => __( 'This product\'s type is not installed, so its stock cannot be changed here.' ),
-                ! in_array( $mode, StockLevels::MODES, true )     => __( 'The mode must be "delta" or "set".' ),
-                1 !== preg_match( '/^-?\d{1,7}$/', $quantity )    => __( 'The quantity must be a whole number.' ),
-                'set' === $mode && (int) $quantity < 0            => __( 'The count cannot be negative.' ),
-                default                                           => null,
+                '' === trim( $sku )                                                                          => __( 'The SKU is missing.' ),
+                null === $stockable                                                                          => __( 'No product or variant has this SKU.' ),
+                StockLevels::stockableIsReadOnly( $stockable )                                               => __( 'This product\'s type is not installed, so its stock cannot be changed here.' ),
+                $stockable instanceof Product && ! StockLevels::typeTracksStock( (string) $stockable->type ) => __( 'This product type has no stock of its own.' ),
+                ! Authorization::allows( $user, 'inventory.adjust', $item )                                  => __( 'You may not adjust this item\'s stock.' ),
+                ! in_array( $mode, StockLevels::MODES, true )                                                => __( 'The mode must be "delta" or "set".' ),
+                1 !== preg_match( '/^-?\d{1,7}$/', $quantity )                                               => __( 'The quantity must be a whole number.' ),
+                abs( (int) $quantity ) > self::MAX_ADJUST                                                    => __( 'The quantity must be from :min to :max.', [ 'min' => -self::MAX_ADJUST, 'max' => self::MAX_ADJUST ] ),
+                'set' === $mode && (int) $quantity < 0                                                       => __( 'The count cannot be negative.' ),
+                default                                                                                      => null,
             };
 
             // Read only: the dry run must not create stock rows. A SKU listed
             // again starts from the count earlier rows leave, as the apply
             // writes the rows in order.
             $key    = null === $stockable ? null : $stockable->getMorphClass() . ':' . $stockable->getKey();
-            $onHand = null === $key ? null : ( $projected[ $key ] ?? (int) ( StockLevels::existingItem( $stockable )->quantity_on_hand ?? 0 ) );
+            $onHand = null === $key ? null : ( $projected[ $key ] ?? (int) ( $item->quantity_on_hand ?? 0 ) );
             $change = null === $error && null !== $onHand ? ( 'set' === $mode ? (int) $quantity - $onHand : (int) $quantity ) : null;
 
             if ( null !== $key && null !== $change ) {

@@ -2,52 +2,44 @@
 
 declare( strict_types=1 );
 
+use ArtisanPackUI\Ecommerce\Models\KanbanBoard;
+use ArtisanPackUI\Ecommerce\Models\Order;
+use ArtisanPackUI\Ecommerce\Models\OrderBoardAssignment;
+use ArtisanPackUI\Ecommerce\Models\OrderSubstatus;
+use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Orders\Show;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsFramework;
 use Livewire\Livewire;
-use Tests\Fixtures\Livewire\ToastScreen;
 
-/**
- * The toast payloads a component queued, decoded from its `toast( … )` calls.
- *
- * @return array<int, array<string, mixed>>
- */
-function queuedToastPayloads( $component ): array
-{
-    $payloads = [];
-
-    foreach ( $component->effects['xjs'] ?? [] as $script ) {
-        $script = is_array( $script ) ? (string) ( $script['expression'] ?? '' ) : (string) $script;
-
-        if ( 1 === preg_match( '/toast\( (\{.*\}) \);/s', $script, $match ) ) {
-            $payloads[] = json_decode( $match[1], true, 512, JSON_THROW_ON_ERROR )['toast'];
-        }
-    }
-
-    return $payloads;
-}
-
-it( 'HTML-escapes the title and description for the x-html toast', function ( string $type ): void {
-    $markup = '<img src=x onerror=alert(document.cookie)>';
-
-    $component = Livewire::test( ToastScreen::class )->call( 'notify', $type, 'Saved "' . $markup . '".', 'Tom\'s & ' . $markup );
-    $toast     = queuedToastPayloads( $component )[0];
-
-    expect( $toast['type'] )->toBe( $type )
-        ->and( $toast['title'] )->toBe( 'Saved &quot;&lt;img src=x onerror=alert(document.cookie)&gt;&quot;.' )
-        ->and( $toast['description'] )->toBe( 'Tom&#039;s &amp; &lt;img src=x onerror=alert(document.cookie)&gt;' )
-        ->and( sentToasts( $component ) )->not->toContain( '<img' );
-} )->with( [ 'success', 'warning', 'error' ] );
-
-it( 'keeps a missing description null', function (): void {
-    $toast = queuedToastPayloads( Livewire::test( ToastScreen::class )->call( 'notify', 'success', 'Saved.' ) )[0];
-
-    expect( $toast['title'] )->toBe( 'Saved.' )
-        ->and( $toast['description'] )->toBeNull();
+beforeEach( function (): void {
+    grantAbilities( [ 'order.viewAny', 'order.view', 'kanbanCard.move' ] );
+    $this->actingAs( makeUser() );
 } );
 
-it( 'keeps the script safe from quotes and closing tags', function (): void {
-    $component = Livewire::test( ToastScreen::class )->call( 'notify', 'error', '</script><script>alert(1)</script>', "'); alert(1); ('" );
+it( 'sends stored names to the toaster as plain text, not pre-escaped HTML', function (): void {
+    $markup  = '<img src=x onerror=alert(1)> & Tom\'s "Board"';
+    $packing = OrderSubstatus::factory()->create( [ 'system_status' => 'processing', 'key' => 'packing', 'label' => 'Packing' ] );
+    $board   = KanbanBoard::factory()->create( [ 'name' => $markup ] );
+    $order   = Order::factory()->create( [ 'system_status' => 'processing' ] );
+    OrderBoardAssignment::factory()->create( [ 'order_id' => $order->id, 'board_id' => $board->id, 'substatus_id' => $packing->id ] );
 
-    expect( sentToasts( $component ) )
-        ->not->toContain( '</script>' )
-        ->not->toContain( "'); alert(1)" );
+    $toasts = sentToasts( Livewire::test( Show::class, [ 'order' => $order->id ] )->call( 'removeFromBoard', $board->id ) );
+
+    // The toaster inserts text, so escaping here would show the entities.
+    expect( $toasts )
+        ->toContain( 'Removed from \"' . str_replace( '"', '\"', $markup ) . '\".' )
+        ->not->toContain( '&lt;' )
+        ->not->toContain( '&amp;' )
+        ->not->toContain( '&#039;' );
+} );
+
+it( 'renders toast titles and descriptions as text in the layout\'s toaster', function (): void {
+    CmsFramework::fake( false );
+
+    $html = $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk()->getContent();
+
+    expect( $html )
+        ->toContain( 'x-text="entry.title"' )
+        ->toContain( 'x-text="entry.description"' )
+        ->not->toContain( 'x-html="entry.title"' )
+        ->not->toContain( 'x-html="entry.description"' );
 } );

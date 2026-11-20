@@ -25,6 +25,7 @@ use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 use ArtisanPackUI\Ecommerce\Support\MoneyFormatter;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\ListensForAdminBroadcasts;
+use ArtisanPackUI\EcommerceAdminLivewire\Queries\InventoryQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminBroadcasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
@@ -141,7 +142,11 @@ class Dashboard extends Component
     /**
      * Refreshes after an order broadcast.
      *
+     * The cached sales report is dropped first, so the numbers the
+     * announcement says were updated really are.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Drops the cached sales report.
      *
      * @return void
      */
@@ -153,6 +158,9 @@ class Dashboard extends Component
 
             return;
         }
+
+        Cache::forget( self::salesReportCacheKey() );
+        $this->salesReportResult = null;
 
         $this->liveAnnouncement = __( 'Orders changed. The dashboard has been updated.' );
     }
@@ -218,6 +226,7 @@ class Dashboard extends Component
             'sections'  => $sections,
             'createUrl' => $canCreate ? self::url( 'products.create' ) : null,
             'importUrl' => $canCreate ? self::url( 'products.import' ) : null,
+            'today'     => LocalizedDate::format( now( ReportRange::timezone() ), __( 'l, F j, Y' ) ),
             'dashboard' => [
                 'kpis'         => in_array( DashboardWidgets::KPIS, $keys, true ) ? $this->kpis( $kpiKeys ) : [],
                 'sales'        => in_array( DashboardWidgets::SALES, $keys, true ) ? $this->sales() : null,
@@ -225,6 +234,69 @@ class Dashboard extends Component
                 'recentOrders' => in_array( DashboardWidgets::RECENT_ORDERS, $keys, true ) ? $this->recentOrders() : null,
             ],
         ] );
+    }
+
+    /**
+     * The sales chart's marks, in a 600 × 120 viewBox drawn left to right:
+     * the line and area through each day's total, and the best day's dot and
+     * label. With no sales the line lies flat on the baseline.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, int>  $totals     Each day's total, in minor units.
+     * @param  int|null         $bestIndex  The best day's index, or null.
+     * @param  string|null      $bestLabel  The best day's label.
+     *
+     * @return array{width: int, height: int, baseline: int, line: string, area: string, best: array{x: float, y: float, labelX: float, labelY: float, anchor: string, label: string}|null}
+     */
+    public static function sparkline( array $totals, ?int $bestIndex, ?string $bestLabel ): array
+    {
+        $width    = 600;
+        $height   = 120;
+        $baseline = 112;
+        $count    = count( $totals );
+        $max      = [] === $totals ? 0 : max( $totals );
+        $points   = [];
+
+        foreach ( array_values( $totals ) as $index => $total ) {
+            $x = $count > 1 ? round( $index / ( $count - 1 ) * $width, 1 ) : 0.0;
+            // 8px of headroom keeps the line and the dot inside the plot.
+            $y = $max > 0 ? round( $baseline - $total / $max * ( $baseline - 8 ), 1 ) : (float) $baseline;
+
+            $points[] = [ $x, $y ];
+        }
+
+        if ( [] === $points ) {
+            $points = [ [ 0.0, (float) $baseline ], [ (float) $width, (float) $baseline ] ];
+        }
+
+        $line = 'M' . implode( ' L', array_map( static fn ( array $point ): string => $point[0] . ' ' . $point[1], $points ) );
+        $last = $points[ array_key_last( $points ) ];
+        $best = null;
+
+        if ( null !== $bestIndex && null !== $bestLabel && isset( $points[ $bestIndex ] ) ) {
+            [ $bestX, $bestY ] = $points[ $bestIndex ];
+
+            // The label sits on whichever side of the dot has room.
+            $before = $bestX > $width / 2;
+            $best   = [
+                'x'      => $bestX,
+                'y'      => $bestY,
+                'labelX' => $before ? $bestX - 12 : $bestX + 12,
+                'labelY' => $bestY + 4,
+                'anchor' => $before ? 'end' : 'start',
+                'label'  => $bestLabel,
+            ];
+        }
+
+        return [
+            'width'    => $width,
+            'height'   => $height,
+            'baseline' => $baseline,
+            'line'     => $line,
+            'area'     => $line . ' L' . $last[0] . ' ' . $baseline . ' L' . $points[0][0] . ' ' . $baseline . ' Z',
+            'best'     => $best,
+        ];
     }
 
     /**
@@ -251,7 +323,7 @@ class Dashboard extends Component
      *
      * @param  array<int, string>  $keys  The KPI keys the user can see.
      *
-     * @return array<int, array{key: string, label: string, value: string, description: string, url: string|null, icon: string}>
+     * @return array<int, array{key: string, emphasis: bool, label: string, value: string, description: string, url: string|null, icon: string}>
      */
     protected function kpis( array $keys ): array
     {
@@ -275,39 +347,44 @@ class Dashboard extends Component
                 'value'       => MoneyFormatter::format( $totals['sales_today'], $currency ),
                 'description' => trans_choice( ':count order|:count orders', $totals['orders_today'], [ 'count' => $totals['orders_today'] ] ),
                 'url'         => self::url( 'reports.show', [ 'report' => 'sales', 'preset' => 'today' ] ),
-                'icon'        => 'o-banknotes',
+                'icon'        => 'banknote',
             ],
             'sales-30-days' => [
                 'label'       => __( 'Sales, last 30 days' ),
                 'value'       => MoneyFormatter::format( $totals['sales_30_days'], $currency ),
                 'description' => trans_choice( ':count order|:count orders', $totals['orders_30_days'], [ 'count' => $totals['orders_30_days'] ] ),
                 'url'         => self::url( 'reports.show', [ 'report' => 'sales' ] ),
-                'icon'        => 'o-chart-bar',
+                'icon'        => 'chart-column',
             ],
             'awaiting-fulfillment' => [
                 'label'       => __( 'Awaiting fulfillment' ),
                 'value'       => (string) $totals['awaiting_fulfillment'],
                 'description' => trans_choice( ':count order to ship|:count orders to ship', $totals['awaiting_fulfillment'], [ 'count' => $totals['awaiting_fulfillment'] ] ),
                 'url'         => self::url( 'orders.index', [ 'filters' => [ 'awaiting' => '1' ] ] ),
-                'icon'        => 'o-truck',
+                'icon'        => 'truck',
             ],
             'low-stock' => [
                 'label'       => __( 'Low stock' ),
                 'value'       => (string) $totals['low_stock'],
                 'description' => trans_choice( ':count item at or below its threshold|:count items at or below their threshold', $totals['low_stock'], [ 'count' => $totals['low_stock'] ] ),
                 'url'         => self::url( 'inventory.index', [ 'filters' => [ 'stock' => 'reorder' ] ] ),
-                'icon'        => 'o-archive-box',
+                'icon'        => 'archive',
             ],
             'pending-reviews' => [
                 'label'       => __( 'Reviews to moderate' ),
                 'value'       => (string) $totals['pending_reviews'],
                 'description' => trans_choice( ':count review awaiting moderation|:count reviews awaiting moderation', $totals['pending_reviews'], [ 'count' => $totals['pending_reviews'] ] ),
                 'url'         => self::url( 'reviews.index', [ 'filters' => [ 'status' => ProductReview::STATUS_PENDING ] ] ),
-                'icon'        => 'o-star',
+                'icon'        => 'star',
             ],
         ];
 
-        return array_map( static fn ( string $key ): array => [ 'key' => $key, ...$kpis[ $key ] ], $keys );
+        // Only the figure that asks for action today is emphasized, and only while it does.
+        return array_map( static fn ( string $key ): array => [
+            'key'      => $key,
+            'emphasis' => 'awaiting-fulfillment' === $key && $totals['awaiting_fulfillment'] > 0,
+            ...$kpis[ $key ],
+        ], $keys );
     }
 
     /**
@@ -315,32 +392,41 @@ class Dashboard extends Component
      *
      * @since 1.0.0
      *
-     * @return array{values: array<int, float>, total: string, summary: string, url: string|null}
+     * @return array{values: array<int, float>, total: string, chart: array<string, mixed>, axis: array{start: string, end: string}, summary: string, url: string|null}
      */
     protected function sales(): array
     {
-        $result   = $this->salesReport();
-        $currency = (string) $result['currency'];
-        $series   = array_values( (array) $result['series'] );
-        $best     = null;
+        $result    = $this->salesReport();
+        $currency  = (string) $result['currency'];
+        $series    = array_values( (array) $result['series'] );
+        $best      = null;
+        $bestIndex = null;
 
-        foreach ( $series as $day ) {
+        foreach ( $series as $index => $day ) {
             if ( (int) $day['total'] > 0 && ( null === $best || (int) $day['total'] > (int) $best['total'] ) ) {
-                $best = $day;
+                $best      = $day;
+                $bestIndex = $index;
             }
         }
 
-        $total = MoneyFormatter::format( (int) $result['totals']['total'], $currency );
+        $total      = MoneyFormatter::format( (int) $result['totals']['total'], $currency );
+        $bestAmount = null === $best ? null : MoneyFormatter::format( (int) $best['total'], $currency );
+        $axisFormat = __( 'M j' );
 
         return [
             'values'  => array_map( static fn ( array $day ): float => (float) MinorUnits::toMajor( (int) $day['total'], $currency ), $series ),
             'total'   => $total,
+            'chart'   => self::sparkline( array_map( static fn ( array $day ): int => (int) $day['total'], $series ), $bestIndex, null === $bestAmount ? null : __( 'Best day · :amount', [ 'amount' => $bestAmount ] ) ),
+            'axis'    => [
+                'start' => [] === $series ? '' : LocalizedDate::format( (string) $series[0]['start'], $axisFormat ),
+                'end'   => [] === $series ? '' : LocalizedDate::format( (string) $series[ array_key_last( $series ) ]['start'], $axisFormat ),
+            ],
             'summary' => null === $best
                 ? __( 'No sales in the last 30 days.' )
                 : __( 'Sales over the last 30 days: :total in total. Best day: :day, with :amount.', [
                     'total'  => $total,
                     'day'    => LocalizedDate::format( (string) $best['start'] ),
-                    'amount' => MoneyFormatter::format( (int) $best['total'], $currency ),
+                    'amount' => $bestAmount,
                 ] ),
             'url'     => self::url( 'reports.show', [ 'report' => 'sales' ] ),
         ];
@@ -348,8 +434,9 @@ class Dashboard extends Component
 
     /**
      * The last 30 days of sales, run once per request and cached for a
-     * minute per store time zone and currency, so broadcasts and the KPI row
-     * and sparkline don't each re-run it.
+     * minute per store time zone and currency, so re-renders and the KPI
+     * row and sparkline don't each re-run it. An order broadcast drops the
+     * cache ({@see self::orderBroadcast()}).
      *
      * @since 1.0.0
      *
@@ -361,9 +448,19 @@ class Dashboard extends Component
             return $this->salesReportResult;
         }
 
-        $key = 'ecommerce-admin.dashboard.sales.' . ReportRange::timezone() . '.' . StoreCurrencies::base();
+        return $this->salesReportResult = (array) Cache::remember( self::salesReportCacheKey(), 60, static fn (): array => app( SalesReport::class )->run( ReportRange::lastDays( 30 ) ) );
+    }
 
-        return $this->salesReportResult = (array) Cache::remember( $key, 60, static fn (): array => app( SalesReport::class )->run( ReportRange::lastDays( 30 ) ) );
+    /**
+     * The cache key of the 30-day sales report.
+     *
+     * @since 2.0.0
+     *
+     * @return string
+     */
+    protected static function salesReportCacheKey(): string
+    {
+        return 'ecommerce-admin.dashboard.sales.' . ReportRange::timezone() . '.' . StoreCurrencies::base();
     }
 
     /**
@@ -424,15 +521,18 @@ class Dashboard extends Component
      */
     protected function lowStock(): Collection
     {
-        return LowStockReport::query()
+        $query     = LowStockReport::query();
+        $available = InventoryQuery::availableSql( $query );
+
+        return $query
             ->select( ( new InventoryItem() )->qualifyColumn( '*' ) )
-            ->selectRaw( '(quantity_on_hand - quantity_reserved) as quantity_available' )
+            ->selectRaw( $available . ' as quantity_available' )
             ->with( [
                 'stockable' => static fn ( MorphTo $morph ) => $morph->morphWith( [
                     ProductVariant::class => [ 'product:id,name,type,sku' ],
                 ] ),
             ] )
-            ->orderByRaw( '(quantity_on_hand - quantity_reserved) asc' )
+            ->orderByRaw( $available . ' asc' )
             ->orderBy( 'id' )
             ->limit( self::LOW_STOCK_ITEMS )
             ->get();

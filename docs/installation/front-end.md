@@ -1,10 +1,13 @@
 ---
 title: Front-End Setup
+menu_order: 30
 ---
 
 # Front-End Setup
 
-The package ships no CSS or JavaScript build. Your application's Vite build styles the admin and loads the scripts its components need. Until you do this, the admin renders unstyled and charts, date pickers, and the editor do not work.
+The admin renders on the ArtisanPack UI design system through `livewire-ui-components` 3.0. The package ships no CSS or JavaScript build of its own: your application's Vite build loads the design system's stylesheet and behavior engine. Until you set this up, the admin renders unstyled and its drawers, dialogs, date pickers, and code editors don't work.
+
+The admin's own few styles (the parts the design system has no component for) are inlined into the page with your CSP nonce, so they need no build step.
 
 The browser test suite builds a host like this. Use it as a working reference:
 
@@ -12,80 +15,70 @@ The browser test suite builds a host like this. Use it as a working reference:
 - `tests/Browser/workbench/resources/js/app.js`
 - `vite.config.js`
 
-## 1. Tailwind 4 and daisyUI 5
+## 1. Remove daisyUI
 
-The admin uses Tailwind CSS 4 and daisyUI 5 class names. Install them if your application does not already:
+The admin no longer uses daisyUI. If the admin was the only thing using it, remove the `daisyui` package and the `@plugin "daisyui"` block from your stylesheet. Its base styles fight the design system's components.
+
+## 2. Install the npm packages
+
+`php artisan ecommerce-admin:install` prints the packages here and the lines in steps 3 and 4.
 
 ```bash
-npm install -D tailwindcss @tailwindcss/vite daisyui@~5.0
+npm install -D tailwindcss @tailwindcss/vite
+npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop@^2
 ```
 
-Pin daisyUI to `~5.0`. Later 5.x releases hide `.tab-content`, so the component library's tab panels render empty (the product, promotion, and customer forms). Keep the pin until [livewire-ui-components#119](https://github.com/ArtisanPack-UI/livewire-ui-components/issues/119) is fixed.
+| Package | Used for |
+| --- | --- |
+| `@artisanpack-ui/css` | The design system's tokens and component styles |
+| `@artisanpack-ui/behavior` | The behavior engine behind drawers, dialogs, comboboxes, date pickers, tabs, the command palette, and the code editor |
+| `@artisanpack-ui/livewire-drag-and-drop` | Reorderable lists: rule-builder rows, variants, gallery images, columns |
 
-## 2. Add the admin to your Tailwind sources
+Every reorderable list also has move up and move down buttons, so reordering works without drag and drop.
 
-`php artisan ecommerce-admin:install` prints these lines, and the npm packages and script lines in steps 3 and 4. Add them to your Tailwind entry, for example `resources/css/app.css`:
+## 3. Add the stylesheet lines
+
+Add these to your main stylesheet, for example `resources/css/app.css`:
 
 ```css
+@layer theme, base, apui, components, utilities;
 @import 'tailwindcss';
+@import '@artisanpack-ui/css';
 
 @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/resources/views/**/*.blade.php";
 @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/src/**/*.php";
 
-/* The component library's views, if your app does not list them already. */
+/* The component library's views, if your app doesn't list them already. */
 @source "../../vendor/artisanpack-ui/livewire-ui-components/resources/views/**/*.php";
 @source "../../vendor/artisanpack-ui/livewire-ui-components/src/**/*.php";
-
-@custom-variant dark (&:where(.dark, .dark *));
-
-@plugin "daisyui" {
-    themes: light --default, dark --prefersdark;
-}
 ```
+
+The `@layer` line puts the design system in its own layer between Tailwind's base and its utilities, so Preflight never restyles a component and utilities still win. Keep it first in the file.
 
 The paths are relative to the CSS file. Adjust them if your entry lives elsewhere.
-
-## 3. Install the npm packages
-
-```bash
-npm install @artisanpack-ui/livewire-drag-and-drop apexcharts flatpickr
-```
-
-| Package | Used by |
-| --- | --- |
-| `@artisanpack-ui/livewire-drag-and-drop` | Reorderable lists: rule-builder rows, variants, gallery images, columns |
-| `apexcharts` | Report charts and the dashboard sales sparkline |
-| `flatpickr` | Date pickers (report ranges, order filters, scheduled prices) |
-
-Every reorderable list also has move up / move down buttons, so reordering works without drag and drop.
 
 ## 4. Load the scripts
 
 In `resources/js/app.js`:
 
 ```js
-import ApexCharts from 'apexcharts';
-import flatpickr from 'flatpickr';
-import 'flatpickr/dist/flatpickr.min.css';
+import apuiBehavior from '@artisanpack-ui/behavior/alpine';
 import '@artisanpack-ui/livewire-drag-and-drop';
-import '../../vendor/artisanpack-ui/livewire-ui-components/resources/js/sparkline.js';
-import '../../vendor/artisanpack-ui/livewire-ui-components/resources/js/tinymce-editor.js';
 
-window.ApexCharts = ApexCharts;
-window.flatpickr = flatpickr;
+document.addEventListener( 'alpine:init', () => window.Alpine.plugin( apuiBehavior ) );
 ```
 
-Alpine comes with Livewire. Do not import it again.
+Alpine comes with Livewire. Don't import it again: the behavior engine registers itself as Alpine starts.
 
 ## 5. Publish TinyMCE for the description editor
 
-The product description uses the component library's TinyMCE editor. Publish the library's assets:
+The product description uses the component library's rich text editor, which runs on TinyMCE. Publish the library's assets:
 
 ```bash
 php artisan vendor:publish --tag=artisanpack-assets
 ```
 
-Then load TinyMCE on the page. The `tinymce-editor.js` integration waits for it:
+Then load TinyMCE on the page:
 
 ```js
 const tinymce = document.createElement( 'script' );
@@ -112,31 +105,38 @@ addFilter( 'ap.ecommerceAdminLivewire.layout.viteEntries', function ( array $ent
 } );
 ```
 
-Return an empty array to load nothing, for example when your own layout already loads the build. See [Layout](Extending-Layout).
+Return an empty array to load nothing, for example when your own layout already loads the build. See [Layout](../extending/layout.md).
 
 ## Content Security Policy
 
-If your application sends a Content Security Policy with a script nonce, the admin's inline scripts and the template editor's Ace scripts carry the same nonce: they read it from `Vite::cspNonce()`. Generate the nonce in a middleware that runs on admin pages (add it to `admin.middleware`):
+If your application sends a Content Security Policy with a nonce, the admin's inline scripts and its inline `<style>` carry the same nonce: they read it from `Vite::cspNonce()`. Generate the nonce in a middleware that runs on admin pages (add it to `admin.middleware`):
 
 ```php
 use Illuminate\Support\Facades\Vite;
 
 Vite::useCspNonce();
 
-$response->headers->set( 'Content-Security-Policy', "script-src 'nonce-" . Vite::cspNonce() . "' 'strict-dynamic'" );
+$nonce = Vite::cspNonce();
+
+$response->headers->set( 'Content-Security-Policy', "script-src 'nonce-{$nonce}' 'strict-dynamic' 'unsafe-eval'; style-src 'self' 'nonce-{$nonce}'; style-src-attr 'unsafe-inline'" );
 ```
 
-Without a nonce, the scripts render without one, as before. The notification template editor loads Ace from `cdnjs.cloudflare.com` with Subresource Integrity, so a policy without `'strict-dynamic'` must allow that host.
+A nonce covers `<style>` tags, but not inline `style="…"` attributes: no nonce can. `livewire-ui-components` 3.0 renders some of those itself. Its dialog, drawer, popover, dropdown menu, tooltip, combobox, spotlight, user menu, and toaster wrap their content in an element with `style="display: contents"`, and the range, collapse, and color picker set position and size through `style`. A nonce-only `style-src` blocks all of them, so wrappers start taking up layout space and sliders and swatches render wrong. The `style-src-attr 'unsafe-inline'` directive above allows inline style attributes only, while `<style>` tags still need the nonce. Browsers that don't support `style-src-attr` fall back to `style-src` and block the attributes, so if you need to support them, add `'unsafe-inline'` to `style-src` instead and drop the nonce from it (a nonce makes browsers ignore `'unsafe-inline'`).
+
+Inline style attributes can't run script, so allowing them is a much smaller risk than allowing inline scripts.
+
+A nonce covers script and style tags, but not the expressions in `wire:` and `x-` attributes. Livewire and Alpine evaluate those with `new Function()`, which a policy blocks unless `script-src` allows `'unsafe-eval'`. Without it, buttons, drawers, and forms stop responding. Livewire 4 has a `csp_safe` option that avoids `'unsafe-eval'`, but it only supports simple expressions, and the admin isn't tested with it, so keep `'unsafe-eval'` for admin pages.
+
+Without a nonce, the scripts and styles render without one. The notification template editor uses the component library's code editor, so the admin no longer loads anything from a CDN.
 
 ## Checklist
 
 | Symptom | Missing step |
 | --- | --- |
-| Admin is unstyled | Steps 2 and 6, or a Vite entry name that does not match |
-| Product, promotion, or customer tabs are blank | daisyUI newer than 5.0.x (step 1) |
-| Charts and the dashboard sparkline are missing | `window.ApexCharts` (step 4) |
-| Date pickers do not open | `window.flatpickr` (step 4) |
-| Description editor is a bare textarea or never loads | TinyMCE assets (step 5) |
-| Drag handles do nothing | `@artisanpack-ui/livewire-drag-and-drop` (steps 3–4) |
+| Admin is unstyled | Steps 2, 3, and 6, or a Vite entry name that doesn't match |
+| Buttons, inputs, and cards look half-styled | daisyUI still loaded (step 1), or the `@layer` line missing or not first (step 3) |
+| Drawers, dialogs, the command palette, or date pickers don't open | The behavior engine isn't registered (step 4) |
+| Description editor is a bare field or never loads | TinyMCE assets (step 5) |
+| Drag handles do nothing | `@artisanpack-ui/livewire-drag-and-drop` (steps 2 and 4) |
 
-See [Troubleshooting](Troubleshooting) for more.
+See [Troubleshooting](../troubleshooting.md) for more.

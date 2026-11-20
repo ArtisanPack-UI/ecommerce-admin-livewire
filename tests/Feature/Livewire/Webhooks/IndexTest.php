@@ -26,12 +26,13 @@ it( 'renders subscriptions with their state and failures', function (): void {
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">Webhook subscriptions</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Webhook subscriptions</caption>' )
         ->assertSee( 'Fulfilment partner' )
         ->assertSee( 'https://partner.example.test/hooks' )
         ->assertSee( 'order.refunded' )
         ->assertSee( 'All events' )
-        ->assertSee( 'Disabled after 10 failures' );
+        ->assertSeeHtml( 'data-webhook-state="disabled"' )
+        ->assertSeeHtml( 'data-failing data-webhook-failures>10</bdi>' );
 } );
 
 it( 'is denied without webhookSubscription.viewAny', function (): void {
@@ -71,6 +72,10 @@ it( 'creates a subscription and shows its secret once', function (): void {
     expect( $secret )->toStartWith( 'whsec_' )
         ->and( $subscription->events )->toBe( [ 'order.refunded', 'order.cancelled' ] )
         ->and( (string) DB::table( ( new WebhookSubscription() )->getTable() )->value( 'secret' ) )->not->toContain( $secret );
+
+    // An alertdialog with no close button, so an outside click can't lose the secret.
+    expect( $component->html() )->toMatch( '/role="alertdialog"[^>]*>.*data-revealed-secret/s' )
+        ->not->toMatch( '/data-revealed-secret.*data-part="close-trigger"/s' );
 
     $component->assertSeeHtml( 'data-revealed-secret' )
         ->assertSee( $secret )
@@ -254,4 +259,34 @@ it( 'does not recreate a subscription deleted while it was being edited', functi
 
     expect( WebhookSubscription::query()->count() )->toBe( 0 )
         ->and( sentToasts( $component ) )->toContain( 'This subscription was deleted.' );
+} );
+
+it( 'opens the rotate confirmation on the safe choice, warning-toned', function (): void {
+    $subscription = WebhookSubscription::factory()->create( [ 'name' => 'Fulfillment sync' ] );
+
+    $html = Livewire::test( Index::class )->call( 'confirmRotate', $subscription->id )->html();
+
+    expect( $html )->toMatch( '/class="apui-dialog"[^>]*data-color="warning"/' )
+        ->toContain( 'Rotate the secret of &quot;Fulfillment sync&quot;?' )
+        ->toMatch( '/data-autofocus[^>]*>\s*(<[^>]+>\s*)*Keep current secret/' )
+        ->not->toContain( '<x-' );
+} );
+
+it( 'shows the new secret in a read-only copy field that ignores Escape', function (): void {
+    $component = Livewire::test( Index::class )
+        ->call( 'create' )
+        ->set( 'form.name', 'Fulfillment sync' )
+        ->set( 'form.url', 'https://partner.example.test/hooks' )
+        ->set( 'form.events', [ 'order.refunded' ] )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    $secret = (string) WebhookSubscription::query()->firstOrFail()->secret;
+
+    expect( $component->html() )->toContain( 'class="apui-clipboard ec-secret"' )
+        ->toContain( 'data-variant="field"' )
+        ->toContain( 'value="' . $secret . '"' )
+        ->toContain( 'x-on:keydown.escape.window.capture.stop.prevent' )
+        ->toContain( 'aria-labelledby="webhook-secret-label"' )
+        ->not->toContain( '<x-' );
 } );

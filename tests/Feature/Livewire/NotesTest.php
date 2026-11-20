@@ -28,7 +28,7 @@ it( 'renders the notes of an order, newest first, with author and visibility', f
 
     Livewire::test( Notes::class, [ 'subject' => $this->order ] )
         ->assertOk()
-        ->assertSeeInOrder( [ 'Visible to customer', 'System', 'Shipped early', 'Internal', 'Ada Lovelace', 'Older note' ] )
+        ->assertSeeInOrder( [ 'System', 'Visible to customer', 'Shipped early', 'Ada Lovelace', 'Internal', 'Older note' ] )
         ->assertSeeHtml( 'data-customer-visible="true"' )
         ->assertSeeHtml( 'data-customer-visible="false"' );
 } );
@@ -80,14 +80,15 @@ it( 'adds a customer-visible order note when toggled', function (): void {
     expect( OrderNote::query()->sole()->is_customer_visible )->toBeTrue();
 } );
 
-it( 'strips markup from the body and escapes it on output', function (): void {
+it( 'keeps markup in the body as text and escapes it on output', function (): void {
     Livewire::test( Notes::class, [ 'subject' => $this->order ] )
         ->set( 'body', '<script>alert(1)</script>Hello <b>there</b>' )
         ->call( 'addNote' )
         ->assertHasNoErrors()
-        ->assertDontSeeHtml( '<script>alert(1)</script>' );
+        ->assertDontSeeHtml( '<script>alert(1)</script>' )
+        ->assertSeeHtml( '&lt;script&gt;alert(1)&lt;/script&gt;Hello &lt;b&gt;there&lt;/b&gt;' );
 
-    expect( OrderNote::query()->sole()->body )->toBe( 'alert(1)Hello there' );
+    expect( OrderNote::query()->sole()->body )->toBe( '<script>alert(1)</script>Hello <b>there</b>' );
 
     OrderNote::query()->create( [ 'order_id' => $this->order->id, 'body' => '<img src=x onerror=alert(1)>' ] );
 
@@ -105,7 +106,6 @@ it( 'validates the body', function ( string $body ): void {
     expect( OrderNote::query()->count() )->toBe( 0 );
 } )->with( [
     'empty'          => [ '' ],
-    'only markup'    => [ '<p></p>' ],
     'only spaces'    => [ '   ' ],
     'too long'       => [ str_repeat( 'a', Notes::MAX_LENGTH + 1 ) ],
 ] );
@@ -129,7 +129,8 @@ it( 'lets the author delete their own note while they may update the order', fun
     $note = OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Mine' ] );
 
     Livewire::test( Notes::class, [ 'subject' => $this->order ] )
-        ->call( 'deleteNote', $note->id )
+        ->call( 'confirmDelete', $note->id )
+        ->call( 'deleteNote' )
         ->assertDispatched( Notes::NOTES_CHANGED_EVENT );
 
     expect( OrderNote::query()->count() )->toBe( 0 );
@@ -138,11 +139,15 @@ it( 'lets the author delete their own note while they may update the order', fun
 it( 'refuses an author who lost update on the order', function (): void {
     $note = OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Mine' ] );
 
+    $component = Livewire::test( Notes::class, [ 'subject' => $this->order ] )->call( 'confirmDelete', $note->id );
+
     Gate::define( 'ecommerce.order.update', static fn (): bool => false );
 
+    $component->call( 'deleteNote' )->assertForbidden();
+
     Livewire::test( Notes::class, [ 'subject' => $this->order ] )
-        ->assertDontSeeHtml( 'deleteNote(' )
-        ->call( 'deleteNote', $note->id )
+        ->assertDontSeeHtml( 'data-delete-note' )
+        ->call( 'confirmDelete', $note->id )
         ->assertForbidden();
 
     expect( OrderNote::query()->count() )->toBe( 1 );
@@ -155,8 +160,8 @@ it( 'refuses to delete someone else\'s note without update', function (): void {
     Gate::define( 'ecommerce.order.update', static fn (): bool => false );
 
     Livewire::test( Notes::class, [ 'subject' => $this->order ] )
-        ->assertDontSeeHtml( 'deleteNote(' )
-        ->call( 'deleteNote', $note->id )
+        ->assertDontSeeHtml( 'data-delete-note' )
+        ->call( 'confirmDelete', $note->id )
         ->assertForbidden();
 
     expect( OrderNote::query()->count() )->toBe( 1 );
@@ -168,10 +173,52 @@ it( 'lets a user with update delete anyone\'s note, but only on this subject', f
     $elsewhere = OrderNote::query()->create( [ 'order_id' => $other->id, 'body' => 'Other order' ] );
 
     Livewire::test( Notes::class, [ 'subject' => $this->order ] )
-        ->call( 'deleteNote', $elsewhere->id )
-        ->call( 'deleteNote', $note->id );
+        ->call( 'confirmDelete', $elsewhere->id )
+        ->assertSet( 'deletingNoteId', null )
+        ->call( 'deleteNote' )
+        ->call( 'confirmDelete', $note->id )
+        ->call( 'deleteNote' );
 
     expect( OrderNote::query()->pluck( 'id' )->all() )->toBe( [ $elsewhere->id ] );
+} );
+
+it( 'deletes only the confirmed note, whatever id the client sends', function (): void {
+    $kept   = OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Keep me' ] );
+    $chosen = OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Delete me' ] );
+
+    Livewire::test( Notes::class, [ 'subject' => $this->order ] )
+        ->call( 'confirmDelete', $chosen->id )
+        ->assertSeeHtml( 'wire:click="deleteNote"' )
+        ->call( 'deleteNote', $kept->id );
+
+    expect( OrderNote::query()->pluck( 'id' )->all() )->toBe( [ $kept->id ] );
+} );
+
+it( 'warns instead of deleting when no delete was confirmed', function (): void {
+    $note = OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Mine' ] );
+
+    Livewire::test( Notes::class, [ 'subject' => $this->order ] )
+        ->call( 'deleteNote' )
+        ->assertNotDispatched( Notes::NOTES_CHANGED_EVENT );
+
+    expect( OrderNote::query()->count() )->toBe( 1 );
+} );
+
+it( 'keeps text with angle brackets intact and renders it escaped', function (): void {
+    Livewire::test( Notes::class, [ 'subject' => $this->order ] )
+        ->set( 'body', '  Customer <3 the mug; spend <$50 & get <b>10%</b> off  ' )
+        ->call( 'addNote' )
+        ->assertHasNoErrors()
+        ->assertSeeHtml( 'Customer &lt;3 the mug; spend &lt;$50 &amp; get &lt;b&gt;10%&lt;/b&gt; off' )
+        ->assertDontSeeHtml( '<b>10%</b>' );
+
+    expect( OrderNote::query()->sole()->body )->toBe( 'Customer <3 the mug; spend <$50 & get <b>10%</b> off' );
+} );
+
+it( 'renders the delete button as a square icon-only button', function (): void {
+    OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Mine' ] );
+
+    expect( Livewire::test( Notes::class, [ 'subject' => $this->order ] )->html() )->toMatch( '/data-delete-note="data-delete-note"[^>]*data-icon-only/' );
 } );
 
 it( 'refuses unsupported subjects', function (): void {
@@ -184,4 +231,92 @@ it( 'shows notes on the order page', function (): void {
     $this->get( route( 'artisanpack.ecommerce.admin.orders.show', [ 'order' => $this->order->id ] ) )
         ->assertOk()
         ->assertSeeLivewire( Notes::class );
+} );
+
+it( 'builds the notes card from design-system parts with no DaisyUI classes', function (): void {
+    OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Fraud check passed', 'is_customer_visible' => false ] );
+    OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Gift message printed', 'is_customer_visible' => true ] );
+
+    $html = Livewire::test( Notes::class, [ 'subject' => $this->order ] )->html();
+
+    expect( $html )
+        ->toContain( 'class="apui-list ec-notes' )
+        ->toContain( 'data-variant="divided"' )
+        ->toContain( 'aria-label="Notes, newest first"' )
+        ->toContain( 'class="apui-avatar' )
+        ->toContain( 'data-part="count"' )
+        ->toContain( '0 / ' . Notes::MAX_LENGTH )
+        ->toContain( 'aria-label="Delete note by Ada Lovelace"' )
+        ->not->toContain( 'rounded-box' )
+        ->not->toContain( 'border-base-300' )
+        ->not->toContain( 'bg-info/10' )
+        ->not->toContain( 'opacity-75' )
+        ->not->toContain( 'wire:confirm' );
+
+    // Add note's state follows the draft itself, so deleting a note while a draft is typed keeps it enabled.
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'data-note-form', 'Add note' ) )->toContain( 'x-bind:aria-disabled=' )->toContain( '$wire.body' )
+        ->and( $html )->not->toContain( 'hasText' );
+
+    // The avatar repeats the visible author name, so it stays out of the accessibility tree.
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'class="apui-avatar', '>' ) )->toContain( 'aria-hidden="true"' )->not->toContain( 'role="img"' )
+        ->and( $html )->toContain( '>AL</span>' );
+
+    // Visibility differs by icon as well as color.
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'data-customer-visible="true"', '</li>' ) )->toContain( 'data-color="info"' )->toContain( 'Visible to customer' );
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'data-customer-visible="false"', '</li>' ) )->toContain( 'data-color="neutral"' )->toContain( 'Internal' );
+} );
+
+it( 'shows the empty state without notes', function (): void {
+    Livewire::test( Notes::class, [ 'subject' => $this->order ] )
+        ->assertSee( 'No notes yet' )
+        ->assertSee( 'Notes from your team appear here.' )
+        ->assertDontSeeHtml( 'aria-label="Notes, newest first"' );
+} );
+
+it( 'confirms a delete in a dialog before deleting', function (): void {
+    $note = OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Hold until Friday' ] );
+
+    $component = Livewire::test( Notes::class, [ 'subject' => $this->order ] )
+        ->assertDontSeeHtml( 'data-delete-note-dialog' )
+        ->call( 'confirmDelete', $note->id )
+        ->assertSet( 'confirmingDelete', true )
+        ->assertSet( 'deletingNoteId', $note->id )
+        ->assertSeeHtml( 'data-delete-note-dialog' )
+        ->assertSee( 'Delete this note?' )
+        ->assertSee( 'The note by Ada Lovelace from' )
+        ->assertSee( 'Keep note' )
+        ->call( 'cancelDelete' )
+        ->assertSet( 'confirmingDelete', false )
+        ->assertSet( 'deletingNoteId', null )
+        ->assertDontSeeHtml( 'data-delete-note-dialog' );
+
+    expect( OrderNote::query()->count() )->toBe( 1 );
+
+    $component->call( 'confirmDelete', $note->id )
+        ->call( 'deleteNote' )
+        ->assertSet( 'confirmingDelete', false )
+        ->assertDispatched( Notes::NOTES_CHANGED_EVENT );
+
+    expect( OrderNote::query()->count() )->toBe( 0 );
+} );
+
+it( 'refuses to open the delete dialog without update, and warns about a missing note', function (): void {
+    $note = OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Mine' ] );
+
+    Livewire::test( Notes::class, [ 'subject' => $this->order ] )
+        ->call( 'confirmDelete', $note->id + 100 )
+        ->assertSet( 'confirmingDelete', false );
+
+    Gate::define( 'ecommerce.order.update', static fn (): bool => false );
+
+    Livewire::test( Notes::class, [ 'subject' => $this->order ] )
+        ->call( 'confirmDelete', $note->id )
+        ->assertForbidden();
+} );
+
+it( 'keeps the delete target locked', function (): void {
+    $note = OrderNote::query()->create( [ 'order_id' => $this->order->id, 'author_user_id' => $this->user->id, 'body' => 'Mine' ] );
+
+    expect( fn () => Livewire::test( Notes::class, [ 'subject' => $this->order ] )->set( 'deletingNoteId', $note->id ) )
+        ->toThrow( \Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class );
 } );

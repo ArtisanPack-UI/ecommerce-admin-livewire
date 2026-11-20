@@ -1,5 +1,6 @@
 ---
 title: Configuration
+menu_order: 20
 ---
 
 # Configuration
@@ -17,15 +18,15 @@ Every key has a default, so you only need the keys you change.
 | Key | Default | What it controls |
 | --- | --- | --- |
 | `admin.route_prefix` | `'ecommerce-admin'` | URL prefix for every admin screen. Leading and trailing slashes are trimmed. |
-| `admin.middleware` | `[ 'web', 'auth' ]` | Middleware on every admin route. Add your 2FA and `verified` middleware here. The package appends its own access check and rate limiter after these. Every entry except a middleware group (such as `web`) is also registered as Livewire persistent middleware, so it runs again on each Livewire update from an admin page, not only on the first page load. |
+| `admin.middleware` | `[ 'web', 'auth' ]` | Middleware on every admin route. Add your 2FA and `verified` middleware here. The package appends its own access check and rate limiter after these. Each entry is also registered as Livewire persistent middleware, so it runs again on each Livewire update from an admin page, not only on the first page load. Middleware groups (such as an `admin` group holding 2FA or `verified`) are expanded, nested groups and aliases included. Middleware the `web` group already runs is left out, since Livewire's update route has that group, and so are `throttle:*` entries: persistent middleware applies to every Livewire component in the app, and the admin has its own limiter (below). |
 | `admin.routes_enabled` | `true` | Set to `false` to register the routes yourself. Route names must stay under `artisanpack.ecommerce.admin.` for the navigation to find them. With routes disabled the admin is not added to the `cms-framework` menu. |
 | `admin.auto_register_cms_nav` | `true` | Add the admin's navigation to the `cms-framework` admin menu when that package is installed. Has no effect without it. |
 
 The command palette searches through its own admin route (`artisanpack.ecommerce.admin.spotlight`), so its searches run this middleware too. The component library's shared spotlight route runs only `web`, so the admin adds no results there.
 
-Livewire updates from admin pages count toward the engine's `ecommerce.admin.mutate` rate limiter. Updates that only read don't: polls and `$refresh`, picker searches, sorting, and paging, as long as they send no property changes. Over the limit, the user sees a toast with the wait time.
+Livewire updates from admin pages count toward the engine's `ecommerce.admin.mutate` rate limiter. One update can carry several components and many actions, so it costs one attempt per action it calls plus one per component that sends property changes; an update heavier than the whole budget is refused. Updates that only read cost nothing: polls and `$refresh`, lazy loading, picker searches, sorting, paging, and the admin's own refresh events (real-time broadcasts and navigation badge refreshes), as long as they send no property changes. Over the limit, the user sees a toast with the wait time.
 
-Route names are always prefixed `artisanpack.ecommerce.admin.` (for example `artisanpack.ecommerce.admin.orders.index`). See [Screens](Usage-Screens).
+Route names are always prefixed `artisanpack.ecommerce.admin.` (for example `artisanpack.ecommerce.admin.orders.index`). See [Screens](../usage/screens.md).
 
 ## Tables
 
@@ -44,7 +45,7 @@ Route names are always prefixed `artisanpack.ecommerce.admin.` (for example `art
 | `spotlight.shortcut` | `'meta.k'` | The keyboard shortcut, in Alpine key-modifier form (`meta.k`, `ctrl.k`, `ctrl.shift.p`). An invalid value falls back to `meta.k`. |
 | `spotlight.limit` | `5` | Results per provider (orders, products, customers, …). Clamped to 1–20. |
 
-See [Command Palette](Usage-Command-Palette).
+See [Command Palette](../usage/command-palette.md).
 
 ## Real-time updates
 
@@ -52,7 +53,7 @@ See [Command Palette](Usage-Command-Palette).
 | --- | --- | --- |
 | `realtime.enabled` | `false` | Subscribe the dashboard and order screens to the `private-ecommerce.admin` channel. Also needs the engine's `artisanpack.ecommerce.graphql.subscriptions` flag and Laravel Echo on the page. |
 
-See [Real-Time Updates](Usage-Real-Time).
+See [Real-Time Updates](../usage/real-time.md).
 
 ## Imports
 
@@ -62,17 +63,17 @@ See [Real-Time Updates](Usage-Real-Time).
 | `imports.max_rows` | `5000` | The most rows one product import accepts |
 | `imports.queue` | `null` | Queue the import job runs on. `null` uses the connection's default queue. |
 
-The import job can run for up to an hour. Set the queue connection's `retry_after` above 3600 seconds. Schedule `ecommerce-admin:prune-imports` daily to delete old imports; see [Artisan Commands](Advanced-Artisan-Commands). See [Product CSV Import and Export](Usage-Product-Csv).
+The import job can run for up to an hour. Set the queue connection's `retry_after` above 3600 seconds. Schedule `ecommerce-admin:prune-imports` daily to delete old imports; see [Artisan Commands](../reference/commands.md). See [Product CSV Import and Export](../usage/product-csv.md).
 
 ## Settings that live elsewhere
 
-Some behaviour the admin shows is configured in the engine, not here:
+Some behavior the admin shows is configured in the engine, not here:
 
 | Engine key | Effect in the admin |
 | --- | --- |
 | `artisanpack.ecommerce.base_currency` | The currency for the dashboard, reports, and the product form's first price row |
 | `artisanpack.ecommerce.currency.rates.{BASE}` | Each currency listed adds a price row to the product form |
-| `artisanpack.ecommerce.graphql.subscriptions` | Required for [real-time updates](Usage-Real-Time) |
+| `artisanpack.ecommerce.graphql.subscriptions` | Required for [real-time updates](../usage/real-time.md) |
 | `artisanpack.ecommerce.localization.tax_labels` | Per-locale tax label ("Sales Tax") used on orders and reports |
 
 Store settings that admins edit on the Settings screen are stored by the engine's settings repository, not in config files.

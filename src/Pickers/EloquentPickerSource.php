@@ -58,7 +58,11 @@ abstract class EloquentPickerSource implements PickerSource
      */
     public function find( array $ids ): array
     {
-        $ids = array_values( array_filter( $ids, static fn ( mixed $id ): bool => is_int( $id ) || ( is_string( $id ) && '' !== $id ) ) );
+        $ids = array_slice(
+            array_values( array_unique( array_filter( $ids, static fn ( mixed $id ): bool => is_int( $id ) || ( is_string( $id ) && '' !== $id ) ) ) ),
+            0,
+            self::MAX_IDS,
+        );
 
         if ( [] === $ids ) {
             return [];
@@ -66,7 +70,7 @@ abstract class EloquentPickerSource implements PickerSource
 
         $query = $this->query();
 
-        return $query->whereKey( $ids )->get()->map( fn ( Model $model ): array => $this->toOption( $model ) )->all();
+        return $query->whereKey( $ids )->limit( count( $ids ) )->get()->map( fn ( Model $model ): array => $this->toOption( $model ) )->all();
     }
 
     /**

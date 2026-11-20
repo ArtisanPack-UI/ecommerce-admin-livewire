@@ -98,7 +98,8 @@ it( 'warns before changing the base currency and keeps historical orders', funct
         ->set( 'form.base_currency', 'eur' )
         ->call( 'save' )
         ->assertSet( 'confirmingBaseCurrency', true )
-        ->assertSee( 'The base currency is changing from USD to EUR.' )
+        ->assertSeeText( 'The base currency is changing from USD to EUR.' )
+        ->assertSeeHtml( 'role="alertdialog"' )
         ->assertSee( 'Existing orders keep the base currency and exchange rate they were placed with.' );
 
     expect( settingsRepository()->get( 'base_currency' ) )->toBe( 'USD' );
@@ -131,12 +132,73 @@ it( 'resets one setting without discarding unsaved edits to the others', functio
 
     Livewire::test( Show::class, [ 'group' => 'checkout' ] )
         ->set( 'form.cart__abandoned_after_minutes', 999 )
-        ->assertSeeHtml( 'wire:confirm=' )
+        ->call( 'confirmReset', 'checkout.reservation_ttl_minutes' )
+        ->assertSet( 'confirmingReset', true )
         ->call( 'resetToDefault', 'checkout.reservation_ttl_minutes' )
+        ->assertSet( 'confirmingReset', false )
+        ->assertSet( 'resettingKey', null )
         ->assertSet( 'form.cart__abandoned_after_minutes', 999 )
         ->assertSet( 'form.checkout__reservation_ttl_minutes', settingsRepository()->get( 'checkout.reservation_ttl_minutes' ) );
 
     expect( settingsRepository()->isStored( 'checkout.reservation_ttl_minutes' ) )->toBeFalse();
+} );
+
+it( 'asks before resetting and names the configured default', function (): void {
+    config()->set( 'artisanpack.ecommerce.reviews.allow_guests', true );
+    settingsRepository()->refresh();
+    settingsRepository()->update( 'reviews', [ 'reviews.allow_guests' => false ] );
+
+    Livewire::test( Show::class, [ 'group' => 'reviews' ] )
+        ->assertSeeHtml( 'data-reset-setting="reviews.allow_guests"' )
+        ->assertSee( 'Changed from the configured default.' )
+        ->assertDontSeeHtml( 'data-reset-dialog' )
+        ->call( 'confirmReset', 'reviews.allow_guests' )
+        ->assertSet( 'resettingKey', 'reviews.allow_guests' )
+        ->assertSeeHtml( 'data-reset-dialog="reviews.allow_guests"' )
+        ->assertSee( 'It goes back to On, the value in your config. This saves immediately.' )
+        ->call( 'cancelReset' )
+        ->assertSet( 'confirmingReset', false )
+        ->assertDontSeeHtml( 'data-reset-dialog' );
+
+    expect( settingsRepository()->isStored( 'reviews.allow_guests' ) )->toBeTrue();
+} );
+
+it( 'will not ask to reset a setting that is not stored, outside the group, or the base currency', function ( string $group, string $key ): void {
+    Livewire::test( Show::class, [ 'group' => $group ] )
+        ->call( 'confirmReset', $key )
+        ->assertSet( 'confirmingReset', false )
+        ->assertSet( 'resettingKey', null );
+} )->with( [
+    'not stored'    => [ 'reviews', 'reviews.allow_guests' ],
+    'other group'   => [ 'general', 'reviews.allow_guests' ],
+    'base currency' => [ 'general', 'base_currency' ],
+    'satellites'    => [ 'satellites', 'reviews.allow_guests' ],
+] );
+
+it( 'needs settings.update to ask for a reset', function (): void {
+    Gate::define( 'ecommerce.settings.update', static fn (): bool => false );
+
+    Livewire::test( Show::class, [ 'group' => 'reviews' ] )
+        ->call( 'confirmReset', 'reviews.allow_guests' )
+        ->assertForbidden();
+} );
+
+it( 'shows setting values as staff read them', function (): void {
+    $registry = app( ArtisanPackUI\Ecommerce\Registries\SettingsRegistry::class );
+
+    expect( Show::displayValue( $registry->definition( 'reviews.allow_guests' ), false ) )->toBe( 'Off' )
+        ->and( Show::displayValue( $registry->definition( 'notifications.admin_emails' ), [ 'a@b.test', 'c@d.test' ] ) )->toBe( 'a@b.test, c@d.test' )
+        ->and( Show::displayValue( $registry->definition( 'localization.tax_labels' ), [ 'en_US' => 'Sales Tax' ] ) )->toBe( 'en_US: Sales Tax' )
+        ->and( Show::displayValue( $registry->definition( 'notifications.store_name' ), '' ) )->toBeNull();
+} );
+
+it( 'marks the open section in the section nav', function (): void {
+    $html = Livewire::test( Show::class, [ 'group' => 'payments' ] )
+        ->assertSeeHtml( 'data-settings-nav' )
+        ->html();
+
+    expect( preg_match_all( '/aria-current="page"\s+data-settings-tab="([a-z-]+)"/', $html, $matches ) )->toBe( 1 )
+        ->and( $matches[1] )->toBe( [ 'payments' ] );
 } );
 
 it( 'shows whether each payment credential is configured without showing it', function (): void {
@@ -229,4 +291,27 @@ it( 're-checks settings.view on every update', function (): void {
     Gate::define( 'ecommerce.settings.view', static fn (): bool => false );
 
     $component->set( 'confirmingBaseCurrency', false )->assertForbidden();
+} );
+
+it( 'escapes translated lines that wrap markup around their placeholders (L-S13)', function (): void {
+    $directory = sys_get_temp_dir() . '/ec-admin-lang-' . uniqid();
+    mkdir( $directory );
+    file_put_contents( $directory . '/xx.json', (string) json_encode( [
+        'Packages that extend the store. Uninstall a satellite with :command.' => '<i>Extensions</i> :command',
+        'The base currency is changing from :from to :to.'                     => '<i>Changing</i> :from → :to',
+    ] ) );
+    app( 'translator' )->addJsonPath( $directory );
+    app()->setLocale( 'xx' );
+    config()->set( 'artisanpack.ecommerce.base_currency', 'USD' );
+    settingsRepository()->refresh();
+
+    Livewire::test( Show::class, [ 'group' => 'satellites' ] )
+        ->assertSeeHtml( '&lt;i&gt;Extensions&lt;/i&gt; <bdi dir="ltr" class="ec-mono">php artisan ecommerce:satellite:uninstall</bdi>' )
+        ->assertDontSeeHtml( '<i>Extensions</i>' );
+
+    Livewire::test( Show::class, [ 'group' => 'general' ] )
+        ->set( 'form.base_currency', 'eur' )
+        ->call( 'save' )
+        ->assertSeeHtml( '&lt;i&gt;Changing&lt;/i&gt; <strong>USD</strong> → <strong>EUR</strong>' )
+        ->assertDontSeeHtml( '<i>Changing</i>' );
 } );

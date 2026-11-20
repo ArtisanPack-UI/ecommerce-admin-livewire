@@ -1,5 +1,6 @@
 ---
 title: Authorization
+menu_order: 50
 ---
 
 # Authorization
@@ -65,7 +66,7 @@ adds access, so an `ecommerce.admin` gate keeps working alongside RBAC. When you
 ## Two-factor authentication
 
 Neither the engine nor the admin applies 2FA. Add your 2FA middleware to `admin.middleware`. See
-[Installation](Installation).
+[Installation](installation.md).
 
 ## Every ability
 
@@ -104,7 +105,7 @@ palette's coupon results need `promotion.viewAny` and `view` on the coupon's pro
 
 | Screen | Route name (`artisanpack.ecommerce.admin.…`) | To open it |
 | --- | --- | --- |
-| Dashboard | `dashboard` | Any visible screen. Each widget and figure has its own ability; see [Dashboard](Usage-Dashboard). |
+| Dashboard | `dashboard` | Any visible screen. Each widget and figure has its own ability; see [Dashboard](usage/dashboard.md). |
 | Orders | `orders.index` | `order.viewAny` |
 | Order detail | `orders.show` | `order.view` on the order |
 | Reviews | `reviews.index` | `review.viewAny` |

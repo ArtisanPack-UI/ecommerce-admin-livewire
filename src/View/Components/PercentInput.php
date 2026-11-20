@@ -70,4 +70,16 @@ class PercentInput extends ScaledIntegerInput
     {
         return true;
     }
+
+    /**
+     * The unit read after the label.
+     *
+     * @since 2.0.0
+     *
+     * @return string|null
+     */
+    public function unitLabel(): ?string
+    {
+        return __( 'percent' );
+    }
 }

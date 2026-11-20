@@ -15,6 +15,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire;
 
+use ArtisanPack\LivewireUiComponents\Support\IconRegistry;
 use ArtisanPackUI\Ecommerce\Registries\SatelliteRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\PruneImportsCommand;
@@ -61,6 +62,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ConfigSchemas;
 use ArtisanPackUI\EcommerceAdminLivewire\View\Components;
 use Illuminate\Contracts\View\View as ViewContract;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
@@ -88,7 +90,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      *
      * @var string
      */
-    public const VERSION = '1.0.1';
+    public const VERSION = '2.0.0';
 
     /**
      * The Composer package name.
@@ -112,13 +114,23 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      * The composed Blade components, keyed by their name after the
      * `artisanpack-ec-` prefix.
      *
+     * `money`, `empty-state`, `address` and `address-form` share their names
+     * with ecommerce-storefront-livewire's components, so in an app with
+     * both, whichever registers last owns them. The admin's own views use
+     * the `admin-` names, which only the admin registers.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Added `admin-money`, `admin-empty-state`, `admin-address` and `admin-address-form`.
      *
      * @var array<string, class-string>
      */
     public const BLADE_COMPONENTS = [
         'address'              => Components\Address::class,
         'address-form'         => Components\AddressForm::class,
+        'admin-address'        => Components\Address::class,
+        'admin-address-form'   => Components\AddressForm::class,
+        'admin-empty-state'    => Components\EmptyState::class,
+        'admin-money'          => Components\Money::class,
         'bulk-action-bar'      => Components\BulkActionBar::class,
         'category-picker'      => Components\CategoryPicker::class,
         'config-form'          => Components\ConfigForm::class,
@@ -222,6 +234,47 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     ];
 
     /**
+     * Lucide icons the admin uses that livewire-ui-components doesn't ship.
+     * A host's own registration of the same name wins.
+     *
+     * @since 2.0.0
+     *
+     * @var array<string, string>
+     */
+    public const ICONS = [
+        'archive'            => '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+        'banknote'           => '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+        'bell'               => '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+        'box'                => '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+        'chart-column'       => '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+        'circle-x'           => '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+        'clock'              => '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+        'columns-3'          => '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/>',
+        'credit-card'        => '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+        'file-down'          => '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/>',
+        'filter'             => '<path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/>',
+        'gift'               => '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>',
+        'folder'             => '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+        'key'                => '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
+        'map-pin'            => '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+        'megaphone'          => '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+        'percent'            => '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+        'phone'              => '<path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/>',
+        'rotate-cw'          => '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+        'shield-alert'       => '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+        'shopping-bag'       => '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+        'sliders-horizontal' => '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+        'tag'                => '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5"/>',
+        'ticket'             => '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>',
+        'truck'              => '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+        'user-minus'         => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="22" x2="16" y1="11" y2="11"/>',
+        'user-plus'          => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>',
+        'users'              => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+        'zap'                => '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+        'zap-off'            => '<path d="M10.513 4.856 13.12 2.17a.5.5 0 0 1 .86.46l-1.377 4.317"/><path d="M15.656 10H20a1 1 0 0 1 .78 1.63l-1.72 1.773"/><path d="M16.273 16.273 10.88 21.83a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14H4a1 1 0 0 1-.78-1.63l4.507-4.643"/><path d="m2 2 20 20"/>',
+    ];
+
+    /**
      * Registers the package configuration and the extension registries.
      *
      * @since 1.0.0
@@ -284,6 +337,8 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
             return $registry;
         } );
+
+        $this->registerTranslations();
     }
 
     /**
@@ -320,9 +375,9 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
         $this->registerPublishing();
         $this->registerViews();
-        $this->registerTranslations();
         $this->registerCommands();
         $this->registerBladeComponents();
+        $this->registerIcons();
         $this->registerLayoutResolver();
         $this->registerLivewireComponents();
         $this->registerRoutes();
@@ -357,8 +412,9 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
     /**
      * Makes the configured `admin.middleware` persistent: class names as
-     * given, aliases resolved to their classes. Middleware groups (`web`)
-     * are left out; Livewire's update route has its own.
+     * given, aliases resolved to their classes and middleware groups
+     * expanded. Middleware the `web` group already runs, and the
+     * framework throttles, are left out.
      *
      * @since 1.0.0
      *
@@ -378,7 +434,15 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     }
 
     /**
-     * The middleware classes behind `admin.middleware`, without groups.
+     * The middleware classes behind `admin.middleware`.
+     *
+     * Groups (such as a host's `admin` group holding 2FA or `verified`)
+     * are expanded recursively, so their checks also run on Livewire
+     * updates. Classes the `web` group already runs are dropped, since
+     * Livewire's update route has that group. `throttle:*` entries are
+     * dropped too: persistent middleware applies to every Livewire
+     * component in the app, and the admin has its own limiter
+     * (`ThrottleAdminMutations`).
      *
      * @since 1.0.0
      *
@@ -389,9 +453,39 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $router  = app( 'router' );
         $aliases = $router->getMiddleware();
         $groups  = $router->getMiddlewareGroups();
+        $web     = isset( $groups['web'] ) ? self::expandMiddleware( (array) $groups['web'], $aliases, $groups ) : [];
+        $entries = (array) config( 'artisanpack.ecommerce-admin-livewire.admin.middleware', [] );
         $classes = [];
 
-        foreach ( (array) config( 'artisanpack.ecommerce-admin-livewire.admin.middleware', [] ) as $entry ) {
+        foreach ( self::expandMiddleware( $entries, $aliases, $groups, [ 'web' => true ] ) as $class ) {
+            if ( in_array( $class, $web, true ) || self::isThrottleMiddleware( $class ) ) {
+                continue;
+            }
+
+            $classes[] = $class;
+        }
+
+        return array_values( array_unique( $classes ) );
+    }
+
+    /**
+     * Resolves middleware entries (classes, aliases with parameters and
+     * group names) to existing class names, expanding groups recursively.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int|string, mixed>   $entries  The middleware entries.
+     * @param  array<string, mixed>       $aliases  The router's middleware aliases.
+     * @param  array<string, mixed>       $groups   The router's middleware groups.
+     * @param  array<string, bool>        $seen     Groups already expanded (guards against cycles).
+     *
+     * @return array<int, class-string> The classes, in order, possibly repeated.
+     */
+    protected static function expandMiddleware( array $entries, array $aliases, array $groups, array $seen = [] ): array
+    {
+        $classes = [];
+
+        foreach ( $entries as $entry ) {
             if ( ! is_string( $entry ) || '' === $entry ) {
                 continue;
             }
@@ -399,6 +493,15 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             $name = explode( ':', $entry, 2 )[0];
 
             if ( isset( $groups[ $name ] ) ) {
+                if ( isset( $seen[ $name ] ) ) {
+                    continue;
+                }
+
+                array_push(
+                    $classes,
+                    ...self::expandMiddleware( (array) $groups[ $name ], $aliases, $groups, $seen + [ $name => true ] ),
+                );
+
                 continue;
             }
 
@@ -409,7 +512,21 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             }
         }
 
-        return array_values( array_unique( $classes ) );
+        return $classes;
+    }
+
+    /**
+     * Whether a middleware class is one of the framework's request throttles.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $class  The middleware class.
+     *
+     * @return bool True for `ThrottleRequests` and its subclasses (such as `ThrottleRequestsWithRedis`).
+     */
+    protected static function isThrottleMiddleware( string $class ): bool
+    {
+        return is_a( $class, ThrottleRequests::class, true );
     }
 
     /**
@@ -472,6 +589,11 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      *
      * Published catalogues in `lang/vendor/ecommerce-admin` are loaded too so a
      * host can override individual strings.
+     *
+     * Runs from register(), not boot(): the translator loads a locale's JSON
+     * lines once and caches them, so a provider that calls `__()` while it
+     * boots ahead of this one would otherwise cache the locale without the
+     * admin's catalogue, and every admin string would stay in English.
      *
      * @since 1.0.0
      *
@@ -605,6 +727,26 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
         if ( is_string( $class ) && '' !== $class && ! class_exists( $class ) && ! $this->app->bound( $class ) ) {
             $this->app->bind( $class, NullSpotlight::class );
+        }
+    }
+
+    /**
+     * Registers the admin's extra icons with livewire-ui-components.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    protected function registerIcons(): void
+    {
+        $missing = array_filter(
+            self::ICONS,
+            static fn ( string $body, string $name ): bool => ! IconRegistry::has( $name ),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
+        if ( [] !== $missing ) {
+            IconRegistry::register( $missing );
         }
     }
 

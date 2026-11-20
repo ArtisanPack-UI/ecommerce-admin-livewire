@@ -18,10 +18,24 @@ use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
 
 /**
- * `<x-artisanpack-ec-money :amount="$order->total_amount" :currency="$order->currency" />`
+ * `<x-artisanpack-ec-admin-money :amount="$order->total_amount" :currency="$order->currency" />`
+ *
+ * Also registered as `x-artisanpack-ec-money`, a name ecommerce-storefront-
+ * livewire shares; the admin's views use `ec-admin-money`, which is always
+ * this component.
  *
  * Formats an integer minor-unit amount through the engine's `MoneyFormatter`
  * in the app locale (or `locale`), so the admin and storefront agree.
+ *
+ * Built on design-system text roles and tokens (#82): the figure inherits
+ * size and weight from where it sits, uses tabular figures and never wraps.
+ * It is isolated left-to-right (`<bdi dir="ltr">`), so its sign and symbol
+ * don't reorder in a right-to-left page. A negative amount uses a true minus
+ * and the error text role; a missing amount shows an em dash that reads as
+ * "No amount". `compare-at` adds a struck-through earlier price that reads as
+ * "Was …", and `show-code` adds the currency code for views that mix
+ * currencies. `neutral` keeps the minus sign but drops the error tone, for
+ * amounts that are negative without being a problem, like a discount.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -31,16 +45,32 @@ use Illuminate\View\Component;
 class Money extends Component
 {
     /**
-     * @since 1.0.0
+     * The true minus sign (U+2212).
      *
-     * @param  int|null     $amount    The amount in minor units; null renders a dash.
-     * @param  string|null  $currency  The ISO 4217 code; defaults to the store's base currency.
-     * @param  string|null  $locale    The display locale; defaults to the app locale.
+     * @since 2.0.0
+     *
+     * @var string
+     */
+    public const MINUS = "\u{2212}";
+
+    /**
+     * @since 1.0.0
+     * @since 2.0.0 Added `$compareAt`, `$showCode` and `$neutral`.
+     *
+     * @param  int|null     $amount     The amount in minor units; null renders a dash.
+     * @param  string|null  $currency   The ISO 4217 code; defaults to the store's base currency.
+     * @param  string|null  $locale     The display locale; defaults to the app locale.
+     * @param  int|null     $compareAt  An earlier price in minor units, shown struck through after the amount.
+     * @param  bool         $showCode   Whether to show the currency code, for views that mix currencies.
+     * @param  bool         $neutral    Whether a negative amount keeps the default text colour instead of the error tone.
      */
     public function __construct(
         public ?int $amount = null,
         public ?string $currency = null,
         public ?string $locale = null,
+        public ?int $compareAt = null,
+        public bool $showCode = false,
+        public bool $neutral = false,
     ) {
         $this->currency ??= (string) config( 'artisanpack.ecommerce.base_currency', 'USD' );
     }
@@ -54,7 +84,36 @@ class Money extends Component
      */
     public function formatted(): ?string
     {
-        return null === $this->amount ? null : MoneyFormatter::format( $this->amount, (string) $this->currency, $this->locale );
+        return null === $this->amount ? null : $this->format( $this->amount );
+    }
+
+    /**
+     * The formatted compare-at price, when there is one that differs from
+     * the amount.
+     *
+     * @since 2.0.0
+     *
+     * @return string|null
+     */
+    public function formattedCompareAt(): ?string
+    {
+        if ( null === $this->compareAt || null === $this->amount || $this->compareAt === $this->amount ) {
+            return null;
+        }
+
+        return $this->format( $this->compareAt );
+    }
+
+    /**
+     * The text tone: `negative` below zero (unless neutral), else none.
+     *
+     * @since 2.0.0
+     *
+     * @return string|null
+     */
+    public function tone(): ?string
+    {
+        return ! $this->neutral && null !== $this->amount && $this->amount < 0 ? 'negative' : null;
     }
 
     /**
@@ -67,5 +126,21 @@ class Money extends Component
     public function render(): View
     {
         return view( 'ecommerce-admin::components.money' );
+    }
+
+    /**
+     * Formats an amount, with a true minus sign when it is negative.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $amount  The amount in minor units.
+     *
+     * @return string
+     */
+    private function format( int $amount ): string
+    {
+        $formatted = MoneyFormatter::format( $amount, (string) $this->currency, $this->locale );
+
+        return $amount < 0 ? str_replace( '-', self::MINUS, $formatted ) : $formatted;
     }
 }

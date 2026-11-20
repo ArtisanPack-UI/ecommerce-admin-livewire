@@ -262,10 +262,33 @@ it( 'runs the 30-day sales report once per render, and caches it between renders
     $queries = count( Illuminate\Support\Facades\DB::getQueryLog() );
     Illuminate\Support\Facades\DB::disableQueryLog();
 
-    $component->call( 'orderBroadcast' )->call( 'orderBroadcast' );
+    $component->call( '$refresh' )->call( '$refresh' );
 
     expect( $runs )->toBe( 1 )
         ->and( $queries )->toBeLessThan( 40 );
+} );
+
+it( 'drops the cached sales report on an order broadcast, so the update it announces is real', function (): void {
+    grantAbilities( [ 'report.view', 'order.viewAny' ] );
+    Order::factory()->create( [ 'placed_at' => now() ] );
+
+    $runs = 0;
+    $real = app( ArtisanPackUI\Ecommerce\Reports\SalesReport::class );
+    $spy  = Mockery::mock( $real );
+    $spy->shouldReceive( 'run' )->andReturnUsing( static function ( ...$args ) use ( $real, &$runs ): array {
+        ++$runs;
+
+        return $real->run( ...$args );
+    } );
+    app()->instance( ArtisanPackUI\Ecommerce\Reports\SalesReport::class, $spy );
+
+    $component = Livewire::test( Dashboard::class );
+
+    expect( $runs )->toBe( 1 );
+
+    $component->call( 'orderBroadcast' )->assertSet( 'liveAnnouncement', 'Orders changed. The dashboard has been updated.' );
+
+    expect( $runs )->toBe( 2 );
 } );
 
 it( 'skips re-rendering on an order broadcast when nothing on screen shows orders', function (): void {
@@ -274,4 +297,47 @@ it( 'skips re-rendering on an order broadcast when nothing on screen shows order
     Livewire::test( Dashboard::class )
         ->call( 'orderBroadcast' )
         ->assertSet( 'liveAnnouncement', '' );
+} );
+
+it( 'dates the page header in the store time zone', function (): void {
+    grantAbilities( [ 'order.viewAny' ] );
+    config()->set( 'artisanpack.ecommerce.timezone', 'Pacific/Auckland' );
+    $this->travelTo( Carbon::parse( '2026-03-15 13:00:00', 'UTC' ) );
+
+    Livewire::test( Dashboard::class )
+        ->assertSee( 'Monday, March 16, 2026' );
+} );
+
+it( 'lays the widgets out in a two-column grid, full widgets spanning both', function (): void {
+    grantAbilities( [ 'report.view', 'order.viewAny', 'inventory.viewAny' ] );
+    dashboardOrder( '2026-03-15 09:00:00', 100 );
+
+    $html = Livewire::test( Dashboard::class )
+        ->assertSeeHtml( 'class="ec-dashboard-grid" data-dashboard-widgets' )
+        ->assertSeeHtml( 'aria-labelledby="dashboard-widget-kpis"' )
+        ->assertDontSeeHtml( 'lg:col-span-2' )
+        ->html();
+
+    expect( $html )->toMatch( '/class="ec-dashboard-widget ec-dashboard-widget--full"\s+aria-labelledby="dashboard-widget-kpis"/' )
+        ->and( $html )->toMatch( '/class="ec-dashboard-widget"\s+aria-labelledby="dashboard-widget-sales"/' );
+} );
+
+it( 'gives the first run the page\'s one primary action', function (): void {
+    grantAbilities( [ 'report.view', 'order.viewAny', 'product.create' ] );
+
+    $html = Livewire::test( Dashboard::class )->html();
+
+    expect( substr_count( $html, 'data-variant="solid"' ) )->toBe( 1 )
+        ->and( $html )->toContain( 'class="apui-card" data-first-run' );
+} );
+
+it( 'lists each section the role can open as a card of links', function (): void {
+    grantAbilities( [ 'shippingZone.viewAny', 'customer.viewAny' ] );
+
+    Livewire::test( Dashboard::class )
+        ->assertSeeHtml( 'class="ec-dashboard-links" data-dashboard-sections' )
+        ->assertSeeHtml( 'class="ec-dashboard-link"' )
+        ->assertSee( 'Customers' )
+        ->assertSee( 'Shipping' )
+        ->assertDontSeeHtml( 'link-hover' );
 } );

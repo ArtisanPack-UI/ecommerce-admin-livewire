@@ -35,3 +35,58 @@ it( 'renders a dash with accessible text when there is no amount', function (): 
         ->toContain( '&mdash;' )
         ->toContain( 'No amount' );
 } );
+
+it( 'isolates the figure left to right with tabular figures', function (): void {
+    expect( Blade::render( '<x-artisanpack-ec-money :amount="120400" currency="USD" locale="en" />' ) )
+        ->toContain( '<bdi dir="ltr" class="ec-money"' )
+        ->toContain( '$1,204.00' )
+        ->not->toContain( 'data-tone' );
+} );
+
+it( 'writes a negative amount with a true minus in the error tone', function (): void {
+    $html = Blade::render( '<x-artisanpack-ec-money :amount="-13240" currency="USD" locale="en" />' );
+
+    expect( $html )->toContain( 'data-tone="negative"' )
+        ->toContain( "\u{2212}\$132.40" )
+        ->not->toContain( '-$132.40' );
+} );
+
+it( 'keeps the minus but drops the error tone when neutral', function (): void {
+    $html = Blade::render( '<x-artisanpack-ec-money :amount="-3720" currency="USD" locale="en" neutral />' );
+
+    expect( $html )->toContain( "\u{2212}\$37.20" )
+        ->not->toContain( 'data-tone' );
+} );
+
+it( 'mutes the dash for a missing amount', function (): void {
+    expect( Blade::render( '<x-artisanpack-ec-money :amount="null" />' ) )
+        ->toContain( 'data-tone="muted"' )
+        ->toContain( '<span class="apui-sr-only">No amount</span>' );
+} );
+
+it( 'shows a compare-at price after the amount, struck through and read as "Was"', function (): void {
+    $html = Blade::render( '<x-artisanpack-ec-money :amount="4800" :compare-at="6400" currency="USD" locale="en" />' );
+
+    expect( $html )->toContain( '<span class="apui-sr-only">Was</span>' )
+        ->toContain( '<bdi dir="ltr" class="ec-money ec-money-was">$64.00</bdi>' )
+        ->and( strpos( $html, '$48.00' ) )->toBeLessThan( strpos( $html, '$64.00' ) );
+} );
+
+it( 'skips a compare-at price equal to the amount', function (): void {
+    expect( Blade::render( '<x-artisanpack-ec-money :amount="4800" :compare-at="4800" currency="USD" locale="en" />' ) )
+        ->not->toContain( 'ec-money-was' )
+        ->not->toContain( 'Was' );
+} );
+
+it( 'shows the currency code only when asked', function (): void {
+    expect( Blade::render( '<x-artisanpack-ec-money :amount="24800" currency="CAD" locale="en" show-code />' ) )
+        ->toContain( '<span class="ec-money-code">CAD</span>' )
+        ->and( Blade::render( '<x-artisanpack-ec-money :amount="24800" currency="CAD" locale="en" />' ) )
+        ->not->toContain( 'ec-money-code' );
+} );
+
+it( 'registers an admin-only alias that ecommerce-storefront-livewire cannot take over', function (): void {
+    expect( Blade::getClassComponentAliases() )
+        ->toHaveKey( 'artisanpack-ec-admin-money', ArtisanPackUI\EcommerceAdminLivewire\View\Components\Money::class )
+        ->toHaveKey( 'artisanpack-ec-money', ArtisanPackUI\EcommerceAdminLivewire\View\Components\Money::class );
+} );

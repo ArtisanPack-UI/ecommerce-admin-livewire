@@ -20,6 +20,7 @@ use ArtisanPackUI\Ecommerce\Models\ProductCategory;
 use ArtisanPackUI\Ecommerce\Models\ProductImage;
 use ArtisanPackUI\Ecommerce\Models\ProductPrice;
 use ArtisanPackUI\Ecommerce\Models\ProductRelation;
+use ArtisanPackUI\Ecommerce\Models\ProductTag;
 use ArtisanPackUI\Ecommerce\Models\TaxClass;
 use ArtisanPackUI\Ecommerce\Registries\ProductTypeRegistry;
 use ArtisanPackUI\Ecommerce\Services\ProductService;
@@ -30,9 +31,11 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithPickers;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products\Panels\ProductTypePanel;
 use ArtisanPackUI\EcommerceAdminLivewire\Registries\ProductTypePanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Html;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\StockLevels;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
 use Closure;
 use Illuminate\Contracts\View\View;
@@ -445,6 +448,24 @@ class Form extends Component
     public array $relationPick = [];
 
     /**
+     * Whether the user may adjust stock, worked out once per request.
+     *
+     * @since 2.0.0
+     *
+     * @var bool|null
+     */
+    protected ?bool $canAdjustStockCache = null;
+
+    /**
+     * Media ids saved on the product, worked out once per request.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, int>|null
+     */
+    protected ?array $savedMediaIdsCache = null;
+
+    /**
      * The product, loaded once per request.
      *
      * @since 1.0.0
@@ -508,6 +529,29 @@ class Form extends Component
         null === $product
             ? $this->authorizeEcommerce( 'create', Product::class )
             : $this->authorizeEcommerce( 'view', $product );
+    }
+
+    /**
+     * Clears a price row's amounts when its currency changes. Amounts are
+     * stored in the currency's minor units, so keeping them would silently
+     * re-mean them (USD 12.50, stored as 1250, would become JPY 1,250).
+     *
+     * @since 2.0.0
+     *
+     * @param  mixed   $value  The new value.
+     * @param  string|null  $key    The changed path inside `prices`, e.g. `2.currency` (null when the whole list is set).
+     *
+     * @return void
+     */
+    public function updatedPrices( mixed $value, ?string $key = null ): void
+    {
+        if ( null === $key || 1 !== preg_match( '/^(\d+)\.currency$/D', $key, $match ) || ! isset( $this->prices[ (int) $match[1] ] ) ) {
+            return;
+        }
+
+        foreach ( [ 'price_amount', 'compare_at_amount', 'cost_amount' ] as $amount ) {
+            $this->prices[ (int) $match[1] ][ $amount ] = null;
+        }
     }
 
     /**
@@ -661,16 +705,6 @@ class Form extends Component
     }
 
     /**
-     * Receives a media-library selection for the featured image or gallery.
-     *
-     * @since 1.0.0
-     *
-     * @param  array<int, array<string, mixed>>  $media    Selected media.
-     * @param  string                            $context  Modal context.
-     *
-     * @return void
-     */
-    /**
      * Adds the product picked in a relation list's picker to the end of
      * that list. The product itself, a product already in the list, and a
      * full list are ignored.
@@ -776,6 +810,16 @@ class Form extends Component
         $this->resetErrorBag( 'relations.' . $type );
     }
 
+    /**
+     * Receives a media-library selection for the featured image or gallery.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<int, array<string, mixed>>  $media    Selected media.
+     * @param  string                            $context  Modal context.
+     *
+     * @return void
+     */
     #[On( 'media-selected' )]
     public function mediaSelected( array $media = [], string $context = '' ): void
     {
@@ -873,7 +917,9 @@ class Form extends Component
             return;
         }
 
-        $this->loadedProduct = $saved->fresh();
+        $this->loadedProduct       = $saved->fresh();
+        $this->savedMediaIdsCache  = null;
+        $this->canAdjustStockCache = null;
         $this->fillFromProduct( $this->loadedProduct );
         $this->stockReason = '';
 
@@ -903,20 +949,49 @@ class Form extends Component
             'weightUnits'     => self::options( [ 'g' => 'g', 'kg' => 'kg', 'oz' => 'oz', 'lb' => 'lb' ] ),
             'dimUnits'        => self::options( [ 'mm' => 'mm', 'cm' => 'cm', 'in' => 'in' ] ),
             'tracksStock'     => app( ProductTypeRegistry::class )->get( $panelType )->isInventoryTracked(),
+            'canAdjustStock'  => $this->canAdjustStock(),
             'mediaLibrary'    => ProductMedia::libraryInstalled(),
-            'featuredPreview' => ProductMedia::mediaUrl( $this->featuredMediaId ) ?? ProductMedia::safeUrl( $this->featuredImageUrl ),
-            'galleryPreviews' => array_map( static fn ( array $row ): ?string => ProductMedia::mediaUrl( isset( $row['media_id'] ) ? (int) $row['media_id'] : null ) ?? ProductMedia::safeUrl( $row['image_url'] ?? null ), $this->gallery ),
+            'featuredPreview' => $this->mediaPreview( $this->featuredMediaId ) ?? ProductMedia::safeUrl( $this->featuredImageUrl ),
+            'galleryPreviews' => array_map( fn ( array $row ): ?string => $this->mediaPreview( is_numeric( $row['media_id'] ?? null ) ? (int) $row['media_id'] : null ) ?? ProductMedia::safeUrl( $row['image_url'] ?? null ), $this->gallery ),
             'panelComponent'  => $registry->component( $panelType ),
             'panelLabel'      => null === $panelClass ? null : $panelClass::label(),
             'panelRegistered' => $registry->has( $panelType ),
             'panelErrors'     => $this->panelErrors(),
             'errorTabs'       => $this->errorTabs( array_keys( $this->getErrorBag()->toArray() ) ),
+            'tabLabels'       => self::tabLabels( null === $panelClass ? null : $panelClass::label() ),
+            'savedAt'         => $product?->updated_at?->diffForHumans(),
             'categoryOptions' => $this->optionsForPicker( 'category', 'categoryIds' ),
             'relationLists'   => $this->relationLists(),
             'canWrite'        => ! $this->readOnly && ( null === $product ? $this->canEcommerce( 'create', Product::class ) : $this->canEcommerce( 'update', $product ) ),
             'quantityDelta'   => null === $product || ! is_numeric( $this->quantity ) ? 0 : (int) $this->quantity - $this->quantityLoaded,
             'indexUrl'        => Route::has( AdminNav::ROUTE_PREFIX . 'products.index' ) ? route( AdminNav::ROUTE_PREFIX . 'products.index' ) : null,
         ] );
+    }
+
+    /**
+     * Each tab's visible name, in tab order: the tab triggers and the error
+     * alert that lists the tabs needing attention both read from it.
+     *
+     * @since 2.0.0
+     *
+     * @param  string|null  $panelLabel  The type panel's own name, if it has one.
+     *
+     * @return array<string, string> Names keyed by tab.
+     */
+    public static function tabLabels( ?string $panelLabel = null ): array
+    {
+        return [
+            'general'      => __( 'General' ),
+            'pricing'      => __( 'Pricing' ),
+            'inventory'    => __( 'Inventory' ),
+            'shipping'     => __( 'Shipping' ),
+            'tax'          => __( 'Tax' ),
+            'organization' => __( 'Organization' ),
+            'linked'       => __( 'Linked products' ),
+            'media'        => __( 'Media' ),
+            'panel'        => $panelLabel ?? __( 'Type settings' ),
+            'activity'     => __( 'Activity' ),
+        ];
     }
 
     /**
@@ -1045,10 +1120,10 @@ class Form extends Component
             'tagNames.*'                   => [ 'string', 'max:120' ],
             'isFeatured'                   => [ 'boolean' ],
             'catalogPosition'              => [ 'nullable', 'integer', 'min:0', 'max:4294967295' ],
-            'featuredMediaId'              => [ 'nullable', 'integer', 'min:1' ],
+            'featuredMediaId'              => [ 'nullable', 'integer', 'min:1', DigitalDisks::viewableMedia( $this->savedMediaIds() ) ],
             'featuredImageUrl'             => [ 'nullable', 'string', 'max:1000', 'url:http,https' ],
             'gallery'                      => [ 'array', 'max:50' ],
-            'gallery.*.media_id'           => [ 'nullable', 'integer', 'min:1' ],
+            'gallery.*.media_id'           => [ 'nullable', 'integer', 'min:1', DigitalDisks::viewableMedia( $this->savedMediaIds() ) ],
             'gallery.*.image_url'          => [ 'nullable', 'string', 'max:1000', 'url:http,https', 'required_without:gallery.*.media_id' ],
             'gallery.*.alt_text'           => [ 'nullable', 'string', 'max:255' ],
             ...$this->relationRules(),
@@ -1139,7 +1214,74 @@ class Form extends Component
      */
     protected function stockChanged(): bool
     {
-        return null !== $this->productId && $this->tracksStock() && is_numeric( $this->quantity ) && (int) $this->quantity !== $this->quantityLoaded;
+        return null !== $this->productId && $this->tracksStock() && $this->trackInventory && $this->canAdjustStock() && is_numeric( $this->quantity ) && (int) $this->quantity !== $this->quantityLoaded;
+    }
+
+    /**
+     * Whether the user may change the product's stock (`inventory.adjust`,
+     * which the inventory screen treats as separate from `product.update`).
+     * Without it the stock fields are read-only and never sent.
+     *
+     * @since 2.0.0
+     *
+     * @return bool
+     */
+    protected function canAdjustStock(): bool
+    {
+        return $this->canAdjustStockCache ??= StockLevels::canAdjust( auth()->user(), $this->product() );
+    }
+
+    /**
+     * Media ids saved on the product (featured image and gallery). They stay
+     * valid and previewable even when the user can't view them in the media
+     * library; any other id is client-writable state and needs a view check.
+     *
+     * @since 2.0.0
+     *
+     * @return array<int, int>
+     */
+    protected function savedMediaIds(): array
+    {
+        if ( null !== $this->savedMediaIdsCache ) {
+            return $this->savedMediaIdsCache;
+        }
+
+        $product = $this->product();
+
+        if ( null === $product ) {
+            return $this->savedMediaIdsCache = [];
+        }
+
+        $ids = $product->images()->whereNotNull( 'media_id' )->pluck( 'media_id' )->map( static fn ( mixed $id ): int => (int) $id )->all();
+
+        if ( null !== $product->featured_image_media_id ) {
+            $ids[] = (int) $product->featured_image_media_id;
+        }
+
+        return $this->savedMediaIdsCache = $ids;
+    }
+
+    /**
+     * A media item's thumbnail URL, when the product already uses it or the
+     * user may view it.
+     *
+     * @since 2.0.0
+     *
+     * @param  int|null  $mediaId  Media id.
+     *
+     * @return string|null
+     */
+    protected function mediaPreview( ?int $mediaId ): ?string
+    {
+        if ( null === $mediaId || ! function_exists( 'apGetMediaUrl' ) ) {
+            return null;
+        }
+
+        if ( ! in_array( $mediaId, $this->savedMediaIds(), true ) && ! DigitalDisks::canViewMedia( $mediaId ) ) {
+            return null;
+        }
+
+        return ProductMedia::mediaUrl( $mediaId );
     }
 
     /**
@@ -1156,14 +1298,6 @@ class Form extends Component
         return app( ProductTypeRegistry::class )->get( $type )->isInventoryTracked();
     }
 
-    /**
-     * Rules for each scheduled price row: a start or an end, and an end
-     * after the start.
-     *
-     * @since 1.0.0
-     *
-     * @return array<string, mixed>
-     */
     /**
      * A compare-at price must be above the row's price (rows without a
      * price are skipped).
@@ -1187,6 +1321,14 @@ class Form extends Component
         return $rules;
     }
 
+    /**
+     * Rules for each scheduled price row: a start or an end, and an end
+     * after the start.
+     *
+     * @since 1.0.0
+     *
+     * @return array<string, mixed>
+     */
     protected function scheduledPriceRules(): array
     {
         $rules = [];
@@ -1257,8 +1399,9 @@ class Form extends Component
             unset( $data['slug'] );
         }
 
-        // Types without stock of their own (digital, grouped) get no stock row.
-        if ( ! $this->tracksStock() ) {
+        // Types without stock of their own (digital, grouped) get no stock
+        // row, and stock needs `inventory.adjust`.
+        if ( ! $this->tracksStock() || ! $this->canAdjustStock() ) {
             if ( $creating ) {
                 $data['type'] = $this->type;
             }
@@ -1279,7 +1422,7 @@ class Form extends Component
             return $data;
         }
 
-        $delta = is_numeric( $this->quantity ) ? (int) $this->quantity - $this->quantityLoaded : 0;
+        $delta = $this->trackInventory && is_numeric( $this->quantity ) ? (int) $this->quantity - $this->quantityLoaded : 0;
 
         if ( 0 !== $delta ) {
             $data['stock_adjustment'] = [ 'delta' => $delta, 'reason' => $this->stockReason ];
@@ -1323,23 +1466,36 @@ class Form extends Component
     }
 
     /**
-     * Tag ids for the tag names, creating new tags.
+     * Tag ids for the tag names, creating new tags. Creating a tag needs
+     * `product.create`, the ability the Tags screen creates tags with.
      *
      * @since 1.0.0
+     *
+     * @throws ProductWriteException When a new tag is not allowed.
      *
      * @return array<int, int>
      */
     protected function tagIds(): array
     {
-        $tags = app( ProductTagService::class );
-        $ids  = [];
+        $tags      = app( ProductTagService::class );
+        $mayCreate = null;
+        $ids       = [];
 
         foreach ( $this->tagNames as $name ) {
             $name = trim( sanitizeText( (string) $name ) );
 
-            if ( '' !== $name ) {
-                $ids[] = (int) $tags->findOrCreate( $name )->id;
+            if ( '' === $name ) {
+                continue;
             }
+
+            $slug     = Str::slug( $name );
+            $existing = '' === $slug ? null : ProductTag::query()->where( 'slug', $slug )->first();
+
+            if ( null === $existing && ! ( $mayCreate ??= $this->canEcommerce( 'create', Product::class ) ) ) {
+                throw ProductWriteException::field( 'tag_ids', 'forbidden', __( 'Tag ":tag" does not exist, and you may not create tags.', [ 'tag' => $name ] ) );
+            }
+
+            $ids[] = (int) ( $existing ?? $tags->findOrCreate( $name ) )->id;
         }
 
         return array_values( array_unique( $ids ) );
@@ -1443,7 +1599,23 @@ class Form extends Component
             'tag_ids'                       => 'tagNames',
             'is_featured'                   => 'isFeatured',
             'position'                      => 'catalogPosition',
+            'short_description'             => 'shortDescription',
+            'description'                   => 'description',
+            'published_at'                  => 'publishedAt',
+            'barcode'                       => 'barcode',
+            'weight'                        => 'weight',
+            'weight_unit'                   => 'weightUnit',
+            'length'                        => 'length',
+            'width'                         => 'width',
+            'height'                        => 'height',
+            'dim_unit'                      => 'dimUnit',
+            'is_taxable'                    => 'isTaxable',
+            'featured_image_media_id'       => 'featuredMediaId',
             'stock_adjustment.reason'       => 'stockReason',
+            'stock_adjustment.quantity'     => 'quantity',
+            'inventory.quantity'            => 'quantity',
+            'inventory.track_inventory'     => 'trackInventory',
+            'inventory.allow_backorder'     => 'allowBackorder',
             'inventory.low_stock_threshold' => 'lowStockThreshold',
             default                         => 'name',
         };

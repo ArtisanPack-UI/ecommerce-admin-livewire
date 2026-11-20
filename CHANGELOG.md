@@ -6,6 +6,79 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-20
+
+Every screen is rebuilt on the ArtisanPack UI design system through `livewire-ui-components` 3.0. Screens, abilities, routes, and config keys are unchanged unless noted. See [Upgrading](docs/upgrading.md#from-1x-to-20) for the steps.
+
+### Breaking
+
+- **Front end:** daisyUI, ApexCharts, and flatpickr are gone. Hosts install `@artisanpack-ui/css@^1`, `@artisanpack-ui/behavior@^1`, and `@artisanpack-ui/livewire-drag-and-drop@^2`, and register the behavior engine. The template editor no longer loads Ace from a CDN.
+- **Published views and layouts** from 1.x must be re-published. Custom layouts use `<x-artisanpack-toaster />`, `@apuiThemeScript`, `partials.styles`, and `partials.spotlight-button`.
+- The admin palette route returns groups (`[ { id, label, items } ]`) instead of a flat list, and `AdminSpotlight::icon()` returns an icon name instead of SVG.
+- Toasts are a `toast` browser event shown by `<x-artisanpack-toaster>`, not `window.toast()`.
+- `Webhooks::statusClass()` is replaced by `statusColor()`. `ReportPresenter::chartOptions()`, `Promotions\Index::usesLabel()`, and the error-summary partial's `message` parameter are removed.
+- Status badge, timeline, and navigation colors are design-system colors, and timeline and navigation icons are icon-registry names.
+- Multi-word table and report filter names are camelCase (`ap.ecommerceAdminLivewire.table.licenseKeys.columns`, `reports.topProducts.table`). The kebab-case names still run after them and are deprecated until 3.0.
+- `Orders\RefundsPanel::refund()` takes the confirmed total, `Orders\FulfillmentPanel::$labelProvider` is now `$labelProviderFor` (keyed by shipment), and `Notes::deleteNote()` takes no argument.
+
+### Added
+
+- Brazilian Portuguese, Japanese, Simplified Chinese, Italian, and Arabic translations. The catalogues load in `register()`, so they're available while other packages boot and while the satellite is inactive.
+- "Open board" links on order detail, deep links to a webhook's edit drawer and a kanban automation, and a toast text guard.
+- **Send missed deliveries** on a webhook subscription, for deliveries held back while it was off.
+- Extension points:
+  - `SpotlightProvider::label()`, `NavBadges::tone()`, and timeline `tone`;
+  - a `$query` argument on board links, `WithResourceTable::bulkActionTokenSubject()`, and rule-builder list descriptions;
+  - the `ec-admin-*` Blade component names, and `numeric`, `listed`, and `labelHidden` table columns;
+  - `withActionToken()`'s `$releaseOn`, `PickerSource::MAX_IDS`, `AdminSpotlight::RESULTS_PER_LIMIT`, `StockLevels::canAdjust()`, `DigitalDisks::viewableMedia()`, and `ProductMedia::featuredMany()`;
+  - a `gift` icon in the icon registry.
+- The order totals card lists each tax rate from the engine's `meta.tax_breakdown`.
+- A `--prefer-lowest` CI job, so the lowest supported engine, Laravel, and Livewire versions are tested.
+- A [PHP API reference](docs/reference/php-api.md) covering every public registry, Livewire concern, extension contract, and support class.
+
+### Changed
+
+- **Rate limiting:** the `ecommerce.admin.mutate` limiter counts every mutating call and changed component in a Livewire request, so batching calls no longer gets around it. Real-time refreshes and lazy loads are not counted.
+- **Persistent middleware:** middleware groups in `admin.middleware` are expanded, so 2FA and `verified` inside a group also run on Livewire updates. `throttle:*` entries are no longer made persistent across the app.
+- **Catalog import:** prices must be a plain dot decimal, files that aren't UTF-8 (such as Excel's Windows-1252 CSVs) are converted, types that keep no stock get no stock rows, imported rows are logged against the importing user, and an import whose worker died is marked failed after about an hour so it can be resumed or discarded.
+- **Webhooks:** a delivery held back while its subscription was off shows as Pending, matching the engine API.
+- **Color warnings** on sub-statuses and kanban columns check 3:1 non-text contrast of the icon and dot against the light and dark surfaces.
+- **Order edits** save only the changes that were previewed. **Refunds** refuse when the amount changed after it was shown.
+- **Inline `style=` attributes** are gone from the admin's own views. The CSP docs explain the `style-src-attr` that `livewire-ui-components` still needs.
+- Changing a scheduled price's currency clears its amounts.
+- Shipping regions accept ISO 3166-2 codes (`US-CA`). Short report presets switch a monthly interval back to daily.
+- "Create shipment" is hidden on unpaid orders, a nameless registered customer shows their email instead of "Guest", and detail pages show the order number or record name in the title.
+- Large product lists, child pickers, and bulk stock adjustments run far fewer queries.
+- `artisanpack-ui/accessibility` and `artisanpack-ui/icons` are no longer listed as Composer suggestions: `livewire-ui-components` 3.0 always installs them.
+- **CI:** satellite verification uses the engine's `verify-satellite.yml@v1.0.1`, and the release step's action is pinned to a commit SHA. The signed contract-verification report is attached as `ecommerce-verify-report.json`; v1.0.0's appears as `default.ecommerce-verify-report.json`, because GitHub renames asset names that start with a dot.
+
+### Fixed
+
+- Notes, names, addresses, and replies containing `<` are no longer cut off when saved.
+- Blur-timed fields reach the server on Livewire 4.
+- The upgrade from 1.x re-syncs notification templates (the satellite now reports version 2.0.0).
+- Accessibility:
+  - kanban delete dialogs are alert dialogs that focus the safe button;
+  - report changes say whether they're an improvement;
+  - the backorder switch's name matches its label, and import progress is announced only at milestones;
+  - form headings no longer skip a level;
+  - empty cells read "None" instead of "em dash";
+  - the bulk bar announces only the selection count, and alerts no longer carry a duplicate `role`.
+- Japanese and Chinese plural strings always show the count. The command palette legend is translated as whole phrases.
+- Fallback date cells use the store's time zone and locale.
+
+### Security
+
+- Stock changes from the product form, variants, and CSV import need `inventory.adjust`.
+- Digital-file changes need `digitalFile.*`, and only media the user may view can be attached or previewed.
+- Coupon codes can only be added or generated by someone who can edit the promotion. Inline tag creation needs `product.create`.
+- Shipping, order sub-statuses, inventory, license keys, and tax-import updates are authorized per record. Detail pages answer 403 before 404 to users who can't list the records.
+- The notification template preview is rate limited, and oversized output is refused.
+- Picker selections and palette provider results are capped.
+- The timeline hides personal and secret values from unrecognized events.
+- Kanban webhook secrets render as password fields, and translated lines on the settings screen are escaped.
+- Tampered JSON config no longer causes server errors.
+
 ## [1.0.1] - 2026-11-19
 
 A security patch for the toast notices.

@@ -1,0 +1,4195 @@
+/*
+ * ecommerce-admin-livewire: the few styles the design system has no
+ * component for. Tokens only (--apui-*), logical properties throughout so
+ * the admin mirrors in right-to-left layouts, and no Tailwind or DaisyUI.
+ *
+ * Inlined by resources/views/partials/styles.blade.php, so a host needs no
+ * build step for them.
+ */
+
+@layer apui.components {
+    /* Layout */
+    .ecommerce-admin {
+        margin: 0;
+        min-block-size: 100vh;
+        background: var(--apui-surface-page);
+        color: var(--apui-text-default);
+        font-family: var(--apui-font-family-sans);
+    }
+
+    .ecommerce-admin__shell {
+        min-block-size: 100vh;
+        box-sizing: border-box;
+    }
+
+    .ecommerce-admin__brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-inline-size: 0;
+        color: var(--apui-text-default);
+        font-weight: var(--apui-font-weight-semibold, 600);
+        text-decoration: none;
+    }
+
+    .ecommerce-admin__content {
+        display: grid;
+        gap: var(--apui-panel-gap, 16px);
+        min-inline-size: 0;
+    }
+
+    /* Money (#82): tabular figures that never wrap. */
+    .ec-money-group {
+        white-space: nowrap;
+    }
+
+    .ec-money {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .ec-money[data-tone="negative"] {
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-money[data-tone="muted"] {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-money-was {
+        margin-inline-start: 6px;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        text-decoration: line-through;
+    }
+
+    .ec-money-code {
+        margin-inline-start: 4px;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    /* Status badge (#81): a merchant hex as the dot of a neutral badge. */
+    .ec-hex-dot {
+        flex: none;
+        inline-size: 8px;
+        block-size: 8px;
+        border-radius: var(--apui-radius-full, 9999px);
+        box-shadow: 0 0 0 1px var(--apui-border-default);
+    }
+
+    /* Small layout helpers, as classes so a nonce-only style CSP keeps them. */
+    .ec-push-end {
+        margin-inline-start: auto;
+    }
+
+    .ec-spotlight-bar {
+        display: flex;
+        justify-content: flex-end;
+        margin-block-end: 8px;
+    }
+
+    .ec-payload {
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    /* Resource table (#79) */
+    .ec-table-section {
+        display: grid;
+        gap: 8px;
+        min-inline-size: 0;
+    }
+
+    /* Fills the design-system toolbar part, so the end group wrapped onto
+       its own line still sits against the table's end edge. */
+    .ec-table-toolbar {
+        display: flex;
+        flex: 1 1 100%;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        min-inline-size: 0;
+    }
+
+    .ec-table-search {
+        flex: 1 1 240px;
+        max-inline-size: 320px;
+    }
+
+    .ec-table-toolbar-end {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-inline-start: auto;
+    }
+
+    .ec-filter-count {
+        display: inline-grid;
+        place-items: center;
+        min-inline-size: 18px;
+        block-size: 18px;
+        padding-inline: 5px;
+        border-radius: var(--apui-radius-full, 9999px);
+        background: var(--apui-color-primary);
+        color: var(--apui-color-primary-foreground);
+        font-size: 11px;
+        line-height: 1;
+    }
+
+    .ec-filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(12rem, 100%), 1fr));
+        align-items: end;
+        gap: 12px 16px;
+        padding: 12px var(--apui-cell-padding-x, 16px) 16px;
+        background: var(--apui-surface-sunken);
+        border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-filters[hidden],
+    .ec-table-toolbar-end [hidden] {
+        display: none;
+    }
+
+    .ec-filters-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .ec-range {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-inline-size: 0;
+    }
+
+    .ec-range > legend {
+        padding: 0;
+        margin-block-end: 6px;
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-label-md-font-size, 14px);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-range-fields {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ec-range-fields > [aria-hidden="true"] {
+        color: var(--apui-text-muted);
+        font-size: 12px;
+    }
+
+    .ec-bulkbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 8px var(--apui-cell-padding-x, 16px);
+        background: var(--apui-selected-bg, var(--apui-color-primary-soft));
+        color: var(--apui-color-primary-soft-foreground);
+        border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
+        font-size: 13px;
+        line-height: 18px;
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-bulkbar p {
+        margin: 0;
+    }
+
+    .ec-bulkbar .ec-spacer {
+        flex: 1;
+    }
+
+    .ec-confirm {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 4px 12px;
+        padding: 12px var(--apui-cell-padding-x, 16px);
+        background: var(--apui-color-warning-soft);
+        color: var(--apui-color-warning-soft-foreground);
+        border-block-end: var(--apui-border-width) solid var(--apui-color-warning-border);
+    }
+
+    .ec-confirm p {
+        margin: 0;
+    }
+
+    .ec-confirm-title {
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-confirm-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .ec-table [data-scope="table"][data-part="cell"] {
+        padding-block: 12px;
+        vertical-align: middle;
+    }
+
+    .ec-table [data-scope="table"][data-part="head-cell"] {
+        padding-block: 10px;
+    }
+
+    .ec-table [data-numeric] {
+        text-align: end;
+    }
+
+    @media (max-width: 40rem) {
+        .ec-table-search {
+            flex-basis: 100%;
+            max-inline-size: none;
+        }
+
+        .ec-table-toolbar-end {
+            margin-inline-start: 0;
+        }
+
+        .ec-confirm {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .ec-confirm-actions {
+            grid-column: 1 / -1;
+        }
+    }
+
+    /* Empty state (#80): the description stops at 44ch. */
+    .ec-empty-state [data-scope="empty-state"][data-part="description"] {
+        max-inline-size: 44ch;
+        color: var(--apui-text-muted);
+    }
+
+    /* Money and percent inputs (#83): tabular digits that stay LTR, and the
+       format error in the server error's place. */
+    .ec-scaled-input [data-scope="input"][data-part="control"] {
+        direction: ltr;
+        unicode-bidi: isolate;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* The number reads left to right but still sits at the field's start. */
+    .ec-scaled-input:dir(rtl) [data-scope="input"][data-part="control"] {
+        text-align: right;
+    }
+
+    .ec-scaled-input[data-format-invalid] [data-scope="input"][data-part="box"] {
+        border-color: var(--apui-color-error-border);
+    }
+
+    .ec-scaled-input[data-format-invalid] [data-scope="input"][data-part="error"]:not([data-format-error]) {
+        display: none;
+    }
+
+    .ec-scaled-input > [data-format-error] {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-block-start: 6px;
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-scaled-input > [data-format-error][hidden] {
+        display: none;
+    }
+
+    .ec-scaled-input > [data-format-error] > svg {
+        flex: none;
+        inline-size: var(--apui-icon-size-sm, 14px);
+        block-size: var(--apui-icon-size-sm, 14px);
+    }
+
+    /* Address (#85): plain text that takes the surface it sits on. */
+    .ec-address {
+        display: grid;
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        font-style: normal;
+        line-height: 22px;
+    }
+
+    .ec-address > span {
+        display: block;
+    }
+
+    .ec-address .ec-address-name {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-address .ec-address-phone {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-block-start: 6px;
+        color: var(--apui-text-muted);
+    }
+
+    .ec-address-empty {
+        margin: 0;
+        color: var(--apui-text-muted);
+    }
+
+    /* Field grid (#86, #87): two columns that collapse to one when the
+       container is too narrow for two 14rem fields. */
+    .ec-field-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, max(14rem, calc((100% - 24px) / 2))), 1fr));
+        gap: 20px 24px;
+        min-inline-size: 0;
+    }
+
+    .ec-field-grid > * {
+        min-inline-size: 0;
+    }
+
+    .ec-span-2 {
+        grid-column: 1 / -1;
+    }
+
+    /* Shared field text for the controls the admin draws itself. */
+    .ec-field-label {
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        font-weight: var(--apui-font-weight-medium, 500);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-field-hint {
+        margin: 0;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: var(--apui-type-caption-line-height, 16px);
+    }
+
+    .ec-field-error {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin: 0;
+        color: var(--apui-color-error-text);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: var(--apui-type-caption-line-height, 16px);
+    }
+
+    .ec-field-error > svg {
+        flex: none;
+        inline-size: var(--apui-icon-size-sm, 14px);
+        block-size: var(--apui-icon-size-sm, 14px);
+    }
+
+    /* Config form (#87) */
+    .ec-config-json {
+        display: grid;
+        gap: 16px;
+    }
+
+    .ec-config-empty {
+        padding: 0;
+    }
+
+    .ec-numeric [data-scope="input"][data-part="control"] {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ec-mono textarea {
+        font-family: var(--apui-font-family-mono);
+    }
+
+    .ec-weekdays {
+        display: grid;
+        gap: 6px;
+        align-content: start;
+    }
+
+    .ec-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .ec-chip-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-inline-size: 44px;
+        block-size: 32px;
+        padding-inline: 10px;
+        border: var(--apui-border-width) solid var(--apui-border-default);
+        border-radius: var(--apui-chip-radius, 9999px);
+        background: var(--apui-surface-default);
+        color: var(--apui-text-default);
+        font: inherit;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        font-weight: var(--apui-font-weight-medium, 500);
+        cursor: pointer;
+    }
+
+    .ec-chip-toggle:hover {
+        border-color: var(--apui-border-strong);
+    }
+
+    .ec-chip-toggle[aria-pressed="true"] {
+        border-color: var(--apui-color-primary);
+        background: var(--apui-color-primary-soft);
+        color: var(--apui-color-primary-soft-foreground);
+    }
+
+    .ec-chip-toggle:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid transparent;
+        box-shadow:
+            0 0 0 var(--apui-focus-ring-offset, 2px) var(--apui-focus-ring-offset-color),
+            0 0 0 calc(var(--apui-focus-ring-offset, 2px) + var(--apui-focus-ring-width, 2px)) var(--apui-focus-ring-color);
+    }
+
+    .ec-repeater {
+        background: var(--apui-surface-raised);
+    }
+
+    .ec-repeat-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 12px;
+        padding-block-end: 12px;
+        border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-repeat-cells {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+        gap: 12px;
+        min-inline-size: 0;
+    }
+
+    /* Rule builder (#88) */
+    .ec-rule-builder {
+        display: grid;
+        gap: 24px;
+    }
+
+    .ec-rule-summary-label {
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-rule-list {
+        display: grid;
+        gap: 12px;
+        min-inline-size: 0;
+    }
+
+    .ec-rule-list-head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }
+
+    .ec-rule-count,
+    .ec-rule-help,
+    .ec-rule-desc {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-rule-help {
+        margin: 0;
+    }
+
+    .ec-rule-empty {
+        margin: 0;
+        padding: 16px;
+        border: var(--apui-border-width) dashed var(--apui-border-default);
+        border-radius: var(--apui-radius-md);
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+    }
+
+    .ec-rule-rows {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-rule {
+        border: var(--apui-border-width) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-default);
+    }
+
+    .ec-rule[data-invalid] {
+        border-color: var(--apui-color-error-border);
+    }
+
+    /* The row being dragged lifts off the list. */
+    .ec-rule[data-dragging] {
+        border-color: var(--apui-border-strong);
+        background: var(--apui-surface-raised);
+        box-shadow: var(--apui-elevation-overlay);
+    }
+
+    .ec-rule-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        min-block-size: 44px;
+        box-sizing: border-box;
+        padding-block: 8px;
+        padding-inline: 12px 8px;
+    }
+
+    .ec-rule-handle {
+        display: inline-flex;
+        color: var(--apui-text-muted);
+        cursor: grab;
+    }
+
+    .ec-rule-index {
+        color: var(--apui-text-muted);
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-rule-title {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-rule-actions {
+        display: flex;
+        gap: 2px;
+        margin-inline-start: auto;
+    }
+
+    .ec-rule-error {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-block: -2px 10px;
+        margin-inline: 12px;
+        color: var(--apui-color-error-text);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: var(--apui-type-caption-line-height, 16px);
+    }
+
+    .ec-rule-body {
+        display: grid;
+        gap: var(--apui-field-gap);
+        margin-block: 0 12px;
+        margin-inline: 12px;
+        padding: 16px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-rule-add {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .ec-rule-add-select {
+        flex: 1 1 220px;
+        max-inline-size: 320px;
+    }
+
+    /* Activity timeline (#89): the filter is a segmented group of toggle
+       buttons, so the pressed one takes the selected tab's look. */
+    .ec-timeline [data-scope="card"][data-part="header"] {
+        flex-wrap: wrap;
+    }
+
+    .ec-timeline [data-scope="tabs"][data-part="trigger"][aria-pressed="true"] {
+        background: var(--apui-surface-raised);
+        box-shadow: inset 0 0 0 var(--apui-border-width) var(--apui-border-muted);
+        color: var(--apui-text-default);
+    }
+
+    .ec-timeline [data-timeline-entry]:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid var(--apui-focus-ring-color);
+        outline-offset: 2px;
+        border-radius: var(--apui-radius-sm, 4px);
+    }
+
+    .ec-timeline-event {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-timeline-loading {
+        display: grid;
+        gap: 20px;
+    }
+
+    .ec-timeline-skeleton {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr);
+        align-items: start;
+        gap: 12px;
+    }
+
+    .ec-timeline-skeleton-lines {
+        display: grid;
+        gap: 2px;
+        padding-block-start: 4px;
+    }
+
+    /* Sized here, not with Skeleton's width/height props: those render an
+       inline style attribute, which the nonce-only style CSP blocks. */
+    .ec-timeline-skeleton .ec-skel-marker {
+        inline-size: 32px;
+        block-size: 32px;
+    }
+
+    .ec-timeline-skeleton .ec-skel-line {
+        inline-size: 70%;
+    }
+
+    .ec-timeline-skeleton .ec-skel-line-short {
+        inline-size: 36%;
+    }
+
+    .ec-timeline-more {
+        margin-block-start: 16px;
+    }
+
+    .ec-details {
+        grid-column: 2;
+        margin-block-start: 6px;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    .ec-details > summary {
+        color: var(--apui-color-primary-text);
+        font-weight: var(--apui-font-weight-medium, 500);
+        cursor: pointer;
+    }
+
+    .ec-details .ec-payload {
+        margin-block: 8px 0;
+        margin-inline: 0;
+        padding: 10px 12px;
+        border: var(--apui-border-width) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: 18px;
+        text-align: start;
+        unicode-bidi: isolate;
+    }
+
+    /* Webhook secret dialogs (#91) */
+    .ec-dialog-footer-divided {
+        border-block-start: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-secret-reveal {
+        display: grid;
+        gap: var(--apui-field-gap);
+    }
+
+    .ec-secret-field {
+        display: grid;
+        gap: 6px;
+    }
+
+    .ec-secret [data-scope="clipboard"][data-part="tooltip"] {
+        color: var(--apui-text-muted);
+    }
+
+    .apui-clipboard.ec-secret[data-state="copied"] [data-scope="clipboard"][data-part="tooltip"] {
+        color: var(--apui-color-success-text);
+    }
+
+    .apui-clipboard.ec-secret[data-state="failed"] [data-scope="clipboard"][data-part="tooltip"] {
+        color: var(--apui-color-error-text);
+    }
+
+    @media (max-width: 40rem) {
+        .ec-dialog-footer-divided {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+    }
+
+    /* Navigation (#93): toned count badges, and the collapsed rail's separators, dots and tooltips. */
+    .ec-admin-nav__item {
+        position: relative;
+    }
+
+    .ec-admin-nav__item[data-badge-tone="primary"] .ec-admin-nav__badge {
+        background: var(--apui-color-primary-soft);
+        color: var(--apui-color-primary-soft-foreground);
+    }
+
+    .ec-admin-nav__item[data-badge-tone="warning"] .ec-admin-nav__badge {
+        background: var(--apui-color-warning-soft);
+        color: var(--apui-color-warning-soft-foreground);
+    }
+
+    .ec-admin-nav .ec-admin-nav__rail-separator {
+        display: none;
+    }
+
+    .apui-app-shell[data-collapsed] .ec-admin-nav .ec-admin-nav__rail-separator {
+        display: block;
+    }
+
+    /* The count as a dot on the icon; the number stays in the link's name. */
+    .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item .ec-admin-nav__badge {
+        position: absolute;
+        inset-block-start: 6px;
+        inset-inline-end: 6px;
+        inline-size: 8px;
+        block-size: 8px;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        clip-path: none;
+        border-radius: var(--apui-radius-full, 9999px);
+        background: var(--apui-color-neutral, var(--apui-text-muted));
+        box-shadow: 0 0 0 2px var(--apui-surface-default);
+        color: transparent;
+        font-size: 0;
+    }
+
+    .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item[data-badge-tone="primary"] .ec-admin-nav__badge {
+        background: var(--apui-color-primary);
+    }
+
+    .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item[data-badge-tone="warning"] .ec-admin-nav__badge {
+        background: var(--apui-color-warning);
+    }
+
+    .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item[data-tooltip]:is(:hover, :focus-visible)::after {
+        position: absolute;
+        z-index: var(--apui-z-tooltip);
+        inset-block-start: 50%;
+        /* Starts at the item's edge: the 10px gap is a transparent border, so the
+           pointer can move onto the tooltip without leaving the item's hover. */
+        inset-inline-start: 100%;
+        border-inline-start: 10px solid transparent;
+        background-clip: padding-box;
+        padding-block: 5px;
+        padding-inline: 8px;
+        border-radius: var(--apui-tooltip-radius);
+        background: var(--apui-surface-inverse);
+        color: var(--apui-text-inverse);
+        content: attr(data-tooltip);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        font-weight: var(--apui-font-weight-medium, 500);
+        line-height: var(--apui-type-caption-line-height, 16px);
+        translate: 0 -50%;
+        white-space: nowrap;
+    }
+
+    /* Command palette trigger (#94): looks like a search field; an icon button on phones. */
+    .apui-button.ec-admin-search-trigger {
+        justify-content: flex-start;
+        gap: 8px;
+        min-inline-size: 260px;
+        padding-inline: 12px 6px;
+        border-color: var(--apui-border-default);
+        border-radius: var(--apui-input-radius);
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-muted);
+        font-weight: var(--apui-font-weight-regular, 400);
+    }
+
+    .ec-admin-search-trigger__label {
+        flex: 1;
+        text-align: start;
+    }
+
+    @media (max-width: 48rem) {
+        .apui-button.ec-admin-search-trigger {
+            justify-content: center;
+            min-inline-size: 0;
+            padding-inline: 8px;
+            border-color: transparent;
+            background: transparent;
+        }
+
+        .ec-admin-search-trigger__label,
+        .ec-admin-search-trigger [data-scope="spotlight"][data-part="shortcut"] {
+            position: absolute;
+            inline-size: 1px;
+            block-size: 1px;
+            margin: -1px;
+            padding: 0;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
+            border: 0;
+        }
+    }
+
+    .ec-admin-spotlight-legend {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Dashboard cards (#96, #97): the design-system Card with an h2 title. */
+    .ec-card-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+        font-weight: var(--apui-font-weight-medium, 500);
+        white-space: nowrap;
+    }
+
+    .ec-card-figure {
+        display: block;
+        margin-block-start: 4px;
+        font-family: var(--apui-type-stat-md-font-family);
+        font-size: var(--apui-type-stat-md-font-size);
+        font-weight: var(--apui-type-stat-md-font-weight);
+        letter-spacing: var(--apui-type-stat-md-letter-spacing);
+        line-height: var(--apui-type-stat-md-line-height);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Key figures (#95): an auto-fit grid of Stats, each one link. */
+    .ec-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+        gap: var(--apui-panel-gap, 16px);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-kpi {
+        position: relative;
+        display: grid;
+    }
+
+    .ec-kpi-link {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--apui-card-radius, var(--apui-radius-lg, 12px));
+        outline: none;
+    }
+
+    .ec-kpi-link:focus-visible {
+        box-shadow:
+            0 0 0 var(--apui-focus-ring-offset) var(--apui-focus-ring-offset-color),
+            0 0 0 calc(var(--apui-focus-ring-offset) + var(--apui-focus-ring-width)) var(--apui-focus-ring-color);
+    }
+
+    .ec-kpi:hover .apui-stat:not([data-emphasis]) {
+        background: var(--apui-state-hover);
+    }
+
+    /* Sales, last 30 days (#96): the chart stays left to right in RTL pages. */
+    .ec-sales-figure {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+    }
+
+    .ec-sales-chart {
+        direction: ltr;
+    }
+
+    .ec-sales-chart .apui-sparkline {
+        display: block;
+        inline-size: 100%;
+        block-size: auto;
+    }
+
+    .ec-sales-best {
+        fill: var(--apui-text-default);
+        font-family: var(--apui-font-family-sans);
+        font-size: 12px;
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    /* The label is in viewBox units, so it shrinks with the card: larger on phones. */
+    @media (max-width: 40rem) {
+        .ec-sales-best {
+            font-size: 22px;
+        }
+    }
+
+    .ec-sales-axis {
+        display: flex;
+        justify-content: space-between;
+        margin-block-start: 6px;
+        color: var(--apui-chart-axis);
+        font-size: 11px;
+        line-height: 16px;
+    }
+
+    .ec-sales-caption {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    /* Lowest stock (#97): the table flush inside the card, with a level bar. */
+    .apui-card .ec-card-body-flush,
+    .apui-card.ec-card-flush > [data-scope="card"][data-part="body"] {
+        padding-inline: 0;
+        padding-block-end: 4px;
+    }
+
+    .ec-card-body-flush [data-scope="table"][data-part="head-cell"]:first-child,
+    .ec-card-body-flush [data-scope="table"][data-part="cell"]:first-child,
+    .ec-card-flush [data-scope="table"][data-part="head-cell"]:first-child,
+    .ec-card-flush [data-scope="table"][data-part="cell"]:first-child {
+        padding-inline-start: var(--apui-card-padding, 20px);
+    }
+
+    .ec-card-body-flush [data-scope="table"][data-part="head-cell"]:last-child,
+    .ec-card-body-flush [data-scope="table"][data-part="cell"]:last-child,
+    .ec-card-flush [data-scope="table"][data-part="head-cell"]:last-child,
+    .ec-card-flush [data-scope="table"][data-part="cell"]:last-child {
+        padding-inline-end: var(--apui-card-padding, 20px);
+    }
+
+    .ec-low-stock-level {
+        inline-size: 96px;
+    }
+
+    .ec-low-stock-badge {
+        margin-inline-start: 6px;
+    }
+
+    .ec-w-0 [data-scope="progress"][data-part="bar"] { --apui-_v: 0%; }
+    .ec-w-10 [data-scope="progress"][data-part="bar"] { --apui-_v: 10%; }
+    .ec-w-20 [data-scope="progress"][data-part="bar"] { --apui-_v: 20%; }
+    .ec-w-30 [data-scope="progress"][data-part="bar"] { --apui-_v: 30%; }
+    .ec-w-40 [data-scope="progress"][data-part="bar"] { --apui-_v: 40%; }
+    .ec-w-50 [data-scope="progress"][data-part="bar"] { --apui-_v: 50%; }
+    .ec-w-60 [data-scope="progress"][data-part="bar"] { --apui-_v: 60%; }
+    .ec-w-70 [data-scope="progress"][data-part="bar"] { --apui-_v: 70%; }
+    .ec-w-80 [data-scope="progress"][data-part="bar"] { --apui-_v: 80%; }
+    .ec-w-90 [data-scope="progress"][data-part="bar"] { --apui-_v: 90%; }
+    .ec-w-100 [data-scope="progress"][data-part="bar"] { --apui-_v: 100%; }
+
+    /* Recent orders and the order panels (#98–#102). */
+    .ec-stack,
+    .ec-stack-sm,
+    .ec-stack-lg,
+    .ec-form-stack {
+        display: grid;
+        min-inline-size: 0;
+    }
+
+    .ec-stack {
+        gap: 16px;
+    }
+
+    .ec-stack-sm,
+    .ec-form-stack {
+        gap: 12px;
+    }
+
+    .ec-stack-lg {
+        gap: 20px;
+    }
+
+    .ec-muted {
+        margin: 0;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-body {
+        margin: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+    }
+
+    .ec-strong {
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-mono {
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    .ec-nowrap {
+        white-space: nowrap;
+    }
+
+    .ec-break {
+        overflow-wrap: anywhere;
+    }
+
+    .ec-text-error {
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-inset {
+        padding-inline: var(--apui-card-padding, 20px);
+    }
+
+    .ec-subheading {
+        margin: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-card-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ec-badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .ec-badge-after {
+        margin-inline-start: 6px;
+    }
+
+    .ec-alert-list,
+    .ec-bullets {
+        display: grid;
+        gap: 4px;
+        margin: 0;
+        padding-inline-start: 18px;
+    }
+
+    .ec-bullets {
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+    }
+
+    .ec-bullets-nested {
+        margin-block-start: 4px;
+        color: var(--apui-text-muted);
+        list-style: circle;
+    }
+
+    .ec-bullets-muted {
+        gap: 2px;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-plain-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-what-happens {
+        display: grid;
+        gap: 6px;
+    }
+
+    .ec-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .ec-sunken {
+        display: grid;
+        gap: 12px;
+        padding: 12px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-empty-sunken {
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-field-grid-3 {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    }
+
+    .ec-field-narrow {
+        max-inline-size: 22.5rem;
+    }
+
+    .ec-inline-field {
+        justify-self: start;
+    }
+
+    /* A raised row in a card: a shipment, an edit. */
+    .ec-list {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-item {
+        display: grid;
+        gap: 8px;
+        padding: 12px 14px;
+        border: var(--apui-border-width) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-raised);
+    }
+
+    .ec-item-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* A board the order is on: board and column, then time in column and Open board. */
+    .ec-order-board {
+        display: grid;
+        gap: 4px;
+    }
+
+    .ec-item-head .ec-push {
+        display: flex;
+        gap: 4px;
+        margin-inline-start: auto;
+    }
+
+    .ec-dl {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px 16px;
+        margin: 0;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-dl dt {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-dl dd {
+        margin: 0;
+        min-inline-size: 0;
+        overflow-wrap: anywhere;
+    }
+
+    /* Tables in the panels and their dialogs. */
+    /* A row header (`<th scope="row">`) in the body: the design system styles
+       only body `td` cells, so it takes the same box, rule and hover here.
+       Drop once design-system #137 lands. */
+    .ec-table th[data-scope="table"][data-part="cell"] {
+        box-sizing: border-box;
+        block-size: var(--apui-row-height);
+        padding-inline: var(--apui-cell-padding-x);
+        border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
+        font-weight: inherit;
+        text-align: start;
+        vertical-align: middle;
+    }
+
+    .ec-table [data-scope="table"][data-part="table"] > tbody:last-child > tr:last-child > th[data-scope="table"][data-part="cell"] {
+        border-block-end: 0;
+    }
+
+    .ec-table [data-scope="table"][data-part="row"]:hover > th[data-scope="table"][data-part="cell"] {
+        background-image: linear-gradient(var(--apui-state-hover), var(--apui-state-hover));
+    }
+
+    .ec-table [data-density="compact"] [data-scope="table"][data-part="cell"] {
+        padding-block: 8px;
+    }
+
+    .ec-table .ec-row-top [data-scope="table"][data-part="cell"] {
+        vertical-align: top;
+    }
+
+    .ec-table [data-removing] [data-scope="table"][data-part="cell"] {
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-cell-muted {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-cell-wrap {
+        min-inline-size: 13.75rem;
+        white-space: normal;
+    }
+
+    .ec-cell-secondary {
+        display: block;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: 16px;
+    }
+
+    .ec-cell-secondary.ec-text-error {
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-col-qty {
+        inline-size: 7rem;
+    }
+
+    .ec-col-money {
+        inline-size: 10rem;
+    }
+
+    .ec-col-check {
+        inline-size: 5rem;
+    }
+
+    .ec-col-variant {
+        inline-size: 11.25rem;
+    }
+
+    .ec-figure-inline {
+        color: var(--apui-text-default);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    /* Wider dialogs: refunds (720px) and order edits (880px). */
+    .apui-dialog.ec-dialog-wide {
+        inline-size: min(720px, 100%);
+    }
+
+    .apui-dialog.ec-dialog-xl {
+        inline-size: min(880px, 100%);
+    }
+
+    /* Order edits (#102): the add-item row, address sections and the preview. */
+    .ec-add-item {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 5.5rem auto;
+        gap: 8px;
+        align-items: end;
+    }
+
+    .ec-accordion-title {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-accordion-summary {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        font-weight: var(--apui-font-weight-regular, 400);
+    }
+
+    .ec-preview {
+        padding: 16px;
+    }
+
+    .ec-preview-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .ec-preview-head > :last-child {
+        margin-inline-start: auto;
+    }
+
+    .ec-diff {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px;
+        margin: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+    }
+
+    .ec-diff-before {
+        color: var(--apui-text-muted);
+        text-decoration: line-through;
+    }
+
+    .ec-diff-arrow {
+        align-self: center;
+        inline-size: 14px;
+        block-size: 14px;
+        color: var(--apui-text-muted);
+    }
+
+    /* undo-2 isn't in the icon registry's directional list, so roll back mirrors here. */
+    .ec-icon-mirror:dir(rtl) [data-scope="button"][data-part="icon"] {
+        transform: scaleX(-1);
+    }
+
+    /* Notes and the product type panels (#103–#106). */
+    .ec-stack-xl {
+        display: grid;
+        gap: 24px;
+        min-inline-size: 0;
+    }
+
+    .ec-measure {
+        max-inline-size: 68ch;
+    }
+
+    .ec-row-actions {
+        display: flex;
+        gap: 2px;
+    }
+
+    .ec-mono-input [data-scope="input"][data-part="control"] {
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    /* Internal notes (#103). */
+    .ec-note-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .apui-card .ec-notes {
+        margin-inline: calc(var(--apui-card-padding, 20px) * -1);
+    }
+
+    .ec-note {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 4px 12px;
+        padding: 14px var(--apui-card-padding, 20px);
+    }
+
+    .ec-note-avatar,
+    .ec-note-delete {
+        grid-row: span 2;
+    }
+
+    .ec-note-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-note-author {
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-note-time {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-note-body {
+        grid-column: 2;
+        margin: 0;
+        max-inline-size: 68ch;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+        white-space: pre-line;
+        overflow-wrap: anywhere;
+    }
+
+    /* Variable product panel (#104). */
+    /* Top-aligned, so the Key hint can't push its box up; the toggle and the
+       buttons drop past a label line and the field gap, then centre on the
+       input box. */
+    .ec-attr-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+        align-items: start;
+        gap: 12px;
+    }
+
+    .ec-attr-row-end {
+        display: flex;
+        align-items: center;
+        min-block-size: var(--apui-control-height-md);
+        margin-block-start: calc(var(--apui-type-body-sm-line-height, 18px) + 6px);
+    }
+
+    .ec-values {
+        display: grid;
+        gap: 8px;
+        min-inline-size: 0;
+        margin: 0;
+        padding: 12px;
+        border: 0;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-values-title {
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-value-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-value-label {
+        flex: 1 1 8.75rem;
+    }
+
+    .ec-value-swatch {
+        flex: 0 1 9.375rem;
+    }
+
+    .ec-swatch {
+        flex: none;
+        inline-size: 20px;
+        block-size: 20px;
+    }
+
+    /* The swatch is an SVG fill (a nonce-only style CSP drops inline styles); its outline is the rect's stroke. */
+    .ec-swatch rect {
+        stroke: var(--apui-border-default);
+        stroke-width: 1;
+    }
+
+    .ec-generate {
+        display: grid;
+        gap: 8px;
+        padding: 16px;
+        border: var(--apui-border-width) dashed var(--apui-border-default);
+        border-radius: var(--apui-radius-md);
+    }
+
+    .ec-confirm.ec-confirm-boxed {
+        border: var(--apui-border-width) solid var(--apui-color-warning-border);
+        border-radius: var(--apui-radius-md);
+    }
+
+    .ec-variant-cell {
+        display: grid;
+        gap: 4px;
+        min-inline-size: 11.875rem;
+    }
+
+    .ec-col-sku {
+        display: grid;
+        gap: 4px;
+        min-inline-size: 9.375rem;
+    }
+
+    .ec-col-price {
+        min-inline-size: 8.125rem;
+    }
+
+    .ec-col-stock {
+        inline-size: 5.25rem;
+    }
+
+    .ec-col-image-url {
+        min-inline-size: 10rem;
+    }
+
+    .ec-variant-image {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ec-variant-thumb {
+        inline-size: 32px;
+        block-size: 32px;
+        border-radius: var(--apui-radius-sm, 6px);
+        object-fit: cover;
+        box-shadow: inset 0 0 0 1px var(--apui-border-muted);
+    }
+
+    /* Digital product panel (#105). */
+    .ec-item.ec-file {
+        gap: 14px;
+    }
+
+    .ec-field-grid.ec-file-fields {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.25rem), 1fr));
+    }
+
+    .ec-file-switches {
+        align-content: start;
+        gap: 10px;
+    }
+
+    .ec-file-chip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-file-chip-text {
+        display: grid;
+        flex: 1;
+        min-inline-size: 10rem;
+    }
+
+    .ec-file-chip-title {
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-file-chip-meta {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-file-source {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 10px;
+    }
+
+    .ec-file-disk {
+        flex: 0 1 10rem;
+    }
+
+    .ec-file-path {
+        flex: 1 1 16.25rem;
+    }
+
+    /* Grouped and bundled product panel (#106). */
+    .ec-child-row {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 5.5rem auto;
+        align-items: end;
+        gap: 10px;
+    }
+
+    .ec-child-row .ec-row-actions {
+        padding-block-end: 6px;
+    }
+
+    .ec-child-no-variants {
+        padding-block-end: 9px;
+    }
+
+    /* Customer tabs and promotion panels (#108–#112). */
+    .ec-icon-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-icon-line > svg {
+        flex: none;
+    }
+
+    .ec-section-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .ec-section-head > :first-child {
+        margin-inline-end: auto;
+    }
+
+    .ec-toggle-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+    }
+
+    .ec-align-start {
+        align-content: start;
+    }
+
+    .ec-table [data-scope="table"][data-part="cell"].ec-cell-flush {
+        padding: 0;
+    }
+
+    .ec-row-actions-end {
+        justify-content: flex-end;
+    }
+
+    /* Customer addresses (#109): cards in an auto-fill grid, actions in the footer. */
+    .ec-address-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 16.25rem), 1fr));
+        gap: 12px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-address-grid > li {
+        display: grid;
+        min-inline-size: 0;
+    }
+
+    .apui-card .ec-address-card-title {
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-address-card [data-scope="card"][data-part="footer"].ec-address-actions {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 4px;
+    }
+
+    .ec-confirm.ec-confirm-card {
+        padding-inline: var(--apui-card-padding, 20px);
+        border-block-end: 0;
+        border-block-start: var(--apui-border-width) solid var(--apui-color-warning-border);
+        border-end-start-radius: calc(var(--apui-card-radius) - var(--apui-border-width));
+        border-end-end-radius: calc(var(--apui-card-radius) - var(--apui-border-width));
+    }
+
+    /* Coupons panel (#111): the add and generate forms side by side in a sunken card. */
+    .ec-coupon-forms {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+        gap: 24px;
+    }
+
+    .ec-generate-fields {
+        display: grid;
+        grid-template-columns: 6rem minmax(0, 1fr) 7.5rem;
+        align-items: start;
+        gap: 12px;
+    }
+
+    .ec-rename-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .ec-rename-row > .apui-input {
+        flex: 1 1 12rem;
+        max-inline-size: 18rem;
+    }
+
+    /* Usage panel (#112). */
+    .ec-usage-totals {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .ec-usage-total {
+        flex: 1 1 15rem;
+        max-inline-size: 21.25rem;
+    }
+
+    .ec-deleted {
+        font-style: italic;
+    }
+
+    @media (max-width: 40rem) {
+        .ec-add-item {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .ec-attr-row {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .ec-attr-row-end {
+            min-block-size: 0;
+            margin-block-start: 0;
+        }
+
+        .ec-child-row {
+            grid-template-columns: minmax(0, 1fr) 5.5rem;
+        }
+
+        .ec-child-row > :first-child {
+            grid-column: 1 / -1;
+        }
+
+        .ec-coupon-forms {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .ec-generate-fields {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .ec-usage-total {
+            max-inline-size: none;
+        }
+    }
+
+
+    /* Admin layout (#115): store name in the sidebar, breadcrumbs and menu
+       button in the top bar; below 1024px the icon rail (data-collapsed, set
+       by the layout), below 768px the sidebar is a drawer behind the menu. */
+    .ecommerce-admin__brand-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .apui-app-shell[data-collapsed] .ecommerce-admin__brand-name {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .ecommerce-admin__sidebar {
+        display: grid;
+        gap: 4px;
+        min-inline-size: 0;
+    }
+
+    .ecommerce-admin__menu-button,
+    .ecommerce-admin__drawer-close {
+        display: none;
+    }
+
+    .ecommerce-admin__topbar [data-scope="navbar"][data-part="brand"] {
+        gap: 8px;
+        min-inline-size: 0;
+    }
+
+    .ecommerce-admin__breadcrumbs {
+        min-inline-size: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    @media (max-width: 47.999rem) {
+        .ecommerce-admin__menu-button {
+            display: inline-flex;
+        }
+
+        /* On a phone the trail is just the page: the root crumb hides. */
+        .ecommerce-admin__breadcrumbs li:not(:last-child) {
+            display: none;
+        }
+
+        .ecommerce-admin__shell:not([data-nav-open]) [data-scope="app-shell"][data-part="sidebar"] {
+            display: none;
+        }
+
+        .ecommerce-admin__shell[data-nav-open] [data-scope="app-shell"][data-part="sidebar"] {
+            position: fixed;
+            z-index: var(--apui-z-modal);
+            inset-block: var(--apui-shell-gutter, 12px);
+            inset-inline-start: var(--apui-shell-gutter, 12px);
+            inline-size: min(18rem, calc(100vw - 4rem));
+            overflow-y: auto;
+            box-shadow: var(--apui-shadow-lg, none), 0 0 0 100vmax var(--apui-backdrop);
+        }
+
+        .ecommerce-admin__shell[data-nav-open] .ecommerce-admin__drawer-close {
+            display: inline-flex;
+            justify-self: end;
+        }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .ecommerce-admin__shell[data-nav-open] [data-scope="app-shell"][data-part="sidebar"] {
+            animation: ec-drawer-in var(--apui-motion-duration-fast, 150ms) var(--apui-motion-ease-standard, ease-out);
+        }
+    }
+
+    @keyframes ec-drawer-in {
+        from {
+            opacity: 0;
+            translate: -8px 0;
+        }
+    }
+
+    /* Dashboard (#116): registry order, `full` widgets span both columns. */
+    .ec-dashboard-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--apui-panel-gap, 16px);
+    }
+
+    .ec-dashboard-widget {
+        display: grid;
+        min-inline-size: 0;
+    }
+
+    @media (min-width: 64rem) {
+        .ec-dashboard-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .ec-dashboard-widget--full {
+            grid-column: 1 / -1;
+        }
+    }
+
+    .ec-first-run {
+        padding-block: 56px;
+    }
+
+    .ec-dashboard-links {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(16.25rem, 100%), 1fr));
+        gap: var(--apui-panel-gap, 16px);
+    }
+
+    .ec-dashboard-links__list {
+        display: grid;
+        gap: 4px;
+    }
+
+    .ec-dashboard-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-block-size: 36px;
+        padding-inline: 10px;
+        border-radius: var(--apui-radius-md, 8px);
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        text-decoration: none;
+    }
+
+    .ec-dashboard-link:hover {
+        background: var(--apui-state-hover);
+    }
+
+    .ec-dashboard-link:focus-visible {
+        outline: var(--apui-focus-ring-width) solid transparent;
+        box-shadow: 0 0 0 var(--apui-focus-ring-width) var(--apui-focus-ring-color);
+    }
+
+    .ec-dashboard-link > svg {
+        flex: none;
+        inline-size: var(--apui-icon-size-md, 18px);
+        block-size: var(--apui-icon-size-md, 18px);
+        color: var(--apui-text-muted);
+    }
+
+    /* Orders list (#117): the new-orders banner and the bulk bar's parts. */
+    .ec-banner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+    }
+
+    .ec-banner > svg {
+        flex: none;
+        inline-size: var(--apui-icon-size-md, 18px);
+        block-size: var(--apui-icon-size-md, 18px);
+    }
+
+    .ec-banner__text {
+        flex: 1 1 16rem;
+        margin: 0;
+    }
+
+    .ec-focus-target {
+        min-inline-size: 0;
+        border-radius: var(--apui-radius-lg, 12px);
+        outline: none;
+    }
+
+    .ec-focus-target:focus-visible {
+        box-shadow: 0 0 0 var(--apui-focus-ring-width) var(--apui-focus-ring-color);
+    }
+
+    .ec-bulkbar__field {
+        inline-size: 13.75rem;
+        max-inline-size: 100%;
+    }
+
+    .ec-bulkbar__note {
+        color: var(--apui-text-muted);
+        font-weight: var(--apui-font-weight-regular, 400);
+    }
+
+    .ec-muted-text {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-grow {
+        flex: 1 1 12rem;
+        min-inline-size: 0;
+    }
+
+    /* Board columns (#113) and automations (#114): list rows in a card. The
+       design system pads a card header's foot only before a body, so the
+       strip and the list get the same 16px. */
+    [data-scope="card"][data-part="header"]:has(+ :is(.ec-board-strip, .ec-settings-list)) {
+        padding-block-end: 16px;
+    }
+
+    .ec-board-strip {
+        display: flex;
+        gap: 6px;
+        padding: 0 var(--apui-card-padding, 16px) 14px;
+        overflow: hidden;
+    }
+
+    .ec-board-strip__swatch {
+        flex: 1;
+        min-inline-size: 0;
+        block-size: 6px;
+        border-radius: var(--apui-radius-full, 9999px);
+    }
+
+    .ec-settings-list {
+        border-block-start: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-settings-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        min-block-size: 48px;
+        padding-block: 10px;
+        padding-inline: var(--apui-card-padding, 16px) 12px;
+        border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-settings-row:last-child {
+        border-block-end: 0;
+    }
+
+    .ec-settings-row--off {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-settings-row__index {
+        flex: none;
+        inline-size: 14px;
+    }
+
+    .ec-settings-row__icon {
+        flex: none;
+        inline-size: var(--apui-icon-size-md, 18px);
+        block-size: var(--apui-icon-size-md, 18px);
+        color: var(--apui-text-muted);
+    }
+
+    .ec-settings-row__main {
+        display: grid;
+        flex: 1 1 12.5rem;
+        gap: 2px;
+        min-inline-size: 0;
+    }
+
+    .ec-settings-row__title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        min-inline-size: 0;
+    }
+
+    .ec-settings-row__name {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-settings-row__arrow {
+        flex: none;
+        inline-size: 14px;
+        block-size: 14px;
+        color: var(--apui-text-muted);
+    }
+
+    [dir="rtl"] .ec-settings-row__arrow {
+        scale: -1 1;
+    }
+
+    .ec-settings-row__actions {
+        display: flex;
+        gap: 2px;
+    }
+
+    /*
+     * The sub-status colour is the SVG's `color` attribute (fills and
+     * strokes use currentColor), so a nonce-only style CSP keeps it.
+     */
+    .ec-column-chip {
+        display: block;
+        flex: none;
+        inline-size: 28px;
+        block-size: 28px;
+    }
+
+    .ec-column-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ec-column-count--full {
+        color: var(--apui-color-warning-text);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-fieldset {
+        display: grid;
+        gap: 8px;
+        min-inline-size: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .ec-fieldset.ec-sunken {
+        gap: 14px;
+        padding: 16px;
+    }
+
+    .ec-fieldset__legend {
+        float: inline-start;
+        inline-size: 100%;
+        margin-block-end: 4px;
+        padding: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        font-weight: var(--apui-font-weight-semibold, 600);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+    }
+
+    .ec-widget-list {
+        display: grid;
+        gap: 4px;
+    }
+
+    .ec-widget-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-block: 6px;
+        padding-inline: 12px 8px;
+        border-radius: var(--apui-radius-md, 8px);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-widget-row__label {
+        display: grid;
+        flex: 1;
+        min-inline-size: 0;
+    }
+
+    .ec-widget-row__error {
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    @media (forced-colors: active) {
+        .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item .ec-admin-nav__badge {
+            background: CanvasText;
+        }
+
+        .apui-app-shell[data-collapsed] [data-scope="app-shell"][data-part="sidebar"] .ec-admin-nav__item[data-badge-tone] .ec-admin-nav__badge {
+            background: CanvasText;
+        }
+
+        .ec-kpi-link:focus-visible {
+            outline: var(--apui-focus-ring-width) solid Highlight;
+        }
+
+        .ec-board-strip__swatch,
+        .ec-column-chip {
+            forced-color-adjust: none;
+        }
+
+        .ec-dashboard-link:focus-visible,
+        .ec-focus-target:focus-visible {
+            outline: var(--apui-focus-ring-width) solid Highlight;
+        }
+    }
+
+    /*
+     * Order detail (#118): the status badges under the title, a 2fr / 1fr
+     * grid (side column at least 300px) that stacks below 1024px with the
+     * side column first, the totals table and the customer row.
+     */
+    /* The badges follow the h1 in the DOM (the header's meta slot comes before it), drawn up under the description. */
+    .ec-order-badges {
+        margin-block-start: calc(10px - var(--apui-panel-gap, 16px));
+    }
+
+    .ec-order-detail {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--apui-panel-gap, 16px);
+        align-items: start;
+    }
+
+    .ec-order-col {
+        display: grid;
+        gap: var(--apui-panel-gap, 16px);
+        align-content: start;
+        min-inline-size: 0;
+    }
+
+    /*
+     * The side column comes first in the DOM, so below 1024px status sits
+     * under the header and the tab order matches what's seen. From 1024px
+     * the grid places it in the second column.
+     */
+    @media (min-width: 64rem) {
+        .ec-order-detail {
+            grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+        }
+
+        .ec-order-col-side {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .ec-order-col-side + .ec-order-col {
+            grid-column: 1;
+            grid-row: 1;
+        }
+    }
+
+    .ec-order-panel {
+        display: grid;
+        min-inline-size: 0;
+    }
+
+    .ec-order-sku {
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-order-gone {
+        margin-block-start: 4px;
+    }
+
+    .ec-order-totals [data-scope="table"][data-part="cell"] {
+        font-weight: var(--apui-font-weight-regular, 400);
+    }
+
+    .ec-order-totals [data-emphasis] > [data-scope="table"][data-part="cell"] {
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-order-rate-note {
+        padding: 8px var(--apui-card-padding, 20px) 4px;
+    }
+
+    .ec-order-sub {
+        display: grid;
+        gap: 10px;
+    }
+
+    .ec-order-sub + .ec-order-sub {
+        margin-block-start: 16px;
+        padding-block-start: 16px;
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-order-meta {
+        flex-basis: 100%;
+    }
+
+    .ec-order-customer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-inline-size: 0;
+    }
+
+    .ec-order-customer__text {
+        display: grid;
+        min-inline-size: 0;
+    }
+
+    .ec-order-email {
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-order-add-board {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    /* Products list (#119) */
+    .ec-products-thumb {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        inline-size: 36px;
+        block-size: 36px;
+        border-radius: var(--apui-radius-sm, 6px);
+        box-shadow: inset 0 0 0 var(--apui-border-width, 1px) var(--apui-border-muted);
+        object-fit: cover;
+        vertical-align: middle;
+    }
+
+    .ec-products-thumb[data-empty] {
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-subtle);
+    }
+
+    .ec-products-name {
+        color: var(--apui-text-default);
+    }
+
+    .ec-products-star {
+        display: inline-flex;
+        color: var(--apui-text-subtle);
+    }
+
+    .ec-products-star[data-featured] {
+        color: var(--apui-color-accent-border);
+    }
+
+    .ec-products-star[data-featured] svg {
+        fill: currentColor;
+    }
+
+    .ec-products-bulk-group {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-products-bulk-select {
+        inline-size: 11.875rem;
+        max-inline-size: 100%;
+    }
+
+    /* Product form (#120) */
+    .ec-product-form-panel {
+        min-inline-size: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    /* Ten tabs don't fit a phone: the list scrolls instead of wrapping. */
+    .ec-product-form-tablist {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    /*
+     * A tab with errors: its count part holds "(has errors)", which stays in
+     * the tab's accessible name but is drawn as an error dot.
+     */
+    .ec-product-form-tabs [data-scope="tabs"][data-part="trigger"][role="tab"] [data-scope="tabs"][data-part="count"] {
+        display: inline-block;
+        flex: none;
+        inline-size: 8px;
+        min-inline-size: 8px;
+        block-size: 8px;
+        padding: 0;
+        overflow: hidden;
+        border-radius: var(--apui-radius-full, 9999px);
+        background: var(--apui-color-error);
+        color: transparent;
+        text-indent: 100%;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .ec-product-form-price-grid {
+        grid-template-columns: minmax(6rem, 7.5rem) repeat(3, minmax(0, 1fr));
+    }
+
+    .ec-product-form-schedule-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+        align-items: end;
+    }
+
+    .ec-product-form-stock-change {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-color-info-soft);
+        color: var(--apui-color-info-soft-foreground);
+    }
+
+    .ec-product-form-stock-change__text {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 0;
+    }
+
+    .ec-product-form-stock-change__text > .apui-icon {
+        flex: none;
+    }
+
+    .ec-product-form-relation {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+    }
+
+    .ec-product-form-relation[data-invalid] {
+        border-color: var(--apui-color-error-border);
+    }
+
+    .ec-product-form-relation__name {
+        display: flex;
+        flex: 1 1 12rem;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 8px;
+        min-inline-size: 0;
+    }
+
+    .ec-product-form-relation__error {
+        flex-basis: 100%;
+    }
+
+    .ec-product-form-grip {
+        flex: none;
+        color: var(--apui-text-muted);
+        cursor: grab;
+    }
+
+    .ec-product-form-featured {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .ec-product-form-featured__image {
+        inline-size: 120px;
+        block-size: 120px;
+        border: var(--apui-border-width) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-lg);
+        object-fit: cover;
+    }
+
+    .ec-product-form-url {
+        flex: 1 1 20rem;
+        min-inline-size: 0;
+        max-inline-size: 32rem;
+    }
+
+    .ec-item.ec-product-form-gallery-row {
+        grid-template-columns: 72px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .ec-item.ec-product-form-gallery-row[data-missing-alt] {
+        border-color: var(--apui-color-warning-border);
+    }
+
+    .ec-product-form-thumb {
+        display: block;
+        inline-size: 72px;
+        block-size: 72px;
+        border: var(--apui-border-width) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+        object-fit: cover;
+        box-sizing: border-box;
+    }
+
+    @media (max-width: 64rem) {
+        .ec-product-form-price-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 40rem) {
+        .ec-product-form-price-grid,
+        .ec-product-form-schedule-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .ec-item.ec-product-form-gallery-row {
+            grid-template-columns: 56px minmax(0, 1fr);
+        }
+
+        .ec-item.ec-product-form-gallery-row > .ec-row-actions {
+            grid-column: 1 / -1;
+            justify-content: flex-end;
+        }
+
+        .ec-product-form-thumb {
+            inline-size: 56px;
+            block-size: 56px;
+        }
+    }
+
+    @media (forced-colors: active) {
+        .ec-product-form-tabs [data-scope="tabs"][data-part="trigger"][role="tab"] [data-scope="tabs"][data-part="count"] {
+            forced-color-adjust: none;
+            background: Mark;
+        }
+    }
+
+    /* Product import (#121). */
+    .ec-import-counts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(11.25rem, 100%), 1fr));
+        gap: 12px;
+    }
+
+    .ec-import-fills {
+        min-inline-size: 13.75rem;
+    }
+
+    .ec-import-sample {
+        max-inline-size: 20rem;
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
+
+    /* Phones: only the current step keeps its title beside the markers. */
+    @media (max-width: 40rem) {
+        .ec-import-steps [data-scope="steps"][data-part="step"]:not([data-state="current"]) [data-scope="steps"][data-part="title"] {
+            position: absolute;
+            inline-size: 1px;
+            block-size: 1px;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
+    }
+
+    /* Categories (#122): the tree card, its indented rows and the drawer's image row. */
+    .ec-category-card {
+        overflow: hidden;
+    }
+
+    .ec-category-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        min-block-size: 48px;
+        box-sizing: border-box;
+        padding-block: 6px;
+        padding-inline: calc(16px + var(--ec-category-depth, 0) * 28px) 12px;
+        border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    /* Depth comes from a bounded data attribute, not an inline style, so a nonce-only style CSP keeps the indent. */
+    .ec-category-row[data-indent="1"] { --ec-category-depth: 1; }
+    .ec-category-row[data-indent="2"] { --ec-category-depth: 2; }
+    .ec-category-row[data-indent="3"] { --ec-category-depth: 3; }
+    .ec-category-row[data-indent="4"] { --ec-category-depth: 4; }
+    .ec-category-row[data-indent="5"] { --ec-category-depth: 5; }
+    .ec-category-row[data-indent="6"] { --ec-category-depth: 6; }
+    .ec-category-row[data-indent="7"] { --ec-category-depth: 7; }
+    .ec-category-row[data-indent="8"] { --ec-category-depth: 8; }
+
+    .ec-category-row:last-child {
+        border-block-end: 0;
+    }
+
+    .ec-category-row:hover {
+        background: var(--apui-state-hover);
+    }
+
+    .ec-category-row:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid var(--apui-focus-ring-color);
+        outline-offset: calc(var(--apui-focus-ring-width, 2px) * -1);
+    }
+
+    .ec-category-icon {
+        flex: none;
+        color: var(--apui-text-muted);
+    }
+
+    .ec-category-name {
+        min-inline-size: 0;
+        font-weight: var(--apui-font-weight-medium, 500);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-category-actions {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin-inline-start: auto;
+    }
+
+    .ec-category-image {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ec-category-thumb {
+        inline-size: 56px;
+        block-size: 56px;
+        border-radius: var(--apui-radius-md, 8px);
+        object-fit: cover;
+    }
+
+    @media (max-width: 40rem) {
+        .ec-category-row {
+            padding-inline-start: calc(16px + var(--ec-category-depth, 0) * 16px);
+        }
+    }
+
+    /* Tags (#123): the quick-add card, the merge group in the bulk bar and the rename row. */
+    .ec-tags-add {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 10px;
+    }
+
+    .ec-tags-add-field {
+        flex: 1 1 15rem;
+        max-inline-size: 22.5rem;
+    }
+
+    .ec-tags-merge {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* A short visible label beside a bulk-bar control (Tags, Reviews). */
+    .ec-bulk-inline-label {
+        font-size: 13px;
+        line-height: 18px;
+        color: var(--apui-text-muted);
+        white-space: nowrap;
+    }
+
+    .ec-tags-merge-select {
+        inline-size: 12.5rem;
+        max-inline-size: 100%;
+    }
+
+    .ec-tags-name {
+        font-weight: var(--apui-font-weight-medium, 500);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-tags-actions {
+        justify-content: flex-end;
+    }
+
+    /* Labels sit above the fields, so Save and Cancel line up with the inputs. */
+    .ec-tags-rename {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px;
+        min-inline-size: min(23.75rem, 100%);
+    }
+
+    .ec-tags-rename-field {
+        flex: 1 1 8rem;
+        min-inline-size: 0;
+    }
+
+    /* Inventory (#124): counts with their badge, the in-place threshold editor and the read-only flag. */
+    .ec-inventory-name {
+        color: var(--apui-text-default);
+    }
+
+    .ec-inventory-flags {
+        display: flex;
+        margin-block-start: 4px;
+    }
+
+    .ec-inventory-available,
+    .ec-inventory-threshold {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    /* Numeric cells end-align; the badge sits after the count in reading order. */
+    .ec-inventory-available {
+        justify-content: flex-end;
+    }
+
+    .ec-inventory-threshold {
+        gap: 4px;
+    }
+
+    .ec-inventory-inline-edit {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ec-inventory-threshold-field {
+        inline-size: 5.5rem;
+        flex: none;
+    }
+
+    /* Reviews (#125): the clamped review text, row actions, the bulk bar's
+       reason field, and the drawer's badges, sunken text box, photos and
+       moderation footer. */
+    .ec-reviews-clamp {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow: hidden;
+        min-inline-size: 240px;
+        max-inline-size: 360px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-reviews-author {
+        overflow-wrap: anywhere;
+    }
+
+    .ec-reviews-row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 2px;
+    }
+
+    .ec-reviews-bulk-reason {
+        inline-size: 200px;
+        max-inline-size: 100%;
+    }
+
+    .ec-reviews-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .ec-reviews-email {
+        display: block;
+        color: var(--apui-text-muted);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-reviews-text {
+        display: grid;
+        gap: 6px;
+        padding: 14px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-reviews-title {
+        margin: 0;
+        font-weight: var(--apui-font-weight-semibold, 600);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-reviews-body {
+        margin: 0;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: 22px;
+        white-space: pre-line;
+        overflow-wrap: anywhere;
+    }
+
+    .ec-reviews-media {
+        display: grid;
+        gap: 6px;
+    }
+
+    .ec-reviews-media-heading {
+        margin: 0;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-reviews-media-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-reviews-photo {
+        display: block;
+        border-radius: var(--apui-radius-md, 8px);
+    }
+
+    .ec-reviews-photo:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid transparent;
+        box-shadow:
+            0 0 0 var(--apui-focus-ring-offset, 2px) var(--apui-focus-ring-offset-color),
+            0 0 0 calc(var(--apui-focus-ring-offset, 2px) + var(--apui-focus-ring-width, 2px)) var(--apui-focus-ring-color);
+    }
+
+    .ec-reviews-photo img {
+        display: block;
+        inline-size: 72px;
+        block-size: 72px;
+        border-radius: var(--apui-radius-md, 8px);
+        object-fit: cover;
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-reviews-moderation {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        inline-size: 100%;
+    }
+
+    @media (max-width: 40rem) {
+        .ec-reviews-bulk-reason {
+            inline-size: 100%;
+        }
+    }
+
+    /* Digital files (#126): a long path or file name stays on one line and is
+       cut short with an ellipsis (in full in its title and to screen readers),
+       so rows keep the table's height; the row's icon buttons stay on one line. */
+    .ec-digital-files-location {
+        display: inline-block;
+        max-inline-size: 18rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    [data-digital-files-index] .ec-row-actions {
+        justify-content: flex-end;
+    }
+
+    /* License keys (#127): the activations cell (text over a short bar), muted
+       expiry, and the drawer's key summary and machines table. */
+    .ec-license-keys-muted {
+        color: var(--apui-text-muted);
+    }
+
+    .ec-license-keys-usage {
+        display: grid;
+        gap: 4px;
+        min-inline-size: 110px;
+    }
+
+    .ec-license-keys-summary {
+        display: grid;
+        gap: 6px;
+    }
+
+    .ec-license-keys-key {
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-body-md-font-size, 15px);
+        overflow-wrap: anywhere;
+    }
+
+    .ec-license-keys-revoked {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-license-keys-cell-end {
+        text-align: end;
+        white-space: nowrap;
+    }
+
+    /* Customers list (#128): avatar + name cell. */
+    .ec-customers-name {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ec-customers-name > .apui-avatar {
+        flex: none;
+    }
+
+    .ec-customers-name-link[data-tone="primary"],
+    .ec-customers-name-text {
+        color: var(--apui-text-default);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-customers-unnamed,
+    .ec-customers-name-link.ec-customers-unnamed {
+        color: var(--apui-text-muted);
+        font-style: italic;
+        font-weight: var(--apui-font-weight-regular, 400);
+    }
+
+    /* Customer detail (#129): five small Stats, the scrolling tab list, and the delete dialog's erased / kept lists. */
+    .ec-customer-stats {
+        grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+    }
+
+    .ec-customer-tablist {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .ec-customer-tab {
+        min-inline-size: 0;
+    }
+
+    .ec-customer-delete-columns {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+        gap: 20px;
+    }
+
+    .ec-customer-delete-columns > section {
+        display: grid;
+        gap: 8px;
+        align-content: start;
+    }
+
+    .ec-customer-delete-list {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+    }
+
+    .ec-customer-delete-list > li {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .ec-customer-delete-list > li > svg {
+        flex: none;
+        margin-block-start: 2px;
+    }
+
+    .ec-customer-delete-list[data-tone="erased"] > li > svg {
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-customer-delete-list[data-tone="kept"] > li > svg {
+        color: var(--apui-color-success-text);
+    }
+
+    /* Promotions list (#130): the name link reads as body text, like the products list. */
+    .ec-promotions-name {
+        color: var(--apui-text-default);
+    }
+
+    /*
+     * Promotion form (#131): underline tabs that scroll on a phone, the
+     * Details sections (heading and explanation on the start side, fields on
+     * the end side, stacked below 48rem), the segmented Source control with
+     * an icon per option, and the error marker on a tab with errors.
+     */
+    .ec-promotion-form-badges {
+        margin-block-start: calc(10px - var(--apui-panel-gap, 16px));
+    }
+
+    .ec-promotion-form-tablist {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .ec-promotion-form-panel {
+        min-inline-size: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .ec-promotion-form-section {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        gap: 24px;
+        padding-block: 20px;
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-promotion-form-section:first-child {
+        padding-block-start: 0;
+        border-block-start: 0;
+    }
+
+    .ec-promotion-form-section:last-child {
+        padding-block-end: 0;
+    }
+
+    .ec-promotion-form-section__head {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        min-inline-size: 0;
+    }
+
+    .ec-promotion-form-centered {
+        align-self: center;
+    }
+
+    .ec-promotion-source [data-scope="radio-group"][data-part="item-text"] {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /*
+     * A tab with errors: its count part holds "(has errors)", which stays in
+     * the tab's accessible name; it is drawn as a small red badge with "!"
+     * (the content's alt text is empty, so nothing extra is announced).
+     */
+    .ec-promotion-form-tabs [data-scope="tabs"][data-part="trigger"][role="tab"] [data-scope="tabs"][data-part="count"] {
+        position: relative;
+        display: inline-block;
+        flex: none;
+        inline-size: 16px;
+        min-inline-size: 16px;
+        block-size: 16px;
+        margin-inline-start: 6px;
+        padding: 0;
+        overflow: hidden;
+        border-radius: var(--apui-radius-full, 9999px);
+        background: var(--apui-color-error);
+        color: transparent;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .ec-promotion-form-tabs [data-scope="tabs"][data-part="trigger"][role="tab"] [data-scope="tabs"][data-part="count"]::before {
+        content: "!" / "";
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: var(--apui-color-error-foreground);
+        font-size: 11px;
+        font-weight: var(--apui-font-weight-semibold, 600);
+        line-height: 1;
+    }
+
+    @media (max-width: 47.999rem) {
+        .ec-promotion-form-section {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
+        }
+    }
+
+    @media (forced-colors: active) {
+        .ec-promotion-form-tabs [data-scope="tabs"][data-part="trigger"][role="tab"] [data-scope="tabs"][data-part="count"] {
+            border: 1px solid CanvasText;
+        }
+    }
+
+    /* Shipping (#132): zones as one card of expandable rows, methods in a sunken list. */
+    .ec-shipping-zone + .ec-shipping-zone {
+        border-block-start: 1px solid var(--apui-border-muted);
+    }
+
+    .ec-shipping-zone__head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+    }
+
+    .ec-shipping-zone__text {
+        display: grid;
+        flex: 1 1 12rem;
+        gap: 2px;
+        min-inline-size: 0;
+    }
+
+    .ec-shipping-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+    }
+
+    .ec-shipping-zone__body {
+        display: grid;
+        gap: 10px;
+        padding-block-end: 14px;
+        padding-inline: 16px;
+    }
+
+    .ec-shipping-methods {
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-shipping-methods-empty {
+        padding: 10px 12px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-shipping-method {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+    }
+
+    .ec-shipping-method + .ec-shipping-method {
+        border-block-start: 1px solid var(--apui-border-muted);
+    }
+
+    .ec-shipping-method__name {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    /* Tax (#133): classes table with in-row rename and the sunken add panel, the rates table flush in its card, and the import dialog. */
+    .ec-tax-rename {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        min-inline-size: min(17.5rem, 100%);
+    }
+
+    .ec-tax-rename-field {
+        flex: 1 1 10rem;
+        min-inline-size: 0;
+    }
+
+    .ec-tax-add-fields {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 12px;
+    }
+
+    /* Top-aligned, so a hint or error under either field leaves the inputs level; the button drops past the field label (18px line + 6px gap). */
+    .ec-tax-add-submit {
+        padding-block-start: 24px;
+    }
+
+    .ec-tax-choices {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 24px;
+    }
+
+    .ec-tax-form-actions {
+        gap: 8px;
+    }
+
+    /* The rates Resource table sits flush in its card: the card draws the frame. */
+    .apui-card .ec-tax-rates-table {
+        padding: 0;
+    }
+
+    .ec-tax-rates-table .ec-table {
+        border: 0;
+        border-block-start: var(--apui-border-width) solid var(--apui-border-muted);
+        border-radius: 0 0 calc(var(--apui-card-radius) - var(--apui-border-width)) calc(var(--apui-card-radius) - var(--apui-border-width));
+    }
+
+    .ec-tax-cell-field {
+        min-inline-size: 8rem;
+    }
+
+    .ec-tax-cell-narrow {
+        min-inline-size: 4.5rem;
+        max-inline-size: 6rem;
+    }
+
+    .ec-tax-cell-rate {
+        min-inline-size: 6.5rem;
+        max-inline-size: 7.5rem;
+    }
+
+    .ec-tax-yes {
+        display: inline-flex;
+        color: var(--apui-color-success-text);
+    }
+
+    .ec-tax-import-file {
+        display: grid;
+        gap: 8px;
+    }
+
+    .ec-tax-import-row {
+        display: block;
+    }
+
+    @media (max-width: 40rem) {
+        .ec-tax-add-fields {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .ec-tax-add-submit {
+            padding-block-start: 0;
+        }
+    }
+
+    /* Notification templates list (#134): filters row, one card per notification, channel icon beside its name. */
+    .ec-notif-list-filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 12px;
+    }
+
+    .ec-notif-list-filter {
+        inline-size: 12.5rem;
+        max-inline-size: 100%;
+    }
+
+    .ec-notif-list-groups {
+        display: grid;
+        gap: var(--apui-panel-gap, 16px);
+        min-inline-size: 0;
+    }
+
+    .ec-notif-list-heading {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 10px;
+        min-inline-size: 0;
+    }
+
+    .ec-notif-list-channel {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 30rem) {
+        .ec-notif-list-filter {
+            inline-size: 100%;
+        }
+    }
+
+    /* Notification template editor (#135). */
+    .ec-notif-edit-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 12px;
+    }
+
+    .ec-notif-edit-control {
+        inline-size: 200px;
+        max-inline-size: 100%;
+    }
+
+    .ec-notif-edit-add {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 8px;
+    }
+
+    .ec-notif-edit-active {
+        margin-inline-start: auto;
+        padding-block-end: 8px;
+    }
+
+    .ec-notif-edit-split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--apui-panel-gap, 16px);
+        align-items: start;
+    }
+
+    @media (min-width: 64rem) {
+        .ec-notif-edit-split {
+            grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+        }
+    }
+
+    .ec-notif-edit-col {
+        display: grid;
+        gap: var(--apui-panel-gap, 16px);
+        align-content: start;
+        min-inline-size: 0;
+    }
+
+    .ec-notif-edit-form {
+        display: grid;
+        gap: 18px;
+    }
+
+    /* The field error under Body already says what's wrong and on which line; the gutter marks the line. */
+    .ec-notif-edit-code [data-scope="code-editor"][data-part="diagnostics"] {
+        display: none;
+    }
+
+    .ec-notif-edit-sms-count {
+        margin-block-start: -8px;
+        text-align: end;
+    }
+
+    .ec-notif-edit-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding-block-start: 4px;
+    }
+
+    .ec-notif-edit-spacer {
+        flex: 1 1 auto;
+    }
+
+    .ec-notif-edit-vars {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-notif-edit-var {
+        border: 0;
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        cursor: pointer;
+    }
+
+    .ec-notif-edit-var:hover:not(:disabled) {
+        box-shadow: inset 0 0 0 1px var(--apui-border-default);
+    }
+
+    .ec-notif-edit-var:disabled {
+        cursor: not-allowed;
+        color: var(--apui-text-disabled);
+    }
+
+    .ec-notif-edit-var:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid transparent;
+        box-shadow:
+            0 0 0 var(--apui-focus-ring-offset, 2px) var(--apui-focus-ring-offset-color),
+            0 0 0 calc(var(--apui-focus-ring-offset, 2px) + var(--apui-focus-ring-width, 2px)) var(--apui-focus-ring-color);
+    }
+
+    .ec-notif-edit-vars-hint {
+        margin-block-start: 10px;
+    }
+
+    .ec-notif-edit-preview {
+        display: grid;
+        gap: 10px;
+    }
+
+    .ec-notif-edit-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ec-notif-edit-status .apui-icon {
+        color: var(--apui-color-success-text);
+    }
+
+    .ec-notif-edit-errors {
+        display: grid;
+        gap: 4px;
+        margin: 0;
+        padding-inline-start: 20px;
+        list-style: disc;
+        font-size: 13px;
+        line-height: 18px;
+        color: var(--apui-color-error-text);
+    }
+
+    /* The email preview renders on white, like an inbox, in light and dark alike: fixed gray primitives, not surface tokens. */
+    .ec-notif-edit-email {
+        overflow: hidden;
+        border: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-gray-0);
+        color: var(--apui-gray-900);
+        color-scheme: light;
+    }
+
+    .ec-notif-edit-email-head {
+        margin: 0;
+        padding: 10px 14px;
+        border-block-end: 1px solid var(--apui-gray-150);
+        background: var(--apui-gray-50);
+        color: var(--apui-gray-700);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    .ec-notif-edit-email-head strong {
+        color: var(--apui-gray-900);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-notif-edit-email-frame {
+        display: block;
+        inline-size: 100%;
+        block-size: 24rem;
+        border: 0;
+        background: var(--apui-gray-0);
+    }
+
+    .ec-notif-edit-sms {
+        display: grid;
+        justify-items: start;
+        gap: 6px;
+        padding: 16px;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+    }
+
+    .ec-notif-edit-sms-bubble {
+        max-inline-size: 260px;
+        margin: 0;
+        padding: 10px 14px;
+        border: 1px solid var(--apui-border-muted);
+        border-start-start-radius: 18px;
+        border-start-end-radius: 18px;
+        border-end-end-radius: 18px;
+        border-end-start-radius: 4px;
+        background: var(--apui-surface-raised);
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
+    .ec-notif-edit-text {
+        margin: 0;
+        padding: 12px;
+        border: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+        font-family: var(--apui-font-family-sans);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
+    /* A preview the current source no longer matches. */
+    .ec-notif-edit-stale {
+        opacity: 0.55;
+    }
+
+    @media (max-width: 40rem) {
+        .ec-notif-edit-active {
+            margin-inline-start: 0;
+        }
+
+        .ec-notif-edit-control {
+            inline-size: 100%;
+        }
+    }
+
+    /*
+     * Webhook subscriptions (#136): the name link reads as body text with
+     * the URL below in mono, truncated with the full address in its title;
+     * event keys as mono badges with "+N more"; a red failure count when it
+     * isn't zero; actions at the inline end; and the drawer's events list in
+     * a bordered scroll box, All events first in medium weight above a rule,
+     * every event key left to right in mono.
+     */
+    .ec-webhooks-name {
+        color: var(--apui-text-default);
+    }
+
+    .ec-webhooks-url {
+        display: inline-block;
+        max-inline-size: 22rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: bottom;
+    }
+
+    .ec-webhooks-events {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .ec-webhooks-event-key {
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-webhooks-more {
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-webhooks-more > summary {
+        color: var(--apui-text-muted);
+        cursor: pointer;
+    }
+
+    .ec-webhooks-more > .ec-webhooks-events {
+        margin-block-start: 4px;
+    }
+
+    .ec-webhooks-failures[data-failing] {
+        color: var(--apui-color-error-text);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-webhooks-actions {
+        justify-content: flex-end;
+    }
+
+    .ec-webhooks-event-list [data-scope="checkbox-group"][data-part="items"] {
+        max-block-size: 340px;
+        overflow: auto;
+        padding: 4px 12px;
+        border: var(--apui-border-width, 1px) solid var(--apui-border-default);
+        border-radius: var(--apui-radius-md, 8px);
+    }
+
+    .ec-webhooks-event-list [data-part="items"] > .apui-checkbox:first-child {
+        padding-block-end: 8px;
+        margin-block-end: 4px;
+        border-block-end: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-webhooks-event-list [data-part="items"] > .apui-checkbox:first-child [data-part="label"] {
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-webhooks-event-list [data-part="items"] > .apui-checkbox:not(:first-child) [data-part="label"] {
+        direction: ltr;
+        unicode-bidi: isolate;
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    .ec-webhooks-secret-note {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Webhook subscription detail (#137). */
+    .ec-webhook-detail-facts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
+        gap: 16px 24px;
+        margin: 0;
+    }
+
+    .ec-webhook-detail-facts > div {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        min-inline-size: 0;
+    }
+
+    .ec-webhook-detail-facts dt {
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-webhook-detail-facts dd {
+        margin: 0;
+        min-inline-size: 0;
+    }
+
+    .ec-webhook-detail-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-webhook-detail-code {
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+    }
+
+    .ec-webhook-detail-failures {
+        color: var(--apui-color-error-text);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-webhook-detail-pair {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+    }
+
+    /* Payloads and responses are code: left-to-right even in RTL pages. */
+    .ec-webhook-detail-payload {
+        direction: ltr;
+        text-align: left;
+        margin: 0;
+        max-block-size: 24rem;
+        padding: 12px 14px;
+        overflow: auto;
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: 19px;
+        white-space: pre;
+    }
+
+    .ec-webhook-detail-payload:focus-visible {
+        outline: var(--apui-focus-ring-width) solid var(--apui-focus-ring-color);
+        outline-offset: var(--apui-focus-ring-offset);
+    }
+
+    /* Kanban boards (#139): numbered board rows in one card, routing order. */
+    .ec-board-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+    }
+
+    .ec-board-row + .ec-board-row {
+        border-block-start: var(--apui-border-width) solid var(--apui-border-muted);
+    }
+
+    .ec-board-row__index {
+        flex: none;
+        inline-size: 16px;
+    }
+
+    .ec-board-row__main {
+        display: grid;
+        flex: 1 1 15rem;
+        gap: 4px;
+        min-inline-size: 0;
+    }
+
+    .ec-board-row__title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        min-inline-size: 0;
+    }
+
+    .ec-board-row__name {
+        color: var(--apui-text-default);
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    .ec-board-row__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+    }
+
+    .ec-board-row__actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .ec-board-note {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ec-board-note [data-scope="icon"] {
+        flex: none;
+    }
+
+    /*
+     * Kanban board editor (#140): the saved-state badge row under the page
+     * header, and the board form's Details and Routing sections (heading and
+     * explanation on the start side, fields on the end side, stacked below
+     * 48rem), like the promotion form. Nested routing rules the builder
+     * can't edit sit in a disclosure as mono JSON.
+     */
+    .ec-board-form-badges {
+        margin-block-start: calc(10px - var(--apui-panel-gap, 16px));
+    }
+
+    .ec-board-form-panel {
+        min-inline-size: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .ec-board-form-section {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        gap: 24px;
+        padding-block: 20px;
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-board-form-section:first-child {
+        padding-block-start: 0;
+        border-block-start: 0;
+    }
+
+    .ec-board-form-section:last-child {
+        padding-block-end: 0;
+    }
+
+    .ec-board-form-section__head {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        min-inline-size: 0;
+    }
+
+    .ec-board-form-section__hint {
+        margin: 0;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: 19px;
+    }
+
+    .ec-board-form-fields {
+        display: grid;
+        gap: 16px;
+        min-inline-size: 0;
+    }
+
+    .ec-board-form-json {
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+    }
+
+    .ec-board-form-json > summary {
+        color: var(--apui-color-primary-text);
+        font-weight: var(--apui-font-weight-medium, 500);
+        cursor: pointer;
+    }
+
+    .ec-board-form-json__code {
+        margin-block: 8px 0;
+        margin-inline: 0;
+        padding: 10px 12px;
+        overflow-x: auto;
+        border: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+        border-radius: var(--apui-radius-md);
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+        font-family: var(--apui-font-family-mono);
+        font-size: var(--apui-type-caption-font-size, 12px);
+        line-height: 18px;
+        text-align: start;
+        unicode-bidi: isolate;
+    }
+
+    @media (max-width: 47.999rem) {
+        .ec-board-form-section {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
+        }
+    }
+
+    /*
+     * Link tabs (#141, and #142's phone section nav): underline tabs whose
+     * triggers are links. The current page is aria-current, not
+     * aria-selected (that belongs to role="tab"), so it gets the selected
+     * tab's look here. The list scrolls on a phone.
+     */
+    .ec-link-tabs [data-scope="tabs"][data-part="list"] {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .ec-link-tabs [data-scope="tabs"][data-part="trigger"] {
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
+    .ec-link-tabs [data-scope="tabs"][data-part="trigger"][aria-current="page"] {
+        color: var(--apui-text-default);
+        box-shadow: inset 0 calc(var(--apui-selected-indicator-width) * -1) 0 var(--apui-color-primary);
+    }
+
+    .ec-link-tabs [data-scope="tabs"][data-part="trigger"][aria-current="page"]:focus-visible {
+        box-shadow:
+            inset 0 calc(var(--apui-selected-indicator-width) * -1) 0 var(--apui-color-primary),
+            inset 0 0 0 var(--apui-focus-ring-width) var(--apui-focus-ring-color);
+    }
+
+    @media (forced-colors: active) {
+        .ec-link-tabs [data-scope="tabs"][data-part="trigger"][aria-current="page"] {
+            border-block-end: var(--apui-selected-indicator-width) solid Highlight;
+        }
+    }
+
+    /*
+     * Report (#141): the options row (fields top-aligned, the toggle offset
+     * by the field label), KPI changes with a toned arrow, the chart over
+     * time (previous period dashed in the axis colour), the ranked bar list,
+     * and the table with row headers and a totals row.
+     */
+    .ec-report-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .ec-report-control {
+        flex: 0 1 auto;
+        min-inline-size: 0;
+    }
+
+    .ec-report-control[data-width="xs"] {
+        inline-size: 7rem;
+    }
+
+    .ec-report-control[data-width="sm"] {
+        inline-size: 8rem;
+    }
+
+    .ec-report-control[data-width="md"] {
+        inline-size: 11rem;
+    }
+
+    .ec-report-control[data-width="date"] {
+        inline-size: 10rem;
+    }
+
+    /* The label line (18px) and its gap (6px), then centred on a small control. */
+    .ec-report-toggle {
+        display: flex;
+        align-items: center;
+        min-block-size: var(--apui-control-height-sm);
+        margin-block-start: 24px;
+    }
+
+    .ec-report-results {
+        transition: opacity var(--apui-motion-duration-fast, 120ms) var(--apui-motion-ease-standard, ease);
+    }
+
+    .ec-report-results--busy {
+        opacity: 0.5;
+    }
+
+    .ec-report-change {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .ec-report-trend {
+        display: inline-flex;
+        flex: none;
+        color: var(--apui-text-muted);
+    }
+
+    .ec-report-trend[data-tone="good"] {
+        color: var(--apui-color-success-text);
+    }
+
+    .ec-report-trend[data-tone="bad"] {
+        color: var(--apui-color-error-text);
+    }
+
+    .ec-report-figure {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+    }
+
+    .ec-report-chart [data-scope="chart"][data-part="body"] {
+        direction: ltr;
+    }
+
+    /* The previous period: a dashed line in the axis colour, no fill. */
+    .ec-report-chart [data-scope="chart"][data-part="line"][data-series="2"] {
+        stroke: var(--apui-chart-axis);
+        stroke-dasharray: 6 4;
+    }
+
+    .ec-report-chart [data-scope="chart"][data-part="area"][data-series="2"] {
+        display: none;
+    }
+
+    .ec-report-chart [data-scope="chart"][data-part="dot"][data-series="2"] {
+        fill: var(--apui-chart-axis);
+    }
+
+    .ec-report-chart [data-scope="chart"][data-part="swatch"] {
+        inline-size: 14px;
+        block-size: 2px;
+        border-radius: 0;
+    }
+
+    .ec-report-chart [data-scope="chart"][data-part="swatch"][data-series="2"] {
+        block-size: 0;
+        border-block-start: 2px dashed var(--apui-chart-axis);
+        background: none;
+    }
+
+    .ec-report-bars {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-report-bar {
+        display: grid;
+        grid-template-columns: minmax(0, 10rem) minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        font-size: var(--apui-type-body-sm-font-size, 13px);
+        line-height: var(--apui-type-body-sm-line-height, 18px);
+    }
+
+    .ec-report-bar__name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* An SVG bar, so its width is an attribute a nonce-only style CSP keeps. */
+    .ec-report-bar__track {
+        display: block;
+        inline-size: 100%;
+        min-inline-size: 0;
+        block-size: 14px;
+        overflow: visible;
+    }
+
+    .ec-report-bar__fill {
+        fill: var(--apui-chart-1);
+    }
+
+    .ec-report-bar__value {
+        font-variant-numeric: tabular-nums;
+        text-align: end;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 30rem) {
+        .ec-report-bar {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .ec-report-bar__track {
+            grid-column: 1 / -1;
+            grid-row: 2;
+        }
+    }
+
+    @media (forced-colors: active) {
+        .ec-report-bar__fill {
+            forced-color-adjust: none;
+            fill: CanvasText;
+        }
+    }
+
+    .ec-report-table__body {
+        padding-inline: 0;
+        padding-block-end: 4px;
+    }
+
+    .ec-report-table [data-scope="table"][data-part="table"] > :is(tbody, tfoot) > tr > th {
+        box-sizing: border-box;
+        block-size: var(--apui-row-height);
+        padding-block: 0;
+        padding-inline: var(--apui-cell-padding-x);
+        border-block-end: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+        font-weight: var(--apui-font-weight-regular, 400);
+        text-align: start;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .ec-report-table [data-scope="table"][data-part="row"][data-indent] > th {
+        padding-inline-start: calc(var(--apui-cell-padding-x) + 20px);
+    }
+
+    .ec-report-table [data-scope="table"][data-part="table"] > tbody > tr:last-child > :is(th, td) {
+        border-block-end: 0;
+    }
+
+    .ec-report-table [data-scope="table"][data-part="table"] > tfoot > tr > :is(th, td) {
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-default);
+        border-block-end: 0;
+        font-weight: var(--apui-font-weight-semibold, 600);
+    }
+
+    /* Settings (#142): a section list on the start side (underlined links
+       that scroll on a phone), groups as cards of label-beside-control rows,
+       and a Save bar that stays in view. */
+    .ec-settings-layout {
+        display: grid;
+        grid-template-columns: 200px minmax(0, 1fr);
+        gap: 32px;
+        align-items: start;
+    }
+
+    .ec-settings-nav {
+        position: sticky;
+        inset-block-start: 16px;
+        min-inline-size: 0;
+    }
+
+    .ec-settings-nav__list {
+        display: grid;
+        gap: 2px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-settings-nav__link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        color: var(--apui-text-muted);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+        text-decoration: none;
+    }
+
+    .ec-settings-nav__link:hover {
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+    }
+
+    .ec-settings-nav__link[aria-current="page"] {
+        background: var(--apui-surface-sunken);
+        color: var(--apui-text-default);
+        font-weight: var(--apui-font-weight-medium, 500);
+    }
+
+    .ec-settings-nav__link:focus-visible {
+        outline: var(--apui-focus-ring-width, 2px) solid var(--apui-focus-ring-color);
+        outline-offset: 2px;
+    }
+
+    .ec-settings-content {
+        display: grid;
+        gap: var(--apui-panel-gap, 16px);
+        min-inline-size: 0;
+    }
+
+    .ec-settings-fieldset {
+        min-inline-size: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .ec-settings-rows[data-scope="card"][data-part="body"] {
+        padding-block: 0 4px;
+    }
+
+    .ec-setting-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+        gap: 8px 24px;
+        padding-block: 16px;
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-setting-row:first-child {
+        border-block-start: 0;
+    }
+
+    .ec-setting-row__text,
+    .ec-setting-row__control {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        min-inline-size: 0;
+    }
+
+    .ec-setting-row__text {
+        gap: 4px;
+    }
+
+    .ec-setting-row__label {
+        color: var(--apui-text-default);
+        font-size: var(--apui-type-body-md-font-size, 14px);
+        font-weight: var(--apui-font-weight-medium, 500);
+        line-height: var(--apui-type-body-md-line-height, 20px);
+    }
+
+    .ec-setting-row__stored {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-block-start: 2px;
+    }
+
+    .ec-setting-map {
+        display: grid;
+        gap: 8px;
+    }
+
+    .ec-setting-map__rows {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-setting-map__row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 8px;
+    }
+
+    .ec-setting-currency [data-scope="input"][data-part="control"] {
+        text-transform: uppercase;
+    }
+
+    .ec-settings-secrets {
+        display: grid;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ec-settings-secret {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 12px;
+        padding-block: 10px;
+        border-block-start: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+    }
+
+    .ec-settings-secret:first-child {
+        border-block-start: 0;
+        padding-block-start: 0;
+    }
+
+    .ec-settings-secret__name {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 8px;
+        min-inline-size: 0;
+    }
+
+    .ec-settings-save {
+        position: sticky;
+        z-index: 1;
+        inset-block-end: 0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding-block: 12px;
+        background: linear-gradient(transparent, var(--apui-surface-page) 30%);
+    }
+
+    @media (max-width: 48rem) {
+        .ec-settings-layout {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 16px;
+        }
+
+        /* Phone: the section list becomes a row of underlined links that
+           scrolls sideways, like Tabs. */
+        .ec-settings-nav {
+            position: static;
+            overflow-x: auto;
+            border-block-end: var(--apui-border-width, 1px) solid var(--apui-border-muted);
+        }
+
+        .ec-settings-nav__list {
+            display: flex;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .ec-settings-nav__link {
+            padding: 10px 12px;
+            border-radius: 0;
+            border-block-end: 2px solid transparent;
+            margin-block-end: calc(-1 * var(--apui-border-width, 1px));
+        }
+
+        .ec-settings-nav__link:hover {
+            background: transparent;
+        }
+
+        .ec-settings-nav__link[aria-current="page"] {
+            background: transparent;
+            border-block-end-color: var(--apui-color-primary);
+        }
+
+        .ec-settings-nav__link:focus-visible {
+            outline-offset: -2px;
+        }
+    }
+
+    @media (max-width: 40rem) {
+        .ec-setting-row {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
+    @media (forced-colors: active) {
+        .ec-settings-nav__link[aria-current="page"] {
+            outline: 1px solid CanvasText;
+        }
+    }
+}

@@ -24,7 +24,7 @@ beforeEach( function (): void {
     config()->set( 'artisanpack.ecommerce.currency.rates', [ 'USD' => [ 'EUR' => 92_500_000 ] ] );
     config()->set( 'artisanpack.ecommerce.currency.enabled', [ 'EUR' ] );
     config()->set( 'artisanpack.ecommerce.features.scout', false );
-    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update' ] );
+    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update', 'inventory.adjust' ] );
     ProductMedia::fake( false );
     $this->actingAs( makeUser() );
 } );
@@ -442,5 +442,177 @@ it( 'reports an unresolvable panel alias as such, keeping the original error', f
     } catch ( InvalidArgumentException $exception ) {
         expect( $exception->getMessage() )->toBe( 'The "ghost" product-type panel "no-such-livewire-component" could not be resolved.' )
             ->and( $exception->getPrevious() )->not->toBeNull();
+    }
+} );
+
+it( 'builds the variable panel from design-system parts with no DaisyUI classes', function (): void {
+    $state = [
+        'attributes'   => teeAttributes( [ 'M', 'L' ], [ 'Navy' ] ),
+        'variants'     => [],
+        'stock_reason' => '',
+    ];
+
+    $component = Livewire::test( VariablePanel::class )->set( 'state', $state )->call( 'generateVariants' );
+    $html      = $component->html();
+
+    expect( $html )
+        ->toContain( 'class="apui-card' )
+        ->toContain( 'class="ec-list"' )
+        ->toContain( 'class="ec-values"' )
+        ->toContain( 'Values · Size' )
+        ->toContain( 'class="ec-generate"' )
+        ->toContain( 'class="apui-table ec-table"' )
+        ->toContain( 'aria-label="Move Size up"' )
+        ->toContain( 'aria-label="Remove Size"' )
+        ->toContain( 'aria-label="Value 1 of Size"' )
+        ->toContain( 'aria-label="Swatch for M"' )
+        ->toContain( 'aria-label="SKU for M / Navy"' )
+        ->toContain( 'aria-label="USD price for M / Navy"' )
+        ->toContain( 'aria-label="Stock for M / Navy"' )
+        ->not->toContain( 'rounded-box' )
+        ->not->toContain( 'border-base-300' )
+        ->not->toContain( 'bg-base-200' )
+        ->not->toContain( 'table-sm' )
+        ->not->toContain( 'opacity-75' );
+} );
+
+it( 'reads an empty price in a non-store currency as coming from the store currency', function (): void {
+    $html = Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => teeAttributes( [ 'M' ], [ 'Navy' ] ), 'variants' => [], 'stock_reason' => '' ] )
+        ->call( 'generateVariants' )
+        ->html();
+
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'id="variant-0-price-EUR"', '>' ) )->toContain( 'placeholder="From store currency"' )
+        ->and( Illuminate\Support\Str::betweenFirst( $html, 'id="variant-0-price-USD"', '>' ) )->not->toContain( 'From store currency' );
+} );
+
+it( 'flags a duplicate SKU on the row that repeats it', function (): void {
+    $component = Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => teeAttributes( [ 'M', 'L' ], [ 'Navy' ] ), 'variants' => [], 'stock_reason' => '' ] )
+        ->call( 'generateVariants' )
+        ->set( 'state.variants.0.sku', 'MER-CRW-NV' )
+        ->set( 'state.variants.1.sku', ' mer-crw-nv ' );
+
+    $html = $component->html();
+
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'data-variant-row="1"', '</tr>' ) )->toContain( 'Already used by M / Navy.' )
+        ->and( Illuminate\Support\Str::betweenFirst( $html, 'data-variant-row="0"', '</tr>' ) )->not->toContain( 'Already used by' );
+
+    $component->set( 'state.variants.1.sku', 'MER-CRW-NV-L' )->assertDontSee( 'Already used by' );
+} );
+
+it( 'confirms a large generation inline with an Add variants button', function (): void {
+    $sizes   = array_map( static fn ( int $n ): string => "Size {$n}", range( 1, 9 ) );
+    $colours = array_map( static fn ( int $n ): string => "Colour {$n}", range( 1, 6 ) );
+
+    $html = Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => teeAttributes( $sizes, $colours ), 'variants' => [], 'stock_reason' => '' ] )
+        ->call( 'generateVariants' )
+        ->html();
+
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'class="ec-generate"', '</section>' ) )
+        ->toContain( 'role="alertdialog"' )
+        ->toContain( 'This adds 54 variants. Continue?' )
+        ->toContain( 'Add variants' )
+        ->toContain( 'Cancel' );
+} );
+
+it( 'shows the empty attributes and variants copy', function (): void {
+    Livewire::test( VariablePanel::class )
+        ->set( 'state', VariablePanel::initialState( null ) )
+        ->assertSee( 'Add attributes such as size or color, then generate a variant for each combination.' )
+        ->assertSee( '0 variants' )
+        ->assertSee( 'No variants yet.' )
+        ->assertDontSeeHtml( 'class="ec-list"' );
+} );
+
+it( 'disables every control and hides the actions on a read-only variable panel', function (): void {
+    $product = Product::factory()->variable()->create();
+
+    $html = Livewire::test( VariablePanel::class, [ 'productId' => $product->id, 'readOnly' => true ] )
+        ->set( 'state', [ 'attributes' => teeAttributes( [ 'M' ], [ 'Navy' ] ), 'variants' => [], 'stock_reason' => '' ] )
+        ->html();
+
+    expect( $html )
+        ->toContain( 'id="attribute-0-label"' )
+        ->not->toContain( 'Add attribute' )
+        ->not->toContain( 'Add value' )
+        ->not->toContain( 'aria-label="Remove Size"' )
+        ->not->toContain( 'Add a variant by hand' );
+
+    expect( Illuminate\Support\Str::betweenFirst( $html, 'id="attribute-0-label"', '>' ) )->toContain( 'disabled' );
+} );
+
+it( 'does not change variant stock without inventory.adjust', function (): void {
+    $product = app( ProductService::class )->create( [ 'type' => 'variable', 'name' => 'Tee' ] );
+    $variant = app( ProductService::class )->createVariant( $product, [ 'sku' => 'TEE-1', 'inventory' => [ 'quantity_on_hand' => 4 ] ] );
+
+    Gate::define( 'ecommerce.inventory.adjust', static fn (): bool => false );
+
+    $state                            = VariablePanel::initialState( $product );
+    $state['variants'][0]['stock']    = 40;
+    $state['variants'][0]['name']     = 'Renamed';
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( app( ProductService::class )->inventoryItemFor( $variant )->quantity_on_hand )->toBe( 4 )
+        ->and( $variant->refresh()->name )->toBe( 'Renamed' );
+
+    $panel = Livewire::test( VariablePanel::class, [ 'productId' => $product->id ] )->set( 'state', $state );
+
+    expect( $panel->html() )->toMatch( '/<input[^>]*id="variant-0-stock"[^>]*readonly/' )
+        ->not->toContain( 'data-variant-stock-reason' );
+} );
+
+it( 'draws a colour swatch as an SVG fill, not an inline style', function (): void {
+    $attributes                           = teeAttributes( [ 'S' ], [ 'Red' ] );
+    $attributes[1]['values'][0]['swatch'] = '#ff0000';
+
+    $html = Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => $attributes, 'variants' => [], 'stock_reason' => '' ] )
+        ->html();
+
+    expect( $html )->toContain( 'fill="#ff0000"' )
+        ->toMatch( '/<svg class="ec-swatch"/' )
+        ->not->toContain( 'style="background-color' );
+} );
+
+it( 'names an option whose value was removed, and gives icon-only row buttons', function (): void {
+    $attributes = teeAttributes( [ 'S' ], [ 'Red' ] );
+    $variant    = [ 'uid' => 'v1', 'id' => null, 'name' => 'Ghost', 'sku' => '', 'options' => [ $attributes[0]['uid'] => 'gone' ], 'prices' => [], 'stock' => 0, 'stock_loaded' => null, 'image_media_id' => null, 'image_url' => '' ];
+
+    $html = Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => $attributes, 'variants' => [ $variant ], 'stock_reason' => '' ] )
+        ->html();
+
+    expect( $html )->toContain( 'Removed value' )
+        ->toMatch( '/<button(?=[^>]*data-icon-only)(?=[^>]*aria-label="Delete Ghost")[^>]*>/' );
+} );
+
+it( 'refuses a variant image the user may not view, keeping a saved one', function (): void {
+    ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::fakeViewableMedia( [] );
+
+    try {
+        $product = app( ProductService::class )->create( [ 'type' => 'variable', 'name' => 'Tee' ] );
+        app( ProductService::class )->createVariant( $product, [ 'sku' => 'TEE-1', 'image_media_id' => 5 ] );
+
+        $state = VariablePanel::initialState( $product );
+
+        Livewire::test( Form::class, [ 'product' => $product->id ] )
+            ->set( 'panelState', $state )
+            ->call( 'save' )
+            ->assertHasNoErrors();
+
+        $state['variants'][0]['image_media_id'] = 6;
+
+        Livewire::test( Form::class, [ 'product' => $product->id ] )
+            ->set( 'panelState', $state )
+            ->call( 'save' )
+            ->assertHasErrors( 'panelState.variants.0.image_media_id' );
+    } finally {
+        ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::fakeViewableMedia( null );
     }
 } );

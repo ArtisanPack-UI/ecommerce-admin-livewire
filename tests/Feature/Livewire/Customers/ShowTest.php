@@ -53,8 +53,48 @@ it( 'shows a dash for the average when there are no orders', function (): void {
     $customer = Customer::factory()->create();
 
     Livewire::test( Show::class, [ 'customer' => $customer->id ] )
-        ->assertSeeHtml( 'data-stat="average-order-value">—' )
+        ->assertSeeHtml( 'data-stat="average-order-value"><span aria-hidden="true">&mdash;</span><span class="apui-sr-only">None</span>' )
         ->assertSee( 'None yet' );
+} );
+
+it( 'names a missing "customer since" date for screen readers', function (): void {
+    $customer = Customer::factory()->create();
+    Customer::query()->whereKey( $customer->id )->update( [ 'created_at' => null ] );
+
+    Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->assertSeeHtml( '<dd><span aria-hidden="true">&mdash;</span><span class="apui-sr-only">None</span></dd>' );
+} );
+
+it( 'answers 403, not 404, for a missing customer when the user cannot list customers', function (): void {
+    $url = route( 'artisanpack.ecommerce.admin.customers.show', [ 'customer' => 999 ] );
+
+    $this->get( $url )->assertNotFound();
+
+    Gate::define( 'ecommerce.customer.viewAny', static fn (): bool => false );
+
+    $this->get( $url )->assertForbidden();
+    Livewire::test( Show::class, [ 'customer' => 999 ] )->assertForbidden();
+} );
+
+it( 'names the customer in the page title', function (): void {
+    $customer = Customer::factory()->create( [ 'first_name' => 'Ada', 'last_name' => 'Lovelace' ] );
+
+    $this->get( route( 'artisanpack.ecommerce.admin.customers.show', [ 'customer' => $customer->id ] ) )
+        ->assertOk()
+        ->assertSee( '<title>Ada Lovelace &middot;', false );
+} );
+
+it( 'keeps names with angle brackets intact', function (): void {
+    $customer = Customer::factory()->create( [ 'first_name' => 'Ada', 'last_name' => 'Lovelace' ] );
+
+    Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->call( 'startEdit' )
+        ->set( 'lastName', '  O<Brien  ' )
+        ->call( 'saveDetails' )
+        ->assertHasNoErrors()
+        ->assertSeeHtml( 'Ada O&lt;Brien' );
+
+    expect( $customer->fresh()->last_name )->toBe( 'O<Brien' );
 } );
 
 it( 'is denied without customer.view', function (): void {
@@ -70,6 +110,17 @@ it( 'renders the built-in tabs and opens the orders tab first', function (): voi
         ->assertSet( 'tab', 'orders' )
         ->assertSeeInOrder( [ 'Orders', 'Addresses', 'Notification preferences', 'Notes', 'Activity' ] )
         ->assertSeeHtml( 'data-customer-tab="orders"' );
+} );
+
+it( 'gives each tab a value rather than the deprecated name', function (): void {
+    $source = (string) file_get_contents( dirname( __DIR__, 4 ) . '/resources/views/livewire/customers/show.blade.php' );
+
+    expect( $source )->toContain( '<x-artisanpack-tab :value=' )
+        ->not->toMatch( '/<x-artisanpack-tab\s[^>]*:?name=/' );
+
+    Livewire::test( Show::class, [ 'customer' => Customer::factory()->create()->id ] )
+        ->set( 'tab', 'addresses' )
+        ->assertSeeHtml( 'data-customer-tab="addresses"' );
 } );
 
 it( 'hides the orders tab without order.viewAny', function (): void {
@@ -242,7 +293,16 @@ it( 'deletes the customer, anonymizes their orders, and returns to the list', fu
     $component->set( 'deleteConfirmation', ' ADA@example.test ' )
         ->call( 'deleteCustomer', customerDeleteToken( $component ) )
         ->assertHasNoErrors()
-        ->assertRedirect( route( 'artisanpack.ecommerce.admin.customers.index' ) );
+        ->assertRedirect( route( 'artisanpack.ecommerce.admin.customers.index' ) )
+        ->assertNotDispatched( 'toast' );
+
+    // The toast survives the redirect: it is flashed, and the list's toaster shows it.
+    expect( session( ArtisanPack\LivewireUiComponents\Support\Toasts::SESSION_KEY ) )->toBe( [ [ 'title' => 'Customer deleted. Their orders were kept and anonymized.', 'color' => 'success' ] ] );
+
+    $this->get( route( 'artisanpack.ecommerce.admin.customers.index' ) )
+        ->assertOk()
+        ->assertSee( 'data-apui-flashed-toasts', false )
+        ->assertSee( 'Customer deleted. Their orders were kept and anonymized.' );
 
     $order->refresh();
 
@@ -270,4 +330,95 @@ it( 'refuses to delete without customer.delete', function (): void {
         ->assertDontSeeHtml( 'data-delete-customer' )
         ->call( 'startDelete' )
         ->assertForbidden();
+} );
+
+it( 'leads with the account and marketing badges', function (): void {
+    $user     = makeUser();
+    $customer = Customer::factory()->create( [ 'user_id' => $user->id, 'accepts_marketing' => true, 'accepts_marketing_at' => Carbon::parse( '2024-03-04' ) ] );
+
+    Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->assertSeeInOrder( [ 'Has an account', 'Subscribed to marketing', 'Lifetime value' ] )
+        ->assertSeeHtml( 'data-color="success"' )
+        ->assertSee( [ 'Linked to user #' . $user->id, 'Recorded March 4, 2024' ] );
+} );
+
+it( 'reads as a guest who has not given consent', function (): void {
+    $customer = Customer::factory()->create( [ 'user_id' => null, 'accepts_marketing' => false, 'phone' => null ] );
+
+    Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->assertSee( [ 'Guest', 'Not subscribed to marketing', 'Guest, no account', 'Not given', 'None' ] )
+        ->assertDontSee( 'Has an account' );
+} );
+
+it( 'builds the page from design-system parts, with no DaisyUI left', function (): void {
+    $customer = Customer::factory()->create();
+
+    $html = Livewire::test( Show::class, [ 'customer' => $customer->id ] )->html();
+
+    expect( $html )
+        ->toContain( 'apui-page-header', 'apui-stat', 'apui-tabs', 'data-variant="underline"', 'data-customer-contact' )
+        ->not->toMatch( '/(?<![\w-])(rounded-box|base-content|bg-base-\d|border-error|btn-|badge-)/' )
+        ->not->toContain( 'style="' );
+} );
+
+it( 'swaps the Contact card for the form in place and keeps the tabs', function (): void {
+    $customer = Customer::factory()->create();
+
+    Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->assertSeeHtml( 'data-customer-contact' )
+        ->call( 'startEdit' )
+        ->assertDontSeeHtml( 'data-customer-contact' )
+        ->assertSeeHtml( 'data-customer-details-form' )
+        ->assertSeeHtml( 'data-customer-tab="orders"' )
+        ->assertSee( 'Turning this on records today as the date of consent.' )
+        ->call( 'cancelEdit' )
+        ->assertSeeHtml( 'data-customer-contact' );
+} );
+
+it( 'keeps Delete customer disabled until the email is typed back', function (): void {
+    $customer = Customer::factory()->create( [ 'email' => 'ada@example.test' ] );
+
+    $component = Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->call( 'startDelete' )
+        ->assertSeeHtml( 'role="alertdialog"' );
+
+    $submit = fn (): string => preg_match( '/<button[^>]*data-customer-delete-submit[^>]*>/', $component->html(), $matches ) ? $matches[0] : '';
+
+    expect( $submit() )->toMatch( '/\sdisabled(=|\s|>)/' );
+
+    $component->set( 'deleteConfirmation', 'ada@example' );
+    expect( $submit() )->toMatch( '/\sdisabled(=|\s|>)/' );
+
+    $component->set( 'deleteConfirmation', 'ada@example.test' );
+    expect( $submit() )->not->toMatch( '/\sdisabled(=|\s|>)/' );
+} );
+
+it( 'clears the typed email when the dialog closes itself', function (): void {
+    $customer = Customer::factory()->create( [ 'email' => 'ada@example.test' ] );
+
+    Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->call( 'startDelete' )
+        ->set( 'deleteConfirmation', 'ada@' )
+        ->set( 'confirmingDelete', false )
+        ->assertSet( 'deleteConfirmation', '' )
+        ->assertDontSeeHtml( 'data-customer-delete-form' );
+} );
+
+it( 'does not open the delete dialog for a user who may not delete', function (): void {
+    Gate::define( 'ecommerce.customer.delete', static fn (): bool => false );
+
+    Livewire::test( Show::class, [ 'customer' => Customer::factory()->create()->id ] )
+        ->set( 'confirmingDelete', true )
+        ->assertDontSeeHtml( 'data-customer-delete-form' );
+} );
+
+it( 'hides the header Edit button while the contact form is open, so typed changes are not reset', function (): void {
+    $customer = Customer::factory()->create();
+
+    Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->assertSeeHtml( 'data-edit-customer' )
+        ->call( 'startEdit' )
+        ->set( 'firstName', 'Typed' )
+        ->assertDontSeeHtml( 'data-edit-customer' )
+        ->assertSet( 'firstName', 'Typed' );
 } );

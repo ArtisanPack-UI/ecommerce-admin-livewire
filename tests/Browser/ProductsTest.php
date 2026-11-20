@@ -11,7 +11,7 @@ it( 'creates a simple product', function (): void {
         // The name syncs on a debounce; on Livewire 3 a click does not flush it.
         ->assertValue( Locators::label( 'Slug' ), 'browser-test-mug' )
         ->click( Locators::role( 'Pricing', 'tab' ) )
-        ->type( Locators::label( 'Price' ), '12.50' )
+        ->type( Locators::label( 'Price, USD' ), '12.50' )
         ->click( '[data-save]' )
         ->assertSee( 'Edit Browser Test Mug' )
         ->assertNoJavaScriptErrors();
@@ -30,9 +30,10 @@ it( 'creates a variable product with variants', function (): void {
         ->click( Locators::role( 'Variants', 'tab' ) )
         ->click( Locators::role( 'Add attribute' ) )
         ->type( Locators::field( 'attribute-0-label' ), 'Size' )
-        ->click( Locators::role( 'Add value' ) )
+        ->keys( Locators::field( 'attribute-0-label' ), 'Tab' )
+        ->click( Locators::role( 'Add value to Size' ) )
         ->type( Locators::field( 'value-0-0-label' ), 'Small' )
-        ->click( Locators::role( 'Add value' ) )
+        ->click( Locators::role( 'Add value to Size' ) )
         ->type( Locators::field( 'value-0-1-label' ), 'Large' )
         ->click( Locators::role( 'Generate variants' ) )
         ->assertSee( '2 variants' );
@@ -70,7 +71,7 @@ it( 'selects only the current page\'s rows after paging, keeping earlier pages\'
         ->assertScript( 'document.querySelectorAll( "[data-resource-table] tbody tr" ).length', 10 )
         ->check( '[data-select-page]' )
         ->assertScript( $selectedCount, 10 )
-        ->click( 'button[aria-label="Go to page 2"]' )
+        ->click( '.apui-pagination [aria-label="Page 2"]' )
         ->assertScript( 'document.querySelectorAll( "[data-resource-table] tbody tr" ).length', Product::query()->count() - 10 )
         ->assertScript( 'document.querySelector( "[data-select-page]" ).checked', false );
 

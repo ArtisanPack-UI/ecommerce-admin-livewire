@@ -1,11 +1,10 @@
 {{--
     Turns a rate-limited Livewire update (HTTP 429 from the
     `ecommerce-admin.throttle` middleware) into a toast with the retry time,
-    instead of Livewire's error modal.
+    instead of Livewire's error modal. The toast is the design system's
+    `toast` browser event, which the page's `<x-artisanpack-toaster>` shows.
 
     Uses Livewire's `request` hook, which Livewire 3 and 4 both support.
-    The toast renders with `x-html`, so the title and message are
-    HTML-escaped first.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -16,13 +15,6 @@
     ( () => {
         const fallback = @js( __( 'Too many changes in a short time. Try again shortly.' ) );
         const title    = @js( __( 'Slow down' ) );
-
-        const escapeHtml = ( text ) => {
-            const node       = document.createElement( 'div' );
-            node.textContent = String( text );
-
-            return node.innerHTML;
-        };
 
         const register = () => {
             if ( window.ecommerceAdminRateLimitNotice || ! window.Livewire ) {
@@ -48,9 +40,7 @@
 
                     preventDefault();
 
-                    if ( 'function' === typeof window.toast ) {
-                        window.toast( { toast: { type: 'warning', title: escapeHtml( title ), description: escapeHtml( message ), icon: '', css: 'alert-warning' } } );
-                    }
+                    window.dispatchEvent( new CustomEvent( 'toast', { detail: { title, description: message, color: 'warning' } } ) );
                 } );
             } );
         };

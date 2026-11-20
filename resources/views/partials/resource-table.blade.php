@@ -1,12 +1,18 @@
 {{--
-    The table section of an index screen that uses WithResourceTable:
-    search and filters, the bulk-action bar and its confirmation, the table,
-    pagination, and the empty states.
+    The table section of an index screen that uses WithResourceTable (#79):
+    one design-system Table holding the toolbar (search, filters, rows per
+    page, CSV export), the filter drawer, the bulk-action bar, the inline
+    confirmation for destructive bulk actions, the grid, the pager, and the
+    empty states.
 
     Expects the variables from WithResourceTable::resourceTableData(), plus:
 
     - $emptyIcon, $emptyTitle, $emptyDescription — the "nothing yet" state.
+    - $searchHint (optional) — what the search matches, as its placeholder.
+    - $emptyActions (optional) — a view rendered as the "nothing yet" state's actions.
     - $bulkControls (optional) — a view rendered inside the bulk-action bar.
+    - $bulkInlineActions (optional) — keys of bulk actions $bulkControls
+      renders itself, left out of the bar's own buttons.
     - $rowLabel (optional) — a Closure naming a row for its checkbox.
     - $cellContext (optional) — screen state passed to cell views as $context.
 
@@ -15,85 +21,135 @@
 
     @since      1.0.0
 --}}
-<div class="flex flex-col gap-4" data-resource-table-section>
+@php
+    $tableFilterCount ??= 0;
+    $tablePerPageOptions = array_map(
+        static fn ( int $value ): array => [ 'value' => (string) $value, 'label' => __( ':count per page', [ 'count' => $value ] ) ],
+        $tablePerPageValues,
+    );
+@endphp
+<div class="ec-table-section" data-resource-table-section x-data="{ filtersOpen: @js( $tableFilterCount > 0 ) }">
     {{-- Tells screen-reader users how many rows a search or filter left. --}}
     @include( 'ecommerce-admin::partials.live-region', [ 'message' => isset( $tableRows ) ? trans_choice( ':count result|:count results', $tableRows->total(), [ 'count' => $tableRows->total() ] ) : '' ] )
 
-    <div class="flex flex-col gap-3">
-        <div class="flex flex-wrap items-end gap-3">
-            <x-artisanpack-input
-                id="resource-table-search"
-                class="min-w-64"
-                :label="__( 'Search' )"
-                :hint="$searchHint ?? null"
-                icon="o-magnifying-glass"
-                type="search"
-                wire:model.live.debounce.300ms="search"
-            />
+    <div class="apui-table ec-table" data-surface="default" wire:loading.attr="aria-busy">
+        <div data-scope="table" data-part="toolbar">
+            <div class="ec-table-toolbar">
+                <div class="ec-table-search">
+                    <x-artisanpack-input
+                        id="resource-table-search"
+                        size="sm"
+                        type="search"
+                        leading-icon="search"
+                        :aria-label="__( 'Search' )"
+                        :placeholder="$searchHint ?? __( 'Search' )"
+                        :aria-describedby="isset( $searchHint ) ? 'resource-table-search-hint' : null"
+                        wire:model.live.debounce.300ms="search"
+                    />
+                    {{-- The placeholder disappears on typing, so the hint is also read out. --}}
+                    @isset( $searchHint )
+                        <span id="resource-table-search-hint" class="apui-sr-only">{{ $searchHint }}</span>
+                    @endisset
+                </div>
 
-            <x-artisanpack-select
-                id="resource-table-per-page"
-                :label="__( 'Rows per page' )"
-                :options="array_map( static fn ( int $value ): array => [ 'id' => $value, 'name' => (string) $value ], $tablePerPageValues )"
-                wire:model.live="perPage"
-            />
-
-            <div class="flex flex-wrap gap-2 ms-auto">
-                @if ( $tableFiltersActive )
-                    <x-artisanpack-button variant="ghost" size="sm" icon="o-x-mark" wire:click="resetFilters" :label="__( 'Clear filters' )" />
+                @if ( [] !== $tableFilters )
+                    <x-artisanpack-button
+                        variant="outline"
+                        color="neutral"
+                        size="sm"
+                        leading-icon="o-adjustments-horizontal"
+                        aria-controls="resource-table-filters"
+                        aria-expanded="{{ $tableFilterCount > 0 ? 'true' : 'false' }}"
+                        x-bind:aria-expanded="filtersOpen ? 'true' : 'false'"
+                        x-on:click="filtersOpen = ! filtersOpen"
+                        data-filters-toggle
+                    >
+                        {{ __( 'Filters' ) }}
+                        @if ( $tableFilterCount > 0 )
+                            <span class="ec-filter-count" aria-hidden="true">{{ $tableFilterCount }}</span>
+                            <span class="apui-sr-only">{{ trans_choice( '(:count filter on)|(:count filters on)', $tableFilterCount, [ 'count' => $tableFilterCount ] ) }}</span>
+                        @endif
+                    </x-artisanpack-button>
                 @endif
 
-                <x-artisanpack-button
-                    variant="outline"
-                    size="sm"
-                    icon="o-arrow-down-tray"
-                    wire:click="exportCsv"
-                    wire:loading.attr="disabled"
-                    :label="__( 'Export CSV' )"
-                />
+                <div class="ec-table-toolbar-end">
+                    {{-- The open drawer has its own Clear filters, so this one steps aside while it shows. --}}
+                    @if ( $tableFiltersActive )
+                        <x-artisanpack-button variant="ghost" color="neutral" size="sm" leading-icon="x" wire:click="resetFilters" x-bind:hidden="{{ $tableFilterCount > 0 ? 'filtersOpen' : 'false' }}" data-toolbar-clear-filters>{{ __( 'Clear filters' ) }}</x-artisanpack-button>
+                    @endif
+
+                    <x-artisanpack-select
+                        placeholder=""
+                        id="resource-table-per-page"
+                        size="sm"
+                        :aria-label="__( 'Rows per page' )"
+                        :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $tablePerPageOptions )"
+                        wire:model.live="perPage"
+                    />
+
+                    <x-artisanpack-button
+                        variant="outline"
+                        color="neutral"
+                        size="sm"
+                        leading-icon="download"
+                        wire:click="exportCsv"
+                        wire:loading.attr="disabled"
+                        wire:target="exportCsv"
+                    >{{ __( 'Export CSV' ) }}</x-artisanpack-button>
+                </div>
             </div>
         </div>
 
         @if ( [] !== $tableFilters )
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" role="group" aria-label="{{ __( 'Filters' ) }}">
+            <div
+                id="resource-table-filters"
+                class="ec-filters"
+                role="group"
+                aria-label="{{ __( 'Filters' ) }}"
+                @if ( 0 === $tableFilterCount ) hidden @endif
+                x-bind:hidden="! filtersOpen"
+            >
                 @foreach ( $tableFilters as $filter )
                     <div wire:key="resource-filter-{{ $filter['key'] }}">
                         @switch ( $filter['type'] )
                             @case( 'text' )
                                 <x-artisanpack-input
                                     id="resource-filter-{{ $filter['key'] }}"
+                                    size="sm"
                                     :label="$filter['label']"
                                     wire:model.live.debounce.300ms="filters.{{ $filter['key'] }}"
                                 />
                                 @break
 
                             @case( 'multiselect' )
-                                <x-artisanpack-choices-offline
+                                <x-artisanpack-combobox
+                                    multiple
                                     id="resource-filter-{{ $filter['key'] }}"
+                                    size="sm"
                                     :label="$filter['label']"
-                                    :options="$filter['options']"
-                                    values-as-string
-                                    searchable
-                                    :no-result-text="__( 'No results found.' )"
+                                    :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $filter['options'] )"
+                                    :empty-label="__( 'No results found.' )"
                                     wire:model.live="filters.{{ $filter['key'] }}"
                                 />
                                 @break
 
                             @case( 'date-range' )
-                                {{-- Two dates until livewire-ui-components ships a range picker (spec §10, U3). --}}
-                                <fieldset class="fieldset">
-                                    <legend class="fieldset-legend">{{ $filter['label'] }}</legend>
-                                    <div class="flex gap-2">
-                                        <x-artisanpack-input
+                                <fieldset class="ec-range">
+                                    <legend>{{ $filter['label'] }}</legend>
+                                    <div class="ec-range-fields">
+                                        <x-artisanpack-date-picker
                                             id="resource-filter-{{ $filter['key'] }}-from"
-                                            type="date"
-                                            :label="__( 'From' )"
+                                            size="sm"
+                                            :aria-label="__( 'From' )"
+                                            :placeholder="__( 'From' )"
                                             wire:model.live="filters.{{ $filter['key'] }}.from"
                                         />
-                                        <x-artisanpack-input
+                                        <span aria-hidden="true">&ndash;</span>
+                                        <x-artisanpack-date-picker
                                             id="resource-filter-{{ $filter['key'] }}-to"
-                                            type="date"
-                                            :label="__( 'To' )"
+                                            size="sm"
+                                            :aria-label="__( 'To' )"
+                                            :placeholder="__( 'To' )"
                                             wire:model.live="filters.{{ $filter['key'] }}.to"
                                         />
                                     </div>
@@ -101,25 +157,30 @@
                                 @break
 
                             @case( 'number-range' )
-                                <fieldset class="fieldset">
-                                    <legend class="fieldset-legend">{{ $filter['label'] }}</legend>
-                                    <div class="flex gap-2">
+                                <fieldset class="ec-range">
+                                    <legend>{{ $filter['label'] }}</legend>
+                                    <div class="ec-range-fields">
                                         <x-artisanpack-input
                                             id="resource-filter-{{ $filter['key'] }}-min"
+                                            size="sm"
                                             type="number"
                                             min="0"
                                             step="any"
                                             inputmode="decimal"
-                                            :label="__( 'Min' )"
+                                            :aria-label="__( 'Min' )"
+                                            :placeholder="__( 'Min' )"
                                             wire:model.live.debounce.500ms="filters.{{ $filter['key'] }}.min"
                                         />
+                                        <span aria-hidden="true">&ndash;</span>
                                         <x-artisanpack-input
                                             id="resource-filter-{{ $filter['key'] }}-max"
+                                            size="sm"
                                             type="number"
                                             min="0"
                                             step="any"
                                             inputmode="decimal"
-                                            :label="__( 'Max' )"
+                                            :aria-label="__( 'Max' )"
+                                            :placeholder="__( 'Max' )"
                                             wire:model.live.debounce.500ms="filters.{{ $filter['key'] }}.max"
                                         />
                                     </div>
@@ -129,78 +190,103 @@
                             @default
                                 <x-artisanpack-select
                                     id="resource-filter-{{ $filter['key'] }}"
+                                    size="sm"
                                     :label="$filter['label']"
-                                    :options="$filter['options']"
+                                    :options="\ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions::from( $filter['options'] )"
                                     :placeholder="__( 'Any' )"
-                                    placeholder-value=""
                                     wire:model.live="filters.{{ $filter['key'] }}"
                                 />
                         @endswitch
                     </div>
                 @endforeach
+
+                @if ( $tableFilterCount > 0 )
+                    <div class="ec-filters-actions">
+                        <x-artisanpack-button variant="ghost" color="neutral" size="sm" leading-icon="x" wire:click="resetFilters">{{ __( 'Clear filters' ) }}</x-artisanpack-button>
+                    </div>
+                @endif
             </div>
         @endif
-    </div>
 
-    <div aria-live="polite">
-        @if ( $tableSelectable && $tableSelectionCount > 0 )
-            <x-artisanpack-ec-bulk-action-bar
-                :count="$tableSelectionCount"
-                :actions="$tableBulkActions"
-                :total="$tableRows->total()"
-                :page-count="$tableRows->count()"
-                :all-matching="$tableAllMatching"
-            >
-                @isset( $bulkControls )
-                    @include( $bulkControls )
-                @endisset
-            </x-artisanpack-ec-bulk-action-bar>
-        @endif
-    </div>
+        @include( 'ecommerce-admin::partials.live-region', [ 'message' => $tableSelectable && $tableSelectionCount > 0 ? ( $tableAllMatching ? trans_choice( 'All :count matching row selected.|All :count matching rows selected.', $tableSelectionCount, [ 'count' => $tableSelectionCount ] ) : trans_choice( ':count row selected.|:count rows selected.', $tableSelectionCount, [ 'count' => $tableSelectionCount ] ) ) : '' ] )
 
-    @if ( null !== $tableConfirming )
-        <div role="alertdialog" aria-modal="false" aria-labelledby="resource-table-confirm-title" aria-describedby="resource-table-confirm-text" class="rounded-box border border-warning bg-base-100 p-4" x-data x-init="$nextTick( () => $el.querySelector( '[data-confirm]' )?.focus() )">
-            <p id="resource-table-confirm-title" class="font-semibold">{{ $tableConfirming['label'] }}</p>
-            <p id="resource-table-confirm-text" class="mb-3">{{ $tableConfirming['confirm'] }}</p>
-            <div class="flex gap-2">
-                <x-artisanpack-button
-                    variant="error"
-                    size="sm"
-                    data-confirm
-                    data-focus-return="bulk-{{ $tableConfirming['key'] }}"
-                    wire:click="confirmBulkAction( {{ \Illuminate\Support\Js::from( $tableConfirmToken ) }} )"
-                    wire:loading.attr="disabled"
-                    :label="__( 'Confirm' )"
-                />
-                <x-artisanpack-button variant="ghost" size="sm" wire:click="cancelBulkAction" data-focus-return="bulk-{{ $tableConfirming['key'] }}" :label="__( 'Cancel' )" />
-            </div>
+        <div>
+            @if ( $tableSelectable && $tableSelectionCount > 0 )
+                <x-artisanpack-ec-bulk-action-bar
+                    :count="$tableSelectionCount"
+                    :actions="array_diff_key( $tableBulkActions, array_flip( $bulkInlineActions ?? [] ) )"
+                    :total="$tableRows->total()"
+                    :page-count="$tableRows->count()"
+                    :all-matching="$tableAllMatching"
+                >
+                    @isset( $bulkControls )
+                        @include( $bulkControls )
+                    @endisset
+                </x-artisanpack-ec-bulk-action-bar>
+            @endif
         </div>
-    @endif
 
-    @if ( 0 === $tableRows->total() )
-        @if ( $tableFiltersActive )
-            <x-artisanpack-ec-empty-state
-                icon="o-magnifying-glass"
-                :title="__( 'No matches' )"
-                :description="__( 'Nothing matches the search and filters. Try a broader search or clear the filters.' )"
+        @if ( null !== $tableConfirming )
+            <div
+                class="ec-confirm"
+                role="alertdialog"
+                aria-modal="false"
+                aria-labelledby="resource-table-confirm-title"
+                aria-describedby="resource-table-confirm-text"
+                x-data
+                x-init="$nextTick( () => $el.querySelector( '[data-confirm]' )?.focus() )"
             >
-                <x-artisanpack-button variant="outline" size="sm" wire:click="resetFilters" :label="__( 'Clear filters' )" />
-            </x-artisanpack-ec-empty-state>
-        @else
-            <x-artisanpack-ec-empty-state :icon="$emptyIcon" :title="$emptyTitle" :description="$emptyDescription" />
+                <x-artisanpack-icon name="triangle-alert" aria-hidden="true" />
+                <div>
+                    <p id="resource-table-confirm-title" class="ec-confirm-title">{{ $tableConfirming['label'] }}</p>
+                    <p id="resource-table-confirm-text">{{ $tableConfirming['confirm'] }}</p>
+                </div>
+                <div class="ec-confirm-actions">
+                    <x-artisanpack-button
+                        color="error"
+                        size="sm"
+                        data-confirm
+                        data-focus-return="bulk-{{ $tableConfirming['key'] }}"
+                        wire:click="confirmBulkAction( {{ \Illuminate\Support\Js::from( $tableConfirmToken ) }} )"
+                        wire:loading.attr="disabled"
+                    >{{ __( 'Confirm' ) }}</x-artisanpack-button>
+                    <x-artisanpack-button variant="ghost" color="neutral" size="sm" wire:click="cancelBulkAction" data-focus-return="bulk-{{ $tableConfirming['key'] }}">{{ __( 'Cancel' ) }}</x-artisanpack-button>
+                </div>
+            </div>
         @endif
-    @else
-        <x-artisanpack-ec-resource-table
-            :columns="$tableColumns"
-            :rows="$tableRows"
-            :caption="$tableCaption"
-            :sort="$tableSort"
-            :direction="$tableDirection"
-            :selectable="$tableSelectable"
-            :row-label="$rowLabel ?? null"
-            :context="$cellContext ?? []"
-        />
 
-        <x-artisanpack-pagination :rows="$tableRows" hide-per-page :page-info-template="__( 'Showing {from} to {to} of {total} results' )" />
-    @endif
+        @if ( 0 === $tableRows->total() )
+            @if ( $tableFiltersActive )
+                <x-artisanpack-ec-admin-empty-state
+                    icon="search-x"
+                    :title="__( 'No matches' )"
+                    :description="__( 'Nothing matches the search and filters. Try a broader search or clear the filters.' )"
+                >
+                    <x-artisanpack-button variant="outline" color="neutral" size="sm" wire:click="resetFilters">{{ __( 'Clear filters' ) }}</x-artisanpack-button>
+                </x-artisanpack-ec-admin-empty-state>
+            @else
+                <x-artisanpack-ec-admin-empty-state :icon="$emptyIcon" :title="$emptyTitle" :description="$emptyDescription">
+                    @isset( $emptyActions )
+                        @include( $emptyActions )
+                    @endisset
+                </x-artisanpack-ec-admin-empty-state>
+            @endif
+        @else
+            <x-artisanpack-ec-resource-table
+                :columns="$tableColumns"
+                :rows="$tableRows"
+                :caption="$tableCaption"
+                :sort="$tableSort"
+                :direction="$tableDirection"
+                :selectable="$tableSelectable"
+                :row-label="$rowLabel ?? null"
+                :context="$cellContext ?? []"
+                :selected="$selected ?? []"
+            />
+
+            <div data-scope="table" data-part="footer">
+                <x-artisanpack-pagination :rows="$tableRows" summary :summary-label="__( 'Showing {from} to {to} of {total} results' )" />
+            </div>
+        @endif
+    </div>
 </div>

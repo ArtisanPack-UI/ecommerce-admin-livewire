@@ -19,13 +19,11 @@ use Illuminate\View\Component;
 /**
  * `<x-artisanpack-ec-bulk-action-bar :count="…" :actions="…" … />`
  *
- * The bar shown while table rows are selected: the selection count, the
- * "select all matching" prompt, the bulk action buttons, and "clear". Extra
- * controls a screen needs (such as a target sub-status) go in the slot.
- *
- * livewire-ui-components has no bulk-action bar yet (spec §10, U4,
- * livewire-ui-components#114), so this composes one. When the library ships
- * one, this is the one file to swap.
+ * The strip a design-system Table shows while rows are selected (#79): the
+ * selection count, the "select all matching" prompt, the bulk action buttons
+ * and "clear". Extra controls a screen needs (such as a target sub-status)
+ * go in the slot. Actions that ask for confirmation are destructive, so they
+ * use the error color.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire

@@ -33,7 +33,8 @@ use Livewire\Component;
  *
  * Mounted with the subject model. Anyone who may view the subject sees its
  * notes; adding one needs the `update` ability on the subject, and deleting
- * one needs `update` on the subject. Order notes carry a
+ * one needs `update` on the subject, and confirms in a dialog first
+ * ({@see self::confirmDelete()}). Order notes carry a
  * "visible to customer" toggle (off by default) that maps to
  * `ecommerce_order_notes.is_customer_visible`; customer notes are always internal.
  *
@@ -119,6 +120,25 @@ class Notes extends Component
     public bool $isCustomerVisible = false;
 
     /**
+     * Whether the delete confirmation dialog is open.
+     *
+     * @since 2.0.0
+     *
+     * @var bool
+     */
+    public bool $confirmingDelete = false;
+
+    /**
+     * The note the delete confirmation was opened for.
+     *
+     * @since 2.0.0
+     *
+     * @var int|null
+     */
+    #[Locked]
+    public ?int $deletingNoteId = null;
+
+    /**
      * The subject, loaded once per request.
      *
      * @since 1.0.0
@@ -176,7 +196,7 @@ class Notes extends Component
 
         $this->authorizeEcommerce( 'update', $subject );
 
-        $this->body = sanitizeText( $this->body );
+        $this->body = trim( $this->body );
 
         $this->validate(
             [
@@ -203,15 +223,15 @@ class Notes extends Component
     }
 
     /**
-     * Deletes a note of this subject.
+     * Opens the delete confirmation for a note of this subject.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
      * @param  int  $noteId  Note id.
      *
      * @return void
      */
-    public function deleteNote( int $noteId ): void
+    public function confirmDelete( int $noteId ): void
     {
         $subject = $this->subject();
         $note    = $this->notesQuery( $subject )->whereKey( $noteId )->first();
@@ -225,6 +245,51 @@ class Notes extends Component
         if ( ! $this->canDelete( $note, $subject ) ) {
             $this->denyEcommerce();
         }
+
+        $this->deletingNoteId   = (int) $note->getKey();
+        $this->confirmingDelete = true;
+    }
+
+    /**
+     * Closes the delete confirmation without deleting.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    public function cancelDelete(): void
+    {
+        $this->reset( 'confirmingDelete', 'deletingNoteId' );
+    }
+
+    /**
+     * Deletes the note the confirmation was opened for.
+     *
+     * The note comes from the locked {@see self::$deletingNoteId}, never
+     * from the client, so only the confirmed note can be deleted.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Deletes the confirmed note instead of taking an id.
+     *
+     * @return void
+     */
+    public function deleteNote(): void
+    {
+        $subject = $this->subject();
+        $note    = null === $this->deletingNoteId ? null : $this->notesQuery( $subject )->whereKey( $this->deletingNoteId )->first();
+
+        if ( null === $note ) {
+            $this->cancelDelete();
+            $this->toastWarning( __( 'That note no longer exists.' ) );
+
+            return;
+        }
+
+        if ( ! $this->canDelete( $note, $subject ) ) {
+            $this->denyEcommerce();
+        }
+
+        $this->cancelDelete();
 
         $note instanceof OrderNote
             ? app( OrderNoteService::class )->delete( $note, $this->actorId() )
@@ -247,17 +312,22 @@ class Notes extends Component
         $notes   = $this->notesQuery( $subject )->orderByDesc( 'created_at' )->orderByDesc( 'id' )->get();
         $authors = UserNames::for( $notes->pluck( 'author_user_id' )->all() );
 
+        $rows    = $notes->map( fn ( Model $note ): array => [
+            'id'        => (int) $note->getKey(),
+            'body'      => (string) $note->getAttribute( 'body' ),
+            'author'    => UserNames::label( null === $note->getAttribute( 'author_user_id' ) ? null : (int) $note->getAttribute( 'author_user_id' ), $authors ),
+            'time'      => $note->getAttribute( 'created_at' ),
+            'visible'   => $note instanceof OrderNote && (bool) $note->is_customer_visible,
+            'canDelete' => $this->canDelete( $note, $subject ),
+        ] )->all();
+
         return view( 'ecommerce-admin::livewire.notes', [
-            'isOrder' => $subject instanceof Order,
-            'canAdd'  => $this->canEcommerce( 'update', $subject ),
-            'notes'   => $notes->map( fn ( Model $note ): array => [
-                'id'        => (int) $note->getKey(),
-                'body'      => (string) $note->getAttribute( 'body' ),
-                'author'    => UserNames::label( null === $note->getAttribute( 'author_user_id' ) ? null : (int) $note->getAttribute( 'author_user_id' ), $authors ),
-                'time'      => $note->getAttribute( 'created_at' ),
-                'visible'   => $note instanceof OrderNote && (bool) $note->is_customer_visible,
-                'canDelete' => $this->canDelete( $note, $subject ),
-            ] )->all(),
+            'isOrder'      => $subject instanceof Order,
+            'canAdd'       => $this->canEcommerce( 'update', $subject ),
+            'notes'        => $rows,
+            'deletingNote' => $this->confirmingDelete && null !== $this->deletingNoteId
+                ? collect( $rows )->firstWhere( 'id', $this->deletingNoteId )
+                : null,
         ] );
     }
 

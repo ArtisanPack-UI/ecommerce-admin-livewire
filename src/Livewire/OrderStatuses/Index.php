@@ -14,7 +14,6 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\OrderStatuses;
 
 use ArtisanPackUI\Ecommerce\Exceptions\OrderSubstatusWriteException;
-use ArtisanPackUI\Ecommerce\Models\Order;
 use ArtisanPackUI\Ecommerce\Models\OrderSubstatus;
 use ArtisanPackUI\Ecommerce\Services\OrderSubstatusService;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
@@ -26,7 +25,6 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\IconChoices;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StatusPresenter;
 use Closure;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -181,9 +179,9 @@ class Index extends Component
      */
     public function edit( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'orderSubstatus.update' );
-
         $substatus = OrderSubstatus::query()->find( $id );
+
+        $this->authorizeSubstatus( 'update', $substatus );
 
         if ( null === $substatus ) {
             return;
@@ -229,7 +227,7 @@ class Index extends Component
                 return;
             }
         } else {
-            $this->authorizeEcommerceAbility( 'orderSubstatus.update', $substatus );
+            $this->authorizeEcommerce( 'update', $substatus );
         }
 
         $this->form['color'] = strtoupper( trim( (string) $this->form['color'] ) );
@@ -254,13 +252,13 @@ class Index extends Component
             ],
             [
                 'form.key.regex'   => __( 'Use lowercase letters, numbers, hyphens, or underscores, like "awaiting-label".' ),
-                'form.color.regex' => __( 'Enter the colour as a hex code like #3B82F6.' ),
+                'form.color.regex' => __( 'Enter the color as a hex code like #3B82F6.' ),
                 'form.icon.in'     => __( 'Choose an icon from the list.' ),
             ],
             [
                 'form.key'         => __( 'key' ),
                 'form.label'       => __( 'label' ),
-                'form.color'       => __( 'colour' ),
+                'form.color'       => __( 'color' ),
                 'form.icon'        => __( 'icon' ),
                 'form.is_terminal' => __( 'terminal' ),
             ],
@@ -313,9 +311,9 @@ class Index extends Component
      */
     public function move( int $id, int $offset ): void
     {
-        $this->authorizeEcommerceAbility( 'orderSubstatus.update' );
-
         $substatus = OrderSubstatus::query()->find( $id );
+
+        $this->authorizeSubstatus( 'update', $substatus );
 
         if ( null === $substatus || ! in_array( $offset, [ -1, 1 ], true ) ) {
             return;
@@ -352,9 +350,11 @@ class Index extends Component
      */
     public function confirmDelete( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'orderSubstatus.delete' );
+        $substatus = OrderSubstatus::query()->find( $id );
 
-        $this->deletingId       = OrderSubstatus::query()->whereKey( $id )->exists() ? $id : null;
+        $this->authorizeSubstatus( 'delete', $substatus );
+
+        $this->deletingId       = null === $substatus ? null : $id;
         $this->confirmingDelete = null !== $this->deletingId;
     }
 
@@ -382,9 +382,9 @@ class Index extends Component
      */
     public function delete( string $token ): void
     {
-        $this->authorizeEcommerceAbility( 'orderSubstatus.delete' );
-
         $substatus = null === $this->deletingId || ! $this->confirmingDelete ? null : OrderSubstatus::query()->find( $this->deletingId );
+
+        $this->authorizeSubstatus( 'delete', $substatus );
 
         if ( null === $substatus ) {
             $this->cancelDelete();
@@ -421,14 +421,7 @@ class Index extends Component
      */
     public function render(): View
     {
-        $substatuses = OrderSubstatus::query()->orderBy( 'position' )->orderBy( 'id' )->get();
-        $orderCounts = Order::query()
-            ->whereNotNull( 'substatus_id' )
-            ->groupBy( 'substatus_id' )
-            ->select( 'substatus_id', DB::raw( 'COUNT(*) as aggregate' ) )
-            ->pluck( 'aggregate', 'substatus_id' )
-            ->all();
-
+        $substatuses  = OrderSubstatus::query()->orderBy( 'position' )->orderBy( 'id' )->get();
         $systemLabels = StatusPresenter::statuses( 'system' );
         $groups       = [];
 
@@ -444,23 +437,45 @@ class Index extends Component
         $usage    = null === $deleting ? null : app( OrderSubstatusService::class )->usage( $deleting );
         $isLast   = null !== $deleting && $substatuses->where( 'system_status', $deleting->system_status )->count() <= 1;
         $editing  = null === $this->substatusId ? null : $substatuses->firstWhere( 'id', $this->substatusId );
+        $color    = strtoupper( trim( (string) $this->form['color'] ) );
 
         return view( 'ecommerce-admin::livewire.order-statuses.index', [
-            'groups'           => $groups,
-            'orderCounts'      => $orderCounts,
-            'canCreate'        => $this->canEcommerce( 'create', OrderSubstatus::class ),
-            'canUpdate'        => Authorization::allows( auth()->user(), 'orderSubstatus.update' ),
-            'canDelete'        => Authorization::allows( auth()->user(), 'orderSubstatus.delete' ),
-            'formStatusLabel'  => $systemLabels[ $this->form['system_status'] ][0] ?? '',
-            'editingSubstatus' => $editing,
-            'contrastWarning'  => ColorContrast::warning( strtoupper( trim( (string) $this->form['color'] ) ) ),
-            'iconPicker'       => IconChoices::isAvailable(),
-            'iconOptions'      => IconChoices::isAvailable() ? IconChoices::options( (string) $this->form['icon'] ) : [],
-            'deleting'         => $deleting,
-            'deletingUsage'    => $usage,
-            'deletingIsLast'   => $isLast,
-            'deleteBlocked'    => null !== $usage && ( array_sum( $usage ) > 0 || $isLast ),
-            'deleteToken'      => null === $deleting ? null : $this->actionToken( 'delete', $deleting ),
+            'groups'              => $groups,
+            'canCreate'           => $this->canEcommerce( 'create', OrderSubstatus::class ),
+            'canUpdate'           => Authorization::allows( auth()->user(), 'orderSubstatus.update' ),
+            'canDelete'           => Authorization::allows( auth()->user(), 'orderSubstatus.delete' ),
+            'formStatusLabel'     => $systemLabels[ $this->form['system_status'] ][0] ?? '',
+            'editingSubstatus'    => $editing,
+            'contrastWarning'     => ColorContrast::warning( $color ),
+            'previewColor'        => '' === $color ? null : ( 1 === preg_match( '/^#[0-9A-F]{6}$/', $color ) ? $color : $editing?->color ),
+            'iconPicker'          => IconChoices::isAvailable(),
+            'iconOptions'         => IconChoices::isAvailable() ? IconChoices::options( (string) $this->form['icon'] ) : [],
+            'deleting'            => $deleting,
+            'deletingUsage'       => $usage,
+            'deletingIsLast'      => $isLast,
+            'deletingStatusLabel' => null === $deleting ? '' : ( $systemLabels[ $deleting->system_status ][0] ?? (string) $deleting->system_status ),
+            'deleteBlocked'       => null !== $usage && ( array_sum( $usage ) > 0 || $isLast ),
+            'deleteToken'         => null === $deleting ? null : $this->actionToken( 'delete', $deleting ),
         ] );
+    }
+
+    /**
+     * Authorizes an action on a sub-status through its policy, so a
+     * per-record decision applies. When the sub-status no longer exists the
+     * bare `orderSubstatus.{action}` ability is checked instead, so the
+     * caller can bail out quietly.
+     *
+     * @since 2.0.0
+     *
+     * @param  string               $action     `update` or `delete`.
+     * @param  OrderSubstatus|null  $substatus  The sub-status, or null when it is gone.
+     *
+     * @return void
+     */
+    private function authorizeSubstatus( string $action, ?OrderSubstatus $substatus ): void
+    {
+        null === $substatus
+            ? $this->authorizeEcommerceAbility( 'orderSubstatus.' . $action )
+            : $this->authorizeEcommerce( $action, $substatus );
     }
 }

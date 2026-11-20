@@ -1,5 +1,6 @@
 ---
 title: Layout
+menu_order: 110
 ---
 
 # Layout
@@ -28,7 +29,7 @@ addFilter( 'ap.ecommerceAdminLivewire.layout.viteEntries', function ( array $ent
 } );
 ```
 
-Add the entries to your `vite.config.js` `input`, and put the admin's `@source` lines and scripts in them. See [Front-End Setup](Installation-Front-End).
+Add the entries to your `vite.config.js` `input`, and put the admin's `@source` lines and scripts in them. See [Front-End Setup](../installation/front-end.md).
 
 ## When your layout already loads the build
 
@@ -40,4 +41,4 @@ addFilter( 'ap.ecommerceAdminLivewire.layout.viteEntries', fn (): array => [] );
 
 ## Changing the layout itself
 
-Publish the views (`php artisan vendor:publish --tag=ecommerce-admin-views`) and edit `layouts/app.blade.php`, or point pages at your own layout. See [Layouts](Installation-Layouts) for the contract a layout must keep.
+Publish the views (`php artisan vendor:publish --tag=ecommerce-admin-views`) and edit `layouts/app.blade.php`, or point pages at your own layout. See [Layouts](../installation/layouts.md) for the contract a layout must keep.

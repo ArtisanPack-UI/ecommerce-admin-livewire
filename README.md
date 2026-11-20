@@ -11,7 +11,7 @@ action checks the engine's abilities, and other packages extend it through regis
 
 ![The store admin dashboard: key figures for sales, orders awaiting fulfillment, low stock, and reviews to moderate, a 30-day sales sparkline, the lowest-stock items, and recent orders](docs/images/dashboard.png)
 
-![An order's detail page: status badges, the items table, totals in the order currency and the store currency, and fulfillment with a shipment in transit, beside a status panel for changing status and sub-status or cancelling the order](docs/images/order.png)
+![An order's detail page: status badges, the items table, totals in the order currency and the store currency, and fulfillment with a shipment in transit, beside a status panel for changing status and sub-status or canceling the order](docs/images/order.png)
 
 ![The product form editing a simple product, on the General tab with name, slug, type, status, publish date, short description, and a rich-text description editor](docs/images/product-form.png)
 
@@ -19,15 +19,15 @@ action checks the engine's abilities, and other packages extend it through regis
 
 ## Requirements
 
-- PHP 8.3+ with `bcmath`
+- PHP 8.3+ with `bcmath` and `intl`
 - Laravel 12 or 13
 - Livewire 3.6+ or 4
 - `artisanpack-ui/ecommerce` 1.0
-- `artisanpack-ui/livewire-ui-components` 2.1
-- Tailwind CSS 4 and daisyUI 5 (`~5.0`) in your application's Vite build
+- `artisanpack-ui/livewire-ui-components` 3.0
+- Tailwind CSS 4 and the ArtisanPack UI design system (`@artisanpack-ui/css` and `@artisanpack-ui/behavior`) in your
+  application's Vite build
 
-Optional: `artisanpack-ui/cms-framework`, `artisanpack-ui/media-library`, `artisanpack-ui/icons`,
-`artisanpack-ui/accessibility`, `artisanpack-ui/ecommerce-kanban-livewire`, `phpoffice/phpspreadsheet` (XLSX export),
+Optional: `artisanpack-ui/cms-framework`, `artisanpack-ui/media-library`, `artisanpack-ui/ecommerce-kanban-livewire`, `phpoffice/phpspreadsheet` (XLSX export),
 `barryvdh/laravel-dompdf` (PDF export). See [Requirements](docs/installation/requirements.md).
 
 ## Installation
@@ -64,37 +64,47 @@ Add your 2FA middleware to `admin.middleware`. Neither the engine nor the admin 
 
 ## Front-end setup
 
-The package ships no CSS or JavaScript build. In your application:
+The admin renders on the ArtisanPack UI design system. The package ships no CSS or JavaScript build. In your application:
 
-1. Add the `@source` lines the install command prints to your Tailwind entry:
-
-   ```css
-   @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/resources/views/**/*.blade.php";
-   @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/src/**/*.php";
-   ```
-
-2. Install and import the scripts the components need:
+1. Remove daisyUI if nothing else uses it, and install the design system:
 
    ```bash
-   npm install @artisanpack-ui/livewire-drag-and-drop apexcharts flatpickr
+   npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop@^2
    ```
 
-   Import `@artisanpack-ui/livewire-drag-and-drop`, set `window.ApexCharts` and `window.flatpickr`, and import the
-   component library's `sparkline.js` and `tinymce-editor.js`.
+2. Add the lines the install command prints to your main stylesheet. The `@layer` line comes first:
 
-3. Publish TinyMCE for the description editor with `php artisan vendor:publish --tag=artisanpack-assets` and load
+   ```css
+   @layer theme, base, apui, components, utilities;
+   @import 'tailwindcss';
+   @import '@artisanpack-ui/css';
+
+   @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/resources/views/**/*.blade.php";
+   @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/src/**/*.php";
+   @source "../../vendor/artisanpack-ui/livewire-ui-components/resources/views/**/*.php";
+   @source "../../vendor/artisanpack-ui/livewire-ui-components/src/**/*.php";
+   ```
+
+3. Register the behavior engine and drag-and-drop in `resources/js/app.js`:
+
+   ```js
+   import apuiBehavior from '@artisanpack-ui/behavior/alpine';
+   import '@artisanpack-ui/livewire-drag-and-drop';
+
+   document.addEventListener( 'alpine:init', () => window.Alpine.plugin( apuiBehavior ) );
+   ```
+
+4. Publish TinyMCE for the description editor with `php artisan vendor:publish --tag=artisanpack-assets` and load
    `/vendor/artisanpack-ui/js/tinymce/tinymce.min.js`.
 
-4. Pin `daisyui` to `~5.0`. Later releases leave the component library's tab panels empty
-   ([livewire-ui-components#119](https://github.com/ArtisanPack-UI/livewire-ui-components/issues/119)).
-
 The layout loads your `resources/css/app.css` and `resources/js/app.js`. See
-[Front-End Setup](docs/installation/front-end.md) for the full steps and a working reference.
+[Front-End Setup](docs/installation/front-end.md) for the full steps and a working reference, and
+[Upgrading](docs/upgrading.md) when moving from 1.x.
 
 ## Documentation
 
 - [Documentation home](docs/home.md)
-- [Quick start guide](docs/getting-started.md)
+- [Getting started](docs/getting-started.md)
 - [Installation](docs/installation.md): [requirements](docs/installation/requirements.md),
   [configuration](docs/installation/configuration.md), [front-end setup](docs/installation/front-end.md),
   [layouts](docs/installation/layouts.md)
@@ -102,10 +112,11 @@ The layout loads your `resources/css/app.css` and `resources/js/app.js`. See
   [command palette](docs/usage/command-palette.md), [real-time updates](docs/usage/real-time.md),
   [product CSV](docs/usage/product-csv.md)
 - [Authorization](docs/authorization.md)
-- [Extending](docs/extending.md) and the [hooks reference](docs/extending/hooks-reference.md)
+- [Extending](docs/extending.md)
 - [Accessibility](docs/accessibility.md) and [localization](docs/localization.md)
-- [Advanced](docs/advanced.md): [Artisan commands](docs/advanced/artisan-commands.md),
-  [browser tests](docs/advanced/browser-tests.md)
+- [Advanced](docs/advanced.md)
+- [Reference](docs/reference.md): [hooks](docs/reference/hooks.md), [Artisan commands](docs/reference/commands.md)
+- [Upgrading](docs/upgrading.md) from 1.x to 2.0
 - [FAQ](docs/faq.md) and [troubleshooting](docs/troubleshooting.md)
 
 ## Contributing
@@ -116,7 +127,7 @@ guidelines](CONTRIBUTING.md) to learn more about how you can contribute to this 
 ```bash
 composer test           # unit and feature tests
 composer lint           # php-cs-fixer (dry run) and phpcs
-composer test:browser   # browser suite; see docs/advanced/browser-tests.md
+composer test:browser   # browser suite; see CONTRIBUTING.md
 composer ecommerce:verify-satellite  # the engine's satellite contract verification
 ```
 

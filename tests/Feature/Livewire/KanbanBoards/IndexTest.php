@@ -37,6 +37,45 @@ it( 'shows an empty state without boards', function (): void {
     Livewire::test( Index::class )->assertSee( 'No kanban boards yet' );
 } );
 
+it( 'numbers the boards in routing order and shows the key, column and card counts', function (): void {
+    $production = KanbanBoard::factory()->asDefault()->create( [ 'key' => 'production', 'name' => 'Production', 'position' => 0, 'description' => 'Orders that need printing' ] );
+    KanbanBoard::factory()->create( [ 'key' => 'wholesale', 'name' => 'Wholesale', 'position' => 1, 'routing_rules' => [ [ 'type' => 'channel', 'value' => 'wholesale' ] ] ] );
+    OrderBoardAssignment::factory()->count( 3 )->create( [ 'board_id' => $production->id ] );
+
+    Livewire::test( Index::class )
+        ->assertSeeHtml( 'aria-label="Kanban boards, in routing order"' )
+        ->assertSeeInOrder( [ 'Production', 'Orders that need printing', 'production', '0 columns', '3 cards', 'Wholesale', 'wholesale', '0 cards' ] )
+        ->assertSeeHtml( 'data-routing-board' )
+        ->assertDontSee( 'automations' );
+} );
+
+it( 'offers Make default only on active boards that are not the default', function (): void {
+    KanbanBoard::factory()->asDefault()->create( [ 'name' => 'Main', 'position' => 0 ] );
+    KanbanBoard::factory()->inactive()->create( [ 'name' => 'Paused', 'position' => 1 ] );
+    KanbanBoard::factory()->create( [ 'name' => 'Print', 'position' => 2 ] );
+
+    Livewire::test( Index::class )
+        ->assertSeeHtml( 'Make default: Print' )
+        ->assertDontSeeHtml( 'Make default: Main' )
+        ->assertDontSeeHtml( 'Make default: Paused' );
+} );
+
+it( 'offers Add board in the empty state only to staff who may create', function (): void {
+    Livewire::test( Index::class )->assertSeeHtml( 'data-empty-new-board' );
+
+    Gate::define( 'ecommerce.kanbanBoard.create', static fn (): bool => false );
+
+    Livewire::test( Index::class )->assertDontSeeHtml( 'data-empty-new-board' );
+} );
+
+it( 'opens the new board dialog with the form', function (): void {
+    Livewire::test( Index::class )
+        ->assertDontSeeHtml( 'data-board-form' )
+        ->call( 'create' )
+        ->assertSeeHtml( 'data-board-form' )
+        ->assertSee( 'Create board' );
+} );
+
 it( 'is denied without kanbanBoard.viewAny', function (): void {
     Gate::define( 'ecommerce.kanbanBoard.viewAny', static fn (): bool => false );
 
@@ -288,4 +327,18 @@ it( 'lets the last board be deleted', function (): void {
     $component->call( 'delete', $component->viewData( 'deleteToken' ) );
 
     expect( KanbanBoard::query()->count() )->toBe( 0 );
+} );
+
+it( 'keeps angle brackets in a new board name and description intact (REL-10)', function (): void {
+    Livewire::test( Index::class )
+        ->call( 'create' )
+        ->set( 'form.name', "  Spend <\$50\x07 " )
+        ->set( 'form.key', 'small-orders' )
+        ->set( 'form.description', 'Parcels <3 kg for O<Brien' )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( KanbanBoard::query()->where( 'key', 'small-orders' )->sole() )
+        ->name->toBe( 'Spend <$50' )
+        ->description->toBe( 'Parcels <3 kg for O<Brien' );
 } );

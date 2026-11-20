@@ -31,8 +31,15 @@ use Throwable;
  * ```
  *
  * The action wraps its write in `withActionToken()`. The token is consumed
- * first (a unique index makes that atomic), so a reused token is a no-op with
- * a notice, and a write that throws releases the token for a retry.
+ * first, in its own autocommitted insert (the unique index makes it atomic),
+ * so a reused or concurrently resubmitted token is a no-op with a notice. A
+ * write that throws releases the token for a retry and rethrows.
+ *
+ * Releasing on every exception assumes a failed write did nothing. When a
+ * write can fail after its side effect (a carrier or gateway call that timed
+ * out but may have gone through), pass `$releaseOn`: only those exception
+ * classes release the token, and any other failure keeps it spent, so the
+ * user reloads (getting a fresh token) after checking what happened.
  *
  * The write does **not** run inside a transaction: engine services such as
  * `RefundService::issue()` and `ShipmentService::buyLabel()` call the
@@ -69,20 +76,24 @@ trait WithActionToken
      *
      * Returns null without running `$write` when the token is invalid,
      * expired, or already used; the user gets a notice instead. When
-     * `$write` throws, the token is released so the user can retry.
+     * `$write` throws, the exception is rethrown, and the token is released
+     * so the user can retry: always, or, when `$releaseOn` is given, only
+     * for an exception that is an instance of one of those classes.
      *
      * @since 1.0.0
+     * @since 2.0.0 Added the `$releaseOn` parameter.
      *
      * @template TResult
      *
-     * @param  string                $token    The token the client sent back.
-     * @param  string                $action   The action name it was minted for.
-     * @param  callable(): TResult   $write    The write.
-     * @param  mixed|null            $subject  The subject it was minted for.
+     * @param  string                                 $token      The token the client sent back.
+     * @param  string                                 $action     The action name it was minted for.
+     * @param  callable(): TResult                    $write      The write.
+     * @param  mixed|null                             $subject    The subject it was minted for.
+     * @param  array<int, class-string<Throwable>>|null  $releaseOn  The exceptions that release the token; null releases on any.
      *
      * @return TResult|null
      */
-    protected function withActionToken( string $token, string $action, callable $write, mixed $subject = null ): mixed
+    protected function withActionToken( string $token, string $action, callable $write, mixed $subject = null, ?array $releaseOn = null ): mixed
     {
         $user  = auth()->user();
         $scope = $this->actionTokenScope( $action, $subject );
@@ -108,10 +119,37 @@ trait WithActionToken
         try {
             return $write();
         } catch ( Throwable $exception ) {
-            ActionTokens::release( $user, $action, $token );
+            if ( self::releasesActionToken( $exception, $releaseOn ) ) {
+                ActionTokens::release( $user, $action, $token );
+            }
 
             throw $exception;
         }
+    }
+
+    /**
+     * Whether a failed write frees its token.
+     *
+     * @since 2.0.0
+     *
+     * @param  Throwable                                 $exception  What the write threw.
+     * @param  array<int, class-string<Throwable>>|null  $releaseOn  The exceptions that release the token; null releases on any.
+     *
+     * @return bool
+     */
+    private static function releasesActionToken( Throwable $exception, ?array $releaseOn ): bool
+    {
+        if ( null === $releaseOn ) {
+            return true;
+        }
+
+        foreach ( $releaseOn as $class ) {
+            if ( is_string( $class ) && $exception instanceof $class ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

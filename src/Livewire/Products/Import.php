@@ -47,7 +47,8 @@ use Throwable;
  * - The uploaded file is deleted when the import completes or is discarded.
  *
  * The screen needs `product.create` or `product.update`; each row then
- * needs `product.create` or `product.update` for what it does.
+ * needs `product.create` or `product.update` for what it does, and stock
+ * columns are skipped without `inventory.adjust`.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -78,6 +79,24 @@ class Import extends Component
      * @var int
      */
     public const REPORT_PREVIEW = 100;
+
+    /**
+     * Columns a row can be matched on; the mapping must fill one of them.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const KEY_COLUMNS = [ 'sku', 'slug', 'name', 'variant_sku' ];
+
+    /**
+     * Longest first-row value kept for the column matching.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const SAMPLE_LENGTH = 80;
 
     /**
      * The uploaded CSV.
@@ -142,13 +161,29 @@ class Import extends Component
     }
 
     /**
-     * Stores the upload and moves on to the column mapping.
+     * Clears the mapping's errors when a column changes, so a stale error
+     * from the last check doesn't hide the key-column warning.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
      * @return void
      */
-    public function upload(): void
+    public function updatedMapping(): void
+    {
+        $this->resetErrorBag( [ 'mapping', ...array_map( static fn ( int|string $index ): string => 'mapping.' . $index, array_keys( $this->mapping ) ) ] );
+    }
+
+    /**
+     * Stores the upload and moves on to the column mapping.
+     *
+     * Not named `upload`: `$wire.upload()` is Livewire's own file-upload
+     * call, so `wire:submit="upload"` started an upload with no file.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    public function uploadCsv(): void
     {
         $this->authorizeScreen();
 
@@ -159,7 +194,7 @@ class Import extends Component
         );
 
         $error = Csv::withLocalUpload( $this->csv, function ( string $path ): ?string {
-            $read = Csv::read( $path, 0 );
+            $read = Csv::read( $path, 1 );
 
             if ( [] === $read['headers'] || 0 === $read['total'] ) {
                 return __( 'The file has no rows.' );
@@ -173,7 +208,9 @@ class Import extends Component
                 return __( 'Two columns in the file have the same header.' );
             }
 
-            $state = ProductImports::create( (string) auth()->id(), $path, $this->csv->getClientOriginalName(), $read['headers'], $read['total'] );
+            $state           = ProductImports::create( (string) auth()->id(), $path, $this->csv->getClientOriginalName(), $read['headers'], $read['total'] );
+            $state['sample'] = self::sampleRow( $read['headers'], (array) ( $read['rows'][0] ?? [] ) );
+            $state           = ProductImports::save( $state );
 
             $this->importId = (string) $state['id'];
             $this->mapping  = self::positional( $state );
@@ -231,13 +268,14 @@ class Import extends Component
             return;
         }
 
-        if ( [] === array_intersect( $used, [ 'sku', 'slug', 'name', 'variant_sku' ] ) ) {
+        if ( [] === array_intersect( $used, self::KEY_COLUMNS ) ) {
             $this->addError( 'mapping', __( 'Map at least one of SKU, slug, name, or variant SKU so rows can be matched.' ) );
 
             return;
         }
 
         $state['mapping'] = $mapping;
+        $state['message'] = null;
         $state['report']  = ProductImports::withSource( $state, static function ( string $path ) use ( $mapping ): array {
             $context = [];
             $rows    = [];
@@ -395,26 +433,34 @@ class Import extends Component
      */
     public function render(): View
     {
-        $state  = $this->state();
-        $report = (array) ( $state['report'] ?? [] );
-        $rows   = (array) ( $report['rows'] ?? [] );
+        $state    = $this->state();
+        $report   = (array) ( $state['report'] ?? [] );
+        $rows     = (array) ( $report['rows'] ?? [] );
+        $progress = null === $state || 0 === (int) $state['total'] ? 0 : (int) floor( 100 * (int) $state['processed'] / (int) $state['total'] );
 
         return view( 'ecommerce-admin::livewire.products.import', [
             'state'         => $state,
             'step'          => null === $state ? 'upload' : (string) $state['status'],
-            'columnOptions' => array_map( static fn ( string $key, string $label ): array => [ 'id' => $key, 'name' => $label . ' (' . $key . ')' ], array_keys( ProductCsv::columns() ), ProductCsv::columns() ),
+            'columnOptions' => array_map( static fn ( string $key, string $label ): array => [ 'id' => $key, 'name' => $label ], array_keys( ProductCsv::columns() ), ProductCsv::columns() ),
+            'sample'        => array_values( array_map( 'strval', (array) ( $state['sample'] ?? [] ) ) ),
+            'hasKeyColumn'  => [] !== array_intersect( array_filter( array_map( static fn ( mixed $column ): string => is_string( $column ) ? $column : '', $this->mapping ) ), self::KEY_COLUMNS ),
             'reportCounts'  => (array) ( $report['counts'] ?? [] ),
             'reportErrors'  => array_values( array_filter( $rows, static fn ( array $row ): bool => 'error' === $row['action'] ) ),
             'reportPreview' => array_slice( array_values( array_filter( $rows, static fn ( array $row ): bool => 'error' !== $row['action'] ) ), 0, self::REPORT_PREVIEW ),
             'applyToken'    => null !== $state && 'checked' === $state['status'] ? $this->actionToken( 'apply', $state['id'] ) : null,
-            'progress'      => null === $state || 0 === (int) $state['total'] ? 0 : (int) floor( 100 * (int) $state['processed'] / (int) $state['total'] ),
+            'progress'      => $progress,
+            'announcement'  => self::announcement( $state, $progress ),
+            'stockSkipped'  => (int) ( $state['warnings']['stock'] ?? 0 ),
+            'stockWarning'  => null !== $state && 'checked' === $state['status'] && $this->mapsStock( (array) $state['mapping'] ) && ! Authorization::allows( auth()->user(), 'inventory.adjust' ),
             'maxRows'       => self::maxRows(),
             'maxUploadMb'   => (int) ( self::MAX_UPLOAD_KB / 1024 ),
         ] );
     }
 
     /**
-     * The import in progress, when it belongs to this user.
+     * The import in progress, when it belongs to this user. One whose worker
+     * died (see {@see ProductImports::isAbandoned()}) comes back failed, so it
+     * can be resumed or discarded.
      *
      * @since 1.0.0
      *
@@ -422,7 +468,46 @@ class Import extends Component
      */
     protected function state(): ?array
     {
-        return null === $this->importId ? null : ProductImports::findFor( $this->importId, auth()->id() );
+        $state = null === $this->importId ? null : ProductImports::findFor( $this->importId, auth()->id() );
+
+        return null === $state ? null : ProductImports::failIfAbandoned( $state );
+    }
+
+    /**
+     * Whether a mapping fills any stock column.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, string>  $mapping  Header => column.
+     *
+     * @return bool
+     */
+    protected function mapsStock( array $mapping ): bool
+    {
+        return [] !== array_intersect( array_values( $mapping ), ProductCsv::STOCK_COLUMNS );
+    }
+
+    /**
+     * What the progress live region says. It changes only when the status
+     * changes or the import passes a quarter mark, so a screen reader is
+     * not interrupted on every five-second poll.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>|null  $state     State.
+     * @param  int                        $progress  Percent done.
+     *
+     * @return string
+     */
+    protected static function announcement( ?array $state, int $progress ): string
+    {
+        return match ( $state['status'] ?? null ) {
+            'queued'    => __( 'Waiting for the queue to start the import.' ),
+            'running'   => __( 'Importing: :percent percent done.', [ 'percent' => intdiv( $progress, 25 ) * 25 ] ),
+            'completed' => __( 'The import is complete.' ),
+            'failed'    => __( 'The import stopped.' ),
+            default     => '',
+        };
     }
 
     /**
@@ -454,6 +539,30 @@ class Import extends Component
         return array_map(
             static fn ( mixed $header ): string => (string) ( $state['mapping'][ (string) $header ] ?? '' ),
             array_values( (array) $state['headers'] ),
+        );
+    }
+
+    /**
+     * The file's first data row in header order, each value cut to
+     * {@see self::SAMPLE_LENGTH} characters, for the column matching.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, string>          $headers  Headers.
+     * @param  array<string, int|string>   $row      The first row, keyed by header.
+     *
+     * @return array<int, string>
+     */
+    protected static function sampleRow( array $headers, array $row ): array
+    {
+        return array_map(
+            static function ( string $header ) use ( $row ): string {
+                // The state is saved as JSON, which a stray non-UTF-8 byte (a Windows-1252 "é") would fail and wipe.
+                $value = mb_scrub( Csv::uncell( (string) ( $row[ $header ] ?? '' ) ), 'UTF-8' );
+
+                return mb_strlen( $value ) > self::SAMPLE_LENGTH ? mb_substr( $value, 0, self::SAMPLE_LENGTH - 1 ) . '…' : $value;
+            },
+            array_values( $headers ),
         );
     }
 

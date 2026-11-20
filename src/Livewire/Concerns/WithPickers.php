@@ -148,13 +148,6 @@ trait WithPickers
     }
 
     /**
-     * How many options a search returns.
-     *
-     * @since 1.0.0
-     *
-     * @return int
-     */
-    /**
      * Whether `$field` is a property path into one of this component's public
      * properties (not the picker cache itself).
      *
@@ -181,6 +174,13 @@ trait WithPickers
         return $property->isPublic() && ! $property->isStatic();
     }
 
+    /**
+     * How many options a search returns.
+     *
+     * @since 1.0.0
+     *
+     * @return int
+     */
     protected static function pickerLimit(): int
     {
         return 20;
@@ -211,7 +211,8 @@ trait WithPickers
     /**
      * The selected ids of the property a picker is bound to.
      *
-     * Only public component properties can be read.
+     * Only public component properties can be read. The value comes from
+     * the client, so at most {@see PickerSource::MAX_IDS} ids are returned.
      *
      * @since 1.0.0
      *
@@ -227,19 +228,13 @@ trait WithPickers
 
         $value = data_get( $this->all(), $field );
 
-        return array_values( array_filter( (array) $value, static fn ( mixed $id ): bool => is_int( $id ) || is_string( $id ) ) );
+        return array_slice(
+            array_values( array_filter( (array) $value, static fn ( mixed $id ): bool => is_int( $id ) || is_string( $id ) ) ),
+            0,
+            PickerSource::MAX_IDS,
+        );
     }
 
-    /**
-     * Selected options first, then results, without duplicates.
-     *
-     * @since 1.0.0
-     *
-     * @param  array<int, array<string, mixed>>  $selected  The selected options.
-     * @param  array<int, array<string, mixed>>  $results   The search results.
-     *
-     * @return array<int, array<string, mixed>>
-     */
     /**
      * The options minus the ids {@see self::pickerExcludedIds()} names.
      *
@@ -262,6 +257,16 @@ trait WithPickers
         return array_values( array_filter( $options, static fn ( array $option ): bool => ! in_array( (string) $option['id'], $excluded, true ) ) );
     }
 
+    /**
+     * Selected options first, then results, without duplicates.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<int, array<string, mixed>>  $selected  The selected options.
+     * @param  array<int, array<string, mixed>>  $results   The search results.
+     *
+     * @return array<int, array<string, mixed>>
+     */
     private function mergePickerOptions( array $selected, array $results ): array
     {
         $merged = [];

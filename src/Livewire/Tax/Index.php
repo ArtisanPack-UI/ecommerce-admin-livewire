@@ -792,6 +792,7 @@ class Index extends Component
             'deletingBlocker'  => null === $deletingClass ? null : self::classBlocker( $deletingClass ),
             'deleteClassToken' => null === $deletingClass ? null : $this->actionToken( 'delete-class', $deletingClass ),
             'importToken'      => null === $this->importReport ? null : $this->actionToken( 'import' ),
+            'hasRates'         => TaxRate::query()->exists(),
             'maxRows'          => self::maxRows(),
             'csvColumns'       => TaxRateCsv::COLUMNS,
         ] );
@@ -838,13 +839,43 @@ class Index extends Component
         }
 
         $usage = self::classUsage( [ $key ] )[ $key ];
-        $parts = array_filter( [
+        $parts = array_values( array_filter( [
             $usage['rates'] > 0 ? trans_choice( ':count rate|:count rates', $usage['rates'], [ 'count' => $usage['rates'] ] ) : null,
             $usage['products'] > 0 ? trans_choice( ':count product|:count products', $usage['products'], [ 'count' => $usage['products'] ] ) : null,
             $usage['methods'] > 0 ? trans_choice( ':count shipping method|:count shipping methods', $usage['methods'], [ 'count' => $usage['methods'] ] ) : null,
-        ] );
+        ] ) );
 
-        return [] === $parts ? null : __( 'It is still used by :uses. Move them to another class first.', [ 'uses' => implode( ', ', $parts ) ] );
+        if ( [] === $parts ) {
+            return null;
+        }
+
+        $last = array_pop( $parts );
+        $uses = [] === $parts ? $last : __( ':list and :last', [ 'list' => implode( ', ', $parts ), 'last' => $last ] );
+        $one  = [] === $parts && 1 === $usage['rates'] + $usage['products'] + $usage['methods'];
+
+        return trans_choice(
+            '{1} :uses uses it. Move it to another class first.|[2,*] :uses use it. Move them to another class first.',
+            $one ? 1 : 2,
+            [ 'uses' => $uses ],
+        );
+    }
+
+    /**
+     * What uses a class, for its "Used by" cell: every count, zeros included.
+     *
+     * @since 2.0.0
+     *
+     * @param  array{rates: int, products: int, methods: int}  $usage  The class's usage from classUsage().
+     *
+     * @return string
+     */
+    public static function usageSummary( array $usage ): string
+    {
+        return implode( ' · ', [
+            trans_choice( ':count rate|:count rates', $usage['rates'], [ 'count' => $usage['rates'] ] ),
+            trans_choice( ':count product|:count products', $usage['products'], [ 'count' => $usage['products'] ] ),
+            trans_choice( ':count shipping method|:count shipping methods', $usage['methods'], [ 'count' => $usage['methods'] ] ),
+        ] );
     }
 
     /**
@@ -964,13 +995,13 @@ class Index extends Component
             [ 'key' => 'country', 'label' => __( 'Country' ), 'sortable' => true, 'view' => $cell, 'export' => static fn ( TaxRate $rate ): string => (string) $rate->country_code ],
             [ 'key' => 'region', 'label' => __( 'Region' ), 'sortable' => true, 'view' => $cell, 'export' => static fn ( TaxRate $rate ): string => (string) ( $rate->region_code ?? '' ) ],
             [ 'key' => 'postal', 'label' => __( 'Postal codes' ), 'view' => $cell, 'export' => static fn ( TaxRate $rate ): string => (string) ( $rate->postal_pattern ?? '' ) ],
-            [ 'key' => 'rate', 'label' => __( 'Rate' ), 'sortable' => true, 'class' => 'text-end', 'view' => $cell, 'export' => static fn ( TaxRate $rate ): string => $rate->percent() ],
+            [ 'key' => 'rate', 'label' => __( 'Rate' ), 'sortable' => true, 'numeric' => true, 'view' => $cell, 'export' => static fn ( TaxRate $rate ): string => $rate->percent() ],
             [ 'key' => 'label', 'label' => __( 'Label' ), 'sortable' => true, 'view' => $cell, 'export' => static fn ( TaxRate $rate ): string => (string) $rate->label ],
             [ 'key' => 'compound', 'label' => __( 'Compound' ), 'view' => $cell, 'export' => static fn ( TaxRate $rate ): string => $yes( (bool) $rate->is_compound ) ],
             [ 'key' => 'shipping', 'label' => __( 'Taxes shipping' ), 'view' => $cell, 'export' => static fn ( TaxRate $rate ): string => $yes( (bool) $rate->is_shipping_taxable ) ],
-            [ 'key' => 'priority', 'label' => __( 'Priority' ), 'sortable' => true, 'class' => 'text-end', 'view' => $cell, 'export' => static fn ( TaxRate $rate ): int => (int) $rate->priority ],
+            [ 'key' => 'priority', 'label' => __( 'Priority' ), 'sortable' => true, 'numeric' => true, 'view' => $cell, 'export' => static fn ( TaxRate $rate ): int => (int) $rate->priority ],
             [ 'key' => 'active', 'label' => __( 'Active' ), 'view' => $cell, 'export' => static fn ( TaxRate $rate ): string => $yes( (bool) $rate->is_active ) ],
-            [ 'key' => 'actions', 'label' => __( 'Actions' ), 'class' => 'text-end', 'view' => $cell, 'exportable' => false ],
+            [ 'key' => 'actions', 'label' => __( 'Actions' ), 'labelHidden' => true, 'numeric' => true, 'view' => $cell, 'exportable' => false ],
         ];
     }
 
@@ -1150,7 +1181,6 @@ class Index extends Component
 
         $classKeys = TaxClass::query()->pluck( 'key' )->map( static fn ( mixed $key ): string => (string) $key )->all();
         $existing  = TaxRateCsv::existing( array_map( static fn ( array $row ): string => strtoupper( trim( (string) ( $row['country_code'] ?? '' ) ) ), $csv['rows'] ) );
-        $canUpdate = Authorization::allows( auth()->user(), 'taxRate.update' );
         $plan      = [];
         $seen      = [];
 
@@ -1168,7 +1198,7 @@ class Index extends Component
 
                 $seen[ $key ] ??= (int) $row['__line'];
 
-                if ( null !== $rate && ! $canUpdate ) {
+                if ( null !== $rate && ! $this->canEcommerce( 'update', $rate ) ) {
                     $errors[] = __( 'This rate already exists and you are not allowed to change existing rates.' );
                 }
             }

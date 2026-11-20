@@ -240,7 +240,7 @@ class StatusPanel extends Component
         $this->orderChanged();
 
         $this->toastSuccess(
-            __( 'Order #:number cancelled.', [ 'number' => $order->order_number ] ),
+            __( 'Order #:number canceled.', [ 'number' => $order->order_number ] ),
             $summary->refundOwed()
                 ? __( ':amount is still owed to the customer. Issue it from Refunds.', [ 'amount' => self::formatMoney( $summary->refundOwedAmount, $summary->currency ) ] )
                 : null,

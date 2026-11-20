@@ -14,13 +14,13 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
 /**
- * Checks whether a status colour keeps its badge text readable (WCAG AA,
- * 4.5:1), when `artisanpack-ui/accessibility` is installed (spec §4.2).
+ * Checks whether a status colour stays visible, when
+ * `artisanpack-ui/accessibility` is installed (spec §4.2).
  *
- * The badge (`x-artisanpack-badge` with a hex colour) picks black text when
- * the colour's perceived brightness is above 128 and white text otherwise,
- * so the check runs against that text colour rather than the best possible
- * one: a colour can fail even though some text colour would pass.
+ * Since 2.0 a status colour is only ever a dot or an icon (the badge text
+ * is the neutral text colour), so the check is the WCAG 1.4.11 non-text
+ * contrast of 3:1 against the admin's light and dark surfaces, not text
+ * contrast on the colour.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -37,6 +37,33 @@ final class ColorContrast
      * @var float
      */
     public const MIN_RATIO = 4.5;
+
+    /**
+     * The minimum contrast for icons and dots (WCAG 2 1.4.11, non-text).
+     *
+     * @since 2.0.0
+     *
+     * @var float
+     */
+    public const NON_TEXT_MIN_RATIO = 3.0;
+
+    /**
+     * The design system's default surface in its light theme.
+     *
+     * @since 2.0.0
+     *
+     * @var string
+     */
+    public const LIGHT_SURFACE = '#FAFCFE';
+
+    /**
+     * The design system's default surface in its dark theme.
+     *
+     * @since 2.0.0
+     *
+     * @var string
+     */
+    public const DARK_SURFACE = '#191D22';
 
     /**
      * Overrides detection in tests.
@@ -74,9 +101,9 @@ final class ColorContrast
     }
 
     /**
-     * The text colour the badge renders on `$hex`.
+     * Black or white, whichever has the higher WCAG contrast on `$hex`.
      *
-     * @since 1.0.0
+     * @since 1.0.0 Picked by WCAG contrast ratio since 2.0.0 (was YIQ brightness).
      *
      * @param  string  $hex  Background colour, `#RRGGBB`.
      *
@@ -84,9 +111,7 @@ final class ColorContrast
      */
     public static function badgeTextColor( string $hex ): string
     {
-        [ $r, $g, $b ] = self::channels( $hex );
-
-        return ( ( $r * 299 ) + ( $g * 587 ) + ( $b * 114 ) ) / 1000 > 128 ? '#000000' : '#FFFFFF';
+        return self::ratio( $hex, '#000000' ) >= self::ratio( $hex, '#FFFFFF' ) ? '#000000' : '#FFFFFF';
     }
 
     /**
@@ -105,20 +130,27 @@ final class ColorContrast
             return null;
         }
 
-        $text = self::badgeTextColor( $hex );
+        $light = self::ratio( $hex, self::LIGHT_SURFACE );
+        $dark  = self::ratio( $hex, self::DARK_SURFACE );
 
-        if ( self::passes( $hex, $text ) ) {
-            return null;
+        if ( $light < self::NON_TEXT_MIN_RATIO ) {
+            return __( 'The icon and dot in this color have a contrast of :ratio:1 on the light background, below the 3:1 that WCAG asks for. Pick a darker color so they stay visible.', [
+                'ratio' => number_format( $light, 2 ),
+            ] );
         }
 
-        return __( 'The badge text on this colour has a contrast of :ratio:1, below the 4.5:1 that WCAG AA asks for. Pick a darker or lighter colour so it stays readable.', [
-            'ratio' => number_format( self::ratio( $hex, $text ), 2 ),
-        ] );
+        if ( $dark < self::NON_TEXT_MIN_RATIO ) {
+            return __( 'The icon and dot in this color have a contrast of :ratio:1 on the dark background, below the 3:1 that WCAG asks for. Pick a lighter color so they stay visible.', [
+                'ratio' => number_format( $dark, 2 ),
+            ] );
+        }
+
+        return null;
     }
 
     /**
-     * A colour safe to print into a `style` attribute: a six-digit hex
-     * colour, or `transparent` for anything else (the engine API checks only
+     * A colour safe to print into an attribute (an SVG `fill` or `color`):
+     * a six-digit hex colour, or `transparent` for anything else (the engine API checks only
      * the length).
      *
      * @since 1.0.0
@@ -130,26 +162,6 @@ final class ColorContrast
     public static function safeHex( mixed $color ): string
     {
         return is_string( $color ) && 1 === preg_match( '/^#[0-9A-Fa-f]{6}$/D', $color ) ? $color : 'transparent';
-    }
-
-    /**
-     * Whether two colours reach {@see self::MIN_RATIO}, through the
-     * accessibility package when it is booted.
-     *
-     * @since 1.0.0
-     *
-     * @param  string  $background  Background colour.
-     * @param  string  $text        Text colour.
-     *
-     * @return bool
-     */
-    private static function passes( string $background, string $text ): bool
-    {
-        if ( function_exists( 'a11yCheckContrastColor' ) && app()->bound( 'a11y' ) ) {
-            return (bool) a11yCheckContrastColor( $background, $text );
-        }
-
-        return self::ratio( $background, $text ) >= self::MIN_RATIO;
     }
 
     /**

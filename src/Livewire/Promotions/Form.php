@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Promotions;
 
+use ArtisanPack\LivewireUiComponents\Support\Toasts;
 use ArtisanPackUI\Ecommerce\Models\Promotion;
 use ArtisanPackUI\Ecommerce\Models\PromotionAction;
 use ArtisanPackUI\Ecommerce\Models\PromotionCondition;
@@ -22,10 +23,10 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithConfigForms;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithPickers;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithRuleBuilder;
-use ArtisanPackUI\EcommerceAdminLivewire\Queries\PromotionsQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -229,7 +230,11 @@ class Form extends Component
     /**
      * Loads the promotion (or defaults) and authorizes.
      *
+     * A missing promotion is a 404 only for users who may list promotions;
+     * anyone else gets a 403, so ids can't be probed.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Checks `viewAny` before answering 404.
      *
      * @param  int|Promotion|string|null  $promotion  Promotion or id; null to create.
      *
@@ -244,7 +249,13 @@ class Form extends Component
             return;
         }
 
-        $model = $promotion instanceof Promotion ? $promotion : Promotion::query()->findOrFail( (int) $promotion );
+        $model = $promotion instanceof Promotion ? $promotion : Promotion::query()->find( (int) $promotion );
+
+        if ( null === $model ) {
+            $this->authorizeEcommerce( 'viewAny', Promotion::class );
+
+            throw ( new ModelNotFoundException() )->setModel( Promotion::class, [ (int) $promotion ] );
+        }
 
         $this->authorizeEcommerce( 'view', $model );
 
@@ -310,8 +321,8 @@ class Form extends Component
 
         $this->authorizeWrite( $promotion );
 
-        $this->name        = sanitizeText( $this->name );
-        $this->description = sanitizeText( $this->description );
+        $this->name        = trim( $this->name );
+        $this->description = trim( $this->description );
         $this->key         = Str::lower( trim( $this->key ) );
 
         try {
@@ -354,12 +365,16 @@ class Form extends Component
         $this->dispatch( UnsavedChanges::SAVED_EVENT );
 
         if ( $creating ) {
-            $this->toastSuccess( __( 'Promotion created.' ) );
-
             $editRoute = AdminNav::ROUTE_PREFIX . 'promotions.edit';
 
             if ( Route::has( $editRoute ) ) {
+                // A browser event would be lost with the page it was sent
+                // to, so the toast is flashed for the edit page's toaster.
+                Toasts::flash( title: __( 'Promotion created.' ), color: 'success' );
+
                 $this->redirectRoute( $editRoute, [ 'promotion' => $saved->id ] );
+            } else {
+                $this->toastSuccess( __( 'Promotion created.' ) );
             }
 
             $this->promotionId     = (int) $saved->id;
@@ -392,9 +407,13 @@ class Form extends Component
         return view( 'ecommerce-admin::livewire.promotions.form', [
             'promotion'     => $promotion,
             'isCreate'      => null === $promotion,
-            'state'         => null === $promotion ? null : PromotionsQuery::state( $promotion ),
             'tabs'          => $this->visibleTabs( $promotion ),
-            'sourceOptions' => Index::sourceOptions(),
+            'tabLabels'     => self::tabLabels(),
+            'errorTabs'     => $this->errorTabs(),
+            'sourceOptions' => array_map(
+                static fn ( array $option ): array => [ ...$option, 'icon' => self::sourceIcon( $option['id'] ) ],
+                Index::sourceOptions(),
+            ),
             'ruleBuilder'   => $this->ruleBuilderViewData(),
             'indexUrl'      => Route::has( AdminNav::ROUTE_PREFIX . 'promotions.index' ) ? route( AdminNav::ROUTE_PREFIX . 'promotions.index' ) : null,
             'timezone'      => (string) config( 'app.timezone', 'UTC' ),
@@ -402,26 +421,86 @@ class Form extends Component
     }
 
     /**
+     * The tab labels, by key.
+     *
+     * @since 2.0.0
+     *
+     * @return array<string, string>
+     */
+    public static function tabLabels(): array
+    {
+        return [
+            'details'  => __( 'Details' ),
+            'rules'    => __( 'Rules' ),
+            'coupons'  => __( 'Coupons' ),
+            'usage'    => __( 'Usage' ),
+            'activity' => __( 'Activity' ),
+        ];
+    }
+
+    /**
+     * The icon for a source type, matching the promotions list's source
+     * badges: a bolt for automatic, a tag for coupon codes, none otherwise.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $source  Source type key.
+     *
+     * @return string|null
+     */
+    public static function sourceIcon( string $source ): ?string
+    {
+        return match ( $source ) {
+            Promotion::SOURCE_AUTOMATIC => 'zap',
+            Promotion::SOURCE_COUPON    => 'tag',
+            default                     => null,
+        };
+    }
+
+    /**
+     * The rule lists. Conditions all have to hold; discounts apply in order.
+     *
      * @since 1.0.0
      *
-     * @return array<string, array{registry: string, label: string, add: string, empty: string}>
+     * @return array<string, array{registry: string, label: string, add: string, empty: string, description?: string}>
      */
     protected function ruleBuilderLists(): array
     {
         return [
             'conditions' => [
-                'registry' => 'promotion-condition',
-                'label'    => __( 'Conditions' ),
-                'add'      => __( 'Add a condition' ),
-                'empty'    => __( 'No conditions: every cart qualifies. Every condition you add must be met.' ),
+                'registry'    => 'promotion-condition',
+                'label'       => __( 'Conditions' ),
+                'add'         => __( 'Add a condition' ),
+                'empty'       => __( 'No conditions: every cart qualifies. Every condition you add must be met.' ),
+                'description' => __( 'All of these must be true for the promotion to apply.' ),
             ],
             'actions'    => [
-                'registry' => 'promotion-action',
-                'label'    => __( 'Actions' ),
-                'add'      => __( 'Add an action' ),
-                'empty'    => __( 'No actions yet: the promotion gives nothing until you add one. Actions apply from top to bottom.' ),
+                'registry'    => 'promotion-action',
+                'label'       => __( 'Discounts' ),
+                'add'         => __( 'Add a discount' ),
+                'empty'       => __( 'No discounts yet. Add one to give this promotion an effect.' ),
+                'description' => __( 'Applied in this order.' ),
             ],
         ];
+    }
+
+    /**
+     * The tabs with validation errors: the rule rows' errors belong to
+     * Rules, every other field's to Details.
+     *
+     * @since 2.0.0
+     *
+     * @return array<int, string>
+     */
+    protected function errorTabs(): array
+    {
+        $tabs = [];
+
+        foreach ( $this->getErrorBag()->keys() as $key ) {
+            $tabs[] = str_starts_with( (string) $key, 'ruleRows.' ) || str_starts_with( (string) $key, 'ruleToAdd.' ) ? 'rules' : 'details';
+        }
+
+        return array_values( array_intersect( [ 'details', 'rules' ], $tabs ) );
     }
 
     /**

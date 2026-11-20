@@ -1,5 +1,6 @@
 ---
 title: Command Palette Providers
+menu_order: 30
 ---
 
 # Command Palette Providers
@@ -25,9 +26,13 @@ interface SpotlightProvider
 }
 ```
 
+A provider may also define `label(): string`, the heading of its group in the palette ("Subscriptions"). It isn't part of the interface, so existing providers keep working. Without it, the group is labeled with the provider's key in headline case (`loyalty-cards` becomes "Loyalty Cards"). The core providers' labels are fixed.
+
+**Since:** 2.0.0 (`label()`)
+
 - `$search` is trimmed and never empty.
-- Return at most `$limit` results (the `spotlight.limit` config, 5 by default) and run at most one query.
-- `icon` is a Heroicon name (`o-cube`). The palette renders the icon itself; markup in `icon` is ignored.
+- Return at most `$limit` results (the `spotlight.limit` config, 5 by default) and run at most one query. The admin keeps only the first `$limit × 3` results a provider returns (`AdminSpotlight::RESULTS_PER_LIMIT`), which leaves room for contextual actions after a match. **Since:** 2.0.0
+- `icon` is a design-system icon name (`shopping-bag`), or a Heroicon name (`o-cube`) that the admin maps to its design-system counterpart. The palette draws icons in the browser, so only icons that `livewire-ui-components` ships to the browser show. Any other name, and any markup, gets no icon.
 - Results without `name` or `link` are dropped.
 - Check record-level access yourself: the palette only checks `ability()`.
 
@@ -37,7 +42,7 @@ interface SpotlightProvider
 applyFilters( 'ap.ecommerceAdminLivewire.spotlight.providers', array $providers, ?Authenticatable $user ): array
 ```
 
-`$providers` is keyed by name. Values are provider instances or class names (resolved from the container). The core keys, in order, are `orders`, `products`, `customers`, `promotions`, `coupons`, and `actions`. Results appear in provider order.
+`$providers` is keyed by name. Values are provider instances or class names (resolved from the container). The core keys, in order, are `orders`, `products`, `customers`, `promotions`, `coupons`, and `actions`. Each provider with results gets its own group, in provider order, with the key as the group's `id`.
 
 ## Example
 
@@ -52,6 +57,11 @@ class SubscriptionsProvider implements SpotlightProvider
         return 'order.viewAny';
     }
 
+    public function label(): string
+    {
+        return __( 'Subscriptions' );
+    }
+
     public function search( string $search, Authenticatable $user, int $limit ): array
     {
         return Subscription::query()
@@ -63,7 +73,7 @@ class SubscriptionsProvider implements SpotlightProvider
                 'name'        => __( 'Subscription :reference', [ 'reference' => $subscription->reference ] ),
                 'description' => $subscription->customer_email,
                 'link'        => route( 'subscriptions.admin.show', $subscription ),
-                'icon'        => 'o-arrow-path',
+                'icon'        => 'refresh-cw',
             ] )
             ->values()
             ->all();
@@ -82,6 +92,8 @@ addFilter( 'ap.ecommerceAdminLivewire.spotlight.providers', function ( array $pr
 Escape `%` and `_` in the search term if literal matches matter to you. The core providers do.
 
 To remove a core provider, `unset( $providers['coupons'] )`. To replace one, set the same key.
+
+The core `actions` provider is special: the palette lists its actions before you type, so the search route leaves it out. If you replace it with your own class (or a subclass), it's searched like any other provider instead.
 
 ## What the palette handles for you
 

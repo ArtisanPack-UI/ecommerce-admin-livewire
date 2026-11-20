@@ -17,15 +17,71 @@ beforeEach( function (): void {
     view()->share( 'errors', new ViewErrorBag() );
 } );
 
-it( 'renders the pickers on x-artisanpack-choices with server search', function (): void {
+it( 'renders the pickers on the design-system Combobox with server search', function (): void {
     grantAbilities( [ 'product.viewAny', 'customer.viewAny' ] );
     Product::factory()->create( [ 'name' => 'Blue Mug', 'sku' => 'MUG-BLUE' ] );
 
     Livewire::actingAs( makeUser() )
         ->test( HelperForm::class )
-        ->assertSeeHtml( '.searchPicker(value, &#039;product&#039;, &#039;productIds&#039;)' )
-        ->assertSeeHtml( '.searchPicker(value, &#039;customer&#039;, &#039;customerId&#039;)' )
+        ->assertSeeHtml( 'searchPicker&#039;, $event.detail.search, &#039;product&#039;, &#039;productIds&#039;)' )
+        ->assertSeeHtml( 'searchPicker&#039;, $event.detail.search, &#039;customer&#039;, &#039;customerId&#039;)' )
         ->assertSee( 'Blue Mug' );
+} );
+
+it( 'shows multi picks as chips and a single pick as a clearable value', function (): void {
+    grantAbilities( [ 'product.viewAny', 'customer.viewAny' ] );
+
+    $html = Livewire::actingAs( makeUser() )->test( HelperForm::class )->html();
+
+    preg_match( '/<div[^>]*data-picker="product"[^>]*>/', $html, $product );
+    preg_match( '/<div[^>]*data-picker="customer"[^>]*>/', $html, $customer );
+
+    expect( $product[0] )->toContain( 'apui-combobox' )
+        ->toContain( 'data-multiple' )
+        ->toContain( 'x-on:search-change.debounce.300ms' )
+        ->and( $customer[0] )->not->toContain( 'data-multiple' )
+        ->and( $html )->toContain( 'Search products or SKUs' )
+        ->toContain( 'Search customers by name or email' )
+        // Laravel 12's Js::from() writes "…" as \\u2026 inside JSON.parse(); Laravel 13 leaves it as is.
+        ->toMatch( '/Searching(?:…|\\\\+u2026)/u' )
+        ->toContain( 'No results found.' )
+        ->not->toContain( 'x-artisanpack-choices' );
+} );
+
+it( 'lists results with their sub-label', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+    Product::factory()->create( [ 'name' => 'Blue Mug', 'sku' => 'MUG-BLUE' ] );
+
+    Livewire::actingAs( makeUser() )
+        ->test( HelperForm::class )
+        ->assertSee( 'Blue Mug' )
+        ->assertSee( 'SKU: MUG-BLUE' );
+} );
+
+it( 'becomes an info alert when no source is registered', function (): void {
+    app()->instance( PickerSourceRegistry::class, new PickerSourceRegistry() );
+
+    expect( Illuminate\Support\Facades\Blade::render( '<x-artisanpack-ec-variant-picker model="variantIds" label="Variants" />' ) )
+        ->toContain( 'data-picker-unavailable="variant"' )
+        ->toContain( 'This picker is not available yet.' )
+        ->toContain( 'role="status"' )
+        ->not->toContain( 'apui-combobox' );
+} );
+
+it( 'leaves the unavailable alert\'s role to the design system, so it renders once', function (): void {
+    app()->instance( PickerSourceRegistry::class, new PickerSourceRegistry() );
+
+    $html = Illuminate\Support\Facades\Blade::render( '<x-artisanpack-ec-variant-picker model="variantIds" label="Variants" />' );
+
+    expect( substr_count( $html, 'role=' ) )->toBe( 1 );
+} );
+
+it( 'takes a placeholder override', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+
+    expect( Illuminate\Support\Facades\Blade::render( '<x-artisanpack-ec-product-picker model="productIds" label="Products" placeholder="Find a gift" />' ) )
+        ->toContain( 'Find a gift' )
+        ->not->toContain( 'Search products or SKUs' );
 } );
 
 it( 'searches products by name and SKU', function (): void {
@@ -54,6 +110,33 @@ it( 'keeps selected options alongside the results', function (): void {
         ->call( 'searchPicker', 'shirt', 'product', 'productIds' );
 
     expect( collect( $component->get( 'pickerOptions' )['product:productIds'] )->pluck( 'name' )->all() )->toBe( [ 'Blue Mug', 'Red Shirt' ] );
+} );
+
+it( 'labels at most PickerSource::MAX_IDS selected ids, however many the client sends', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+    $mug = Product::factory()->create( [ 'name' => 'Blue Mug' ] );
+    $ids = [ $mug->getKey(), ...range( 1000000, 1001000 ) ];
+
+    Illuminate\Support\Facades\DB::enableQueryLog();
+
+    $component = Livewire::actingAs( makeUser() )->test( HelperForm::class )
+        ->set( 'productIds', $ids )
+        ->call( 'searchPicker', 'zzz-no-match', 'product', 'productIds' );
+
+    $findQuery = collect( Illuminate\Support\Facades\DB::getQueryLog() )->first( static fn ( array $query ): bool => str_contains( $query['query'], ' in (' ) && str_contains( $query['query'], ( new Product() )->getTable() ) );
+
+    expect( collect( $component->get( 'pickerOptions' )['product:productIds'] )->pluck( 'name' )->all() )->toBe( [ 'Blue Mug' ] )
+        ->and( $findQuery )->not->toBeNull()
+        ->and( count( $findQuery['bindings'] ) )->toBeLessThanOrEqual( ArtisanPackUI\EcommerceAdminLivewire\Pickers\PickerSource::MAX_IDS + 1 );
+} );
+
+it( 'caps the ids an Eloquent picker source looks up', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+    $products = Product::factory()->count( 3 )->create();
+    $ids      = [ ...range( 1000000, 1000000 + ArtisanPackUI\EcommerceAdminLivewire\Pickers\PickerSource::MAX_IDS - 1 ), ...$products->modelKeys() ];
+
+    expect( app( PickerSourceRegistry::class )->get( 'product' )->find( $ids ) )->toBe( [] )
+        ->and( app( PickerSourceRegistry::class )->get( 'product' )->find( $products->modelKeys() ) )->toHaveCount( 3 );
 } );
 
 it( 'treats LIKE wildcards literally', function (): void {

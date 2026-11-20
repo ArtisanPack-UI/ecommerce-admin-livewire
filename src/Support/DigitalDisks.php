@@ -15,6 +15,7 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
 use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use Closure;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * The engine's allowed digital disks and the path rule it enforces, shared
@@ -35,6 +36,15 @@ final class DigitalDisks
      * @var array<int, string>|null
      */
     private static ?array $fakeMediaDisks = null;
+
+    /**
+     * Media ids the user may view, faked by {@see self::fakeViewableMedia()}.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, int>|null
+     */
+    private static ?array $fakeViewableMedia = null;
 
     /**
      * The engine's allowed digital disks.
@@ -104,6 +114,77 @@ final class DigitalDisks
     public static function fakeMediaDisks( ?array $disks ): void
     {
         self::$fakeMediaDisks = $disks;
+    }
+
+    /**
+     * Pretends the user may view only these media ids, in tests. Pass null
+     * to ask the media library's policy again.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, int>|null  $ids  Viewable media ids.
+     *
+     * @return void
+     */
+    public static function fakeViewableMedia( ?array $ids ): void
+    {
+        self::$fakeViewableMedia = null === $ids ? null : array_map( 'intval', $ids );
+    }
+
+    /**
+     * Whether the signed-in user may view a media-library item (its
+     * `view` policy). Without the media library, or for an id that doesn't
+     * exist, there is nothing to hide, so it is allowed; other rules refuse
+     * a missing item.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $id  Media id.
+     *
+     * @return bool
+     */
+    public static function canViewMedia( int $id ): bool
+    {
+        if ( null !== self::$fakeViewableMedia ) {
+            return in_array( $id, self::$fakeViewableMedia, true );
+        }
+
+        $model = DigitalFile::MEDIA_MODEL;
+
+        if ( ! class_exists( $model ) ) {
+            return true;
+        }
+
+        $media = $model::query()->find( $id );
+
+        return null === $media || Gate::allows( 'view', $media );
+    }
+
+    /**
+     * A validation rule: the media id must be one the user may view, unless
+     * it is already saved on the record (`$saved`), so an item attached by
+     * someone else stays valid. Client-writable ids are otherwise an IDOR:
+     * any private file could be attached, previewed, or delivered.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, int|null>  $saved  Media ids already saved on the record.
+     *
+     * @return Closure
+     */
+    public static function viewableMedia( array $saved = [] ): Closure
+    {
+        $saved = array_map( 'intval', array_filter( $saved, 'is_numeric' ) );
+
+        return static function ( string $attribute, mixed $value, Closure $fail ) use ( $saved ): void {
+            if ( ! is_numeric( $value ) || in_array( (int) $value, $saved, true ) ) {
+                return;
+            }
+
+            if ( ! self::canViewMedia( (int) $value ) ) {
+                $fail( __( 'That media item can\'t be found.' ) );
+            }
+        };
     }
 
     /**

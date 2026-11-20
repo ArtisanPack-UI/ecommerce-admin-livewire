@@ -44,6 +44,8 @@ use Livewire\Component;
  *   empty list falls back to the board's, then the store's, default
  *   widgets. Widgets reorder with Move up / Move down.
  * - Columns reorder with Move up / Move down.
+ * - A WIP limit below the cards the column already holds is refused with
+ *   the current count.
  * - Every write dispatches `kanban-columns-changed`, so the automations
  *   panel refreshes its column choices.
  *
@@ -382,7 +384,7 @@ class Columns extends Component
             ],
             [
                 'form.substatus_id.unique'     => __( 'This board already has a column for that sub-status.' ),
-                'form.color_override.regex'    => __( 'Enter the colour as a hex code like #3B82F6.' ),
+                'form.color_override.regex'    => __( 'Enter the color as a hex code like #3B82F6.' ),
                 'form.icon_override.in'        => __( 'Choose an icon from the list.' ),
                 'form.card_widgets.*.in'       => __( 'This widget is no longer available. Remove it.' ),
                 'form.card_widgets.*.distinct' => __( 'This widget is on the card twice.' ),
@@ -390,7 +392,7 @@ class Columns extends Component
             [
                 'form.substatus_id'   => __( 'sub-status' ),
                 'form.label_override' => __( 'label' ),
-                'form.color_override' => __( 'colour' ),
+                'form.color_override' => __( 'color' ),
                 'form.icon_override'  => __( 'icon' ),
                 'form.wip_limit'      => __( 'WIP limit' ),
                 'form.card_widgets'   => __( 'card widgets' ),
@@ -403,9 +405,23 @@ class Columns extends Component
             return;
         }
 
+        if ( null !== $this->form['wip_limit'] ) {
+            $cards = $this->cardsOn( (int) $this->form['substatus_id'] );
+
+            if ( (int) $this->form['wip_limit'] < $cards ) {
+                $this->addError( 'form.wip_limit', trans_choice(
+                    'The column already holds :count card. Set a limit of :count or more, or move it out first.|The column already holds :count cards. Set a limit of :count or more, or move cards out first.',
+                    $cards,
+                    [ 'count' => $cards ],
+                ) );
+
+                return;
+            }
+        }
+
         $data = [
             'substatus_id'   => (int) $this->form['substatus_id'],
-            'label_override' => '' === trim( (string) $this->form['label_override'] ) ? null : sanitizeText( trim( (string) $this->form['label_override'] ) ),
+            'label_override' => '' === KanbanBoards::plainText( (string) $this->form['label_override'] ) ? null : KanbanBoards::plainText( (string) $this->form['label_override'] ),
             'color_override' => '' === $this->form['color_override'] ? null : (string) $this->form['color_override'],
             'icon_override'  => '' === $this->form['icon_override'] ? null : (string) $this->form['icon_override'],
             'wip_limit'      => null === $this->form['wip_limit'] ? null : (int) $this->form['wip_limit'],
@@ -600,6 +616,24 @@ class Columns extends Component
     protected function formWidgets(): array
     {
         return array_values( array_filter( (array) ( $this->form['card_widgets'] ?? [] ), 'is_string' ) );
+    }
+
+    /**
+     * The cards on this board in a sub-status: the cards its column holds.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $substatusId  Sub-status id.
+     *
+     * @return int
+     */
+    protected function cardsOn( int $substatusId ): int
+    {
+        return OrderBoardAssignment::query()
+            ->active()
+            ->where( 'board_id', $this->boardId )
+            ->where( 'substatus_id', $substatusId )
+            ->count();
     }
 
     /**

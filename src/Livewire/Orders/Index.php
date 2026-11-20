@@ -30,6 +30,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Queries\ResourceQuery;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminBroadcasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StatusPresenter;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -93,6 +94,39 @@ class Index extends Component
     public int $newOrders = 0;
 
     /**
+     * The newest order id when the notice last started counting: orders
+     * after it are the ones the notice is about.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    #[Locked]
+    public int $noticeSinceId = 0;
+
+    /**
+     * Orders after this id, up to `$highlightUpToId`, are marked New once
+     * "Show new orders" was used. Null marks none.
+     *
+     * @since 2.0.0
+     *
+     * @var int|null
+     */
+    #[Locked]
+    public ?int $highlightAfterId = null;
+
+    /**
+     * The newest order "Show new orders" showed: the upper end of the New
+     * range, so later arrivals wait for the next notice.
+     *
+     * @since 2.0.0
+     *
+     * @var int|null
+     */
+    #[Locked]
+    public ?int $highlightUpToId = null;
+
+    /**
      * Authorizes the screen.
      *
      * @since 1.0.0
@@ -104,12 +138,15 @@ class Index extends Component
         $this->authorizeTable();
 
         $this->latestOrderId = (int) Order::query()->max( 'id' );
+        $this->noticeSinceId = $this->latestOrderId;
     }
 
     /**
      * Re-renders after an order broadcast and counts orders that are new
      * since the last look. The count comes from the database, not the
-     * broadcast payload.
+     * broadcast payload, and only counts orders the search and filters
+     * let into the table, so the notice matches what "Show new orders"
+     * shows.
      *
      * @since 1.0.0
      *
@@ -123,8 +160,13 @@ class Index extends Component
             return;
         }
 
-        $arrived              = Order::query()->where( 'id', '>', $this->latestOrderId )->where( 'id', '<=', $latest )->count();
-        $this->latestOrderId  = $latest;
+        $arrived             = $this->matchingOrdersBetween( $this->latestOrderId, $latest );
+        $this->latestOrderId = $latest;
+
+        if ( 0 === $arrived ) {
+            return;
+        }
+
         $this->newOrders += $arrived;
 
         $this->liveAnnouncement = trans_choice( ':count new order arrived.|:count new orders arrived.', $arrived, [ 'count' => $arrived ] );
@@ -140,7 +182,46 @@ class Index extends Component
     public function dismissNewOrders(): void
     {
         $this->newOrders        = 0;
+        $this->noticeSinceId    = $this->latestOrderId;
         $this->liveAnnouncement = '';
+    }
+
+    /**
+     * Shows the orders the notice counted: back to the first page, newest
+     * first, with those orders marked New. The view then moves focus to the
+     * table.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    public function showNewOrders(): void
+    {
+        if ( 0 === $this->newOrders ) {
+            return;
+        }
+
+        // The table reads the newest rows, so orders that arrived after the
+        // last broadcast show too: take them into the range now, so their
+        // own broadcast doesn't count them again.
+        $upTo  = max( $this->latestOrderId, (int) Order::query()->max( 'id' ) );
+        $shown = $this->matchingOrdersBetween( $this->noticeSinceId, $upTo );
+
+        $this->highlightAfterId = $this->noticeSinceId;
+        $this->highlightUpToId  = $upTo;
+        $this->latestOrderId    = $upTo;
+        $this->noticeSinceId    = $upTo;
+        $this->newOrders        = 0;
+        $this->sortColumn       = '';
+        $this->sortDirection    = '';
+
+        $this->resetPage();
+
+        $this->liveAnnouncement = 0 === $shown
+            ? __( 'None of the new orders match the search and filters.' )
+            : trans_choice( ':count new order shown at the top of the table.|:count new orders shown at the top of the table.', $shown, [ 'count' => $shown ] );
+
+        $this->dispatch( 'ecommerce-admin-new-orders-shown' );
     }
 
     /**
@@ -152,10 +233,18 @@ class Index extends Component
      */
     public function render(): View
     {
-        $data = $this->resourceTableData();
+        $data    = $this->resourceTableData();
+        $options = $data['tableSelectionCount'] > 0 ? $this->bulkSubstatusOptions() : [];
+
+        // With no sub-status that fits every selected order, the bar explains
+        // why instead of offering a change that can only be refused.
+        if ( [] === $options ) {
+            unset( $data['tableBulkActions']['change-substatus'] );
+        }
 
         return view( 'ecommerce-admin::livewire.orders.index', $data + [
-            'bulkSubstatusOptions' => $data['tableSelectionCount'] > 0 ? $this->bulkSubstatusOptions() : [],
+            'bulkSubstatusOptions' => $options,
+            'cellContext'          => [ 'highlightAfterId' => $this->highlightAfterId, 'highlightUpToId' => $this->highlightUpToId ],
         ] );
     }
 
@@ -173,6 +262,28 @@ class Index extends Component
         $name = trim( ( $order->customer?->first_name ?? '' ) . ' ' . ( $order->customer?->last_name ?? '' ) );
 
         return '' === $name ? null : $name;
+    }
+
+    /**
+     * How many orders with an id in (`$after`, `$upTo`] the search and
+     * filters let into the table.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $after  Exclusive lower id.
+     * @param  int  $upTo   Inclusive upper id.
+     *
+     * @return int
+     */
+    protected function matchingOrdersBetween( int $after, int $upTo ): int
+    {
+        if ( $upTo <= $after ) {
+            return 0;
+        }
+
+        $id = ( new Order() )->qualifyColumn( 'id' );
+
+        return $this->filteredQuery()->reorder()->where( $id, '>', $after )->where( $id, '<=', $upTo )->count();
     }
 
     /**
@@ -347,18 +458,18 @@ class Index extends Component
                 'export'   => static fn ( Order $order ): string => (string) $order->order_number,
             ],
             [
-                'key'      => 'placed',
-                'label'    => __( 'Placed' ),
-                'sortable' => true,
-                'value'    => static fn ( Order $order ): string => null === $order->placed_at ? '' : LocalizedDate::format( $order->placed_at ),
-                'export'   => static fn ( Order $order ): string => $order->placed_at?->format( DATE_ATOM ) ?? '',
-            ],
-            [
                 'key'      => 'customer',
                 'label'    => __( 'Customer' ),
                 'sortable' => true,
                 'view'     => $cells . 'customer',
                 'export'   => static fn ( Order $order ): string => self::customerName( $order ) ?? (string) $order->email,
+            ],
+            [
+                'key'      => 'placed',
+                'label'    => __( 'Placed' ),
+                'sortable' => true,
+                'value'    => static fn ( Order $order ): string => null === $order->placed_at ? '' : LocalizedDate::format( $order->placed_at ),
+                'export'   => static fn ( Order $order ): string => $order->placed_at?->format( DATE_ATOM ) ?? '',
             ],
             [
                 'key'      => 'system_status',
@@ -388,19 +499,19 @@ class Index extends Component
                 'export'   => static fn ( Order $order ): string => StatusPresenter::present( 'fulfillment', (string) $order->fulfillment_status )['label'],
             ],
             [
+                'key'      => 'items',
+                'label'    => __( 'Items' ),
+                'sortable' => true,
+                'class'    => 'text-end',
+                'value'    => static fn ( Order $order ): int => (int) ( $order->items_sum_quantity ?? 0 ),
+            ],
+            [
                 'key'      => 'total',
                 'label'    => __( 'Total' ),
                 'sortable' => true,
                 'class'    => 'text-end',
                 'view'     => $cells . 'total',
                 'export'   => static fn ( Order $order ): string => MinorUnits::toMajor( (int) $order->total_amount, (string) $order->total_currency ) . ' ' . $order->total_currency,
-            ],
-            [
-                'key'      => 'items',
-                'label'    => __( 'Items' ),
-                'sortable' => true,
-                'class'    => 'text-end',
-                'value'    => static fn ( Order $order ): int => (int) ( $order->items_sum_quantity ?? 0 ),
             ],
         ];
     }
@@ -416,9 +527,10 @@ class Index extends Component
             [ 'key' => 'system_status', 'label' => __( 'Status' ), 'type' => 'select', 'options' => self::statusOptions( 'system' ) ],
             [ 'key' => 'substatus', 'label' => __( 'Sub-status' ), 'type' => 'select', 'options' => self::substatusOptions() ],
             [ 'key' => 'payment_status', 'label' => __( 'Payment' ), 'type' => 'select', 'options' => self::statusOptions( 'payment' ) ],
-            [ 'key' => 'fulfillment_status', 'label' => __( 'Fulfillment' ), 'type' => 'select', 'options' => self::statusOptions( 'fulfillment' ) ],
+            [ 'key' => 'fulfillment_status', 'label' => __( 'Fulfillment' ), 'type' => 'multiselect', 'options' => self::statusOptions( 'fulfillment' ) ],
             [ 'key' => 'awaiting', 'label' => __( 'Awaiting fulfillment' ), 'type' => 'boolean' ],
             [ 'key' => 'placed', 'label' => __( 'Placed' ), 'type' => 'date-range' ],
+            [ 'key' => 'total', 'label' => __( 'Total (:currency)', [ 'currency' => StoreCurrencies::base() ] ), 'type' => 'number-range' ],
             [ 'key' => 'currency', 'label' => __( 'Currency' ), 'type' => 'select', 'options' => self::currencyOptions() ],
             [ 'key' => 'board', 'label' => __( 'Board' ), 'type' => 'select', 'options' => self::boardOptions() ],
         ];

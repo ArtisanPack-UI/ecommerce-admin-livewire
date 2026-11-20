@@ -21,6 +21,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\WithPagination;
@@ -39,13 +40,20 @@ use Throwable;
  * A screen supplies its query class, columns, filters, and bulk actions.
  * Satellites extend them through the filters
  * `ap.ecommerceAdminLivewire.table.{screen}.columns`, `.filters`, and
- * `.bulkActions` (spec §8.5).
+ * `.bulkActions` (spec §8.5), with the screen key in camelCase
+ * (`table.licenseKeys.columns`). The kebab-case names 1.x used
+ * (`table.license-keys.columns`) still run afterwards for multi-word
+ * screens, but are deprecated since 2.0.0.
  *
- * Column definition: `key`, `label`, `sortable` (bool), `class`, and one of
+ * Column definition: `key`, `label`, `sortable` (bool), `class`, `numeric`
+ * (bool: aligned to the inline end; defaults to true when `class` has
+ * `text-end`), and one of
  * `view` (a Blade view rendered with `$row` and `$column`), `value`
  * (callable returning text), or neither (the row attribute named `key`).
  * `export` (callable) overrides the CSV value; `exportable` false leaves the
- * column out of the CSV.
+ * column out of the CSV. `listed` false keeps a column out of the grid but
+ * in the CSV, and `labelHidden` true keeps its header for screen readers
+ * only (an image or icon column).
  *
  * Filter definition: `key`, `label`, `type` (`select`, `multiselect`, `text`,
  * `boolean`, `date-range`, `number-range`), `options`
@@ -354,7 +362,7 @@ trait WithResourceTable
 
         $this->confirmingBulkAction = null;
 
-        return $this->withActionToken( $token, 'bulk.' . $key, fn (): mixed => $this->executeBulkAction( $action ) );
+        return $this->withActionToken( $token, 'bulk.' . $key, fn (): mixed => $this->executeBulkAction( $action ), $this->bulkActionTokenSubject( $key ) );
     }
 
     /**
@@ -538,7 +546,7 @@ trait WithResourceTable
 
         return [
             'tableRows'           => $rows,
-            'tableColumns'        => $this->tableColumnDefinitions(),
+            'tableColumns'        => array_values( array_filter( $this->tableColumnDefinitions(), static fn ( array $column ): bool => $column['listed'] ) ),
             'tableFilters'        => $this->tableFilterDefinitions(),
             'tableBulkActions'    => $bulkActions,
             'tableCaption'        => $this->tableCaption(),
@@ -546,11 +554,12 @@ trait WithResourceTable
             'tableDirection'      => $order,
             'tablePerPageValues'  => $this->perPageValues(),
             'tableFiltersActive'  => $this->filtersActive(),
+            'tableFilterCount'    => count( $this->normalizedFilters() ),
             'tableSelectionCount' => $this->selectionCount( $rows ),
             'tableAllMatching'    => $this->selectAllMatching,
             'tableSelectable'     => [] !== $bulkActions,
             'tableConfirming'     => $this->confirmingBulkAction(),
-            'tableConfirmToken'   => null === $this->confirmingBulkAction ? null : $this->actionToken( 'bulk.' . $this->confirmingBulkAction ),
+            'tableConfirmToken'   => null === $this->confirmingBulkAction ? null : $this->actionToken( 'bulk.' . $this->confirmingBulkAction, $this->bulkActionTokenSubject( $this->confirmingBulkAction ) ),
         ];
     }
 
@@ -615,15 +624,45 @@ trait WithResourceTable
     }
 
     /**
+     * Runs one of the table's extension filters: first under the screen key
+     * in camelCase (`ap.ecommerceAdminLivewire.table.licenseKeys.columns`),
+     * then, for a multi-word screen, under the deprecated kebab-case name 1.x
+     * used (`table.license-keys.columns`), so existing subscribers keep
+     * working.
+     *
+     * @since 2.0.0
+     *
+     * @param  string             $part   `columns`, `filters` or `bulkActions`.
+     * @param  array<int, mixed>  $value  The screen's own definitions.
+     *
+     * @return array<int|string, mixed>
+     */
+    protected function applyTableFilter( string $part, array $value ): array
+    {
+        $screen = $this->tableScreen();
+        $camel  = Str::camel( $screen );
+        $value  = (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $camel . '.' . $part, $value, $this );
+
+        if ( $camel === $screen ) {
+            return $value;
+        }
+
+        return (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $screen . '.' . $part, $value, $this );
+    }
+
+    /**
      * The columns after the extension filter, normalized.
      *
      * @since 1.0.0
      *
-     * @return array<int, array{key: string, label: string, sortable: bool, class: string, view: string|null, value: callable|null, export: callable|null, exportable: bool}>
+     * A column is `numeric` (aligned to the inline end) when it says so, or,
+     * as in 1.x, when its class has `text-end`.
+     *
+     * @return array<int, array{key: string, label: string, sortable: bool, class: string, numeric: bool, view: string|null, value: callable|null, export: callable|null, exportable: bool, listed: bool, labelHidden: bool}>
      */
     protected function tableColumnDefinitions(): array
     {
-        $columns = (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $this->tableScreen() . '.columns', $this->tableColumns(), $this );
+        $columns = $this->applyTableFilter( 'columns', $this->tableColumns() );
         $query   = $this->tableQuery();
         $result  = [];
 
@@ -635,14 +674,17 @@ trait WithResourceTable
             $key = (string) $column['key'];
 
             $result[ $key ] = [
-                'key'        => $key,
-                'label'      => (string) $column['label'],
-                'sortable'   => (bool) ( $column['sortable'] ?? false ) && $query->canSortBy( $key ),
-                'class'      => (string) ( $column['class'] ?? '' ),
-                'view'       => isset( $column['view'] ) ? (string) $column['view'] : null,
-                'value'      => isset( $column['value'] ) && is_callable( $column['value'] ) ? $column['value'] : null,
-                'export'     => isset( $column['export'] ) && is_callable( $column['export'] ) ? $column['export'] : null,
-                'exportable' => (bool) ( $column['exportable'] ?? true ),
+                'key'         => $key,
+                'label'       => (string) $column['label'],
+                'sortable'    => (bool) ( $column['sortable'] ?? false ) && $query->canSortBy( $key ),
+                'class'       => (string) ( $column['class'] ?? '' ),
+                'numeric'     => (bool) ( $column['numeric'] ?? str_contains( (string) ( $column['class'] ?? '' ), 'text-end' ) ),
+                'view'        => isset( $column['view'] ) ? (string) $column['view'] : null,
+                'value'       => isset( $column['value'] ) && is_callable( $column['value'] ) ? $column['value'] : null,
+                'export'      => isset( $column['export'] ) && is_callable( $column['export'] ) ? $column['export'] : null,
+                'exportable'  => (bool) ( $column['exportable'] ?? true ),
+                'listed'      => (bool) ( $column['listed'] ?? true ),
+                'labelHidden' => (bool) ( $column['labelHidden'] ?? false ),
             ];
         }
 
@@ -658,7 +700,7 @@ trait WithResourceTable
      */
     protected function tableFilterDefinitions(): array
     {
-        $filters = (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $this->tableScreen() . '.filters', $this->tableFilters(), $this );
+        $filters = $this->applyTableFilter( 'filters', $this->tableFilters() );
         $types   = [ 'select', 'multiselect', 'text', 'boolean', 'date-range', 'number-range' ];
         $result  = [];
 
@@ -695,7 +737,7 @@ trait WithResourceTable
      */
     protected function tableBulkActionDefinitions(): array
     {
-        $actions = (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $this->tableScreen() . '.bulkActions', $this->tableBulkActions(), $this );
+        $actions = $this->applyTableFilter( 'bulkActions', $this->tableBulkActions() );
         $result  = [];
 
         foreach ( $actions as $action ) {
@@ -743,7 +785,7 @@ trait WithResourceTable
         return [
             'key'     => 'export',
             'label'   => __( 'Export selection' ),
-            'icon'    => 'o-arrow-down-tray',
+            'icon'    => 'download',
             'handler' => fn (): mixed => $this->runExport( true ),
         ];
     }
@@ -882,6 +924,23 @@ trait WithResourceTable
     protected function selectionCount( LengthAwarePaginator $rows ): int
     {
         return $this->selectAllMatching ? $rows->total() : count( $this->normalizedSelection() );
+    }
+
+    /**
+     * What a bulk action's confirmation token is bound to, besides the
+     * component and the action. A screen whose action depends on other
+     * input (a merge's target) returns it, so a token minted for one value
+     * can't confirm the action for another. Null by default.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $key  The bulk action key.
+     *
+     * @return mixed A model, a scalar, or null.
+     */
+    protected function bulkActionTokenSubject( string $key ): mixed
+    {
+        return null;
     }
 
     /**

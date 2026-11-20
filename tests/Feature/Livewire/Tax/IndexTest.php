@@ -31,7 +31,7 @@ it( 'renders classes, rates, and the manual provider', function (): void {
         ->assertSee( 'Reduced rate' )
         ->assertSee( 'NY sales tax' )
         ->assertSee( '8.875%' )
-        ->assertSeeHtml( '<caption class="sr-only">Tax rates</caption>' );
+        ->assertSeeHtml( '<caption class="apui-sr-only">Tax rates</caption>' );
 } );
 
 it( 'labels the rates unused when another provider is active', function (): void {
@@ -215,7 +215,7 @@ it( 'blocks deleting a class that rates or products use', function (): void {
     $component = Livewire::test( Index::class )
         ->call( 'confirmDeleteClass', $class->id )
         ->assertSeeHtml( 'data-class-blocked' )
-        ->assertSee( '1 rate, 1 product' );
+        ->assertSee( '1 rate and 1 product use it. Move them to another class first.' );
 
     $component->call( 'deleteClass', $component->viewData( 'deleteClassToken' ) );
 
@@ -382,4 +382,24 @@ it( 'warns an editor without taxRate.create when their rate was deleted', functi
     $component->call( 'saveRate' )->assertOk()->assertSet( 'editingRateId', null );
 
     expect( sentToasts( $component ) )->toContain( 'This tax rate was deleted while you were editing it.' );
+} );
+
+it( 'checks each existing rate an import updates against its own record (L-S7)', function (): void {
+    $locked = TaxRate::factory()->create( [ 'country_code' => 'DE', 'region_code' => null, 'postal_pattern' => null, 'priority' => 0, 'rate_ubps' => 160_000_000 ] );
+    $open   = TaxRate::factory()->create( [ 'country_code' => 'FR', 'region_code' => null, 'postal_pattern' => null, 'priority' => 0, 'rate_ubps' => 190_000_000 ] );
+
+    Gate::define( 'ecommerce.taxRate.update', static fn ( $user, $rate = null ): bool => ! ( $rate instanceof TaxRate && $rate->is( $locked ) ) );
+
+    $component = Livewire::test( Index::class )
+        ->call( 'openImport' )
+        ->set( 'ratesCsv', taxCsv( "tax_class_key,country_code,rate_percent,label\nstandard,DE,19,MwSt.\nstandard,FR,20,TVA" ) )
+        ->call( 'checkImport' )
+        ->assertSet( 'importReport.update', 1 )
+        ->assertSet( 'importReport.invalid', 1 )
+        ->assertSee( 'This rate already exists and you are not allowed to change existing rates.' );
+
+    $component->call( 'applyImport', $component->viewData( 'importToken' ) );
+
+    expect( $locked->refresh()->rate_ubps )->toBe( 160_000_000 )
+        ->and( $open->refresh()->rate_ubps )->toBe( 200_000_000 );
 } );

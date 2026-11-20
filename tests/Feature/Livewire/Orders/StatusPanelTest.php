@@ -162,7 +162,8 @@ it( 'lists other statuses\' sub-statuses as disabled and explains refusing them'
 
     Livewire::test( StatusPanel::class, [ 'order' => $order ] )
         ->assertSeeHtml( 'value="' . $other->id . '"  disabled' )
-        ->assertSee( 'Greyed-out sub-statuses belong to another order status' )
+        ->assertSee( 'Sub-statuses followed by another order status in brackets can’t be chosen until the order moves to that status.' )
+        ->assertDontSee( 'Greyed-out' )
         ->set( 'substatusId', $other->id )
         ->call( 'changeSubstatus' )
         ->assertHasErrors( [ 'substatusId' ] )
@@ -215,7 +216,7 @@ it( 'says a paid order still needs refunding when cancelled', function (): void 
 
     Livewire::test( StatusPanel::class, [ 'order' => $order ] )
         ->set( 'confirmingCancel', true )
-        ->assertSee( 'Cancelling does not refund: $42.00 is still owed' );
+        ->assertSee( 'Canceling does not refund: $42.00 is still owed' );
 } );
 
 it( 'requires a reason to cancel', function (): void {
@@ -264,4 +265,58 @@ it( 'refuses to cancel without order.cancel', function (): void {
         ->assertDontSee( 'Cancel order' )
         ->call( 'cancelOrder', 'token' )
         ->assertForbidden();
+} );
+
+it( 'builds the panel from design-system parts with no DaisyUI classes', function (): void {
+    $order = Order::factory()->withSystemStatus( 'processing' )->create( [ 'payment_status' => 'paid' ] );
+
+    $html = Livewire::test( StatusPanel::class, [ 'order' => $order ] )->html();
+
+    expect( $html )
+        ->toContain( 'role="group" aria-label="Current status"' )
+        ->toContain( 'Update status' )
+        ->toContain( 'Save sub-status' )
+        ->toContain( 'data-cancel-order' )
+        ->toContain( 'class="apui-divider' )
+        ->not->toContain( 'border-base-300' )
+        ->not->toContain( 'opacity-75' )
+        ->not->toContain( 'Change status' );
+} );
+
+it( 'keeps Update status disabled until a target is chosen', function (): void {
+    $order     = Order::factory()->withSystemStatus( 'processing' )->create();
+    $component = Livewire::test( StatusPanel::class, [ 'order' => $order ] );
+
+    $button = static fn ( string $html ): string => Illuminate\Support\Str::betweenFirst( $html, 'data-status-form', 'Update status' );
+
+    expect( $button( $component->html() ) )->toMatch( '/<button[^>]*\sdisabled[\s>]/' );
+
+    $component->set( 'targetStatus', 'completed' );
+
+    expect( $button( $component->html() ) )->not->toMatch( '/<button[^>]*\sdisabled[\s>]/' );
+} );
+
+it( 'tells a user without order.update that the status is read-only', function (): void {
+    Gate::define( 'ecommerce.order.update', static fn (): bool => false );
+    $order = Order::factory()->create();
+
+    Livewire::test( StatusPanel::class, [ 'order' => $order ] )
+        ->assertSeeHtml( 'data-status-read-only' )
+        ->assertDontSeeHtml( 'data-status-form' );
+} );
+
+it( 'opens the cancel dialog on Reason, bolds the money owed and holds the button until a reason is entered', function (): void {
+    $order = Order::factory()->withSystemStatus( 'processing' )->create( [ 'payment_status' => 'paid', 'total_amount' => 4_200 ] );
+
+    $html = Livewire::test( StatusPanel::class, [ 'order' => $order ] )
+        ->set( 'confirmingCancel', true )
+        ->html();
+
+    expect( $html )
+        ->toContain( 'data-cancel-form' )
+        ->toMatch( '/<textarea[^>]*data-autofocus/' )
+        ->toContain( 'Why is this order being canceled?' )
+        ->toContain( 'class="ec-strong" data-refund-owed' )
+        ->toContain( 'Keep order' )
+        ->toMatch( '/x-bind:disabled="! \( \$wire\.cancelReason/' );
 } );

@@ -98,7 +98,7 @@ final class StatusPresenter
                 'pending'    => [ __( 'Pending' ), 'warning' ],
                 'processing' => [ __( 'Processing' ), 'info' ],
                 'complete'   => [ __( 'Complete' ), 'success' ],
-                'cancelled'  => [ __( 'Cancelled' ), 'neutral' ],
+                'cancelled'  => [ __( 'Canceled' ), 'neutral' ],
                 'refunded'   => [ __( 'Refunded' ), 'neutral' ],
                 'failed'     => [ __( 'Failed' ), 'error' ],
             ],

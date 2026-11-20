@@ -20,32 +20,13 @@ final class Accessibility
     /**
      * Known library failures: axe rule => selector the node must sit in.
      *
-     * All tracked in ArtisanPack-UI/livewire-ui-components#117.
+     * Keep each entry as narrow as the bug: a selector that only matches the
+     * library's own markup, never a generic element such as `fieldset`, and
+     * name it in docs/accessibility.md ("Known limitations").
      *
      * @var array<int, array{0: string, 1: string}>
      */
-    public const LIBRARY_ISSUES = [
-        // `x-artisanpack-menu` puts non-<li> children in its <ul> and gives
-        // links role="menuitem" without a role="menu" parent.
-        [ 'list', '.menu' ],
-        [ 'listitem', '.menu' ],
-        [ 'aria-required-parent', '.menu' ],
-        // `x-artisanpack-select` / `-textarea` label with a <legend>, so the
-        // control itself has no accessible name.
-        [ 'select-name', 'fieldset' ],
-        [ 'label', 'fieldset' ],
-        // Header subtitles and stat titles use text-base-content/50 (3.3:1).
-        [ 'color-contrast', '.text-base-content\\/50' ],
-        // The pagination view puts aria-label on a disabled <span> (and
-        // double-escapes it: "&laquo; Previous").
-        [ 'aria-prohibited-attr', '.pagination-controls' ],
-        // `x-artisanpack-tabs` gives its content wrapper role="tablist" (with
-        // no tabs in it) and draws inactive tab labels below 4.5:1.
-        [ 'aria-required-children', '[role="tablist"]' ],
-        [ 'color-contrast', '[role="tab"]' ],
-        // `x-artisanpack-code` (Ace) leaves its input textarea unlabelled.
-        [ 'label', '.ace_editor' ],
-    ];
+    public const LIBRARY_ISSUES = [];
 
     /**
      * Asserts the page has no accessibility violations beyond the known

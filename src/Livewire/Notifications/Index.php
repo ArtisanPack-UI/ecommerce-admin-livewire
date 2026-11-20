@@ -106,7 +106,7 @@ class Index extends Component
             ->orderBy( 'key' )
             ->orderBy( 'channel' )
             ->orderBy( 'locale' )
-            ->get( [ 'id', 'key', 'channel', 'locale', 'is_active', 'updated_at' ] );
+            ->get( [ 'id', 'key', 'channel', 'locale', 'subject', 'body', 'is_active', 'created_at', 'updated_at' ] );
 
         $channels = $rows->pluck( 'channel' )->unique()->sort()->values();
         $locales  = $rows->pluck( 'locale' )->unique()->sort()->values();
@@ -155,6 +155,58 @@ class Index extends Component
             'sms'      => __( 'SMS' ),
             default    => Str::headline( $channel ),
         };
+    }
+
+    /**
+     * The Lucide icon drawn beside a channel's name.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $channel  Channel key.
+     *
+     * @return string
+     */
+    public static function channelIcon( string $channel ): string
+    {
+        return match ( $channel ) {
+            'mail'     => 'mail',
+            'sms'      => 'message-square',
+            'database' => 'bell',
+            default    => 'megaphone',
+        };
+    }
+
+    /**
+     * Whether a template row's copy differs from what the store shipped.
+     *
+     * Compares the subject and body with the catalog defaults for the row's
+     * locale, so a catalog sync (which re-saves rows when a definition's
+     * variables change), switching a row on or off, or a reset to default
+     * all leave it reading "Never". A row with no catalog definition on its
+     * channel falls back to whether it was saved after it was created.
+     *
+     * @since 2.0.0
+     *
+     * @param  NotificationTemplate  $template  The template row.
+     *
+     * @return bool
+     */
+    public static function wasEdited( NotificationTemplate $template ): bool
+    {
+        $definition = $template->definition();
+
+        if ( null !== $definition && $definition->channel() === $template->channel ) {
+            $normalize = static fn ( ?string $copy ): string => str_replace( "\r\n", "\n", (string) $copy );
+
+            return $normalize( $template->subject ) !== $normalize( $definition->defaultSubject( $template->locale ) )
+                || $normalize( $template->body ) !== $normalize( $definition->defaultBody( $template->locale ) );
+        }
+
+        if ( null === $template->updated_at ) {
+            return false;
+        }
+
+        return null === $template->created_at || $template->updated_at->greaterThan( $template->created_at );
     }
 
     /**

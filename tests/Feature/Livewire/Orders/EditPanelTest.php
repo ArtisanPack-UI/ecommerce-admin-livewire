@@ -111,7 +111,7 @@ it( 'changes a size by replacing the line with the new variant', function (): vo
         ->set( "draftItems.{$this->item->id}.variant_id", $this->large->id )
         ->set( 'reason', 'Wrong size' );
 
-    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
+    $component->call( 'previewEdit' )->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
 
     $line = $this->order->fresh()->items()->sole();
 
@@ -129,7 +129,7 @@ it( 'fixes a postal code and keeps the address\'s other fields', function (): vo
         ->assertSee( 'Shipping address changed.' )
         ->set( 'reason', 'Typo' );
 
-    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
+    $component->call( 'previewEdit' )->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
 
     expect( $this->order->fresh()->shipping_address )->toMatchArray( [ 'postal_code' => '54321', 'address1' => '1 Main St', 'city' => 'Springfield' ] );
 } );
@@ -147,7 +147,7 @@ it( 'adds a product at its current price', function (): void {
         ->assertCount( 'newItems', 1 )
         ->set( 'reason', 'Add one' );
 
-    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
+    $component->call( 'previewEdit' )->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
 
     expect( $this->order->fresh()->items()->count() )->toBe( 2 )
         ->and( $this->order->fresh()->total_amount )->toBe( 3_200 );
@@ -182,19 +182,83 @@ it( 'validates the edit', function ( array $set, string $error ): void {
     'bad country'      => [ [ 'shipping.country_code' => 'USA', 'reason' => 'x' ], 'shipping.country_code' ],
 ] );
 
+it( 'refuses to apply an edit that was never previewed', function (): void {
+    $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startEdit' )
+        ->set( "draftItems.{$this->item->id}.quantity", 3 )
+        ->set( 'reason', 'Unseen' );
+
+    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )
+        ->assertHasErrors( [ 'edit' ] )
+        ->assertSee( 'The changes were edited after the preview. Preview them again.' );
+
+    expect( $this->item->fresh()->quantity )->toBe( 2 )
+        ->and( OrderEdit::query()->count() )->toBe( 0 );
+} );
+
+it( 'refuses to apply when the draft changed after the preview, then applies once previewed again', function (): void {
+    $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startEdit' )
+        ->set( "draftItems.{$this->item->id}.quantity", 3 )
+        ->call( 'previewEdit' )
+        ->set( 'reason', 'Changed' );
+
+    $token = editPanelToken( $component, 'applyEdit' );
+
+    // The field change lands in the same request as the click.
+    $component->set( "draftItems.{$this->item->id}.quantity", 5 )
+        ->call( 'applyEdit', $token )
+        ->assertHasErrors( [ 'edit' ] )
+        ->assertSet( 'preview', null )
+        ->assertSet( 'previewHash', null );
+
+    expect( $this->item->fresh()->quantity )->toBe( 2 );
+
+    $component->call( 'previewEdit' )->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
+
+    expect( $this->item->fresh()->quantity )->toBe( 5 );
+} );
+
+it( 'does not let the client write the preview hash', function (): void {
+    Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->set( 'previewHash', 'forged' );
+} )->throws( \Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class );
+
+it( 'refuses an edit whose address drafts are incomplete', function (): void {
+    $address = $this->order->shipping_address;
+
+    $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->set( 'editing', true )
+        ->set( 'shipping', [] )
+        ->set( 'billing', [] )
+        ->set( 'reason', 'Tampered' );
+
+    $component->call( 'previewEdit' )->assertHasErrors( [ 'edit' ] )->assertSet( 'preview', null );
+    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasErrors( [ 'edit' ] );
+
+    expect( $this->order->fresh()->shipping_address )->toBe( $address )
+        ->and( OrderEdit::query()->count() )->toBe( 0 );
+} );
+
 it( 'rolls back the latest edit', function (): void {
     $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
         ->call( 'startEdit' )
         ->set( "draftItems.{$this->item->id}.quantity", 5 )
         ->set( 'reason', 'Mistake' );
 
-    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) );
+    $component->call( 'previewEdit' )->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) );
 
     $edit     = OrderEdit::query()->sole();
-    $history  = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->assertSee( 'Roll back' );
+    $history  = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->assertSeeHtml( 'data-rollback' )
+        ->assertDontSeeHtml( 'data-rollback-dialog' )
+        ->call( 'confirmRollback', $edit->id )
+        ->assertSet( 'rollbackEditId', $edit->id )
+        ->assertSeeHtml( 'data-rollback-dialog' )
+        ->assertSee( 'Roll back edit #' . $edit->id . '?' );
 
     $history->call( 'rollbackEdit', $edit->id, editPanelToken( $history, 'rollbackEdit' ) )
-        ->assertDispatched( OrderPanelRegistry::ORDER_UPDATED_EVENT );
+        ->assertDispatched( OrderPanelRegistry::ORDER_UPDATED_EVENT )
+        ->assertSet( 'confirmingRollback', false );
 
     expect( $this->item->fresh()->quantity )->toBe( 2 )
         ->and( OrderEdit::query()->count() )->toBe( 2 );
@@ -228,7 +292,7 @@ it( 'needs order.edit-fulfilled once fulfillment has started, and then only edit
         ->set( 'shipping.city', 'Shelbyville' )
         ->set( 'reason', 'Moved' );
 
-    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
+    $component->call( 'previewEdit' )->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
 
     expect( $this->order->fresh()->shipping_address['city'] )->toBe( 'Shelbyville' );
 } );
@@ -253,7 +317,7 @@ it( 'prices added lines on the server, ignoring a tampered price', function (): 
         ->set( 'newItems.0.unit_price_amount', 1 )
         ->set( 'reason', 'Add one' );
 
-    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
+    $component->call( 'previewEdit' )->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
 
     expect( $this->order->fresh()->items()->where( 'product_variant_id', $this->large->id )->sole()->unit_price_amount )->toBe( 1_200 );
 } );
@@ -292,7 +356,7 @@ it( 'ignores lines from another order and malformed lines', function (): void {
         ->set( "draftItems.{$this->item->id}.quantity", 3 )
         ->set( 'reason', 'x' );
 
-    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
+    $component->call( 'previewEdit' )->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )->assertHasNoErrors();
 
     expect( $foreign->fresh() )->not->toBeNull()
         ->and( $foreign->fresh()->quantity )->toBe( 4 );
@@ -328,4 +392,108 @@ it( 'marks a line for removal with a visible badge, not by fading the row', func
         ->assertSeeHtml( 'data-will-remove' )
         ->assertSee( 'Will be removed' )
         ->assertDontSeeHtml( 'opacity-50' );
+} );
+
+it( 'builds the history from design-system parts and offers roll back on the latest edit only', function (): void {
+    $older  = OrderEdit::factory()->create( [ 'order_id' => $this->order->id, 'reason' => 'Wrong size ordered.' ] );
+    $latest = OrderEdit::factory()->create( [ 'order_id' => $this->order->id, 'reason' => 'Second sweater.' ] );
+
+    $html = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->html();
+
+    expect( $html )
+        ->toContain( 'aria-label="Edit history, newest first"' )
+        ->toContain( 'class="ec-item"' )
+        ->toContain( 'aria-label="Roll back edit #' . $latest->id . '"' )
+        ->not->toContain( 'aria-label="Roll back edit #' . $older->id . '"' )
+        ->not->toContain( 'wire:confirm' )
+        ->not->toContain( 'rounded-box' );
+} );
+
+it( 'keeps Save disabled until the changes are previewed, then until a reason is entered', function (): void {
+    $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startEdit' )
+        ->set( "draftItems.{$this->item->id}.quantity", 3 );
+
+    expect( $component->html() )
+        ->toContain( 'x-bind:disabled="true"' )
+        ->toContain( 'Preview the changes to see the new totals before saving.' );
+
+    $component->call( 'previewEdit' );
+
+    expect( $component->html() )
+        ->toMatch( '/x-bind:disabled="! \( \$wire\.reason/' )
+        ->toContain( 'Total: $20.00 → $30.00' )
+        ->toContain( 'aria-live="polite"' );
+} );
+
+it( 'names per-row controls for their item and wraps the addresses in an accordion', function (): void {
+    $html = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->call( 'startEdit' )->html();
+
+    expect( $html )
+        ->toContain( 'aria-label="Quantity of Linen Shirt"' )
+        ->toContain( 'aria-label="Remove Linen Shirt"' )
+        ->toContain( 'data-edit-addresses' )
+        ->toContain( 'Shipping address' )
+        ->toContain( '1 Main St, Springfield' )
+        ->toContain( 'class="apui-dialog ec-dialog-xl' );
+} );
+
+it( 'opens an address section whose fields have an error', function (): void {
+    $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startEdit' )
+        ->assertSet( 'openAddresses', [] )
+        ->set( 'shipping.country_code', 'USA' )
+        ->set( 'reason', 'x' );
+
+    $component->call( 'applyEdit', editPanelToken( $component, 'applyEdit' ) )
+        ->assertHasErrors( [ 'shipping.country_code' ] )
+        ->assertSet( 'openAddresses', [ 'shipping' ] );
+} );
+
+it( 'keeps only the known address sections a client asks to open', function (): void {
+    Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startEdit' )
+        ->set( 'openAddresses', [ 'billing', 'payment', [ 'nested' ], 'shipping', 'billing' ] )
+        ->assertSet( 'openAddresses', [ 'shipping', 'billing' ] )
+        ->assertSeeHtml( 'aria-label="Shipping address"' )
+        ->assertOk();
+} );
+
+it( 'keeps the roll-back confirmation on the edit it was opened for when a newer edit is saved', function (): void {
+    $first     = OrderEdit::factory()->create( [ 'order_id' => $this->order->id ] );
+    $component = Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->call( 'confirmRollback', $first->id );
+
+    // Another panel saves a newer edit while the dialog is open.
+    $newer = OrderEdit::factory()->create( [ 'order_id' => $this->order->id ] );
+    $component->dispatch( OrderPanelRegistry::ORDER_UPDATED_EVENT );
+
+    expect( $component->html() )
+        ->toContain( 'Roll back edit #' . $first->id . '?' )
+        ->not->toContain( 'Roll back edit #' . $newer->id . '?' )
+        ->toContain( 'data-rollback-stale' )
+        ->toContain( 'rollbackEdit( ' . $first->id . ',' );
+
+    $component->call( 'rollbackEdit', $first->id, editPanelToken( $component, 'rollbackEdit' ) )
+        ->assertSet( 'confirmingRollback', false )
+        ->assertSet( 'rollbackEditId', null );
+
+    expect( OrderEdit::query()->count() )->toBe( 2 );
+} );
+
+it( 'refuses to open the roll-back confirmation for an edit that is not the latest', function (): void {
+    $older = OrderEdit::factory()->create( [ 'order_id' => $this->order->id ] );
+    OrderEdit::factory()->create( [ 'order_id' => $this->order->id ] );
+
+    Livewire::test( EditPanel::class, [ 'order' => $this->order ] )
+        ->call( 'confirmRollback', $older->id )
+        ->assertSet( 'confirmingRollback', false )
+        ->assertSet( 'rollbackEditId', null )
+        ->assertDontSeeHtml( 'data-rollback-dialog' );
+} );
+
+it( 'does not let the client choose the roll-back target', function (): void {
+    $edit = OrderEdit::factory()->create( [ 'order_id' => $this->order->id ] );
+
+    expect( fn () => Livewire::test( EditPanel::class, [ 'order' => $this->order ] )->set( 'rollbackEditId', $edit->id ) )
+        ->toThrow( \Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class );
 } );

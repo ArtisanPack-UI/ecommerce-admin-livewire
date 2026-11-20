@@ -33,7 +33,7 @@ it( 'lists files with product, label, version, location, and streaming flag', fu
 
     Livewire::test( Index::class )
         ->assertOk()
-        ->assertSeeHtml( '<caption class="sr-only">Digital files</caption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Digital files</caption>' )
         ->assertSee( 'Cookbook' )
         ->assertSee( 'Cookbook PDF' )
         ->assertSee( '1.2' )

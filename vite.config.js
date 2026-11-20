@@ -1,18 +1,14 @@
 /**
  * Builds the asset bundle the browser tests load (tests/Browser).
  *
- * The package ships no CSS or JS build: a host compiles the admin's views
- * with its own Tailwind setup. The browser suite stands in for that host,
- * so it builds a small Tailwind + daisyUI bundle with the scripts the
- * component library expects on the page, into the Testbench public
+ * The package ships no CSS or JS build: a host loads the ArtisanPack UI
+ * design system with its own build. The browser suite stands in for that
+ * host, so it builds a small Tailwind + design-system bundle with the
+ * scripts the admin expects on the page, into the Testbench public
  * directory the browser tests point at.
  *
- * It also copies the component library's published assets (TinyMCE and its
- * CSS) the way `php artisan vendor:publish --tag=artisanpack-assets` does.
- *
- * daisyUI is pinned to ~5.0 in package.json: later 5.x releases hide
- * `.tab-content`, which leaves the component library's tab panels empty
- * (ArtisanPack-UI/livewire-ui-components#119).
+ * It also copies the component library's published assets (TinyMCE) the
+ * way `php artisan vendor:publish --tag=artisanpack-assets` does.
  */
 const library = 'vendor/artisanpack-ui/livewire-ui-components/resources';
 const publicDirectory = 'tests/Browser/workbench/public';

@@ -11,7 +11,7 @@ beforeEach( function (): void {
     config()->set( 'artisanpack.ecommerce.base_currency', 'USD' );
     config()->set( 'artisanpack.ecommerce.features.scout', false );
     config()->set( 'artisanpack.ecommerce-admin-livewire.imports.disk', 'imports' );
-    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update' ] );
+    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update', 'inventory.adjust' ] );
 
     $this->user = makeUser();
     $this->actingAs( $this->user );
@@ -112,6 +112,8 @@ it( 'refuses a new product without a SKU or a slug, in the dry run and the apply
 } );
 
 it( 'prunes old finished, failed, and abandoned imports, keeping active ones', function (): void {
+    // A queued or running import untouched for days has no live worker
+    // (it would have saved its progress), so it is pruned too.
     $make = function ( string $status ): string {
         $state           = queuedImport( "name,sku\nMug,MUG-1\n", 1, $this->user->id );
         $state['status'] = $status;
@@ -125,13 +127,96 @@ it( 'prunes old finished, failed, and abandoned imports, keeping active ones', f
 
     Illuminate\Support\Carbon::setTestNow();
 
-    $recent = $make( 'failed' );
+    $recent  = $make( 'failed' );
+    $running = $make( 'running' );
 
     $this->artisan( 'ecommerce-admin:prune-imports' )
-        ->expectsOutputToContain( 'Deleted 3 old imports.' )
+        ->expectsOutputToContain( 'Deleted 5 old imports.' )
         ->assertSuccessful();
 
-    expect( array_map( static fn ( string $id ): bool => null !== ProductImports::find( $id ), $old ) )->toBe( [ false, false, false, true, true ] )
+    expect( array_map( static fn ( string $id ): bool => null !== ProductImports::find( $id ), $old ) )->toBe( [ false, false, false, false, false ] )
         ->and( ProductImports::find( $recent ) )->not->toBeNull()
+        ->and( ProductImports::find( $running ) )->not->toBeNull()
         ->and( ProductImports::disk()->exists( 'ecommerce-admin/imports/' . $old[2] . '/source.csv' ) )->toBeFalse();
+} );
+
+it( 'marks an abandoned import failed even when a dead worker still holds the lock', function (): void {
+    $state           = queuedImport( "name,sku\nMug,MUG-1\n", 1, $this->user->id );
+    $state['status'] = 'running';
+    ProductImports::save( $state );
+
+    // The killed worker's lock is still held.
+    Illuminate\Support\Facades\Cache::lock( ProductImports::lockKey( $state['id'] ), 10000 )->get();
+
+    $job = new RunProductImport( $state['id'] );
+
+    // Still saving progress: another worker may own it, so leave it alone.
+    $job->failed( new RuntimeException( 'Timed out' ) );
+
+    expect( ProductImports::find( $state['id'] )['status'] )->toBe( 'running' );
+
+    $this->travel( RunProductImport::TIMEOUT + ProductImports::ABANDONED_GRACE_SECONDS + 5 )->seconds();
+
+    $job->failed( new RuntimeException( 'Timed out' ) );
+
+    expect( ProductImports::find( $state['id'] )['status'] )->toBe( 'failed' );
+} );
+
+it( 'records the import\'s owner as the actor of what it writes', function (): void {
+    $state = queuedImport( "name,sku\nMug,MUG-1\n", 1, $this->user->id );
+
+    // A queue worker has no signed-in user.
+    app( 'auth' )->forgetGuards();
+
+    ( new RunProductImport( $state['id'] ) )->handle();
+
+    $product = Product::query()->where( 'sku', 'MUG-1' )->firstOrFail();
+    $entries = ArtisanPackUI\Ecommerce\Models\ActivityLogEntry::query()
+        ->where( 'subject_type', $product->getMorphClass() )
+        ->where( 'subject_id', $product->id )
+        ->get();
+
+    expect( $entries )->not->toBeEmpty()
+        ->and( $entries->pluck( 'actor_user_id' )->unique()->all() )->toBe( [ (int) $this->user->id ] )
+        ->and( auth()->hasUser() )->toBeFalse();
+} );
+
+it( 'imports a Windows-1252 file with accented headers and cells', function (): void {
+    $csv   = mb_convert_encoding( "name,sku,Catégorie\nCafé crème,CAFE-1,x\n", 'Windows-1252', 'UTF-8' );
+    $state = queuedImport( $csv, 1, $this->user->id );
+
+    $state['mapping'] = [ 'name' => 'name', 'sku' => 'sku', 'Catégorie' => '' ];
+    ProductImports::save( $state );
+
+    ( new RunProductImport( $state['id'] ) )->handle();
+
+    expect( ProductImports::find( $state['id'] )['status'] )->toBe( 'completed' )
+        ->and( Product::query()->where( 'sku', 'CAFE-1' )->value( 'name' ) )->toBe( 'Café crème' );
+} );
+
+it( 'never blanks the state file when it holds invalid UTF-8', function (): void {
+    $state              = queuedImport( "name,sku\nMug,MUG-1\n", 1, $this->user->id );
+    $state['file_name'] = "Caf\xE9.csv";
+
+    ProductImports::save( $state );
+
+    $saved = ProductImports::find( $state['id'] );
+
+    expect( $saved )->not->toBeNull()
+        ->and( $saved['file_name'] )->toBe( "Caf\u{FFFD}.csv" );
+} );
+
+it( 'skips stock columns, with a warning, for a user who may not adjust stock', function (): void {
+    Illuminate\Support\Facades\Gate::define( 'ecommerce.inventory.adjust', static fn (): bool => false );
+
+    $state = queuedImport( "name,sku,quantity_on_hand\nMug,MUG-1,25\n", 1, $this->user->id );
+
+    ( new RunProductImport( $state['id'] ) )->handle();
+
+    $product = Product::query()->where( 'sku', 'MUG-1' )->firstOrFail();
+
+    expect( ProductImports::find( $state['id'] ) )
+        ->status->toBe( 'completed' )
+        ->warnings->toBe( [ 'stock' => 1 ] )
+        ->and( ArtisanPackUI\Ecommerce\Models\InventoryItem::query()->where( 'stockable_type', $product->getMorphClass() )->where( 'stockable_id', $product->id )->value( 'quantity_on_hand' ) ?? 0 )->toBe( 0 );
 } );

@@ -24,12 +24,12 @@ afterEach( function (): void {
 } );
 
 /**
- * The palette results for a search, through the admin's spotlight route.
- * A user the admin middleware turns away gets none.
+ * The palette's result groups for a search, through the admin's spotlight
+ * route. A user the admin middleware turns away gets none.
  *
- * @return array<int, array<string, mixed>>
+ * @return array<int, array{id: string, label: string|null, items: array<int, array<string, mixed>>}>
  */
-function spotlightResults( string $search ): array
+function spotlightGroups( string $search ): array
 {
     $response = test()->getJson( route( AdminSpotlight::ADMIN_ROUTE, [ 'search' => $search ] ) );
 
@@ -38,6 +38,16 @@ function spotlightResults( string $search ): array
     }
 
     return $response->assertOk()->json();
+}
+
+/**
+ * The palette results for a search, every group's items in order.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function spotlightResults( string $search ): array
+{
+    return array_merge( [], ...array_column( spotlightGroups( $search ), 'items' ) );
 }
 
 it( 'finds orders by number and email and links to the order', function (): void {
@@ -51,7 +61,7 @@ it( 'finds orders by number and email and links to the order', function (): void
     expect( array_column( $byNumber, 'name' ) )->toContain( 'Order #50123' )->not->toContain( 'Order #70000' )
         ->and( $byNumber[0]['link'] )->toBe( route( 'artisanpack.ecommerce.admin.orders.show', [ 'order' => $order->id ] ) )
         ->and( $byNumber[0]['description'] )->toContain( 'ada@example.test' )
-        ->and( $byNumber[0]['icon'] )->toContain( '<svg' )
+        ->and( $byNumber[0]['icon'] )->toBeNull()
         ->and( array_column( $byEmail, 'name' ) )->toBe( [ 'Order #50123' ] );
 } );
 
@@ -145,14 +155,14 @@ it( 'runs one query per provider', function (): void {
 it( 'offers new product, new promotion, and navigation actions', function (): void {
     grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'promotion.viewAny', 'promotion.view' ] );
 
-    $results = array_column( spotlightResults( 'new' ), 'link', 'name' );
+    $results = array_column( AdminSpotlight::search( 'new', $this->user ), 'link', 'name' );
 
     expect( $results )->toHaveKey( 'New product' )
         ->and( $results['New product'] )->toBe( route( 'artisanpack.ecommerce.admin.products.create' ) )
         ->not->toHaveKey( 'New promotion' );
 
-    expect( array_column( spotlightResults( 'go categ' ), 'name' ) )->toBe( [ 'Go to Categories' ] )
-        ->and( array_column( spotlightResults( 'shipping' ), 'name' ) )->not->toContain( 'Go to Shipping' );
+    expect( array_column( AdminSpotlight::search( 'go categ', $this->user ), 'name' ) )->toBe( [ 'Go to Categories' ] )
+        ->and( array_column( AdminSpotlight::search( 'shipping', $this->user ), 'name' ) )->not->toContain( 'Go to Shipping' );
 } );
 
 it( 'returns nothing to a user who cannot open the admin, or for an empty search', function (): void {
@@ -204,7 +214,8 @@ it( 'points the admin palette at the admin route', function (): void {
 
     $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
         ->assertOk()
-        ->assertSee( route( AdminSpotlight::ADMIN_ROUTE, absolute: false ), false );
+        // The URL sits in the palette's JSON config, with its slashes escaped.
+        ->assertSee( str_replace( '/', '\\\\\\/', route( AdminSpotlight::ADMIN_ROUTE, absolute: false ) ), false );
 } );
 
 it( 'truncates an over-long search instead of failing', function (): void {
@@ -290,27 +301,30 @@ it( 'mounts the palette and its open button in the standalone layout', function 
 
     $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
         ->assertOk()
-        ->assertSee( 'marySpotlight', false )
-        ->assertSee( '@keydown.window.prevent.meta.k', false )
+        ->assertSee( 'apuiSpotlight(', false )
+        ->assertSee( 'data-scope="spotlight" data-part="trigger"', false )
         ->assertSee( 'data-spotlight-open', false )
-        ->assertSee( 'aria-keyshortcuts="Meta+K"', false );
+        ->assertSee( 'aria-keyshortcuts="Meta+K Control+K"', false );
 } );
 
 it( 'mounts the palette on a configured shortcut, and not at all when disabled', function (): void {
     grantAbilities( [ 'order.viewAny', 'order.view' ] );
     config()->set( 'artisanpack.ecommerce-admin-livewire.spotlight.shortcut', 'ctrl.slash' );
 
+    expect( AdminSpotlight::paletteShortcut() )->toBe( 'ctrl+/' );
+
     $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
-        ->assertSee( '@keydown.window.prevent.ctrl.slash', false );
+        ->assertSee( 'aria-keyshortcuts="Control+/"', false );
 
     config()->set( 'artisanpack.ecommerce-admin-livewire.spotlight.shortcut', 'meta.k" onclick="x' );
 
-    expect( AdminSpotlight::shortcut() )->toBe( 'meta.k' );
+    expect( AdminSpotlight::shortcut() )->toBe( 'meta.k' )
+        ->and( AdminSpotlight::paletteShortcut() )->toBe( 'mod+k' );
 
     config()->set( 'artisanpack.ecommerce-admin-livewire.spotlight.enabled', false );
 
     $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )
-        ->assertDontSee( 'marySpotlight', false )
+        ->assertDontSee( 'apuiSpotlight(', false )
         ->assertDontSee( 'data-spotlight-open', false );
 } );
 
@@ -334,7 +348,7 @@ it( 'mounts the palette and its button under the cms-framework layout', function
         ->assertSee( 'data-spotlight-open', false )
         ->getContent();
 
-    expect( substr_count( $html, '@keydown.window.prevent.meta.k' ) )->toBe( 1 );
+    expect( substr_count( $html, 'apuiSpotlight(' ) )->toBe( 1 );
 } );
 
 it( 'drops records the user may not view, and coupons without promotion access', function (): void {
@@ -391,4 +405,175 @@ it( 'drops result links that are not relative or on the app\'s host', function (
     } ] );
 
     expect( array_column( AdminSpotlight::search( 'x', $this->user ), 'name' ) )->toBe( [ 'Relative', 'App URL' ] );
+} );
+
+it( 'cuts a provider that ignores the limit at RESULTS_PER_LIMIT times it', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+    config()->set( 'artisanpack.ecommerce-admin-livewire.spotlight.limit', 2 );
+
+    addFilter( AdminSpotlight::PROVIDERS_FILTER, static fn ( array $providers ): array => [ 'greedy' => new class implements SpotlightProvider {
+        public function ability(): ?string
+        {
+            return null;
+        }
+
+        public function search( string $search, Authenticatable $user, int $limit ): array
+        {
+            return array_map( static fn ( int $index ): array => [ 'name' => 'Result ' . $index, 'link' => '/ecommerce-admin/orders' ], range( 1, 500 ) );
+        }
+    } ] );
+
+    expect( AdminSpotlight::search( 'x', $this->user ) )->toHaveCount( 2 * AdminSpotlight::RESULTS_PER_LIMIT )
+        ->and( AdminSpotlight::RESULTS_PER_LIMIT )->toBe( 3 );
+} );
+
+it( 'names result icons from the design-system registry, never markup', function (): void {
+    expect( AdminSpotlight::icon( 'o-user' ) )->toBe( 'user' )
+        ->and( AdminSpotlight::icon( 'message-square' ) )->toBe( 'message-square' )
+        ->and( AdminSpotlight::icon( 'o-shopping-bag' ) )->toBe( 'shopping-bag' )
+        ->and( AdminSpotlight::icon( 'o-academic-cap' ) )->toBeNull()
+        ->and( AdminSpotlight::icon( '<svg onload=x>' ) )->toBeNull()
+        ->and( AdminSpotlight::icon( null ) )->toBeNull();
+} );
+
+it( 'groups the admin route\'s results by provider, labeled, in provider order', function (): void {
+    grantAbilities( [ 'product.viewAny', 'product.view', 'customer.viewAny', 'customer.view' ] );
+    Product::factory()->create( [ 'name' => 'Linen Mug' ] );
+    Customer::factory()->create( [ 'first_name' => 'Linus', 'last_name' => 'Pauling' ] );
+
+    $groups = spotlightGroups( 'lin' );
+
+    expect( array_column( $groups, 'label', 'id' ) )->toBe( [ 'products' => 'Products', 'customers' => 'Customers' ] )
+        ->and( array_column( $groups[0]['items'], 'name' ) )->toBe( [ 'Linen Mug' ] )
+        ->and( $groups[0]['items'][0]['icon'] )->toBeNull();
+} );
+
+it( 'keeps host results in an unlabeled first group on the admin route', function (): void {
+    grantAbilities( [ 'product.viewAny', 'product.view' ] );
+    Product::factory()->create( [ 'name' => 'Mug' ] );
+
+    $host = static fn ( array $commands ): array => [ ...$commands, [ 'name' => 'Host mug', 'link' => '/host' ] ];
+    addFilter( AdminSpotlight::COMMANDS_FILTER, $host );
+
+    try {
+        $groups = spotlightGroups( 'mug' );
+    } finally {
+        removeFilter( AdminSpotlight::COMMANDS_FILTER, $host );
+    }
+
+    expect( $groups[0] )->toMatchArray( [ 'id' => 'results', 'label' => null ] )
+        ->and( array_column( $groups[0]['items'], 'name' ) )->toBe( [ 'Host mug' ] )
+        ->and( array_column( $groups, 'id' ) )->toBe( [ 'results', 'products' ] );
+} );
+
+it( 'lists the actions in the palette itself and leaves them out of the route', function (): void {
+    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create' ] );
+
+    $group = AdminSpotlight::actionGroup( $this->user );
+
+    expect( $group )->toMatchArray( [ 'id' => 'actions', 'label' => 'Actions' ] )
+        ->and( array_column( $group['items'], 'name' ) )->toContain( 'New product', 'Go to Products' )
+        ->and( $group['items'][0]['keywords'] )->toBe( [ 'add', 'create' ] )
+        ->and( $group['items'][0]['icon'] )->toBe( 'plus' )
+        ->and( array_column( spotlightResults( 'new product' ), 'name' ) )->not->toContain( 'New product' );
+} );
+
+it( 'searches the actions on the route when the actions provider was replaced', function (): void {
+    grantAbilities( [ 'product.viewAny', 'product.view' ] );
+
+    addFilter( AdminSpotlight::PROVIDERS_FILTER, static function ( array $providers ): array {
+        $providers['actions'] = new class implements SpotlightProvider {
+            public function ability(): ?string
+            {
+                return null;
+            }
+
+            public function search( string $search, Authenticatable $user, int $limit ): array
+            {
+                return [ [ 'name' => 'Custom action', 'link' => '/custom' ] ];
+            }
+
+            public function label(): string
+            {
+                return 'Shortcuts';
+            }
+        };
+
+        return $providers;
+    } );
+
+    expect( AdminSpotlight::actionGroup( $this->user ) )->toBeNull()
+        ->and( array_column( spotlightGroups( 'x' ), 'label', 'id' ) )->toBe( [ 'actions' => 'Actions' ] );
+
+    addFilter( AdminSpotlight::PROVIDERS_FILTER, static function ( array $providers ): array {
+        $providers['bookings'] = $providers['actions'];
+
+        return $providers;
+    }, 20 );
+
+    expect( AdminSpotlight::groupLabel( 'bookings', AdminSpotlight::providers()['bookings'] ) )->toBe( 'Shortcuts' )
+        ->and( AdminSpotlight::groupLabel( 'gift-cards', AdminSpotlight::providers()['orders'] ) )->toBe( 'Gift Cards' );
+} );
+
+it( 'renders the field-like trigger, the actions, the empty state and the key legend', function (): void {
+    grantAbilities( [ 'order.viewAny', 'order.view', 'product.viewAny', 'product.create' ] );
+
+    $html = $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk()->getContent();
+
+    expect( $html )
+        ->toMatch( '/class="[^"]*ec-admin-search-trigger[^"]*"/' )
+        ->toContain( '<span class="ec-admin-search-trigger__label">Search</span>' )
+        ->toContain( 'data-part="item-group-label"' )
+        ->toContain( 'New product' )
+        ->toContain( 'Try an order number, a SKU, or a customer’s email.' )
+        ->toContain( '<span class="apui-sr-only">Up and Down arrows</span> to move' )
+        ->toContain( '<span class="apui-sr-only">Enter</span> to open' )
+        ->toContain( '<span class="apui-sr-only">Escape</span> to close' );
+} );
+
+it( 'lets each locale order the keys and the verb in the key legend', function (): void {
+    grantAbilities( [ 'order.viewAny', 'order.view' ] );
+    app()->setLocale( 'zh_CN' );
+
+    $html = $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk()->getContent();
+
+    expect( $html )
+        ->toContain( '<span class="ec-admin-spotlight-legend">按 <span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>Esc</kbd></span><span class="apui-sr-only">Esc</span> 关闭</span>' );
+} );
+
+it( 'sends searched results only icons the browser registry ships', function (): void {
+    expect( AdminSpotlight::searchIcon( 'o-user' ) )->toBe( 'user' )
+        ->and( AdminSpotlight::searchIcon( 'o-plus' ) )->toBe( 'plus' )
+        // Registered by the admin in PHP only, so the browser would draw an empty tile.
+        ->and( AdminSpotlight::searchIcon( 'o-shopping-bag' ) )->toBeNull()
+        ->and( AdminSpotlight::icon( 'o-shopping-bag' ) )->toBe( 'shopping-bag' );
+} );
+
+it( 'leaves create actions the user may not take out of the palette\'s Actions group', function (): void {
+    grantAbilities( [ 'product.viewAny', 'product.view' ] );
+
+    $names = array_column( AdminSpotlight::actionGroup( $this->user )['items'], 'name' );
+
+    expect( $names )->toContain( 'Go to Products' )
+        ->not->toContain( 'New product' )
+        ->not->toContain( 'New promotion' );
+} );
+
+it( 'keeps a subclassed actions provider in the searched results', function (): void {
+    grantAbilities( [ 'product.viewAny', 'product.view' ] );
+
+    addFilter( AdminSpotlight::PROVIDERS_FILTER, static function ( array $providers ): array {
+        $providers['actions'] = new class extends ArtisanPackUI\EcommerceAdminLivewire\Spotlight\ActionsProvider {
+            public function search( string $search, Authenticatable $user, int $limit ): array
+            {
+                return [ [ 'name' => 'Extra action', 'link' => '/extra' ] ];
+            }
+        };
+
+        return $providers;
+    } );
+
+    expect( AdminSpotlight::actionsProvider( $this->user ) )->toBeNull()
+        ->and( AdminSpotlight::actionGroup( $this->user ) )->toBeNull()
+        ->and( array_column( spotlightResults( 'x' ), 'name' ) )->toContain( 'Extra action' );
 } );

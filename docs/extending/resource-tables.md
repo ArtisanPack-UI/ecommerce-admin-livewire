@@ -1,5 +1,6 @@
 ---
 title: Resource Tables
+menu_order: 100
 ---
 
 # Resource Tables
@@ -16,6 +17,10 @@ Every index screen is built on the `WithResourceTable` concern. Each screen's co
 
 Each definition is keyed by its `key`; a later definition with the same key replaces an earlier one. Malformed definitions are skipped.
 
+`{screen}` is the screen key in camelCase, from the table below (`ap.ecommerceAdminLivewire.table.licenseKeys.columns`). **Since:** 2.0.0
+
+> **Note:** 1.x used kebab-case keys for multi-word screens (`table.license-keys.columns`). Those filter names are deprecated but still applied, after the camelCase name, to the value its subscribers returned, so a 1.x subscriber keeps working. Rename it before 3.0, which drops the kebab-case pass. Single-word screens (`orders`, `products`, …) are unchanged.
+
 ## Screens
 
 | `{screen}` | Screen | Query model |
@@ -25,13 +30,13 @@ Each definition is keyed by its `key`; a later definition with the same key repl
 | `products` | Products | `Product` |
 | `tags` | Tags | `ProductTag` |
 | `inventory` | Inventory | `InventoryItem` |
-| `digital-files` | Digital files | `DigitalFile` |
-| `license-keys` | License keys | `LicenseKey` |
+| `digitalFiles` | Digital files | `DigitalFile` |
+| `licenseKeys` | License keys | `LicenseKey` |
 | `customers` | Customers | `Customer` |
 | `promotions` | Promotions | `Promotion` |
-| `tax-rates` | Tax rates | `TaxRate` |
+| `taxRates` | Tax rates | `TaxRate` |
 | `webhooks` | Webhook subscriptions | `WebhookSubscription` |
-| `webhook-deliveries` | One subscription's deliveries | `WebhookDelivery` |
+| `webhookDeliveries` | One subscription's deliveries | `WebhookDelivery` |
 
 The products screen also runs the engine's `ap.ecommerce.product.listQuery` filter on its query, so a filter there narrows the admin list and the engine's own lists alike.
 
@@ -41,12 +46,15 @@ The products screen also runs the engine's `ap.ecommerce.product.listQuery` filt
 | --- | --- |
 | `key` | Required. Unique key; also the row attribute shown when there is no `view` or `value`. |
 | `label` | Required. Column heading |
-| `sortable` | Whether the column sorts. Only honoured when the screen's query class can sort by `key`. |
+| `sortable` | Whether the column sorts. Only honored when the screen's query class can sort by `key`. |
 | `class` | Extra classes on the cell |
+| `numeric` | `true` aligns the column to the inline end, for numbers and money. Defaults to `true` when `class` contains `text-end`. |
 | `view` | A Blade view, rendered with `$row` and `$column` |
 | `value` | A callable receiving the row and returning text |
 | `export` | A callable overriding the CSV value |
 | `exportable` | `false` leaves the column out of CSV exports |
+| `listed` | `false` keeps the column out of the grid but in CSV exports |
+| `labelHidden` | `true` keeps the heading for screen readers only, for an image or icon column |
 
 ```php
 addFilter( 'ap.ecommerceAdminLivewire.table.customers.columns', function ( array $columns ): array {
@@ -102,6 +110,8 @@ addFilter( 'ap.ecommerceAdminLivewire.table.orders.filters', function ( array $f
 | `ability` | `{resource}.{action}`. The action is hidden from, and refused for, users without it. |
 | `confirm` | A confirmation message. The action then asks first and carries a one-time token, so it runs once. |
 
+Destructive actions (delete, revoke, and similar) show in red in the bulk-action bar. A `confirm` action asks inline in the bar (`role="alertdialog"`) before it runs.
+
 `$selection` is a query for the selected rows, or for every row matching the current search and filters when the user chose "select all matching". The `ability` is an account-level check. Authorize each record in your handler when your rules depend on the record:
 
 ```php
@@ -133,6 +143,25 @@ addFilter( 'ap.ecommerceAdminLivewire.table.orders.bulkActions', function ( arra
 ```
 
 Every table also offers an export of the selection as CSV, capped at `tables.export_max_rows`.
+
+### Binding a confirmation to other input
+
+A confirmation token is bound to the component and the action. When what an action does depends on other input on the screen, such as the target tag of a merge, override `bulkActionTokenSubject()` in your component so a token minted for one value can't confirm the action for another:
+
+```php
+protected function bulkActionTokenSubject( string $key ): mixed
+{
+    return 'merge' === $key ? 'target:' . (int) $this->mergeTargetId : null;
+}
+```
+
+Return a model, a scalar, or `null` (the default) for actions that depend on nothing else. Also clear the pending confirmation when that input changes, so the confirmation text always names what will run. The Tags screen does both for **Merge into**.
+
+**Since:** 2.0.0
+
+## Building your own index screen
+
+Your own Livewire component can use `WithResourceTable` and get the same search, filters, selection, bulk actions, and export as the core screens, along with the `table.{screen}.*` filters under its own screen key. You supply a `ResourceQuery` subclass and the screen's definitions, and render the resource-table partial. See [WithResourceTable](../reference/php-api.md#withresourcetable) and [the resource-table partial](blade-components.md#the-resource-table-partial).
 
 ## Other screens
 

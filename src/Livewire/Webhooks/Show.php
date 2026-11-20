@@ -31,9 +31,10 @@ use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
- * One webhook subscription (spec §7.8): its details, "rotate secret" and
- * "re-enable", and its deliveries log — event, status, attempts, next retry,
- * and delivered at, newest first, filterable by event and status.
+ * One webhook subscription (spec §7.8): its details, "rotate secret",
+ * "re-enable" and "send missed deliveries", and its deliveries log — event, status, attempts, next retry
+ * and created, newest first, filterable by event and status. Delivered at
+ * stays in the CSV and the drawer, not the grid.
  *
  * Opening a delivery shows its payload and the endpoint's response in a
  * drawer, with "replay". Replaying queues a new delivery through
@@ -189,11 +190,13 @@ class Show extends Component
             'subscription'     => $subscription,
             'disabledByEngine' => Webhooks::disabledByEngine( $subscription ),
             'canUpdate'        => Authorization::allows( auth()->user(), 'webhookSubscription.update', $subscription ),
+            'parkedCount'      => $subscription->is_active ? Webhooks::parkedCount( $subscription ) : 0,
             'delivery'         => $delivery,
             'replayToken'      => null === $delivery ? null : $this->actionToken( 'replay', $delivery ),
             'rotating'         => $rotating,
             'rotateToken'      => null === $rotating ? null : $this->actionToken( 'rotate', $rotating ),
             'indexUrl'         => app( 'router' )->has( $indexRoute ) ? route( $indexRoute ) : null,
+            'editUrl'          => app( 'router' )->has( $indexRoute ) ? route( $indexRoute, [ 'edit' => $subscription->id ] ) : null,
         ] );
     }
 
@@ -248,9 +251,10 @@ class Show extends Component
 
         return [
             [
-                'key'   => 'event',
-                'label' => __( 'Event' ),
-                'value' => static fn ( WebhookDelivery $delivery ): string => (string) $delivery->event,
+                'key'    => 'event',
+                'label'  => __( 'Event' ),
+                'view'   => $cells . 'delivery-event',
+                'export' => static fn ( WebhookDelivery $delivery ): string => (string) $delivery->event,
             ],
             [
                 'key'    => 'status',
@@ -262,19 +266,21 @@ class Show extends Component
                 'key'      => 'attempts',
                 'label'    => __( 'Attempts' ),
                 'sortable' => true,
-                'class'    => 'text-end',
+                'numeric'  => true,
                 'value'    => static fn ( WebhookDelivery $delivery ): string => (string) (int) $delivery->attempts,
                 'export'   => static fn ( WebhookDelivery $delivery ): int => (int) $delivery->attempts,
             ],
             [
-                'key'   => 'next_retry',
-                'label' => __( 'Next retry' ),
-                'value' => static fn ( WebhookDelivery $delivery ): string => null === $delivery->delivered_at ? Webhooks::dateTime( $delivery->next_retry_at ) : '',
+                'key'    => 'next_retry',
+                'label'  => __( 'Next retry' ),
+                'view'   => $cells . 'delivery-next-retry',
+                'export' => static fn ( WebhookDelivery $delivery ): string => null === $delivery->delivered_at ? Webhooks::dateTime( $delivery->next_retry_at ) : '',
             ],
             [
                 'key'      => 'delivered',
                 'label'    => __( 'Delivered at' ),
                 'sortable' => true,
+                'listed'   => false,
                 'value'    => static fn ( WebhookDelivery $delivery ): string => Webhooks::dateTime( $delivery->delivered_at ),
             ],
             [
@@ -284,11 +290,12 @@ class Show extends Component
                 'value'    => static fn ( WebhookDelivery $delivery ): string => Webhooks::dateTime( $delivery->created_at ),
             ],
             [
-                'key'        => 'actions',
-                'label'      => __( 'Actions' ),
-                'class'      => 'text-end',
-                'view'       => $cells . 'delivery-actions',
-                'exportable' => false,
+                'key'         => 'actions',
+                'label'       => __( 'Actions' ),
+                'labelHidden' => true,
+                'numeric'     => true,
+                'view'        => $cells . 'delivery-actions',
+                'exportable'  => false,
             ],
         ];
     }

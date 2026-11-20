@@ -68,9 +68,11 @@ it( 'shows sales for the last 30 days with KPIs, a chart, and a table', function
         ->assertSeeHtml( 'data-kpi="net"' )
         ->assertSee( '$150.00' )
         ->assertSeeHtml( 'data-chart' )
-        ->assertSeeHtml( 'role="img"' )
-        ->assertSee( 'Net sales by day from 2026-02-14 to 2026-03-15. The table below lists every value.' )
-        ->assertSeeHtml( '<caption class="sr-only">Sales over time</caption>' )
+        ->assertSeeHtml( 'role="group" aria-label="Net sales by day from 2026-02-14 to 2026-03-15. The table below lists every value."' )
+        ->assertSeeHtml( 'data-chart-summary>Net sales by day from 2026-02-14 to 2026-03-15. The table below lists every value.</figcaption>' )
+        ->assertSeeHtml( '<caption class="apui-sr-only">Sales over time</caption>' )
+        ->assertSeeHtml( 'aria-current="page"' )
+        ->assertDontSeeHtml( 'data-chart-legend' )
         ->assertSeeHtml( 'data-report-totals' );
 } );
 
@@ -135,7 +137,10 @@ it( 'compares with the previous period in words', function (): void {
     Livewire::test( Show::class, [ 'report' => 'sales' ] )
         ->set( 'compare', true )
         ->assertSee( 'Up 20% from $100.00' )
-        ->assertSee( 'Net sales, previous period' );
+        ->assertSeeHtml( 'data-chart-legend' )
+        ->assertSee( 'Previous period' )
+        ->assertSeeHtml( 'data-tone="good"' )
+        ->assertSeeHtml( 'data-series="2"' );
 } );
 
 it( 'flags orders converted at today\'s rate', function (): void {
@@ -248,13 +253,114 @@ it( 'serves the report page', function (): void {
 } );
 
 it( 'strips markup from chart labels', function (): void {
-    $options = ArtisanPackUI\EcommerceAdminLivewire\Support\ReportPresenter::chartOptions(
-        [ 'type' => 'bar', 'categories' => [ '<img src=x onerror=alert(1)>Mug', 'Cup <b>' ], 'series' => [], 'money' => true, 'summary' => '' ],
-        'USD',
-    );
+    $chart = [ 'type' => 'bar', 'title' => 'Net revenue', 'categories' => [ '<img src=x onerror=alert(1)>Mug', 'Cup <b>' ], 'series' => [ [ 'name' => 'Net revenue', 'data' => [ 12.5, 25.0 ] ] ], 'raw' => [ 1_250, 2_500 ], 'money' => true, 'summary' => '' ];
 
-    expect( $options['xaxis']['categories'] )->toBe( [ 'Mug', 'Cup' ] )
-        ->and( $options['tooltip']['x']['show'] )->toBeFalse();
+    expect( ArtisanPackUI\EcommerceAdminLivewire\Support\ReportPresenter::bars( $chart, 'USD' ) )->toBe( [
+        [ 'name' => 'Mug', 'value' => '$12.50', 'percent' => 50.0 ],
+        [ 'name' => 'Cup', 'value' => '$25.00', 'percent' => 100.0 ],
+    ] );
+
+    $plot = ArtisanPackUI\EcommerceAdminLivewire\Support\ReportPresenter::plot( [ ...$chart, 'type' => 'area' ], 'USD' );
+
+    expect( array_column( $plot['marks'], 'title' ) )->toBe( [ 'Mug', 'Cup' ] )
+        ->and( $plot['marks'][1]['body'] )->toBe( '$25' );
+} );
+
+it( 'keeps about eight x-axis labels on a long range', function (): void {
+    $plot = ArtisanPackUI\EcommerceAdminLivewire\Support\ReportPresenter::plot( [
+        'type'       => 'area',
+        'categories' => array_map( static fn ( int $day ): string => 'Day ' . $day, range( 1, 30 ) ),
+        'series'     => [ [ 'name' => 'Orders', 'data' => range( 1, 30 ) ] ],
+        'money'      => false,
+    ], 'USD' );
+
+    expect( $plot['categories'] )->toHaveCount( 8 )
+        ->and( $plot['marks'] )->toHaveCount( 30 );
+} );
+
+it( 'writes chart numbers in the app locale', function (): void {
+    app()->setLocale( 'de' );
+
+    $plot = ArtisanPackUI\EcommerceAdminLivewire\Support\ReportPresenter::plot( [
+        'type'       => 'area',
+        'categories' => [ 'Mo', 'Di' ],
+        'series'     => [ [ 'name' => 'Diese Periode', 'data' => [ 1500.5, 12500.0 ] ], [ 'name' => 'Vorperiode', 'data' => [ 900.0, 1000.0 ] ] ],
+        'money'      => false,
+    ], 'EUR' );
+
+    expect( $plot['marks'][0]['body'] )->toBe( 'Diese Periode 1.500,5 · Vorperiode 900' )
+        ->and( $plot['marks'][1]['label'] )->toBe( 'Di: Diese Periode 12.500, Vorperiode 1.000' )
+        ->and( array_column( $plot['ticks'], 'label' ) )->toContain( '10.000' );
+} );
+
+it( 'treats refunds going down as good news', function (): void {
+    $kpis = collect( ArtisanPackUI\EcommerceAdminLivewire\Support\ReportPresenter::kpis( 'sales', [
+        'totals'   => [ 'net' => 900, 'orders' => 4, 'refunds' => 100 ],
+        'previous' => [ 'totals' => [ 'net' => 1_000, 'orders' => 4, 'refunds' => 200 ] ],
+    ] ) )->keyBy( 'key' );
+
+    expect( $kpis['refunds']['tone'] )->toBe( 'good' )
+        ->and( $kpis['net']['tone'] )->toBe( 'bad' )
+        ->and( $kpis['orders']['tone'] )->toBe( 'flat' );
+} );
+
+it( 'mutes discounts and refunds with a minus sign', function (): void {
+    reportsOrder( '2026-03-10', 10_000, [ 'discount_amount' => 500 ] );
+
+    Livewire::withQueryParams( [ 'preset' => 'custom', 'from' => '2026-03-10', 'to' => '2026-03-10' ] )
+        ->test( Show::class, [ 'report' => 'sales' ] )
+        ->assertSeeHtml( 'data-tone="muted" >−$5.00</bdi>' );
+} );
+
+it( 'disables export while the range is invalid', function (): void {
+    Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'from', '2026-03-10' )
+        ->set( 'to', '2026-03-01' )
+        ->assertSeeHtml( 'id="report-invalid"' )
+        ->assertSeeHtml( 'aria-invalid="true"' )
+        ->assertDontSeeHtml( 'data-kpis' )
+        ->call( 'export' )
+        ->assertNoFileDownloaded();
+} );
+
+it( 'offers a longer range when there is nothing to report', function (): void {
+    Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->assertSeeHtml( 'data-report-empty' )
+        ->assertSee( 'Nothing to report for this period.' )
+        ->assertSee( 'Try a longer date range.' )
+        ->assertDontSeeHtml( 'data-report-table' )
+        ->set( 'preset', 'last-90-days' )
+        ->assertSet( 'from', '2025-12-16' )
+        ->assertSet( 'to', '2026-03-15' )
+        ->assertDontSeeHtml( 'data-report-longer' );
+} );
+
+it( 'shows a drop to zero when only the compared period had sales', function (): void {
+    reportsOrder( '2026-02-01', 10_000 );
+
+    Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'compare', true )
+        ->assertDontSeeHtml( 'data-report-empty' )
+        ->assertSeeHtml( 'data-kpis' );
+} );
+
+it( 'keeps headline totals visible when a report has no detail rows', function (): void {
+    $isEmpty = ( new ReflectionMethod( Show::class, 'isEmpty' ) )->getClosure( null );
+
+    expect( $isEmpty( 'inventory', [ 'totals' => [ 'on_hand' => 12 ] ], [ 'rows' => [] ] ) )->toBeFalse()
+        ->and( $isEmpty( 'inventory', [ 'totals' => [ 'on_hand' => 0 ] ], [ 'rows' => [] ] ) )->toBeTrue()
+        ->and( $isEmpty( 'inventory', [ 'totals' => [] ], null ) )->toBeTrue();
+} );
+
+it( 'keeps the full precision of three-decimal currencies in chart values', function (): void {
+    $plot = ArtisanPackUI\EcommerceAdminLivewire\Support\ReportPresenter::plot( [
+        'type'       => 'area',
+        'categories' => [ 'Mar 1' ],
+        'series'     => [ [ 'name' => 'Net revenue', 'data' => [ 1.234 ] ] ],
+        'money'      => true,
+    ], 'KWD' );
+
+    expect( $plot['marks'][0]['body'] )->toContain( '1.234' );
 } );
 
 it( 're-checks report.view on every update', function (): void {
@@ -273,4 +379,62 @@ it( 'skips the change when a filtered total is not numeric', function (): void {
 
     expect( collect( $kpis )->firstWhere( 'key', 'net' )['change'] )->toBeNull()
         ->and( collect( $kpis )->firstWhere( 'key', 'orders' )['change'] )->toBe( 100.0 );
+} );
+
+it( 'resets a monthly interval to daily when a short preset follows a year preset (L-C3)', function (): void {
+    Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'preset', 'this-year' )
+        ->assertSet( 'interval', 'month' )
+        ->set( 'preset', 'last-7-days' )
+        ->assertSet( 'interval', 'day' )
+        ->set( 'preset', 'this-year' )
+        ->set( 'preset', 'last-month' )
+        ->assertSet( 'interval', 'day' )
+        ->set( 'preset', 'this-year' )
+        ->set( 'preset', 'last-quarter' )
+        ->assertSet( 'interval', 'month' )
+        ->set( 'interval', 'week' )
+        ->set( 'preset', 'last-7-days' )
+        ->assertSet( 'interval', 'week' );
+} );
+
+it( 'names a good or bad change in words, not only colour (L-A2)', function (): void {
+    reportsOrder( '2026-03-10', 12_000 );
+    reportsOrder( '2026-02-10', 10_000 );
+
+    Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'compare', true )
+        ->assertSeeHtml( '<span class="apui-sr-only" data-kpi-tone="good">(improvement)</span>' );
+
+    reportsOrder( '2026-02-11', 10_000 );
+    reportsOrder( '2026-03-11', 1_000 );
+
+    Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'compare', true )
+        ->assertSeeHtml( 'data-kpi-tone="bad">(decline)</span>' );
+} );
+
+it( 'draws ranked bars as SVG, without inline styles (REL-4)', function (): void {
+    $mug   = Product::factory()->create( [ 'name' => 'Mug', 'sku' => 'MUG' ] );
+    $tee   = Product::factory()->create( [ 'name' => 'Tee', 'sku' => 'TEE' ] );
+    $order = reportsOrder( '2026-03-10', 20_000 );
+
+    OrderItem::factory()->create( [ 'order_id' => $order->id, 'product_id' => $mug->id, 'quantity' => 1, 'unit_price_amount' => 10_000 ] );
+    OrderItem::factory()->create( [ 'order_id' => $order->id, 'product_id' => $tee->id, 'quantity' => 1, 'unit_price_amount' => 5_000 ] );
+
+    Livewire::test( Show::class, [ 'report' => 'top-products' ] )
+        ->assertSeeHtml( '<rect class="ec-report-bar__fill" x="0" y="0" width="100%"' )
+        ->assertSeeHtml( 'width="50%"' )
+        ->assertDontSeeHtml( 'style="inline-size' );
+} );
+
+it( 'lets the design-system alert set the role on report notices (L-F1)', function (): void {
+    $html = Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'preset', 'custom' )
+        ->set( 'from', '2026-03-10' )
+        ->set( 'to', '2026-03-01' )
+        ->html();
+
+    expect( preg_match( '/<div[^>]*data-report-invalid[^>]*>/', $html, $match ) )->toBe( 1 )
+        ->and( substr_count( $match[0], 'role=' ) )->toBe( 1 );
 } );

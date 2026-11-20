@@ -22,7 +22,9 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
  *
  * - Reading strips a UTF-8 byte-order mark, detects `,` / `;` / tab
  *   delimiters from the header line, trims headers, skips rows whose cells
- *   are all blank, and stops after a row limit.
+ *   are all blank, and stops after a row limit. Headers and cells that are
+ *   not valid UTF-8 (an Excel "CSV" saved as Windows-1252) are converted
+ *   from Windows-1252.
  * - Writing prefixes text a spreadsheet would run as a formula (`=`, `+`,
  *   `-`, `@`, tab, carriage return) with an apostrophe, unless it is a
  *   plain number, and starts with a byte-order mark so Excel reads UTF-8.
@@ -81,7 +83,7 @@ final class Csv
             return [ 'headers' => [], 'rows' => [], 'total' => 0 ];
         }
 
-        $first     = (string) preg_replace( '/^\xEF\xBB\xBF/', '', rtrim( (string) fgets( $handle ), "\r\n" ) );
+        $first     = self::utf8( (string) preg_replace( '/^\xEF\xBB\xBF/', '', rtrim( (string) fgets( $handle ), "\r\n" ) ) );
         $delimiter = self::delimiter( $first );
         $headers   = array_map( static fn ( mixed $header ): string => trim( (string) $header ), str_getcsv( $first, $delimiter, '"', '' ) );
         $rows      = [];
@@ -105,7 +107,7 @@ final class Csv
 
             foreach ( $headers as $index => $header ) {
                 if ( '' !== $header && '__line' !== $header ) {
-                    $row[ $header ] = trim( (string) ( $values[ $index ] ?? '' ) );
+                    $row[ $header ] = self::utf8( trim( (string) ( $values[ $index ] ?? '' ) ) );
                 }
             }
 
@@ -137,7 +139,7 @@ final class Csv
         }
 
         try {
-            $first     = (string) preg_replace( '/^\xEF\xBB\xBF/', '', rtrim( (string) fgets( $handle ), "\r\n" ) );
+            $first     = self::utf8( (string) preg_replace( '/^\xEF\xBB\xBF/', '', rtrim( (string) fgets( $handle ), "\r\n" ) ) );
             $delimiter = self::delimiter( $first );
             $headers   = array_map( static fn ( mixed $header ): string => trim( (string) $header ), str_getcsv( $first, $delimiter, '"', '' ) );
             $seen      = 0;
@@ -158,7 +160,7 @@ final class Csv
 
                 foreach ( $headers as $index => $header ) {
                     if ( '' !== $header && '__line' !== $header ) {
-                        $row[ $header ] = trim( (string) ( $values[ $index ] ?? '' ) );
+                        $row[ $header ] = self::utf8( trim( (string) ( $values[ $index ] ?? '' ) ) );
                     }
                 }
 
@@ -273,6 +275,21 @@ final class Csv
         }
 
         return $text;
+    }
+
+    /**
+     * A header or cell as UTF-8: text that is not valid UTF-8 is read as
+     * Windows-1252, the encoding Excel uses for "CSV" on Western systems.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $value  Header or cell.
+     *
+     * @return string
+     */
+    private static function utf8( string $value ): string
+    {
+        return mb_check_encoding( $value, 'UTF-8' ) ? $value : (string) mb_convert_encoding( $value, 'UTF-8', 'Windows-1252' );
     }
 
     /**

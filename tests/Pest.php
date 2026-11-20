@@ -108,13 +108,18 @@ if ( ! function_exists( 'fakeAdminRoutes' ) ) {
 
 if ( ! function_exists( 'sentToasts' ) ) {
     /**
-     * The JavaScript a Livewire test component queued (toasts are sent this
-     * way), flattened to one string for `toContain` checks.
+     * The `toast` browser events a Livewire test component dispatched,
+     * flattened to one string for `toContain` checks.
      *
      * @param  Livewire\Features\SupportTesting\Testable  $component  The component under test.
      */
     function sentToasts( $component ): string
     {
-        return (string) json_encode( $component->effects['xjs'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+        $toasts = array_values( array_filter(
+            $component->effects['dispatches'] ?? [],
+            static fn ( array $dispatch ): bool => 'toast' === ( $dispatch['name'] ?? null ),
+        ) );
+
+        return (string) json_encode( $toasts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
     }
 }

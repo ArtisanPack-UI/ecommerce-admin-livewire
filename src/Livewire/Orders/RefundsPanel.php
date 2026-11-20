@@ -17,6 +17,7 @@ use ArtisanPackUI\Ecommerce\Contracts\PaymentGateway;
 use ArtisanPackUI\Ecommerce\Exceptions\RefundNotAllowedException;
 use ArtisanPackUI\Ecommerce\Models\Order;
 use ArtisanPackUI\Ecommerce\Models\OrderItem;
+use ArtisanPackUI\Ecommerce\Models\OrderTimelineEntry;
 use ArtisanPackUI\Ecommerce\Models\Refund;
 use ArtisanPackUI\Ecommerce\Models\RefundItem;
 use ArtisanPackUI\Ecommerce\Registries\PaymentGatewayRegistry;
@@ -39,7 +40,7 @@ use Throwable;
  * The refunds panel on order detail (spec §7.3): the refund history, and
  * the issue-refund dialog on {@see RefundService::issue()}.
  *
- * A refund is either by item — a quantity, an amount, and a restock toggle
+ * A refund is either by item — a quantity, an amount, and a restock checkbox
  * per line — or a free amount (shipping, goodwill), which the engine
  * records as an amount-only line (quantity 0) on the first item. Amounts are
  * entered in the order currency and held as minor units. A gateway that
@@ -216,13 +217,20 @@ class RefundsPanel extends Component
     /**
      * Issues the refund.
      *
-     * @since 1.0.0
+     * The button sends the total it showed. When the lines add up to
+     * anything else (a field changed in the same request as the click),
+     * nothing is refunded and the token is kept, so the user can check the
+     * new total and confirm again.
      *
-     * @param  string  $token  The action token minted with the dialog.
+     * @since 1.0.0
+     * @since 2.0.0 Takes the total the user confirmed.
+     *
+     * @param  string  $token          The action token minted with the dialog.
+     * @param  int     $expectedTotal  The total, in minor units, the button showed.
      *
      * @return void
      */
-    public function refund( string $token ): void
+    public function refund( string $token, int $expectedTotal ): void
     {
         $order = $this->order();
 
@@ -239,6 +247,12 @@ class RefundsPanel extends Component
         $lines = $this->validatedLines( $order, $gateway );
 
         if ( null === $lines ) {
+            return;
+        }
+
+        if ( array_sum( array_column( $lines, 'amount' ) ) !== $expectedTotal ) {
+            $this->addError( 'refund', __( 'The amount changed. Check it and confirm again.' ) );
+
             return;
         }
 
@@ -295,7 +309,83 @@ class RefundsPanel extends Component
             'refundProblem'   => $canRefund ? $problem : null,
             'supportsPartial' => null !== $gateway && $this->supportsPartial( $order ),
             'refundToken'     => $this->refunding && $canRefund ? $this->actionToken( 'refund', $order ) : null,
+            'refundTotal'     => $this->refunding ? $this->refundTotal( $items->modelKeys() ) : 0,
+            'failures'        => $this->failureMessages( $order, $refunds ),
         ] );
+    }
+
+    /**
+     * The minor units the dialog would refund as it stands: the amount in
+     * amount mode, otherwise the sum of the line amounts. Shown in the
+     * primary button; {@see self::validatedLines()} still checks it.
+     *
+     * Only lines for items still on the order count, the same lines
+     * {@see self::validatedLines()} submits, so a line whose item an edit
+     * removed while the dialog was open never inflates the total.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, int|string>  $itemIds  The order's current item ids.
+     *
+     * @return int
+     */
+    protected function refundTotal( array $itemIds ): int
+    {
+        if ( 'amount' === $this->mode ) {
+            return is_numeric( $this->amount ) ? max( 0, (int) $this->amount ) : 0;
+        }
+
+        $total = 0;
+
+        $current = array_map( 'intval', $itemIds );
+
+        foreach ( $this->lines as $id => $line ) {
+            if ( ! in_array( (int) $id, $current, true ) ) {
+                continue;
+            }
+
+            $amount = is_array( $line ) ? ( $line['amount'] ?? 0 ) : 0;
+            $total += is_numeric( $amount ) ? max( 0, (int) $amount ) : 0;
+        }
+
+        return $total;
+    }
+
+    /**
+     * The gateway's error for each failed refund, from the engine's
+     * `refund.failed` timeline entries.
+     *
+     * @since 2.0.0
+     *
+     * @param  Order                    $order    The order.
+     * @param  Collection<int, Refund>  $refunds  The order's refunds.
+     *
+     * @return array<int, string> Keyed by refund id.
+     */
+    protected function failureMessages( Order $order, Collection $refunds ): array
+    {
+        if ( ! $refunds->contains( static fn ( Refund $refund ): bool => Refund::STATUS_FAILED === $refund->status ) ) {
+            return [];
+        }
+
+        $messages = [];
+
+        $entries = OrderTimelineEntry::query()
+            ->where( 'order_id', $order->id )
+            ->where( 'event_type', 'refund.failed' )
+            ->orderBy( 'id' )
+            ->get( [ 'id', 'payload' ] );
+
+        foreach ( $entries as $entry ) {
+            $payload = (array) $entry->payload;
+            $error   = $payload['error'] ?? null;
+
+            if ( isset( $payload['refund_id'] ) && is_string( $error ) && '' !== $error ) {
+                $messages[ (int) $payload['refund_id'] ] = $error;
+            }
+        }
+
+        return $messages;
     }
 
     /**

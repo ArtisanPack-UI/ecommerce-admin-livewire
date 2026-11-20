@@ -17,6 +17,7 @@ use ArtisanPackUI\Ecommerce\Exceptions\IncompatibleBoardSubstatusException;
 use ArtisanPackUI\Ecommerce\Exceptions\KanbanOperationException;
 use ArtisanPackUI\Ecommerce\Models\DigitalDownload;
 use ArtisanPackUI\Ecommerce\Models\KanbanBoard;
+use ArtisanPackUI\Ecommerce\Models\KanbanColumn;
 use ArtisanPackUI\Ecommerce\Models\LicenseKey;
 use ArtisanPackUI\Ecommerce\Models\Order;
 use ArtisanPackUI\Ecommerce\Models\OrderBoardAssignment;
@@ -32,9 +33,12 @@ use ArtisanPackUI\EcommerceAdminLivewire\Registries\OrderPanelRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminBroadcasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\KanbanBoards;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
@@ -120,7 +124,12 @@ class Show extends Component
     /**
      * Loads and authorizes the order.
      *
+     * A missing order is a 404 only for users who may list orders; anyone
+     * else gets the same 403 as for an order they can't view, so ids can't
+     * be probed.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Checks `viewAny` before answering 404.
      *
      * @param  int|string  $order  The order id.
      *
@@ -129,6 +138,14 @@ class Show extends Component
     public function mount( int|string $order ): void
     {
         $this->orderId = (int) $order;
+
+        try {
+            $this->order();
+        } catch ( ModelNotFoundException $exception ) {
+            $this->authorizeEcommerce( 'viewAny', Order::class );
+
+            throw $exception;
+        }
 
         $this->authorizeEcommerce( 'view', $this->order() );
 
@@ -296,22 +313,53 @@ class Show extends Component
             : new Collection();
 
         return view( 'ecommerce-admin::livewire.orders.show', [
-            'order'           => $order,
-            'items'           => $order->items,
-            'totals'          => $this->totals( $order ),
-            'customerName'    => Index::customerName( $order ),
-            'customerUrl'     => $this->customerUrl( $order ),
-            'isGuest'         => null === $order->customer || null === $order->customer->user_id,
-            'paymentGateway'  => $this->gatewayLabel( $order ),
-            'assignments'     => $order->boardAssignments,
-            'canMoveBoards'   => $canMove,
-            'boardOptions'    => $boardList->map( static fn ( KanbanBoard $board ): array => [ 'id' => (int) $board->id, 'name' => (string) $board->name ] )->all(),
-            'downloads'       => $this->downloads( $order ),
-            'licenseKeys'     => $this->licenseKeys( $order ),
-            'canViewKeys'     => Authorization::allows( auth()->user(), 'licenseKey.view' ),
-            'mainPanels'      => $panels->forColumn( 'main' ),
-            'sidePanels'      => $panels->forColumn( 'side' ),
+            'order'                 => $order,
+            'items'                 => $order->items,
+            'totals'                => $this->totals( $order ),
+            'customerName'          => Index::customerName( $order ),
+            'customerUrl'           => $this->customerUrl( $order ),
+            'isGuest'               => null === $order->customer || null === $order->customer->user_id,
+            'paymentGateway'        => $this->gatewayLabel( $order ),
+            'assignments'           => $this->assignmentRows( $order ),
+            'canMoveBoards'         => $canMove,
+            'boardOptions'          => $boardList->map( static fn ( KanbanBoard $board ): array => [ 'id' => (int) $board->id, 'name' => (string) $board->name ] )->all(),
+            'downloads'             => $this->downloads( $order ),
+            'licenseKeys'           => $this->licenseKeys( $order ),
+            'canViewKeys'           => Authorization::allows( auth()->user(), 'licenseKey.view' ),
+            'mainPanels'            => $panels->forColumn( 'main' ),
+            'sidePanels'            => $panels->forColumn( 'side' ),
+            'billingSameAsShipping' => self::sameAddress( $order->billing_address, $order->shipping_address ),
         ] );
+    }
+
+    /**
+     * Whether the billing address repeats a non-empty shipping address, so the
+     * page can say "Same as shipping" instead of printing it twice. Blank
+     * parts are ignored and the order of the parts doesn't matter.
+     *
+     * @since 2.0.0
+     *
+     * @param  mixed  $billing   The billing address.
+     * @param  mixed  $shipping  The shipping address.
+     *
+     * @return bool
+     */
+    public static function sameAddress( mixed $billing, mixed $shipping ): bool
+    {
+        $normalize = static function ( mixed $address ): array {
+            $parts = array_filter(
+                is_array( $address ) ? $address : [],
+                static fn ( mixed $value ): bool => is_scalar( $value ) && '' !== trim( (string) $value ),
+            );
+            $parts = array_map( static fn ( mixed $value ): string => trim( (string) $value ), $parts );
+            ksort( $parts );
+
+            return $parts;
+        };
+
+        $shippingParts = $normalize( $shipping );
+
+        return [] !== $shippingParts && $normalize( $billing ) === $shippingParts;
     }
 
     /**
@@ -344,7 +392,7 @@ class Show extends Component
         $options = [];
 
         foreach ( (array) data_get( $item->product_snapshot, 'options', [] ) as $label => $value ) {
-            if ( is_array( $value ) && isset( $value['label'], $value['value'] ) ) {
+            if ( is_array( $value ) && isset( $value['label'], $value['value'] ) && is_scalar( $value['label'] ) ) {
                 $options[] = $value['label'] . ': ' . ( is_scalar( $value['value'] ) ? $value['value'] : '' );
             } elseif ( is_scalar( $value ) && 'variant_id' !== $label ) {
                 $options[] = is_string( $label ) ? $label . ': ' . $value : (string) $value;
@@ -408,8 +456,9 @@ class Show extends Component
      * equivalent when the order was placed in another currency.
      *
      * Discounts are listed per promotion when the order records usages. The
-     * tax breakdown comes from the order's `meta.tax_lines`
-     * (`[ { label, amount } ]`) when present, filtered through
+     * tax breakdown comes from the order's `meta.tax_breakdown` (the rows the
+     * engine records at placement and on edits, `[ { label, amount, … } ]`),
+     * or the legacy `meta.tax_lines` when present, filtered through
      * `ap.ecommerceAdminLivewire.order.taxBreakdown`, else one "Tax" line.
      *
      * @since 1.0.0
@@ -475,7 +524,7 @@ class Show extends Component
     {
         $lines = [];
 
-        foreach ( (array) data_get( $order->meta, 'tax_lines', [] ) as $line ) {
+        foreach ( (array) data_get( $order->meta, 'tax_breakdown', data_get( $order->meta, 'tax_lines', [] ) ) as $line ) {
             if ( is_array( $line ) && isset( $line['label'], $line['amount'] ) && is_numeric( $line['amount'] ) ) {
                 $lines[] = [ 'label' => (string) $line['label'], 'amount' => (int) $line['amount'] ];
             }
@@ -489,6 +538,50 @@ class Show extends Component
             (array) applyFilters( 'ap.ecommerceAdminLivewire.order.taxBreakdown', $lines, $order ),
             static fn ( mixed $line ): bool => is_array( $line ) && isset( $line['label'], $line['amount'] ),
         ) );
+    }
+
+    /**
+     * The boards the order is on, as display rows: the board, the column
+     * the card sits in (its label and color), when it got there, and the
+     * "Open board" link focused on the order's card.
+     *
+     * The column falls back to the assignment's sub-status when the board
+     * no longer has a column for it. The link is null without the kanban
+     * satellite, or when the user can't view that board.
+     *
+     * @since 2.0.0
+     *
+     * @param  Order  $order  The order.
+     *
+     * @return array<int, array{boardId: int, boardName: string, columnLabel: string|null, columnColor: string|null, since: CarbonInterface|null, url: string|null}>
+     */
+    protected function assignmentRows( Order $order ): array
+    {
+        $assignments = $order->boardAssignments;
+        $columns     = KanbanColumn::query()
+            ->whereIn( 'board_id', $assignments->pluck( 'board_id' )->unique()->all() )
+            ->with( 'substatus' )
+            ->get()
+            ->keyBy( static fn ( KanbanColumn $column ): string => $column->board_id . ':' . $column->substatus_id );
+        $user        = auth()->user();
+
+        return $assignments->map( static function ( OrderBoardAssignment $assignment ) use ( $columns, $order, $user ): array {
+            $board  = $assignment->board;
+            $column = $columns->get( $assignment->board_id . ':' . $assignment->substatus_id );
+            $label  = null !== $column ? $column->displayLabel() : $assignment->substatus?->label;
+            $color  = null !== $column ? ( $column->color_override ?? $column->substatus?->color ) : $assignment->substatus?->color;
+
+            return [
+                'boardId'     => (int) $assignment->board_id,
+                'boardName'   => (string) ( $board?->name ?? __( 'Deleted board' ) ),
+                'columnLabel' => is_string( $label ) && '' !== $label ? $label : null,
+                'columnColor' => is_string( $color ) && 1 === preg_match( '/^#[0-9A-Fa-f]{6}$/D', $color ) ? $color : null,
+                'since'       => $assignment->moved_at ?? $assignment->assigned_at,
+                'url'         => null !== $board && Authorization::allows( $user, 'kanbanBoard.view', $board )
+                    ? KanbanBoards::boardUrl( $board, [ 'card' => (int) $order->id ] )
+                    : null,
+            ];
+        } )->values()->all();
     }
 
     /**

@@ -1,5 +1,19 @@
 {{--
-    Product form. See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products\Form.
+    Product form (#120). See ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products\Form.
+
+    Create or edit a product. One card holds underline tabs for General,
+    Pricing, Inventory, Shipping, Tax, Organization, Linked products, Media,
+    the type's own settings and Activity. Save is the page's one solid button
+    and stays in the header; "All products" is the back link beside it.
+
+    After a failed save, an error alert names the tabs with errors, and each
+    of those tabs shows a dot. The dot is the tab's count part: it carries
+    the words "(has errors)", so the tab's name says it too, and admin.css
+    draws it as a dot.
+
+    Changing the stock on hand reveals the reason field under a sentence
+    saying how many units the save adds or removes. Gallery images without
+    alt text are flagged on their row.
 
     Unsaved changes: typing marks the form dirty; leaving the page (or a
     wire:navigate link) asks first until the form is saved.
@@ -11,12 +25,20 @@
 --}}
 @php
     use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Products\Form;
+    use ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions;
+    use ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys;
     use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
     use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
+    use Illuminate\Support\Js;
 
-    $tabLabel = static fn ( string $key, string $label ): string => in_array( $key, $errorTabs, true ) ? __( ':tab (has errors)', [ 'tab' => $label ] ) : $label;
+    $baseCurrency  = StoreCurrencies::base();
+    $tabError      = static fn ( string $key ): ?string => in_array( $key, $errorTabs, true ) ? __( '(has errors)' ) : null;
+    $basePrices    = array_filter( $prices, static fn ( array $price ): bool => ! $price['scheduled'] );
+    $scheduled     = array_filter( $prices, static fn ( array $price ): bool => (bool) $price['scheduled'] );
+    $currencyCodes = ControlOptions::from( array_map( static fn ( string $code ): array => [ 'id' => $code, 'name' => $code ], StoreCurrencies::enabled( $product ) ) );
 @endphp
 <div
+    class="ec-stack"
     x-data="{
         {!! UnsavedChanges::members() !!}
         focusError( field ) {
@@ -40,51 +62,53 @@
     x-on:{{ Form::INVALID_EVENT }}.window="dirty = true; focusError( $event.detail.field )"
     data-product-form
 >
-    <x-artisanpack-header
+    <x-artisanpack-page-header
         :title="$isCreate ? __( 'New product' ) : __( 'Edit :name', [ 'name' => $product->name ] )"
+        :description="null === $savedAt ? null : __( 'Saved :time', [ 'time' => $savedAt ] )"
         :level="1"
-        separator
     >
         <x-slot:actions>
             @if ( null !== $indexUrl )
-                <x-artisanpack-button variant="ghost" icon="o-arrow-left" :link="$indexUrl" :label="__( 'All products' )" />
+                <x-artisanpack-button variant="outline" color="neutral" size="sm" leading-icon="arrow-left" :href="$indexUrl" data-back-link>{{ __( 'All products' ) }}</x-artisanpack-button>
             @endif
             @unless ( $readOnly )
-                <x-artisanpack-button color="primary" icon="o-check" x-on:click="dirty = false" wire:click="save" wire:loading.attr="disabled" spinner="save" :label="__( 'Save' )" data-save />
+                <x-artisanpack-button size="sm" leading-icon="check" x-on:click="dirty = false" wire:click="save" wire:loading.attr="disabled" wire:target="save" data-save>{{ __( 'Save' ) }}</x-artisanpack-button>
             @endunless
         </x-slot:actions>
-    </x-artisanpack-header>
+    </x-artisanpack-page-header>
 
     @if ( null !== $product )
-        <x-artisanpack-ec-product-type-warning :product="$product" class="mb-4" />
+        <x-artisanpack-ec-product-type-warning :product="$product" />
     @endif
 
     @if ( [] !== $errorTabs )
-        <x-artisanpack-alert color="error" icon="o-exclamation-circle" class="mb-4" role="alert">
-            {{ __( 'Fix the errors in: :tabs.', [ 'tabs' => implode( ', ', array_map( static fn ( string $tab ): string => match ( $tab ) {
-                'general' => __( 'General' ), 'pricing' => __( 'Pricing' ), 'inventory' => __( 'Inventory' ), 'shipping' => __( 'Shipping' ),
-                'tax' => __( 'Tax' ), 'organization' => __( 'Organization' ), 'linked' => __( 'Linked products' ), 'media' => __( 'Media' ), 'panel' => $panelLabel ?? __( 'Type settings' ),
-                default => $tab,
-            }, $errorTabs ) ) ] ) }}
+        <x-artisanpack-alert color="error" icon="circle-alert" data-error-tabs="{{ implode( ' ', $errorTabs ) }}">
+            {{ __( 'Fix the errors in: :tabs.', [ 'tabs' => implode( ', ', array_map( static fn ( string $tab ): string => $tabLabels[ $tab ] ?? $tab, $errorTabs ) ) ] ) }}
         </x-artisanpack-alert>
     @endif
 
-    <div class="min-w-0">
-        <x-artisanpack-tabs wire:model="tab" aria-label="{{ __( 'Product details' ) }}">
+    <x-artisanpack-card :classes="[ 'body' => 'ec-stack-lg' ]">
+        <x-artisanpack-tabs
+            variant="underline"
+            wire:model="tab"
+            :label="__( 'Product details' )"
+            class="ec-product-form-tabs"
+            :classes="[ 'list' => 'ec-product-form-tablist' ]"
+        >
             {{-- General --}}
-            <x-artisanpack-tab name="general" :label="$tabLabel( 'general', __( 'General' ) )" icon="o-document-text">
-                <fieldset @disabled( $readOnly ) class="min-w-0">
-                    <div class="grid gap-4 lg:grid-cols-2">
-                        <x-artisanpack-input id="product-name" :label="__( 'Name' )" wire:model.live.debounce.400ms="name" required />
-                        <x-artisanpack-input id="product-slug" :label="__( 'Slug' )" :hint="__( 'Filled from the name until you edit it.' )" wire:model.blur="slug" />
+            <x-artisanpack-tab name="general" :label="$tabLabels['general']" :count="$tabError( 'general' )">
+                <fieldset @disabled( $readOnly ) class="ec-product-form-panel">
+                    <div class="ec-field-grid">
+                        <x-artisanpack-input id="product-name" class="ec-span-2" :label="__( 'Name' )" wire:model.live.debounce.400ms="name" required />
+                        <x-artisanpack-input id="product-slug" class="ec-mono-input" :label="__( 'Slug' )" :hint="__( 'Filled from the name until you edit it.' )" wire:model.live.blur="slug" />
 
                         @if ( $isCreate )
-                            <x-artisanpack-select id="product-type" :label="__( 'Type' )" :options="$typeOptions" wire:model.live="type" />
+                            <x-artisanpack-select placeholder="" id="product-type" :label="__( 'Type' )" :options="ControlOptions::from( $typeOptions )" wire:model.live="type" />
                         @else
                             <x-artisanpack-input id="product-type" :label="__( 'Type' )" :value="collect( $typeOptions )->firstWhere( 'id', $type )['name'] ?? $type" readonly />
                         @endif
 
-                        <x-artisanpack-select id="product-status" :label="__( 'Status' )" :options="$statusOptions" wire:model="status" />
+                        <x-artisanpack-select placeholder="" id="product-status" :label="__( 'Status' )" :options="ControlOptions::from( $statusOptions )" wire:model="status" />
 
                         <x-artisanpack-input
                             id="product-published-at"
@@ -93,210 +117,270 @@
                             :hint="__( 'Leave empty to publish as soon as the status is active.' )"
                             wire:model="publishedAt"
                         />
-                    </div>
 
-                    <div class="mt-4 flex flex-col gap-4">
-                        <x-artisanpack-textarea id="product-short-description" :label="__( 'Short description' )" rows="2" wire:model="shortDescription" />
-                        <x-artisanpack-editor id="product-description" :label="__( 'Description' )" wire:model="description" />
+                        <x-artisanpack-textarea id="product-short-description" class="ec-span-2" :label="__( 'Short description' )" rows="3" wire:model="shortDescription" />
+                        <x-artisanpack-rich-text-editor id="product-description" class="ec-span-2" :label="__( 'Description' )" wire:model="description" />
                     </div>
                 </fieldset>
             </x-artisanpack-tab>
 
             {{-- Pricing --}}
-            <x-artisanpack-tab name="pricing" :label="$tabLabel( 'pricing', __( 'Pricing' ) )" icon="o-banknotes">
-                <fieldset @disabled( $readOnly ) class="min-w-0">
-                    <p class="mb-3 text-sm opacity-75">{{ __( 'Leave a currency empty to convert it from the store currency (:currency) at checkout.', [ 'currency' => StoreCurrencies::base() ] ) }}</p>
+            <x-artisanpack-tab name="pricing" :label="$tabLabels['pricing']" :count="$tabError( 'pricing' )">
+                <fieldset @disabled( $readOnly ) class="ec-product-form-panel ec-stack-sm">
+                    <p class="ec-muted">{{ __( 'Leave a currency empty to convert it from the store currency (:currency) at checkout.', [ 'currency' => $baseCurrency ] ) }}</p>
 
-                    <div class="flex flex-col gap-4">
-                        @foreach ( $prices as $index => $price )
-                            <fieldset wire:key="price-{{ \ArtisanPackUI\EcommerceAdminLivewire\Support\RowKeys::of( $price, $index ) }}" class="rounded-box border border-base-300 p-3" data-price-row="{{ $index }}">
-                                <legend class="px-1 font-semibold">
-                                    {{ $price['scheduled'] ? __( 'Scheduled price' ) : $price['currency'] }}
-                                </legend>
+                    @foreach ( $basePrices as $index => $price )
+                        <div
+                            wire:key="price-{{ RowKeys::of( $price, $index ) }}"
+                            class="ec-item"
+                            role="group"
+                            aria-label="{{ $price['currency'] }}"
+                            data-price-row="{{ $index }}"
+                        >
+                            <div class="ec-field-grid ec-product-form-price-grid">
+                                <x-artisanpack-input id="price-{{ $index }}-code" :label="__( 'Currency' )" :value="$price['currency']" readonly />
+                                <x-artisanpack-ec-money-input
+                                    id="price-{{ $index }}-amount"
+                                    :currency="$price['currency']"
+                                    :label="__( 'Price' )"
+                                    :placeholder="$price['currency'] === $baseCurrency ? null : __( 'From :currency', [ 'currency' => $baseCurrency ] )"
+                                    wire:model="prices.{{ $index }}.price_amount"
+                                />
+                                <x-artisanpack-ec-money-input id="price-{{ $index }}-compare" :currency="$price['currency']" :label="__( 'Compare-at price' )" wire:model="prices.{{ $index }}.compare_at_amount" />
+                                <x-artisanpack-ec-money-input id="price-{{ $index }}-cost" :currency="$price['currency']" :label="__( 'Cost' )" :hint="__( 'Never shown to customers.' )" wire:model="prices.{{ $index }}.cost_amount" />
+                            </div>
+                        </div>
+                    @endforeach
 
-                                <div class="grid gap-3 md:grid-cols-3">
-                                    @if ( $price['scheduled'] )
-                                        <x-artisanpack-select
-                                            id="price-{{ $index }}-currency"
-                                            :label="__( 'Currency' )"
-                                            :options="array_map( static fn ( string $code ): array => [ 'id' => $code, 'name' => $code ], StoreCurrencies::enabled( $product ) )"
-                                            wire:model.live="prices.{{ $index }}.currency"
-                                        />
-                                    @endif
-                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-amount" :currency="$price['currency']" :label="__( 'Price' )" wire:model="prices.{{ $index }}.price_amount" />
-                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-compare" :currency="$price['currency']" :label="__( 'Compare-at price' )" wire:model="prices.{{ $index }}.compare_at_amount" />
-                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-cost" :currency="$price['currency']" :label="__( 'Cost' )" :hint="__( 'Never shown to customers.' )" wire:model="prices.{{ $index }}.cost_amount" />
+                    <section class="ec-stack-sm" aria-labelledby="product-scheduled-heading" data-scheduled-prices>
+                        <h2 id="product-scheduled-heading" class="ec-subheading">{{ __( 'Scheduled prices' ) }}</h2>
+
+                        @foreach ( $scheduled as $index => $price )
+                            <div
+                                wire:key="price-{{ RowKeys::of( $price, $index ) }}"
+                                class="ec-item"
+                                role="group"
+                                aria-label="{{ __( 'Scheduled price :number', [ 'number' => $loop->iteration ] ) }}"
+                                data-price-row="{{ $index }}"
+                            >
+                                <div class="ec-field-grid ec-product-form-price-grid">
+                                    <x-artisanpack-select
+                                        placeholder=""
+                                        id="price-{{ $index }}-currency"
+                                        :label="__( 'Currency' )"
+                                        :options="$currencyCodes"
+                                        wire:model.live="prices.{{ $index }}.currency"
+                                    />
+                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-amount" wire:key="price-{{ RowKeys::of( $price, $index ) }}-amount-{{ $price['currency'] }}" :currency="$price['currency']" :label="__( 'Price' )" wire:model="prices.{{ $index }}.price_amount" />
+                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-compare" wire:key="price-{{ RowKeys::of( $price, $index ) }}-compare-{{ $price['currency'] }}" :currency="$price['currency']" :label="__( 'Compare-at price' )" wire:model="prices.{{ $index }}.compare_at_amount" />
+                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-cost" wire:key="price-{{ RowKeys::of( $price, $index ) }}-cost-{{ $price['currency'] }}" :currency="$price['currency']" :label="__( 'Cost' )" :hint="__( 'Never shown to customers.' )" wire:model="prices.{{ $index }}.cost_amount" />
                                 </div>
-
-                                @if ( $price['scheduled'] )
-                                    <div class="mt-3 grid gap-3 md:grid-cols-3">
-                                        <x-artisanpack-input id="price-{{ $index }}-starts" type="datetime-local" :label="__( 'Starts' )" wire:model="prices.{{ $index }}.starts_at" />
-                                        <x-artisanpack-input id="price-{{ $index }}-ends" type="datetime-local" :label="__( 'Ends (optional)' )" wire:model="prices.{{ $index }}.ends_at" />
-                                        <div class="flex items-end">
-                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="removePrice( {{ $index }} )" wire:loading.attr="disabled" :label="__( 'Remove' )" :aria-label="__( 'Remove scheduled price :number', [ 'number' => $index + 1 ] )" />
+                                <div class="ec-field-grid ec-product-form-schedule-grid">
+                                    <x-artisanpack-input id="price-{{ $index }}-starts" type="datetime-local" :label="__( 'Starts' )" wire:model="prices.{{ $index }}.starts_at" />
+                                    <x-artisanpack-input id="price-{{ $index }}-ends" type="datetime-local" :label="__( 'Ends (optional)' )" wire:model="prices.{{ $index }}.ends_at" />
+                                    @unless ( $readOnly )
+                                        <div>
+                                            <x-artisanpack-button
+                                                variant="ghost"
+                                                color="neutral"
+                                                size="sm"
+                                                leading-icon="trash"
+                                                wire:click="removePrice( {{ $index }} )" wire:loading.attr="disabled"
+                                                :aria-label="__( 'Remove scheduled price :number', [ 'number' => $loop->iteration ] )">{{ __( 'Remove' ) }}</x-artisanpack-button>
                                         </div>
-                                    </div>
-                                @endif
-                            </fieldset>
+                                    @endunless
+                                </div>
+                            </div>
                         @endforeach
-                    </div>
 
-                    @unless ( $readOnly )
-                        <x-artisanpack-button class="mt-3" variant="outline" size="sm" icon="o-calendar" wire:click="addScheduledPrice" :label="__( 'Schedule a price' )" />
-                    @endunless
+                        @unless ( $readOnly )
+                            <div>
+                                <x-artisanpack-button variant="outline" color="neutral" size="sm" leading-icon="calendar" wire:click="addScheduledPrice">{{ __( 'Schedule a price' ) }}</x-artisanpack-button>
+                            </div>
+                        @endunless
+                    </section>
                 </fieldset>
             </x-artisanpack-tab>
 
             {{-- Inventory --}}
-            <x-artisanpack-tab name="inventory" :label="$tabLabel( 'inventory', __( 'Inventory' ) )" icon="o-archive-box">
-                <fieldset @disabled( $readOnly ) class="min-w-0">
-                    <div class="grid gap-4 lg:grid-cols-2">
-                        <x-artisanpack-input id="product-sku" :label="__( 'SKU' )" wire:model="sku" />
-                        <x-artisanpack-input id="product-barcode" :label="__( 'Barcode' )" wire:model="barcode" />
-                    </div>
+            <x-artisanpack-tab name="inventory" :label="$tabLabels['inventory']" :count="$tabError( 'inventory' )">
+                <fieldset @disabled( $readOnly ) class="ec-product-form-panel">
+                    <div class="ec-field-grid">
+                        <x-artisanpack-input id="product-sku" class="ec-mono-input" :label="__( 'SKU' )" wire:model="sku" />
+                        <x-artisanpack-input id="product-barcode" class="ec-mono-input" :label="__( 'Barcode' )" wire:model="barcode" />
 
-                    @if ( $tracksStock )
-                        <div class="mt-4 flex flex-col gap-4">
-                            <x-artisanpack-toggle id="product-track-inventory" :label="__( 'Track inventory' )" wire:model.live="trackInventory" />
+                        @if ( $tracksStock )
+                            @unless ( $canAdjustStock )
+                                <p class="ec-span-2 ec-muted" data-stock-read-only>{{ __( 'You can\'t adjust stock, so these fields are read-only.' ) }}</p>
+                            @endunless
+                            <div class="ec-span-2">
+                                <x-artisanpack-toggle id="product-track-inventory" :label="__( 'Track inventory' )" :disabled="! $canAdjustStock" wire:model.live="trackInventory" />
+                            </div>
 
                             @if ( $trackInventory )
-                                <div class="grid gap-4 lg:grid-cols-3">
-                                    <x-artisanpack-input
-                                        id="product-quantity"
-                                        type="number"
-                                        step="1"
-                                        :label="$isCreate ? __( 'Opening stock' ) : __( 'Quantity on hand' )"
-                                        wire:model.live.debounce.400ms="quantity"
-                                    />
-                                    <x-artisanpack-input id="product-low-stock" type="number" min="0" step="1" :label="__( 'Low-stock threshold' )" wire:model="lowStockThreshold" />
-                                    <div class="flex items-end">
-                                        <x-artisanpack-toggle id="product-backorder" :label="__( 'Allow backorders' )" wire:model="allowBackorder" />
-                                    </div>
+                                <x-artisanpack-input
+                                    id="product-quantity"
+                                    type="number"
+                                    step="1"
+                                    :label="$isCreate ? __( 'Opening stock' ) : __( 'Quantity on hand' )"
+                                    :readonly="! $canAdjustStock"
+                                    wire:model.live.debounce.400ms="quantity"
+                                />
+                                <x-artisanpack-input id="product-low-stock" type="number" min="0" step="1" :label="__( 'Low-stock threshold' )" :readonly="! $canAdjustStock" wire:model="lowStockThreshold" />
+
+                                <div class="ec-span-2">
+                                    <x-artisanpack-toggle id="product-backorder" :label="__( 'Allow backorders' )" :description="__( 'Keep selling when stock reaches 0.' )" :disabled="! $canAdjustStock" wire:model="allowBackorder" />
                                 </div>
 
-                                @if ( ! $isCreate && 0 !== $quantityDelta )
-                                    <x-artisanpack-input
-                                        id="product-stock-reason"
-                                        :label="__( 'Reason for the stock change' )"
-                                        :hint="( $quantityDelta > 0
-                                            ? trans_choice( 'Saving adds :count unit.|Saving adds :count units.', $quantityDelta, [ 'count' => $quantityDelta ] )
-                                            : trans_choice( 'Saving removes :count unit.|Saving removes :count units.', abs( $quantityDelta ), [ 'count' => abs( $quantityDelta ) ] ) ) . ' ' . __( 'The change is recorded in the activity log.' )"
-                                        wire:model="stockReason"
-                                        data-stock-reason
-                                    />
+                                @if ( $canAdjustStock && ! $isCreate && 0 !== $quantityDelta )
+                                    <div class="ec-span-2 ec-product-form-stock-change" data-stock-change="{{ $quantityDelta }}">
+                                        <p class="ec-product-form-stock-change__text" role="status">
+                                            <x-artisanpack-icon name="info" aria-hidden="true" />
+                                            <span>
+                                                <strong>{{ $quantityDelta > 0
+                                                    ? trans_choice( 'Saving adds :count unit.|Saving adds :count units.', $quantityDelta, [ 'count' => $quantityDelta ] )
+                                                    : trans_choice( 'Saving removes :count unit.|Saving removes :count units.', abs( $quantityDelta ), [ 'count' => abs( $quantityDelta ) ] ) }}</strong>
+                                                {{ __( 'The change is recorded in the activity log.' ) }}
+                                            </span>
+                                        </p>
+                                        <x-artisanpack-input
+                                            id="product-stock-reason"
+                                            :label="__( 'Reason for the stock change' )"
+                                            required
+                                            maxlength="255"
+                                            wire:model="stockReason"
+                                            data-stock-reason
+                                        />
+                                    </div>
                                 @endif
                             @endif
-                        </div>
-                    @else
-                        <p class="mt-4 text-sm opacity-75">{{ __( 'This product type has no stock of its own.' ) }}</p>
-                    @endif
-                </fieldset>
-            </x-artisanpack-tab>
-
-            {{-- Shipping --}}
-            <x-artisanpack-tab name="shipping" :label="$tabLabel( 'shipping', __( 'Shipping' ) )" icon="o-truck">
-                <fieldset @disabled( $readOnly ) class="min-w-0">
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <x-artisanpack-input id="product-weight" type="number" min="0" step="0.001" :label="__( 'Weight' )" wire:model="weight" />
-                        <x-artisanpack-select id="product-weight-unit" :label="__( 'Weight unit' )" :options="$weightUnits" :placeholder="__( 'Choose a unit' )" placeholder-value="" wire:model="weightUnit" />
-                    </div>
-                    <div class="mt-4 grid gap-4 md:grid-cols-4">
-                        <x-artisanpack-input id="product-length" type="number" min="0" step="0.001" :label="__( 'Length' )" wire:model="length" />
-                        <x-artisanpack-input id="product-width" type="number" min="0" step="0.001" :label="__( 'Width' )" wire:model="width" />
-                        <x-artisanpack-input id="product-height" type="number" min="0" step="0.001" :label="__( 'Height' )" wire:model="height" />
-                        <x-artisanpack-select id="product-dim-unit" :label="__( 'Dimension unit' )" :options="$dimUnits" :placeholder="__( 'Choose a unit' )" placeholder-value="" wire:model="dimUnit" />
-                    </div>
-                </fieldset>
-            </x-artisanpack-tab>
-
-            {{-- Tax --}}
-            <x-artisanpack-tab name="tax" :label="$tabLabel( 'tax', __( 'Tax' ) )" icon="o-receipt-percent">
-                <fieldset @disabled( $readOnly ) class="min-w-0">
-                    <div class="flex flex-col gap-4">
-                        <x-artisanpack-toggle id="product-taxable" :label="__( 'Charge tax on this product' )" wire:model.live="isTaxable" />
-                        @if ( $isTaxable )
-                            <x-artisanpack-select
-                                id="product-tax-class"
-                                :label="__( 'Tax class' )"
-                                :options="$taxClassOptions"
-                                :placeholder="__( 'Standard rate' )"
-                                placeholder-value=""
-                                wire:model="taxClassKey"
-                            />
+                        @else
+                            <p class="ec-span-2 ec-muted">{{ __( 'This product type has no stock of its own.' ) }}</p>
                         @endif
                     </div>
                 </fieldset>
             </x-artisanpack-tab>
 
+            {{-- Shipping --}}
+            <x-artisanpack-tab name="shipping" :label="$tabLabels['shipping']" :count="$tabError( 'shipping' )">
+                <fieldset @disabled( $readOnly ) class="ec-product-form-panel ec-stack-lg">
+                    <div class="ec-field-grid">
+                        <x-artisanpack-input id="product-weight" type="number" min="0" step="0.001" :label="__( 'Weight' )" wire:model="weight" />
+                        <x-artisanpack-select id="product-weight-unit" :label="__( 'Weight unit' )" :options="ControlOptions::from( $weightUnits )" :placeholder="__( 'Choose a unit' )" wire:model="weightUnit" />
+                    </div>
+                    <div class="ec-field-grid ec-field-grid-3">
+                        <x-artisanpack-input id="product-length" type="number" min="0" step="0.001" :label="__( 'Length' )" wire:model="length" />
+                        <x-artisanpack-input id="product-width" type="number" min="0" step="0.001" :label="__( 'Width' )" wire:model="width" />
+                        <x-artisanpack-input id="product-height" type="number" min="0" step="0.001" :label="__( 'Height' )" wire:model="height" />
+                        <x-artisanpack-select id="product-dim-unit" :label="__( 'Dimension unit' )" :options="ControlOptions::from( $dimUnits )" :placeholder="__( 'Choose a unit' )" wire:model="dimUnit" />
+                    </div>
+                </fieldset>
+            </x-artisanpack-tab>
+
+            {{-- Tax --}}
+            <x-artisanpack-tab name="tax" :label="$tabLabels['tax']" :count="$tabError( 'tax' )">
+                <fieldset @disabled( $readOnly ) class="ec-product-form-panel ec-form-stack">
+                    <x-artisanpack-toggle id="product-taxable" :label="__( 'Charge tax on this product' )" wire:model.live="isTaxable" />
+                    @if ( $isTaxable )
+                        <x-artisanpack-select
+                            id="product-tax-class"
+                            class="ec-field-narrow"
+                            :label="__( 'Tax class' )"
+                            :options="ControlOptions::from( $taxClassOptions )"
+                            :placeholder="__( 'Standard rate' )"
+                            wire:model="taxClassKey"
+                        />
+                    @endif
+                </fieldset>
+            </x-artisanpack-tab>
+
             {{-- Organization --}}
-            <x-artisanpack-tab name="organization" :label="$tabLabel( 'organization', __( 'Organization' ) )" icon="o-folder">
-                <fieldset @disabled( $readOnly ) class="min-w-0">
-                    <div class="flex flex-col gap-4">
-                        <x-artisanpack-ec-category-picker model="categoryIds" :options="$categoryOptions" :label="__( 'Categories' )" />
-                        <x-artisanpack-tags id="product-tags" :label="__( 'Tags' )" :hint="__( 'Press Enter after each tag. New tags are created when you save.' )" wire:model="tagNames" />
-                        <div class="grid gap-4 md:grid-cols-2">
-                            <x-artisanpack-toggle id="product-featured" :label="__( 'Featured' )" :hint="__( 'Storefronts can highlight featured products.' )" wire:model="isFeatured" />
-                            <x-artisanpack-input id="product-position" type="number" min="0" step="1" :label="__( 'Catalog position' )" :hint="__( 'Manual catalog order: lower numbers come first.' )" wire:model="catalogPosition" />
+            <x-artisanpack-tab name="organization" :label="$tabLabels['organization']" :count="$tabError( 'organization' )">
+                <fieldset @disabled( $readOnly ) class="ec-product-form-panel">
+                    <div class="ec-field-grid">
+                        <div class="ec-span-2">
+                            <x-artisanpack-ec-category-picker model="categoryIds" :options="$categoryOptions" :label="__( 'Categories' )" />
                         </div>
+                        <x-artisanpack-combobox
+                            multiple
+                            allow-create
+                            id="product-tags"
+                            class="ec-span-2"
+                            :label="__( 'Tags' )"
+                            :placeholder="__( 'Add a tag' )"
+                            :hint="__( 'Press Enter after each tag. New tags are created when you save.' )"
+                            wire:model="tagNames"
+                        />
+                        <x-artisanpack-toggle id="product-featured" :label="__( 'Featured' )" :description="__( 'Storefronts can highlight featured products.' )" wire:model="isFeatured" />
+                        <x-artisanpack-input id="product-position" type="number" min="0" step="1" :label="__( 'Catalog position' )" :hint="__( 'Manual catalog order: lower numbers come first.' )" wire:model="catalogPosition" />
                     </div>
                 </fieldset>
             </x-artisanpack-tab>
 
             {{-- Linked products --}}
-            <x-artisanpack-tab name="linked" :label="$tabLabel( 'linked', __( 'Linked products' ) )" icon="o-link">
-                <div class="flex flex-col gap-6" data-relations>
+            <x-artisanpack-tab name="linked" :label="$tabLabels['linked']" :count="$tabError( 'linked' )">
+                <div class="ec-stack-xl" data-relations>
                     @foreach ( $relationLists as $list )
-                        @php( $listId = 'relations-' . $list['type'] )
-                        <section aria-labelledby="{{ $listId }}-heading" data-relation-list="{{ $list['type'] }}">
-                            <h3 id="{{ $listId }}-heading" class="font-semibold">{{ $list['label'] }}</h3>
-                            <p id="{{ $listId }}-help" class="mb-2 text-sm opacity-75">
-                                {{ $list['hint'] }}
-                                @if ( $canWrite && count( $list['products'] ) > 1 )
-                                    {{ __( 'Drag a row, or use Move up and Move down, to change the order.' ) }}
-                                @endif
-                            </p>
+                        @php
+                            $listId = 'relations-' . $list['type'];
+                        @endphp
+                        <section class="ec-stack-sm" aria-labelledby="{{ $listId }}-heading" data-relation-list="{{ $list['type'] }}">
+                            <div>
+                                <h2 id="{{ $listId }}-heading" class="ec-subheading">{{ $list['label'] }}</h2>
+                                <p id="{{ $listId }}-help" class="ec-muted">
+                                    {{ $list['hint'] }}
+                                    @if ( $canWrite && count( $list['products'] ) > 1 )
+                                        {{ __( 'Drag a row, or use Move up and Move down, to change the order.' ) }}
+                                    @endif
+                                </p>
+                            </div>
 
                             @error( 'relations.' . $list['type'] )
-                                <p class="mb-2 text-sm text-error" role="alert">{{ $message }}</p>
+                                <p class="ec-field-error" role="alert">{{ $message }}</p>
                             @enderror
 
                             @if ( [] === $list['products'] )
-                                <p class="mb-2 text-sm opacity-75" data-relation-empty>{{ __( 'None yet.' ) }}</p>
+                                <p class="ec-muted" data-relation-empty>{{ __( 'None yet.' ) }}</p>
                             @else
                                 <ol
-                                    class="mb-3 flex list-none flex-col gap-2"
+                                    class="ec-list"
                                     aria-labelledby="{{ $listId }}-heading"
                                     aria-describedby="{{ $listId }}-help"
                                     @if ( $canWrite )
                                         x-data
                                         x-drag-context
-                                        x-on:drag:end="$wire.reorderRelations( {{ \Illuminate\Support\Js::from( $list['type'] ) }}, $event.detail.orderedIds )"
+                                        x-on:drag:end="$wire.reorderRelations( {{ Js::from( $list['type'] ) }}, $event.detail.orderedIds )"
                                     @endif
                                 >
                                     @foreach ( $list['products'] as $index => $related )
-                                        @php( $rowError = $errors->first( 'relations.' . $list['type'] . '.' . $index ) )
+                                        @php
+                                            $rowError = $errors->first( 'relations.' . $list['type'] . '.' . $index );
+                                        @endphp
                                         <li
                                             wire:key="relation-{{ $list['type'] }}-{{ $related['id'] }}"
-                                            @if ( $canWrite ) x-drag-item="{{ \Illuminate\Support\Js::from( (string) $related['id'] ) }}" @endif
-                                            @class( [ 'flex flex-wrap items-center gap-2 rounded-box border p-2', 'border-error' => '' !== $rowError, 'border-base-300' => '' === $rowError ] )
+                                            @if ( $canWrite ) x-drag-item="{{ Js::from( (string) $related['id'] ) }}" @endif
+                                            class="ec-item ec-product-form-relation"
+                                            @if ( '' !== $rowError ) data-invalid @endif
                                             data-relation-row="{{ $related['id'] }}"
                                         >
                                             @if ( $canWrite )
-                                                <x-artisanpack-icon name="o-bars-3" class="h-4 w-4 cursor-grab opacity-50" aria-hidden="true" />
+                                                <x-artisanpack-icon name="grip-vertical" class="ec-product-form-grip" aria-hidden="true" />
                                             @endif
-                                            <span class="font-medium">{{ $related['name'] }}</span>
-                                            @if ( filled( $related['sku'] ) )
-                                                <span class="text-sm opacity-75">{{ $related['sku'] }}</span>
+                                            <span class="ec-product-form-relation__name">
+                                                <span class="ec-strong">{{ $related['name'] }}</span>
+                                                @if ( filled( $related['sku'] ) )
+                                                    <bdi class="ec-muted ec-mono" dir="ltr">{{ $related['sku'] }}</bdi>
+                                                @endif
+                                            </span>
+                                            @if ( $canWrite )
+                                                <div class="ec-row-actions">
+                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-up" wire:click="moveRelation( {{ Js::from( $list['type'] ) }}, {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="{{ $listId }}" data-reorder-key="relation-{{ $list['type'] }}-{{ $related['id'] }}" data-reorder-item="{{ $related['name'] }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $related['name'] ] )" />
+                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-down" wire:click="moveRelation( {{ Js::from( $list['type'] ) }}, {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="{{ $listId }}" data-reorder-key="relation-{{ $list['type'] }}-{{ $related['id'] }}" data-reorder-item="{{ $related['name'] }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $related['name'] ] )" />
+                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="trash" wire:click="removeRelation( {{ Js::from( $list['type'] ) }}, {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :name from :list', [ 'name' => $related['name'], 'list' => $list['label'] ] )" />
+                                                </div>
                                             @endif
                                             @if ( '' !== $rowError )
-                                                <span class="w-full text-sm text-error" role="alert">{{ $rowError }}</span>
-                                            @endif
-                                            @if ( $canWrite )
-                                                <div class="ms-auto flex gap-1">
-                                                    <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-up" wire:click="moveRelation( {{ \Illuminate\Support\Js::from( $list['type'] ) }}, {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="{{ $listId }}" data-reorder-key="relation-{{ $list['type'] }}-{{ $related['id'] }}" data-reorder-item="{{ $related['name'] }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $related['name'] ] )" />
-                                                    <x-artisanpack-button variant="ghost" size="xs" icon="o-arrow-down" wire:click="moveRelation( {{ \Illuminate\Support\Js::from( $list['type'] ) }}, {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="{{ $listId }}" data-reorder-key="relation-{{ $list['type'] }}-{{ $related['id'] }}" data-reorder-item="{{ $related['name'] }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $related['name'] ] )" />
-                                                    <x-artisanpack-button variant="ghost" size="xs" icon="o-trash" wire:click="removeRelation( {{ \Illuminate\Support\Js::from( $list['type'] ) }}, {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :name from :list', [ 'name' => $related['name'], 'list' => $list['label'] ] )" />
-                                                </div>
+                                                <p class="ec-field-error ec-product-form-relation__error" role="alert">{{ $rowError }}</p>
                                             @endif
                                         </li>
                                     @endforeach
@@ -319,79 +403,113 @@
             </x-artisanpack-tab>
 
             {{-- Media --}}
-            <x-artisanpack-tab name="media" :label="$tabLabel( 'media', __( 'Media' ) )" icon="o-photo">
-                <fieldset @disabled( $readOnly ) class="min-w-0">
-                    <h3 class="mb-2 font-semibold">{{ __( 'Featured image' ) }}</h3>
-                    <div class="mb-6 flex flex-wrap items-end gap-4" data-featured-image>
-                        @if ( null !== $featuredPreview )
-                            <img src="{{ $featuredPreview }}" alt="{{ $name }}" class="size-24 rounded object-cover" />
-                        @endif
+            <x-artisanpack-tab name="media" :label="$tabLabels['media']" :count="$tabError( 'media' )">
+                <fieldset @disabled( $readOnly ) class="ec-product-form-panel ec-stack-lg">
+                    <section class="ec-stack-sm" aria-labelledby="product-featured-heading">
+                        <h2 id="product-featured-heading" class="ec-subheading">{{ __( 'Featured image' ) }}</h2>
+                        <div class="ec-product-form-featured" data-featured-image>
+                            @if ( null !== $featuredPreview )
+                                <img src="{{ $featuredPreview }}" alt="{{ $name }}" class="ec-product-form-featured__image" />
+                            @endif
 
-                        @if ( $mediaLibrary )
-                            @unless ( $readOnly )
-                                <x-artisanpack-button
-                                    variant="outline"
-                                    size="sm"
-                                    icon="o-photo"
-                                    x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Form::MEDIA_FEATURED ) }} } )"
-                                    :label="null === $featuredMediaId ? __( 'Choose image' ) : __( 'Replace image' )"
-                                />
+                            @unless ( $mediaLibrary )
+                                <x-artisanpack-input id="product-featured-url" class="ec-product-form-url" type="url" :label="__( 'Image URL' )" wire:model.live.blur="featuredImageUrl" />
                             @endunless
+
+                            @unless ( $readOnly )
+                                <div class="ec-actions">
+                                    @if ( $mediaLibrary )
+                                        <x-artisanpack-button
+                                            variant="outline"
+                                            color="neutral"
+                                            size="sm"
+                                            leading-icon="image"
+                                            x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ Js::from( Form::MEDIA_FEATURED ) }} } )">{{ null === $featuredMediaId ? __( 'Choose image' ) : __( 'Replace image' ) }}</x-artisanpack-button>
+                                    @endif
+                                    @if ( null !== $featuredPreview )
+                                        <x-artisanpack-button variant="ghost" color="neutral" size="sm" leading-icon="x" wire:click="clearFeaturedImage">{{ __( 'Remove' ) }}</x-artisanpack-button>
+                                    @endif
+                                </div>
+                            @endunless
+                        </div>
+                    </section>
+
+                    <section class="ec-stack-sm" aria-labelledby="product-gallery-heading">
+                        <h2 id="product-gallery-heading" class="ec-subheading">{{ __( 'Gallery' ) }}</h2>
+
+                        @if ( [] === $gallery )
+                            <p class="ec-muted">{{ __( 'No gallery images yet.' ) }}</p>
                         @else
-                            <x-artisanpack-input id="product-featured-url" class="min-w-80" type="url" :label="__( 'Image URL' )" wire:model.blur="featuredImageUrl" />
-                        @endif
+                            <ol class="ec-list" aria-label="{{ __( 'Gallery images, in order' ) }}">
+                                @foreach ( $gallery as $index => $image )
+                                    @php
+                                        $missingAlt = '' === trim( (string) ( $image['alt_text'] ?? '' ) );
+                                        $imageName  = $missingAlt ? __( 'Image :number', [ 'number' => $index + 1 ] ) : $image['alt_text'];
+                                    @endphp
+                                    <li
+                                        wire:key="gallery-{{ $image['uid'] ?? $index }}"
+                                        class="ec-item ec-product-form-gallery-row"
+                                        data-gallery-row="{{ $index }}"
+                                        @if ( $missingAlt ) data-missing-alt @endif
+                                    >
+                                        @if ( null !== ( $galleryPreviews[ $index ] ?? null ) )
+                                            <img src="{{ $galleryPreviews[ $index ] }}" alt="{{ $missingAlt ? $name : $image['alt_text'] }}" class="ec-product-form-thumb" />
+                                        @else
+                                            <span class="ec-product-form-thumb" aria-hidden="true"></span>
+                                        @endif
 
-                        @if ( null !== $featuredPreview && ! $readOnly )
-                            <x-artisanpack-button variant="ghost" size="sm" icon="o-x-mark" wire:click="clearFeaturedImage" :label="__( 'Remove' )" />
-                        @endif
-                    </div>
-
-                    <h3 class="mb-2 font-semibold">{{ __( 'Gallery' ) }}</h3>
-                    @if ( [] === $gallery )
-                        <p class="mb-3 text-sm opacity-75">{{ __( 'No gallery images yet.' ) }}</p>
-                    @else
-                        <ol class="mb-3 flex list-none flex-col gap-3" aria-label="{{ __( 'Gallery images, in order' ) }}">
-                            @foreach ( $gallery as $index => $image )
-                                <li wire:key="gallery-{{ $image['uid'] ?? $index }}" class="flex flex-wrap items-end gap-3 rounded-box border border-base-300 p-3" data-gallery-row="{{ $index }}">
-                                    @if ( null !== ( $galleryPreviews[ $index ] ?? null ) )
-                                        <img src="{{ $galleryPreviews[ $index ] }}" alt="{{ $image['alt_text'] ?: $name }}" class="size-16 rounded object-cover" />
-                                    @endif
-                                    @if ( null === $image['media_id'] )
-                                        <x-artisanpack-input id="gallery-{{ $index }}-url" class="min-w-64" type="url" :label="__( 'Image URL' )" wire:model.blur="gallery.{{ $index }}.image_url" />
-                                    @endif
-                                    <x-artisanpack-input id="gallery-{{ $index }}-alt" class="min-w-64" :label="__( 'Alt text' )" :hint="__( 'Describe the image for people who can\'t see it.' )" wire:model="gallery.{{ $index }}.alt_text" />
-                                    @unless ( $readOnly )
-                                        <div class="flex gap-1">
-                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-up" wire:click="moveGalleryImage( {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ '' !== ( $image['alt_text'] ?? '' ) ? $image['alt_text'] : __( 'Image :number', [ 'number' => $index + 1 ] ) }}" :disabled="$loop->first" :aria-label="__( 'Move image :number up', [ 'number' => $index + 1 ] )" />
-                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-arrow-down" wire:click="moveGalleryImage( {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ '' !== ( $image['alt_text'] ?? '' ) ? $image['alt_text'] : __( 'Image :number', [ 'number' => $index + 1 ] ) }}" :disabled="$loop->last" :aria-label="__( 'Move image :number down', [ 'number' => $index + 1 ] )" />
-                                            <x-artisanpack-button variant="ghost" size="sm" icon="o-trash" wire:click="removeGalleryImage( {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove image :number', [ 'number' => $index + 1 ] )" />
+                                        <div class="ec-form-stack">
+                                            @if ( null === $image['media_id'] )
+                                                <x-artisanpack-input id="gallery-{{ $index }}-url" size="sm" type="url" :label="__( 'Image URL' )" wire:model.live.blur="gallery.{{ $index }}.image_url" />
+                                            @endif
+                                            <x-artisanpack-input
+                                                id="gallery-{{ $index }}-alt"
+                                                size="sm"
+                                                :label="__( 'Alt text' )"
+                                                :placeholder="__( 'Describe the image' )"
+                                                :hint="$missingAlt ? __( 'No alt text yet. Describe the image for people who can\'t see it.' ) : __( 'Describe the image for people who can\'t see it.' )"
+                                                wire:model.live.blur="gallery.{{ $index }}.alt_text"
+                                            />
+                                            @if ( $missingAlt )
+                                                <div>
+                                                    <x-artisanpack-badge size="sm" color="warning" leading-icon="triangle-alert" data-alt-missing>{{ __( 'Missing alt text' ) }}</x-artisanpack-badge>
+                                                </div>
+                                            @endif
                                         </div>
-                                    @endunless
-                                </li>
-                            @endforeach
-                        </ol>
-                    @endif
 
-                    @unless ( $readOnly )
-                        @if ( $mediaLibrary )
-                            <x-artisanpack-button
-                                variant="outline"
-                                size="sm"
-                                icon="o-plus"
-                                x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ \Illuminate\Support\Js::from( Form::MEDIA_GALLERY ) }} } )"
-                                :label="__( 'Add images' )"
-                            />
-                        @else
-                            <x-artisanpack-button variant="outline" size="sm" icon="o-plus" wire:click="addGalleryUrl" :label="__( 'Add image URL' )" />
+                                        @unless ( $readOnly )
+                                            <div class="ec-row-actions">
+                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-up" wire:click="moveGalleryImage( {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ $imageName }}" :disabled="$loop->first" :aria-label="__( 'Move image :number up', [ 'number' => $index + 1 ] )" />
+                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-down" wire:click="moveGalleryImage( {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ $imageName }}" :disabled="$loop->last" :aria-label="__( 'Move image :number down', [ 'number' => $index + 1 ] )" />
+                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="trash" wire:click="removeGalleryImage( {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove image :number', [ 'number' => $index + 1 ] )" />
+                                            </div>
+                                        @endunless
+                                    </li>
+                                @endforeach
+                            </ol>
                         @endif
-                    @endunless
 
+                        @unless ( $readOnly )
+                            <div class="ec-actions">
+                                @if ( $mediaLibrary )
+                                    <x-artisanpack-button
+                                        variant="outline"
+                                        color="neutral"
+                                        size="sm"
+                                        leading-icon="plus"
+                                        x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ Js::from( Form::MEDIA_GALLERY ) }} } )">{{ __( 'Add images' ) }}</x-artisanpack-button>
+                                @else
+                                    <x-artisanpack-button variant="outline" color="neutral" size="sm" leading-icon="plus" wire:click="addGalleryUrl">{{ __( 'Add image URL' ) }}</x-artisanpack-button>
+                                @endif
+                            </div>
+                        @endunless
+                    </section>
                 </fieldset>
             </x-artisanpack-tab>
 
             {{-- Type panel --}}
             @if ( null !== $panelComponent )
-                <x-artisanpack-tab name="panel" :label="$tabLabel( 'panel', $panelLabel ?? __( 'Type settings' ) )" icon="o-adjustments-horizontal">
+                <x-artisanpack-tab name="panel" :label="$tabLabels['panel']" :count="$tabError( 'panel' )">
                     <livewire:dynamic-component
                         :is="$panelComponent"
                         :product-id="$product?->id"
@@ -402,8 +520,8 @@
                     />
                 </x-artisanpack-tab>
             @elseif ( ! $panelRegistered )
-                <x-artisanpack-tab name="panel" :label="__( 'Type settings' )" icon="o-adjustments-horizontal">
-                    <x-artisanpack-alert color="info" icon="o-information-circle" role="status" data-no-panel>
+                <x-artisanpack-tab name="panel" :label="$tabLabels['panel']">
+                    <x-artisanpack-alert color="info" icon="info" data-no-panel>
                         {{ __( 'The ":type" product type has no settings panel in this admin. Its other tabs still work.', [ 'type' => $type ] ) }}
                     </x-artisanpack-alert>
                 </x-artisanpack-tab>
@@ -411,12 +529,12 @@
 
             {{-- Activity --}}
             @if ( null !== $product )
-                <x-artisanpack-tab name="activity" :label="__( 'Activity' )" icon="o-clock">
+                <x-artisanpack-tab name="activity" :label="$tabLabels['activity']">
                     @livewire( 'artisanpack-ecommerce-admin-timeline', [ 'subject' => $product ], key( 'product-timeline-' . $product->id ) )
                 </x-artisanpack-tab>
             @endif
         </x-artisanpack-tabs>
-    </div>
+    </x-artisanpack-card>
 
     @if ( $mediaLibrary && ! $readOnly )
         {{-- One modal for the page: the featured image, gallery, and type panels open it with their own context. --}}

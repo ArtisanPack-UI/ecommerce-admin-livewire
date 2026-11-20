@@ -31,6 +31,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Csv;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductCsv;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -40,10 +41,11 @@ use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * The products table (spec §7.2): image, name, SKU, type, status, base
- * currency price (a range for products with variants), stock (summed over
- * variants), categories, and last update; filtered by search, status,
- * type, category, tag, and stock state.
+ * The products table (spec §7.2, #119): image, product (with its variant
+ * count or SKU below), type, status, base currency price (a range for
+ * products with variants), stock (summed over variants) and featured; SKU,
+ * catalog position, categories and last update are kept for the CSV.
+ * Filtered by search, type, status, category, stock state, tag and featured.
  *
  * Bulk actions publish, archive, delete, add or remove a category or tag,
  * and export. "Export catalog" writes the product CSV format the import
@@ -62,6 +64,16 @@ class Index extends Component
     use SendsToasts;
     use WithActionToken;
     use WithResourceTable;
+
+    /**
+     * Bulk actions the bulk controls render beside their category and tag
+     * selects, rather than in the bar's row of buttons.
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const INLINE_BULK_ACTIONS = [ 'add-category', 'remove-category', 'add-tag', 'remove-tag' ];
 
     /**
      * Category the add/remove-category bulk actions use.
@@ -108,6 +120,8 @@ class Index extends Component
             'importRoute'         => AdminNav::ROUTE_PREFIX . 'products.import',
             'bulkCategoryOptions' => $data['tableSelectionCount'] > 0 ? self::categoryOptions() : [],
             'bulkTagOptions'      => $data['tableSelectionCount'] > 0 ? self::tagOptions() : [],
+            'bulkInlineActions'   => self::INLINE_BULK_ACTIONS,
+            'thumbnails'          => ProductMedia::featuredMany( $data['tableRows']->items() ),
         ] );
     }
 
@@ -243,15 +257,6 @@ class Index extends Component
     }
 
     /**
-     * Deletes the selected products.
-     *
-     * @since 1.0.0
-     *
-     * @param  Builder<Product>  $selection  Selected products.
-     *
-     * @return string|null
-     */
-    /**
      * Marks the selected products featured, or takes them out of featured.
      *
      * @since 1.0.0
@@ -281,6 +286,15 @@ class Index extends Component
         );
     }
 
+    /**
+     * Deletes the selected products.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder<Product>  $selection  Selected products.
+     *
+     * @return string|null
+     */
     protected function deleteSelection( Builder $selection ): ?string
     {
         $service = app( ProductService::class );
@@ -505,14 +519,15 @@ class Index extends Component
 
         return [
             [
-                'key'        => 'image',
-                'label'      => __( 'Image' ),
-                'view'       => $cells . 'image',
-                'exportable' => false,
+                'key'         => 'image',
+                'label'       => __( 'Image' ),
+                'labelHidden' => true,
+                'view'        => $cells . 'image',
+                'exportable'  => false,
             ],
             [
                 'key'      => 'name',
-                'label'    => __( 'Name' ),
+                'label'    => __( 'Product' ),
                 'sortable' => true,
                 'view'     => $cells . 'name',
                 'export'   => static fn ( Product $product ): string => (string) $product->name,
@@ -520,7 +535,7 @@ class Index extends Component
             [
                 'key'      => 'sku',
                 'label'    => __( 'SKU' ),
-                'sortable' => true,
+                'listed'   => false,
                 'value'    => static fn ( Product $product ): string => (string) ( $product->sku ?? '' ),
             ],
             [
@@ -538,11 +553,11 @@ class Index extends Component
                 'export'   => static fn ( Product $product ): string => self::statusLabel( (string) $product->status ),
             ],
             [
-                'key'    => 'price',
-                'label'  => __( 'Price (:currency)', [ 'currency' => $currency ] ),
-                'class'  => 'text-end',
-                'view'   => $cells . 'price',
-                'export' => static function ( Product $product ) use ( $currency ): string {
+                'key'     => 'price',
+                'label'   => __( 'Price (:currency)', [ 'currency' => $currency ] ),
+                'numeric' => true,
+                'view'    => $cells . 'price',
+                'export'  => static function ( Product $product ) use ( $currency ): string {
                     $range = ProductsQuery::priceRange( $product );
 
                     if ( null === $range['min'] ) {
@@ -555,35 +570,36 @@ class Index extends Component
                 },
             ],
             [
-                'key'      => 'featured',
-                'label'    => __( 'Featured' ),
-                'view'     => $cells . 'featured',
-                'export'   => static fn ( Product $product ): int => $product->is_featured ? 1 : 0,
-            ],
-            [
-                'key'      => 'position',
-                'label'    => __( 'Position' ),
-                'sortable' => true,
-                'class'    => 'text-end',
-                'value'    => static fn ( Product $product ): string => (string) (int) $product->position,
-            ],
-            [
                 'key'      => 'stock',
                 'label'    => __( 'Stock' ),
                 'sortable' => true,
-                'class'    => 'text-end',
+                'numeric'  => true,
                 'view'     => $cells . 'stock',
                 'export'   => static fn ( Product $product ): string => (int) $product->stock_tracked > 0 ? (string) (int) $product->stock_available : '',
             ],
             [
+                'key'         => 'featured',
+                'label'       => __( 'Featured' ),
+                'labelHidden' => true,
+                'view'        => $cells . 'featured',
+                'export'      => static fn ( Product $product ): int => $product->is_featured ? 1 : 0,
+            ],
+            [
+                'key'    => 'position',
+                'label'  => __( 'Position' ),
+                'listed' => false,
+                'value'  => static fn ( Product $product ): string => (string) (int) $product->position,
+            ],
+            [
                 'key'    => 'categories',
                 'label'  => __( 'Categories' ),
+                'listed' => false,
                 'value'  => static fn ( Product $product ): string => $product->categories->pluck( 'name' )->implode( ', ' ),
             ],
             [
                 'key'      => 'updated',
                 'label'    => __( 'Updated' ),
-                'sortable' => true,
+                'listed'   => false,
                 'value'    => static fn ( Product $product ): string => null === $product->updated_at ? '' : LocalizedDate::format( $product->updated_at ),
                 'export'   => static fn ( Product $product ): string => $product->updated_at?->format( DATE_ATOM ) ?? '',
             ],
@@ -598,11 +614,9 @@ class Index extends Component
     protected function tableFilters(): array
     {
         return [
-            [ 'key' => 'status', 'label' => __( 'Status' ), 'type' => 'select', 'options' => self::options( self::statuses() ) ],
             [ 'key' => 'type', 'label' => __( 'Type' ), 'type' => 'select', 'options' => self::typeOptions() ],
+            [ 'key' => 'status', 'label' => __( 'Status' ), 'type' => 'select', 'options' => self::options( self::statuses() ) ],
             [ 'key' => 'category', 'label' => __( 'Category' ), 'type' => 'select', 'options' => self::categoryOptions() ],
-            [ 'key' => 'tag', 'label' => __( 'Tag' ), 'type' => 'select', 'options' => self::tagOptions() ],
-            [ 'key' => 'featured', 'label' => __( 'Featured' ), 'type' => 'boolean' ],
             [
                 'key'     => 'stock',
                 'label'   => __( 'Stock' ),
@@ -614,6 +628,8 @@ class Index extends Component
                     'untracked' => __( 'Not tracked' ),
                 ] ),
             ],
+            [ 'key' => 'tag', 'label' => __( 'Tag' ), 'type' => 'select', 'options' => self::tagOptions() ],
+            [ 'key' => 'featured', 'label' => __( 'Featured' ), 'type' => 'boolean' ],
         ];
     }
 
@@ -628,7 +644,7 @@ class Index extends Component
             [
                 'key'     => 'publish',
                 'label'   => __( 'Publish' ),
-                'icon'    => 'o-eye',
+                'icon'    => 'check',
                 'ability' => 'product.update',
                 'handler' => fn ( Builder $selection ): ?string => $this->setStatus( $selection, 'active' ),
             ],
@@ -642,7 +658,7 @@ class Index extends Component
             [
                 'key'     => 'feature',
                 'label'   => __( 'Mark featured' ),
-                'icon'    => 'o-star',
+                'icon'    => 'star',
                 'ability' => 'product.update',
                 'handler' => fn ( Builder $selection ): ?string => $this->setFeatured( $selection, true ),
             ],
@@ -684,7 +700,7 @@ class Index extends Component
             [
                 'key'     => 'delete',
                 'label'   => __( 'Delete' ),
-                'icon'    => 'o-trash',
+                'icon'    => 'trash',
                 'ability' => 'product.delete',
                 'confirm' => __( 'Delete the selected products? Their variants, prices, and stock go with them. Past orders keep their copy of each product.' ),
                 'handler' => fn ( Builder $selection ): ?string => $this->deleteSelection( $selection ),
@@ -692,7 +708,7 @@ class Index extends Component
             [
                 'key'     => 'export-catalog',
                 'label'   => __( 'Export catalog CSV' ),
-                'icon'    => 'o-document-arrow-down',
+                'icon'    => 'download',
                 'handler' => fn ( Builder $selection ): StreamedResponse => $this->catalogDownload( $selection ),
             ],
             $this->exportBulkAction(),

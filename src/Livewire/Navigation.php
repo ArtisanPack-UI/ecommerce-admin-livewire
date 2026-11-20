@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire;
 
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
+use ArtisanPackUI\EcommerceAdminLivewire\Spotlight\AdminSpotlight;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\NavBadges;
 use Illuminate\Contracts\View\View;
@@ -105,6 +106,9 @@ class Navigation extends Component
 
                 $item['badgeCount'] = $count;
                 $item['badgeLabel'] = null === $count ? null : NavBadges::describe( $item['badge'] ?? $item['key'], $count );
+                $item['badgeTone']  = NavBadges::tone( $item['badge'] );
+                // The design system's Lucide icon for a core Heroicon name; any other name passes through.
+                $item['icon']       = AdminSpotlight::icon( $item['icon'] ) ?? $item['icon'];
                 $item['active']     = $item['key'] === $this->activeKey;
             }
         }

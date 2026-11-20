@@ -93,6 +93,15 @@ class Index extends Component
     public const COUNTRIES_TTL = 300;
 
     /**
+     * How many country names a zone row shows before "+N more".
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const COUNTRIES_SHOWN = 3;
+
+    /**
      * Zones whose methods are shown.
      *
      * @since 1.0.0
@@ -285,9 +294,9 @@ class Index extends Component
      */
     public function editZone( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'shippingZone.update' );
-
         $zone = ShippingZone::query()->find( $id );
+
+        $this->authorizeZone( 'update', $zone );
 
         if ( null === $zone ) {
             return;
@@ -299,7 +308,7 @@ class Index extends Component
             'name'            => (string) $zone->name,
             'country_codes'   => array_values( array_map( 'strval', (array) $zone->country_codes ) ),
             'region_codes'    => implode( ', ', (array) ( $zone->region_codes ?? [] ) ),
-            'postal_patterns' => implode( "\n", (array) ( $zone->postal_patterns ?? [] ) ),
+            'postal_patterns' => implode( ', ', (array) ( $zone->postal_patterns ?? [] ) ),
             'priority'        => (int) $zone->priority,
             'is_active'       => (bool) $zone->is_active,
         ];
@@ -329,7 +338,7 @@ class Index extends Component
                 return;
             }
         } else {
-            $this->authorizeEcommerceAbility( 'shippingZone.update' );
+            $this->authorizeEcommerce( 'update', $zone );
         }
 
         $this->zoneForm['country_codes'] = array_values( array_unique( array_map(
@@ -365,9 +374,9 @@ class Index extends Component
                     return;
                 }
 
-                // Region codes are the subdivision part of ISO 3166-2 (CA, NSW, 75).
-                if ( 'region_codes' === $field && 1 !== preg_match( '/^[A-Z0-9]{1,10}$/D', $value ) ) {
-                    $this->addError( 'zoneForm.region_codes', __( 'Use region codes made of letters and digits, like CA or NSW.' ) );
+                // Region codes are ISO 3166-2 subdivisions, with or without the country (CA, NSW, 75, US-CA).
+                if ( 'region_codes' === $field && 1 !== preg_match( '/^(?:[A-Z]{2}-)?[A-Z0-9]{1,10}$/D', $value ) ) {
+                    $this->addError( 'zoneForm.region_codes', __( 'Use region codes made of letters and digits, like CA, NSW or US-CA.' ) );
 
                     return;
                 }
@@ -405,9 +414,11 @@ class Index extends Component
      */
     public function createMethod( int $zoneId ): void
     {
-        $this->authorizeEcommerceAbility( 'shippingZone.update' );
+        $zone = ShippingZone::query()->find( $zoneId );
 
-        if ( ! ShippingZone::query()->whereKey( $zoneId )->exists() ) {
+        $this->authorizeZone( 'update', $zone );
+
+        if ( null === $zone ) {
             return;
         }
 
@@ -437,9 +448,9 @@ class Index extends Component
      */
     public function editMethod( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'shippingZone.update' );
+        $method = ShippingMethod::query()->with( 'zone' )->find( $id );
 
-        $method = ShippingMethod::query()->find( $id );
+        $this->authorizeZone( 'update', $method?->zone );
 
         if ( null === $method ) {
             return;
@@ -480,10 +491,10 @@ class Index extends Component
      */
     public function saveMethod(): void
     {
-        $this->authorizeEcommerceAbility( 'shippingZone.update' );
-
         $zone   = null === $this->methodZoneId ? null : ShippingZone::query()->find( $this->methodZoneId );
-        $method = null === $this->methodId ? null : ShippingMethod::query()->find( $this->methodId );
+        $method = null === $this->methodId || null === $zone ? null : ShippingMethod::query()->where( 'zone_id', $zone->id )->find( $this->methodId );
+
+        $this->authorizeZone( 'update', $zone );
 
         if ( null === $zone || ( null !== $this->methodId && null === $method ) ) {
             $this->editingMethod = false;
@@ -522,7 +533,7 @@ class Index extends Component
         $key = (string) $this->methodForm['key'];
 
         if ( ! app( ConfigFormRegistry::class )->has( 'shipping-method', $key ) ) {
-            $decoded = json_decode( (string) $this->methodForm['config'], true );
+            $decoded = is_string( $this->methodForm['config'] ) ? json_decode( $this->methodForm['config'], true ) : null;
 
             if ( ! is_array( $decoded ) || array_is_list( $decoded ) && [] !== $decoded ) {
                 $this->addError( 'methodForm.config', __( 'The settings must be a JSON object.' ) );
@@ -568,9 +579,9 @@ class Index extends Component
      */
     public function moveMethod( int $id, int $offset ): void
     {
-        $this->authorizeEcommerceAbility( 'shippingZone.update' );
+        $method = ShippingMethod::query()->with( 'zone' )->find( $id );
 
-        $method = ShippingMethod::query()->find( $id );
+        $this->authorizeZone( 'update', $method?->zone );
 
         if ( null === $method || ! in_array( $offset, [ -1, 1 ], true ) ) {
             return;
@@ -611,9 +622,11 @@ class Index extends Component
      */
     public function confirmDeleteZone( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'shippingZone.delete' );
+        $zone = ShippingZone::query()->find( $id );
 
-        $this->openDeleteConfirmation( 'zone', ShippingZone::query()->whereKey( $id )->exists() ? $id : null );
+        $this->authorizeZone( 'delete', $zone );
+
+        $this->openDeleteConfirmation( 'zone', null === $zone ? null : $id );
     }
 
     /**
@@ -627,9 +640,11 @@ class Index extends Component
      */
     public function confirmDeleteMethod( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'shippingZone.update' );
+        $method = ShippingMethod::query()->with( 'zone' )->find( $id );
 
-        $this->openDeleteConfirmation( 'method', ShippingMethod::query()->whereKey( $id )->exists() ? $id : null );
+        $this->authorizeZone( 'update', $method?->zone );
+
+        $this->openDeleteConfirmation( 'method', null === $method ? null : $id );
     }
 
     /**
@@ -658,11 +673,11 @@ class Index extends Component
     public function delete( string $token ): void
     {
         if ( 'method' === $this->deletingType ) {
-            $this->authorizeEcommerceAbility( 'shippingZone.update' );
-            $subject = null === $this->deletingId ? null : ShippingMethod::query()->find( $this->deletingId );
+            $subject = null === $this->deletingId ? null : ShippingMethod::query()->with( 'zone' )->find( $this->deletingId );
+            $this->authorizeZone( 'update', $subject?->zone );
         } else {
-            $this->authorizeEcommerceAbility( 'shippingZone.delete' );
             $subject = null === $this->deletingId || 'zone' !== $this->deletingType ? null : ShippingZone::query()->find( $this->deletingId );
+            $this->authorizeZone( 'delete', $subject );
         }
 
         if ( null === $subject || ! $this->confirmingDelete ) {
@@ -711,7 +726,7 @@ class Index extends Component
         if ( $this->confirmingDelete && null !== $this->deletingId ) {
             $deleting = 'zone' === $this->deletingType
                 ? $zones->firstWhere( 'id', $this->deletingId )
-                : ShippingMethod::query()->find( $this->deletingId );
+                : ShippingMethod::query()->with( 'zone' )->find( $this->deletingId );
         }
 
         $user = auth()->user();
@@ -949,5 +964,25 @@ class Index extends Component
         $this->deletingType     = null === $id ? null : $type;
         $this->deletingId       = $id;
         $this->confirmingDelete = null !== $id;
+    }
+
+    /**
+     * Authorizes an action on a zone through its policy, so a per-record
+     * decision applies; methods are authorized through their zone. When
+     * the zone no longer exists the bare `shippingZone.{action}` ability
+     * is checked instead, so the caller can bail out quietly.
+     *
+     * @since 2.0.0
+     *
+     * @param  string             $action  `update` or `delete`.
+     * @param  ShippingZone|null  $zone    The zone, or null when it is gone.
+     *
+     * @return void
+     */
+    private function authorizeZone( string $action, ?ShippingZone $zone ): void
+    {
+        null === $zone
+            ? $this->authorizeEcommerceAbility( 'shippingZone.' . $action )
+            : $this->authorizeEcommerce( $action, $zone );
     }
 }
