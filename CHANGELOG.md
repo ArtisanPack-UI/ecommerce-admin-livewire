@@ -6,7 +6,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-11-19
+## [2.0.0] - 2026-11-20
 
 Every screen is rebuilt on the ArtisanPack UI design system through `livewire-ui-components` 3.0. Screens, abilities, routes, and config keys are unchanged unless noted. See [Upgrading](docs/upgrading.md#from-1x-to-20) for the steps.
 
@@ -17,7 +17,7 @@ Every screen is rebuilt on the ArtisanPack UI design system through `livewire-ui
 - The admin palette route returns groups (`[ { id, label, items } ]`) instead of a flat list, and `AdminSpotlight::icon()` returns an icon name instead of SVG.
 - Toasts are a `toast` browser event shown by `<x-artisanpack-toaster>`, not `window.toast()`.
 - `Webhooks::statusClass()` is replaced by `statusColor()`. `ReportPresenter::chartOptions()`, `Promotions\Index::usesLabel()`, and the error-summary partial's `message` parameter are removed.
-- Status badge, timeline, and navigation colours are design-system colours, and timeline and navigation icons are icon-registry names.
+- Status badge, timeline, and navigation colors are design-system colors, and timeline and navigation icons are icon-registry names.
 - Multi-word table and report filter names are camelCase (`ap.ecommerceAdminLivewire.table.licenseKeys.columns`, `reports.topProducts.table`). The kebab-case names still run after them and are deprecated until 3.0.
 - `Orders\RefundsPanel::refund()` takes the confirmed total, `Orders\FulfillmentPanel::$labelProvider` is now `$labelProviderFor` (keyed by shipment), and `Notes::deleteNote()` takes no argument.
 
@@ -34,6 +34,7 @@ Every screen is rebuilt on the ArtisanPack UI design system through `livewire-ui
   - a `gift` icon in the icon registry.
 - The order totals card lists each tax rate from the engine's `meta.tax_breakdown`.
 - A `--prefer-lowest` CI job, so the lowest supported engine, Laravel, and Livewire versions are tested.
+- A [PHP API reference](docs/reference/php-api.md) covering every public registry, Livewire concern, extension contract, and support class.
 
 ### Changed
 
@@ -41,7 +42,7 @@ Every screen is rebuilt on the ArtisanPack UI design system through `livewire-ui
 - **Persistent middleware:** middleware groups in `admin.middleware` are expanded, so 2FA and `verified` inside a group also run on Livewire updates. `throttle:*` entries are no longer made persistent across the app.
 - **Catalog import:** prices must be a plain dot decimal, files that aren't UTF-8 (such as Excel's Windows-1252 CSVs) are converted, types that keep no stock get no stock rows, imported rows are logged against the importing user, and an import whose worker died is marked failed after about an hour so it can be resumed or discarded.
 - **Webhooks:** a delivery held back while its subscription was off shows as Pending, matching the engine API.
-- **Colour warnings** on sub-statuses and kanban columns check 3:1 non-text contrast of the icon and dot against the light and dark surfaces.
+- **Color warnings** on sub-statuses and kanban columns check 3:1 non-text contrast of the icon and dot against the light and dark surfaces.
 - **Order edits** save only the changes that were previewed. **Refunds** refuse when the amount changed after it was shown.
 - **Inline `style=` attributes** are gone from the admin's own views. The CSP docs explain the `style-src-attr` that `livewire-ui-components` still needs.
 - Changing a scheduled price's currency clears its amounts.
@@ -74,7 +75,7 @@ Every screen is rebuilt on the ArtisanPack UI design system through `livewire-ui
 - Shipping, order sub-statuses, inventory, license keys, and tax-import updates are authorized per record. Detail pages answer 403 before 404 to users who can't list the records.
 - The notification template preview is rate limited, and oversized output is refused.
 - Picker selections and palette provider results are capped.
-- The timeline hides personal and secret values from unrecognised events.
+- The timeline hides personal and secret values from unrecognized events.
 - Kanban webhook secrets render as password fields, and translated lines on the settings screen are escaped.
 - Tampered JSON config no longer causes server errors.
 
