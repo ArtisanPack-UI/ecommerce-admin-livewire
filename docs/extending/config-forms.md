@@ -1,5 +1,6 @@
 ---
 title: Config Forms
+menu_order: 80
 ---
 
 # Config Forms
@@ -153,4 +154,4 @@ public function save(): void
 }
 ```
 
-Product and category fields also need the `WithPickers` concern. See [Pickers](Extending-Pickers).
+Product and category fields also need the `WithPickers` concern. See [Pickers](pickers.md).

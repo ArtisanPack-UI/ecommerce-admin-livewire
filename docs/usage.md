@@ -1,5 +1,6 @@
 ---
-title: Usage Overview
+title: Usage
+menu_order: 30
 ---
 
 # Usage
@@ -8,11 +9,11 @@ How the admin's screens work for the staff who use them, and the shared behaviou
 
 ## In this section
 
-- [Screens](Usage-Screens) - Every screen, its URL, route name, and what it does
-- [Dashboard](Usage-Dashboard) - Key figures, widgets, and the first-run state
-- [Command Palette](Usage-Command-Palette) - Cmd+K search and actions
-- [Real-Time Updates](Usage-Real-Time) - Live order and stock updates over Laravel Echo
-- [Product CSV Import and Export](Usage-Product-Csv) - The catalog CSV format and the import flow
+- [Screens](usage/screens.md): Every screen, its URL, route name, and what it does
+- [Dashboard](usage/dashboard.md): Key figures, widgets, and the first-run state
+- [Command Palette](usage/command-palette.md): Cmd+K search and actions
+- [Real-Time Updates](usage/real-time.md): Live order and stock updates over Laravel Echo
+- [Product CSV Import and Export](usage/product-csv.md): The catalog CSV format and the import flow
 
 ## Behaviour every screen shares
 

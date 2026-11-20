@@ -1,5 +1,6 @@
 ---
 title: Product Type Panels
+menu_order: 50
 ---
 
 # Product Type Panels

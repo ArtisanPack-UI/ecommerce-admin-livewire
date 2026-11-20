@@ -1,19 +1,15 @@
 ---
-title: Advanced Overview
+title: Advanced
+menu_order: 80
 ---
 
 # Advanced
 
-Commands, internals, and contributor tooling.
-
-## In this section
-
-- [Artisan Commands](Advanced-Artisan-Commands) - `ecommerce-admin:install`, `ecommerce-admin:prune-imports`, and the deprecated `ecommerce-admin:sync-permissions`
-- [Browser Tests](Advanced-Browser-Tests) - Running and writing the Playwright browser suite
+How the admin works inside: the request flow, its middleware, and how it keeps destructive actions from running twice. The Artisan commands are in the [reference](reference/commands.md). Running the package's own test suites is covered in `CONTRIBUTING.md`.
 
 ## How a request flows
 
-```
+```text
 Route → AdminScreenController (returns a page view)
           → page view  @extends( $ecommerceAdminLayout )
               → <livewire:artisanpack-ecommerce-admin-… />

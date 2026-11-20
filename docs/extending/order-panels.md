@@ -1,5 +1,6 @@
 ---
 title: Order Panels
+menu_order: 40
 ---
 
 # Order Panels

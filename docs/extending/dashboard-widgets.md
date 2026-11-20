@@ -1,5 +1,6 @@
 ---
 title: Dashboard Widgets
+menu_order: 20
 ---
 
 # Dashboard Widgets

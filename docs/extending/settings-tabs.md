@@ -1,5 +1,6 @@
 ---
 title: Settings Tabs
+menu_order: 70
 ---
 
 # Settings Tabs

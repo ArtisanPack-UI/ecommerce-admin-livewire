@@ -1,5 +1,6 @@
 ---
-title: Extending Overview
+title: Extending
+menu_order: 40
 ---
 
 # Extending
@@ -8,19 +9,20 @@ Other packages (satellites) and host applications extend the admin through regis
 
 ## In this section
 
-- [Navigation](Extending-Navigation) - Add sections, entries, and badges to the admin navigation
-- [Dashboard Widgets](Extending-Dashboard-Widgets) - Add, replace, or remove dashboard widgets
-- [Command Palette Providers](Extending-Command-Palette) - Add result sources to Cmd+K
-- [Order Panels](Extending-Order-Panels) - Add a panel to the order detail page
-- [Product Type Panels](Extending-Product-Type-Panels) - Add the type tab for your own product type
-- [Customer Tabs](Extending-Customer-Tabs) - Add a tab to the customer detail page
-- [Settings Tabs](Extending-Settings-Tabs) - Add a settings group with its own screen
-- [Config Forms](Extending-Config-Forms) - Describe the settings form for a promotion rule, shipping method, or kanban entry
-- [Pickers](Extending-Pickers) - Add a searchable picker for your own records
-- [Resource Tables](Extending-Resource-Tables) - Add columns, filters, and bulk actions to index screens
-- [Layout](Extending-Layout) - Change which Vite entries the layout loads
-- [Blade Components](Extending-Blade-Components) - The `x-artisanpack-ec-*` components to reuse in your panels
-- [Hooks Reference](Extending-Hooks-Reference) - Every filter and browser event the admin uses
+- [Navigation](extending/navigation.md): Add sections, entries, and badges to the admin navigation
+- [Dashboard Widgets](extending/dashboard-widgets.md): Add, replace, or remove dashboard widgets
+- [Command Palette Providers](extending/command-palette.md): Add result sources to Cmd+K
+- [Order Panels](extending/order-panels.md): Add a panel to the order detail page
+- [Product Type Panels](extending/product-type-panels.md): Add the type tab for your own product type
+- [Customer Tabs](extending/customer-tabs.md): Add a tab to the customer detail page
+- [Settings Tabs](extending/settings-tabs.md): Add a settings group with its own screen
+- [Config Forms](extending/config-forms.md): Describe the settings form for a promotion rule, shipping method, or kanban entry
+- [Pickers](extending/pickers.md): Add a searchable picker for your own records
+- [Resource Tables](extending/resource-tables.md): Add columns, filters, and bulk actions to index screens
+- [Layout](extending/layout.md): Change which Vite entries the layout loads
+- [Blade Components](extending/blade-components.md): The `x-artisanpack-ec-*` components to reuse in your panels
+
+Every filter the admin applies, and the browser events its components exchange, are listed in the [hooks reference](reference/hooks.md).
 
 ## Two kinds of extension point
 
