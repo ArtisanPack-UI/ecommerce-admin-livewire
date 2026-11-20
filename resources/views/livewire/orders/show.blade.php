@@ -29,7 +29,7 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions;
     use Carbon\CarbonInterface;
 
-    $customerLabel = $customerName ?? ( null !== $customerUrl ? $order->email : __( 'Guest' ) );
+    $customerLabel = $customerName ?? ( null !== $order->customer_id ? $order->email : __( 'Guest' ) );
 @endphp
 <div class="ec-stack" data-order-detail>
     <x-artisanpack-page-header

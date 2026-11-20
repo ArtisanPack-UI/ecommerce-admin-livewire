@@ -156,13 +156,14 @@ class FulfillmentPanel extends Component
     public string $editTrackingUrl = '';
 
     /**
-     * The label provider to buy through.
+     * The label provider to buy through, per shipment id, so choosing a
+     * provider for one shipment never changes another's.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
-     * @var string
+     * @var array<int|string, string>
      */
-    public string $labelProvider = '';
+    public array $labelProviderFor = [];
 
     /**
      * Re-render when another panel changes the order.
@@ -409,10 +410,11 @@ class FulfillmentPanel extends Component
             return;
         }
 
-        $provider = '' !== $this->labelProvider ? $this->labelProvider : (string) array_key_first( $providers );
+        $chosen   = $this->labelProviderFor[ $shipmentId ] ?? '';
+        $provider = is_string( $chosen ) && '' !== $chosen ? $chosen : (string) array_key_first( $providers );
 
         if ( ! array_key_exists( $provider, $providers ) ) {
-            $this->addError( 'labelProvider', __( 'Choose a label provider.' ) );
+            $this->addError( 'labelProviderFor.' . $shipmentId, __( 'Choose a label provider.' ) );
 
             return;
         }
@@ -477,9 +479,12 @@ class FulfillmentPanel extends Component
     }
 
     /**
-     * Why `$order` cannot ship, or null.
+     * Why `$order` cannot ship, or null. Mirrors the engine's checks in
+     * `ShipmentService`, including `fulfillment.allow_unpaid_shipments`
+     * for orders that haven't been paid yet.
      *
      * @since 1.0.0
+     * @since 2.0.0 Refuses unpaid orders unless the store allows them.
      *
      * @param  Order  $order  The order.
      *
@@ -487,14 +492,24 @@ class FulfillmentPanel extends Component
      */
     protected function unshippableReason( Order $order ): ?string
     {
-        return match ( (string) $order->system_status ) {
+        $status = (string) $order->system_status;
+
+        $reason = match ( $status ) {
             'cancelled' => __( 'This order was cancelled, so nothing more can ship.' ),
             'refunded'  => __( 'This order was refunded, so nothing more can ship.' ),
             'failed'    => __( 'This order\'s payment failed, so it cannot ship.' ),
-            default     => in_array( (string) $order->system_status, ShipmentService::UNSHIPPABLE_STATUSES, true )
+            default     => in_array( $status, ShipmentService::UNSHIPPABLE_STATUSES, true )
                 ? __( 'This order cannot ship in its current status.' )
                 : null,
         };
+
+        if ( null !== $reason || in_array( $status, ShipmentService::SHIPPABLE_STATUSES, true ) || (bool) config( 'artisanpack.ecommerce.fulfillment.allow_unpaid_shipments', false ) ) {
+            return $reason;
+        }
+
+        return 'pending' === $status
+            ? __( 'This order hasn’t been paid yet, so it can’t ship.' )
+            : __( 'This order cannot ship in its current status.' );
     }
 
     /**

@@ -21,6 +21,7 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Support\ColorContrast;
     use ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions;
     use ArtisanPackUI\EcommerceAdminLivewire\Support\IconChoices;
+    use ArtisanPack\LivewireUiComponents\Support\IconRegistry;
 
     $widgetList = static fn ( array $keys ): string => implode( ', ', array_map( static fn ( string $key ): string => $widgetLabels[ $key ] ?? $key, $keys ) );
 @endphp
@@ -51,7 +52,7 @@
     @else
         <div class="ec-board-strip" aria-hidden="true" data-column-strip>
             @foreach ( $columns as $column )
-                <span class="ec-board-strip__swatch" style="--ec-column-color: {{ ColorContrast::safeHex( $column->color_override ?? $column->substatus?->color ) }}" wire:key="column-strip-{{ $column->id }}"></span>
+                <svg class="ec-board-strip__swatch" focusable="false" wire:key="column-strip-{{ $column->id }}"><rect width="100%" height="100%" rx="3" fill="{{ ColorContrast::safeHex( $column->color_override ?? $column->substatus?->color ) }}" /></svg>
             @endforeach
         </div>
 
@@ -66,11 +67,12 @@
                 @endphp
                 <li wire:key="column-{{ $column->id }}" class="ec-settings-row" data-column="{{ $column->substatus?->key }}">
                     <span class="ec-rule-index ec-settings-row__index" aria-hidden="true">{{ $loop->iteration }}</span>
-                    <span class="ec-column-chip" style="--ec-column-color: {{ ColorContrast::safeHex( $column->color_override ?? $column->substatus?->color ) }}" aria-hidden="true">
+                    <svg class="ec-column-chip" viewBox="0 0 28 28" color="{{ ColorContrast::safeHex( $column->color_override ?? $column->substatus?->color ) }}" aria-hidden="true" focusable="false">
+                        <circle cx="14" cy="14" r="14" fill="currentColor" fill-opacity="0.16" />
                         @if ( IconChoices::exists( $icon ) )
-                            <x-artisanpack-icon :name="$icon" />
+                            <svg x="6" y="6" width="16" height="16">{!! IconRegistry::render( $icon ) !!}</svg>
                         @endif
-                    </span>
+                    </svg>
 
                     <div class="ec-settings-row__main">
                         <span class="ec-settings-row__title">
@@ -224,7 +226,17 @@
 
     @if ( null !== $deleting )
         @php $deleteTitle = __( 'Delete ":name"?', [ 'name' => $deleting->displayLabel() ] ); @endphp
-        <x-artisanpack-dialog wire:model="confirmingDelete" :title="$deleteTitle">
+        <x-artisanpack-dialog
+            wire:model="confirmingDelete"
+            role="alertdialog"
+            size="sm"
+            color="error"
+            icon="trash"
+            :title="$deleteTitle"
+            :close-label="__( 'Close' )"
+            :classes="[ 'footer' => 'ec-dialog-footer-divided' ]"
+            data-delete-confirm
+        >
             <div class="ec-stack-sm" data-delete-column="{{ $deleting->id }}">
                 @if ( $deletingCards > 0 )
                     <x-artisanpack-alert
@@ -241,7 +253,7 @@
             </div>
 
             <x-slot:footer>
-                <x-artisanpack-button variant="ghost" color="neutral" wire:click="cancelDelete">{{ __( 'Keep column' ) }}</x-artisanpack-button>
+                <x-artisanpack-button variant="ghost" color="neutral" wire:click="cancelDelete" data-autofocus>{{ __( 'Keep column' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
                     wire:click="delete( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"

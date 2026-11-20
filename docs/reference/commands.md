@@ -17,7 +17,7 @@ Sets up the admin in a host application. It:
 1. publishes `config/artisanpack/ecommerce-admin-livewire.php` (tag `ecommerce-admin-config`); `--force` overwrites a config you published before;
 2. prints the front-end steps:
    - the lines to add to your main stylesheet: the `@layer` order, `@import '@artisanpack-ui/css';`, and the admin's `@source` lines;
-   - the npm packages to install (`@artisanpack-ui/css@^1`, `@artisanpack-ui/behavior@^1`, `@artisanpack-ui/livewire-drag-and-drop`);
+   - the npm packages to install (`@artisanpack-ui/css@^1`, `@artisanpack-ui/behavior@^1`, `@artisanpack-ui/livewire-drag-and-drop@^2`);
    - the lines that load them in `resources/js/app.js` (drag-and-drop, and the behavior engine registered as an Alpine plugin);
    - the command that publishes TinyMCE (`php artisan vendor:publish --tag=artisanpack-assets`);
    - a reminder to remove daisyUI, and a link to [Front-End Setup](../installation/front-end.md);

@@ -21,7 +21,9 @@ use ArtisanPackUI\Ecommerce\Models\ProductAttributeValue;
 use ArtisanPackUI\Ecommerce\Models\ProductPrice;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use ArtisanPackUI\Ecommerce\Services\ProductService;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\StockLevels;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\StoreCurrencies;
 use Closure;
 use Illuminate\Contracts\View\View;
@@ -206,6 +208,7 @@ class VariablePanel extends ProductTypePanel
             'variants.*.sku'               => [ 'nullable', 'string', 'max:100' ],
             'variants.*.prices.*'          => [ 'nullable', 'integer', 'min:0', 'max:999999999999999' ],
             'variants.*.stock'             => [ 'nullable', 'integer', 'min:-1000000', 'max:1000000' ],
+            ...self::imageRules( $state, $product ),
             'variants.*.image_media_id'    => [ 'nullable', 'integer', 'min:1' ],
             'variants.*.image_url'         => [ 'nullable', 'string', 'max:1000', 'url:http,https' ],
             'stock_reason'                 => [ Rule::requiredIf( self::stockChanged( $state ) ), 'nullable', 'string', 'max:255' ],
@@ -617,14 +620,99 @@ class VariablePanel extends ProductTypePanel
         }
 
         return view( 'ecommerce-admin::livewire.products.panels.variable', [
-            'baseCurrency' => StoreCurrencies::base(),
-            'skuClashes'   => self::skuClashes( (array) ( $this->state['variants'] ?? [] ) ),
-            'currencies'   => $this->currencies(),
-            'optionLabels' => $labels,
-            'matrixSize'   => $this->matrixSize(),
-            'mediaLibrary' => ProductMedia::libraryInstalled(),
-            'stockChanged' => self::stockChanged( $this->state ),
+            'baseCurrency'     => StoreCurrencies::base(),
+            'skuClashes'       => self::skuClashes( (array) ( $this->state['variants'] ?? [] ) ),
+            'currencies'       => $this->currencies(),
+            'optionLabels'     => $labels,
+            'matrixSize'       => $this->matrixSize(),
+            'mediaLibrary'     => ProductMedia::libraryInstalled(),
+            'stockChanged'     => self::stockChanged( $this->state ),
+            'canAdjustStock'   => StockLevels::canAdjust( auth()->user(), null ),
+            'previewableMedia' => $this->previewableMedia(),
         ] );
+    }
+
+    /**
+     * Per-row image rules: a newly chosen media item must be one the user
+     * may view; the image a saved variant already has stays valid (looked
+     * up by the row's id on this product, not trusted from the client).
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>  $state    State.
+     * @param  Product|null          $product  Product.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    protected static function imageRules( array $state, ?Product $product ): array
+    {
+        $saved = self::savedImages( (array) ( $state['variants'] ?? [] ), $product );
+        $rules = [];
+
+        foreach ( (array) ( $state['variants'] ?? [] ) as $index => $variant ) {
+            $id         = is_array( $variant ) && is_numeric( $variant['id'] ?? null ) ? (int) $variant['id'] : null;
+            $savedMedia = null === $id ? null : ( $saved[ $id ] ?? null );
+
+            $rules[ "variants.{$index}.image_media_id" ] = [ DigitalDisks::viewableMedia( null === $savedMedia ? [] : [ $savedMedia ] ) ];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * The saved image media id of each of the rows' variants on this
+     * product, keyed by variant id.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, mixed>  $variants  State rows.
+     * @param  Product|null       $product   Product.
+     *
+     * @return array<int, int>
+     */
+    protected static function savedImages( array $variants, ?Product $product ): array
+    {
+        $ids = array_values( array_filter( array_map( static fn ( mixed $variant ): ?int => is_array( $variant ) && is_numeric( $variant['id'] ?? null ) ? (int) $variant['id'] : null, $variants ) ) );
+
+        if ( null === $product || [] === $ids ) {
+            return [];
+        }
+
+        return $product->variants()
+            ->whereKey( $ids )
+            ->whereNotNull( 'image_media_id' )
+            ->pluck( 'image_media_id', 'id' )
+            ->map( static fn ( mixed $id ): int => (int) $id )
+            ->all();
+    }
+
+    /**
+     * Whether each row's media image may be previewed: the variant's saved
+     * image, or one the user may view. Keyed by row index.
+     *
+     * @since 2.0.0
+     *
+     * @return array<int, bool>
+     */
+    protected function previewableMedia(): array
+    {
+        $variants = (array) ( $this->state['variants'] ?? [] );
+
+        if ( ! function_exists( 'apGetMediaUrl' ) ) {
+            return [];
+        }
+
+        $saved   = self::savedImages( $variants, $this->product() );
+        $allowed = [];
+
+        foreach ( $variants as $index => $variant ) {
+            $media = is_array( $variant ) && is_numeric( $variant['image_media_id'] ?? null ) ? (int) $variant['image_media_id'] : null;
+            $id    = is_array( $variant ) && is_numeric( $variant['id'] ?? null ) ? (int) $variant['id'] : null;
+
+            $allowed[ $index ] = null !== $media && ( ( null !== $id && ( $saved[ $id ] ?? null ) === $media ) || DigitalDisks::canViewMedia( $media ) );
+        }
+
+        return $allowed;
     }
 
     /**
@@ -789,6 +877,12 @@ class VariablePanel extends ProductTypePanel
         $existing = isset( $variant['id'] ) ? $product->variants()->whereKey( (int) $variant['id'] )->first() : null;
         $stock    = isset( $variant['stock'] ) && '' !== $variant['stock'] ? (int) $variant['stock'] : 0;
 
+        // Stock needs `inventory.adjust`, which is separate from
+        // `product.update`; without it the stock column is left alone.
+        if ( ! StockLevels::canAdjust( auth()->user(), $existing ) ) {
+            return null === $existing ? $service->createVariant( $product, $data ) : $service->updateVariant( $existing, $data );
+        }
+
         if ( null === $existing ) {
             return $service->createVariant( $product, $data + [ 'inventory' => [ 'track_inventory' => true, 'quantity_on_hand' => $stock ] ] );
         }
@@ -951,7 +1045,8 @@ class VariablePanel extends ProductTypePanel
     }
 
     /**
-     * Whether any saved variant's stock was edited.
+     * Whether any saved variant's stock was edited (never, for a user
+     * who may not adjust stock: those edits aren't saved).
      *
      * @since 1.0.0
      *
@@ -961,6 +1056,10 @@ class VariablePanel extends ProductTypePanel
      */
     protected static function stockChanged( array $state ): bool
     {
+        if ( ! StockLevels::canAdjust( auth()->user(), null ) ) {
+            return false;
+        }
+
         foreach ( (array) ( $state['variants'] ?? [] ) as $variant ) {
             if ( null !== ( $variant['id'] ?? null ) && is_numeric( $variant['stock'] ?? null ) && (int) $variant['stock'] !== (int) ( $variant['stock_loaded'] ?? 0 ) ) {
                 return true;

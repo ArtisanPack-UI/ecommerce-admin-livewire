@@ -149,7 +149,7 @@
                         aria-setsize="{{ $row['siblings'] }}"
                         aria-labelledby="{{ $labelled }}"
                         @if ( $row['children'] > 0 ) aria-expanded="true" @endif
-                        style="--ec-category-depth: {{ min( $row['depth'], 8 ) }}"
+                        data-indent="{{ min( $row['depth'], 8 ) }}"
                         x-bind:tabindex="{{ $tabStop }}"
                         data-category="{{ $id }}"
                         data-depth="{{ $row['depth'] }}"
@@ -163,9 +163,8 @@
                             id="category-{{ $id }}-products"
                             color="neutral"
                             size="sm"
-                            :value="trans_choice( ':count product|:count products', (int) $category->products_count, [ 'count' => (int) $category->products_count ] )"
                             data-product-count="{{ (int) $category->products_count }}"
-                        />
+                        >{{ trans_choice( ':count product|:count products', (int) $category->products_count, [ 'count' => (int) $category->products_count ] ) }}</x-artisanpack-badge>
 
                         @if ( $canUpdate || $canCreate || $canDelete )
                             <span class="ec-category-actions">

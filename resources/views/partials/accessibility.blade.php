@@ -22,7 +22,7 @@
 --}}
 <div
     id="ecommerce-admin-announcer"
-    class="sr-only"
+    class="apui-sr-only"
     role="status"
     aria-live="polite"
     aria-atomic="true"

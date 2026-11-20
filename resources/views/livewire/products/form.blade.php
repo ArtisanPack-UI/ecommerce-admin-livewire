@@ -153,7 +153,7 @@
                     @endforeach
 
                     <section class="ec-stack-sm" aria-labelledby="product-scheduled-heading" data-scheduled-prices>
-                        <h3 id="product-scheduled-heading" class="ec-subheading">{{ __( 'Scheduled prices' ) }}</h3>
+                        <h2 id="product-scheduled-heading" class="ec-subheading">{{ __( 'Scheduled prices' ) }}</h2>
 
                         @foreach ( $scheduled as $index => $price )
                             <div
@@ -171,9 +171,9 @@
                                         :options="$currencyCodes"
                                         wire:model.live="prices.{{ $index }}.currency"
                                     />
-                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-amount" :currency="$price['currency']" :label="__( 'Price' )" wire:model="prices.{{ $index }}.price_amount" />
-                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-compare" :currency="$price['currency']" :label="__( 'Compare-at price' )" wire:model="prices.{{ $index }}.compare_at_amount" />
-                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-cost" :currency="$price['currency']" :label="__( 'Cost' )" :hint="__( 'Never shown to customers.' )" wire:model="prices.{{ $index }}.cost_amount" />
+                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-amount" wire:key="price-{{ RowKeys::of( $price, $index ) }}-amount-{{ $price['currency'] }}" :currency="$price['currency']" :label="__( 'Price' )" wire:model="prices.{{ $index }}.price_amount" />
+                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-compare" wire:key="price-{{ RowKeys::of( $price, $index ) }}-compare-{{ $price['currency'] }}" :currency="$price['currency']" :label="__( 'Compare-at price' )" wire:model="prices.{{ $index }}.compare_at_amount" />
+                                    <x-artisanpack-ec-money-input id="price-{{ $index }}-cost" wire:key="price-{{ RowKeys::of( $price, $index ) }}-cost-{{ $price['currency'] }}" :currency="$price['currency']" :label="__( 'Cost' )" :hint="__( 'Never shown to customers.' )" wire:model="prices.{{ $index }}.cost_amount" />
                                 </div>
                                 <div class="ec-field-grid ec-product-form-schedule-grid">
                                     <x-artisanpack-input id="price-{{ $index }}-starts" type="datetime-local" :label="__( 'Starts' )" wire:model="prices.{{ $index }}.starts_at" />
@@ -210,8 +210,11 @@
                         <x-artisanpack-input id="product-barcode" class="ec-mono-input" :label="__( 'Barcode' )" wire:model="barcode" />
 
                         @if ( $tracksStock )
+                            @unless ( $canAdjustStock )
+                                <p class="ec-span-2 ec-muted" data-stock-read-only>{{ __( 'You can\'t adjust stock, so these fields are read-only.' ) }}</p>
+                            @endunless
                             <div class="ec-span-2">
-                                <x-artisanpack-toggle id="product-track-inventory" :label="__( 'Track inventory' )" wire:model.live="trackInventory" />
+                                <x-artisanpack-toggle id="product-track-inventory" :label="__( 'Track inventory' )" :disabled="! $canAdjustStock" wire:model.live="trackInventory" />
                             </div>
 
                             @if ( $trackInventory )
@@ -220,15 +223,16 @@
                                     type="number"
                                     step="1"
                                     :label="$isCreate ? __( 'Opening stock' ) : __( 'Quantity on hand' )"
+                                    :readonly="! $canAdjustStock"
                                     wire:model.live.debounce.400ms="quantity"
                                 />
-                                <x-artisanpack-input id="product-low-stock" type="number" min="0" step="1" :label="__( 'Low-stock threshold' )" wire:model="lowStockThreshold" />
+                                <x-artisanpack-input id="product-low-stock" type="number" min="0" step="1" :label="__( 'Low-stock threshold' )" :readonly="! $canAdjustStock" wire:model="lowStockThreshold" />
 
                                 <div class="ec-span-2">
-                                    <x-artisanpack-toggle id="product-backorder" :label="__( 'Allow backorders' )" :description="__( 'Keep selling when stock reaches 0.' )" wire:model="allowBackorder" />
+                                    <x-artisanpack-toggle id="product-backorder" :label="__( 'Allow backorders' )" :description="__( 'Keep selling when stock reaches 0.' )" :disabled="! $canAdjustStock" wire:model="allowBackorder" />
                                 </div>
 
-                                @if ( ! $isCreate && 0 !== $quantityDelta )
+                                @if ( $canAdjustStock && ! $isCreate && 0 !== $quantityDelta )
                                     <div class="ec-span-2 ec-product-form-stock-change" data-stock-change="{{ $quantityDelta }}">
                                         <p class="ec-product-form-stock-change__text" role="status">
                                             <x-artisanpack-icon name="info" aria-hidden="true" />
@@ -322,7 +326,7 @@
                         @endphp
                         <section class="ec-stack-sm" aria-labelledby="{{ $listId }}-heading" data-relation-list="{{ $list['type'] }}">
                             <div>
-                                <h3 id="{{ $listId }}-heading" class="ec-subheading">{{ $list['label'] }}</h3>
+                                <h2 id="{{ $listId }}-heading" class="ec-subheading">{{ $list['label'] }}</h2>
                                 <p id="{{ $listId }}-help" class="ec-muted">
                                     {{ $list['hint'] }}
                                     @if ( $canWrite && count( $list['products'] ) > 1 )
@@ -370,9 +374,9 @@
                                             </span>
                                             @if ( $canWrite )
                                                 <div class="ec-row-actions">
-                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-up" wire:click="moveRelation( {{ Js::from( $list['type'] ) }}, {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="{{ $listId }}" data-reorder-key="relation-{{ $list['type'] }}-{{ $related['id'] }}" data-reorder-item="{{ $related['name'] }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $related['name'] ] )" />
-                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-down" wire:click="moveRelation( {{ Js::from( $list['type'] ) }}, {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="{{ $listId }}" data-reorder-key="relation-{{ $list['type'] }}-{{ $related['id'] }}" data-reorder-item="{{ $related['name'] }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $related['name'] ] )" />
-                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="trash" wire:click="removeRelation( {{ Js::from( $list['type'] ) }}, {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :name from :list', [ 'name' => $related['name'], 'list' => $list['label'] ] )" />
+                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-up" wire:click="moveRelation( {{ Js::from( $list['type'] ) }}, {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="{{ $listId }}" data-reorder-key="relation-{{ $list['type'] }}-{{ $related['id'] }}" data-reorder-item="{{ $related['name'] }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $related['name'] ] )" />
+                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-down" wire:click="moveRelation( {{ Js::from( $list['type'] ) }}, {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="{{ $listId }}" data-reorder-key="relation-{{ $list['type'] }}-{{ $related['id'] }}" data-reorder-item="{{ $related['name'] }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $related['name'] ] )" />
+                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="trash" wire:click="removeRelation( {{ Js::from( $list['type'] ) }}, {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :name from :list', [ 'name' => $related['name'], 'list' => $list['label'] ] )" />
                                                 </div>
                                             @endif
                                             @if ( '' !== $rowError )
@@ -402,7 +406,7 @@
             <x-artisanpack-tab name="media" :label="$tabLabels['media']" :count="$tabError( 'media' )">
                 <fieldset @disabled( $readOnly ) class="ec-product-form-panel ec-stack-lg">
                     <section class="ec-stack-sm" aria-labelledby="product-featured-heading">
-                        <h3 id="product-featured-heading" class="ec-subheading">{{ __( 'Featured image' ) }}</h3>
+                        <h2 id="product-featured-heading" class="ec-subheading">{{ __( 'Featured image' ) }}</h2>
                         <div class="ec-product-form-featured" data-featured-image>
                             @if ( null !== $featuredPreview )
                                 <img src="{{ $featuredPreview }}" alt="{{ $name }}" class="ec-product-form-featured__image" />
@@ -431,7 +435,7 @@
                     </section>
 
                     <section class="ec-stack-sm" aria-labelledby="product-gallery-heading">
-                        <h3 id="product-gallery-heading" class="ec-subheading">{{ __( 'Gallery' ) }}</h3>
+                        <h2 id="product-gallery-heading" class="ec-subheading">{{ __( 'Gallery' ) }}</h2>
 
                         @if ( [] === $gallery )
                             <p class="ec-muted">{{ __( 'No gallery images yet.' ) }}</p>
@@ -475,9 +479,9 @@
 
                                         @unless ( $readOnly )
                                             <div class="ec-row-actions">
-                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-up" wire:click="moveGalleryImage( {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ $imageName }}" :disabled="$loop->first" :aria-label="__( 'Move image :number up', [ 'number' => $index + 1 ] )" />
-                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-down" wire:click="moveGalleryImage( {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ $imageName }}" :disabled="$loop->last" :aria-label="__( 'Move image :number down', [ 'number' => $index + 1 ] )" />
-                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="trash" wire:click="removeGalleryImage( {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove image :number', [ 'number' => $index + 1 ] )" />
+                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-up" wire:click="moveGalleryImage( {{ $index }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ $imageName }}" :disabled="$loop->first" :aria-label="__( 'Move image :number up', [ 'number' => $index + 1 ] )" />
+                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-down" wire:click="moveGalleryImage( {{ $index }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="gallery" data-reorder-key="gallery-{{ $image['uid'] ?? $index }}" data-reorder-item="{{ $imageName }}" :disabled="$loop->last" :aria-label="__( 'Move image :number down', [ 'number' => $index + 1 ] )" />
+                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="trash" wire:click="removeGalleryImage( {{ $index }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove image :number', [ 'number' => $index + 1 ] )" />
                                             </div>
                                         @endunless
                                     </li>

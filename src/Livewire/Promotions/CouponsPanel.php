@@ -232,13 +232,18 @@ class CouponsPanel extends Component
     /**
      * Adds one code.
      *
+     * A code changes what the promotion grants, so adding one needs the
+     * right to change the promotion as well as `coupon.create`.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Also needs `update` on the promotion.
      *
      * @return void
      */
     public function addCode(): void
     {
         $this->authorizeEcommerce( 'create', Coupon::class );
+        $this->authorizeEcommerce( 'update', $this->promotion() );
 
         if ( ! $this->acceptsCodes() ) {
             return;
@@ -416,13 +421,18 @@ class CouponsPanel extends Component
     /**
      * Generates a batch of unique random codes.
      *
+     * Needs `update` on the promotion as well as `coupon.create`, like
+     * {@see self::addCode()}.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Also needs `update` on the promotion.
      *
      * @return void
      */
     public function generateCodes(): void
     {
         $this->authorizeEcommerce( 'create', Coupon::class );
+        $this->authorizeEcommerce( 'update', $this->promotion() );
 
         if ( ! $this->acceptsCodes() ) {
             return;
@@ -489,7 +499,11 @@ class CouponsPanel extends Component
     /**
      * Downloads every code of the promotion as CSV.
      *
+     * The table already lists every code to anyone who can view the
+     * promotion, so the export follows the same rule.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Needs `view` on the promotion, like the table.
      *
      * @return StreamedResponse
      */
@@ -497,9 +511,7 @@ class CouponsPanel extends Component
     {
         $promotion = $this->promotion();
 
-        // The codes themselves grant discounts, so exporting them needs the
-        // right to change the promotion, not just to see it.
-        $this->authorizeEcommerce( 'update', $promotion );
+        $this->authorizeEcommerce( 'view', $promotion );
 
         $rows = [];
 
@@ -531,12 +543,12 @@ class CouponsPanel extends Component
             'codes'       => $codes,
             'total'       => Coupon::query()->where( 'promotion_id', $this->promotionId )->count(),
             'usage'       => array_filter( $usage, 'is_numeric' ),
-            'canCreate'   => $this->canEcommerce( 'create', Coupon::class ),
+            'canCreate'   => $this->canEcommerce( 'create', Coupon::class ) && $this->canEcommerce( 'update', $promotion ),
             'canUpdate'   => $this->canEcommerce( 'update', new Coupon( [ 'promotion_id' => $this->promotionId ] ) ),
             'canDelete'   => $this->canEcommerce( 'delete', new Coupon( [ 'promotion_id' => $this->promotionId ] ) ),
             'deleteToken' => null === $this->deletingId ? null : $this->actionToken( 'delete-code', $promotion ),
             'isCoupon'    => Promotion::SOURCE_COUPON === $promotion->source_type,
-            'canExport'   => $this->canEcommerce( 'update', $promotion ),
+            'canExport'   => $this->canEcommerce( 'view', $promotion ),
         ] );
     }
 

@@ -217,13 +217,20 @@ class RefundsPanel extends Component
     /**
      * Issues the refund.
      *
-     * @since 1.0.0
+     * The button sends the total it showed. When the lines add up to
+     * anything else (a field changed in the same request as the click),
+     * nothing is refunded and the token is kept, so the user can check the
+     * new total and confirm again.
      *
-     * @param  string  $token  The action token minted with the dialog.
+     * @since 1.0.0
+     * @since 2.0.0 Takes the total the user confirmed.
+     *
+     * @param  string  $token          The action token minted with the dialog.
+     * @param  int     $expectedTotal  The total, in minor units, the button showed.
      *
      * @return void
      */
-    public function refund( string $token ): void
+    public function refund( string $token, int $expectedTotal ): void
     {
         $order = $this->order();
 
@@ -240,6 +247,12 @@ class RefundsPanel extends Component
         $lines = $this->validatedLines( $order, $gateway );
 
         if ( null === $lines ) {
+            return;
+        }
+
+        if ( array_sum( array_column( $lines, 'amount' ) ) !== $expectedTotal ) {
+            $this->addError( 'refund', __( 'The amount changed. Check it and confirm again.' ) );
+
             return;
         }
 

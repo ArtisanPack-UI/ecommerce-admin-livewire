@@ -40,7 +40,7 @@
 
         @error( 'edit' )
             @if ( ! $editing )
-                <x-artisanpack-alert color="error" icon="circle-alert" role="alert">{{ $message }}</x-artisanpack-alert>
+                <x-artisanpack-alert color="error" icon="circle-alert">{{ $message }}</x-artisanpack-alert>
             @endif
         @enderror
 
@@ -103,7 +103,7 @@
             data-rollback-dialog
         >
             @if ( $rollbackStale )
-                <x-artisanpack-alert color="warning" icon="triangle-alert" role="status" data-rollback-stale>{{ __( 'A newer edit was saved while this was open, so edit #:id is no longer the latest and can’t be rolled back. Close this and roll back the latest edit instead.', [ 'id' => $rollbackTarget->id ] ) }}</x-artisanpack-alert>
+                <x-artisanpack-alert color="warning" icon="triangle-alert" data-rollback-stale>{{ __( 'A newer edit was saved while this was open, so edit #:id is no longer the latest and can’t be rolled back. Close this and roll back the latest edit instead.', [ 'id' => $rollbackTarget->id ] ) }}</x-artisanpack-alert>
             @endif
             <x-slot:footer>
                 <x-artisanpack-button variant="outline" color="neutral" wire:click="$set( 'confirmingRollback', false )" data-autofocus>{{ __( 'Keep edit' ) }}</x-artisanpack-button>
@@ -132,16 +132,16 @@
             data-edit-form
         >
             @error( 'edit' )
-                <x-artisanpack-alert color="error" icon="circle-alert" role="alert">{{ $message }}</x-artisanpack-alert>
+                <x-artisanpack-alert color="error" icon="circle-alert">{{ $message }}</x-artisanpack-alert>
             @enderror
 
             @if ( $fulfillmentStarted )
-                <x-artisanpack-alert color="info" icon="info" role="status" data-edit-locked>{{ __( 'Fulfillment has started, so items and the shipping method are locked. Only the addresses can change.' ) }}</x-artisanpack-alert>
+                <x-artisanpack-alert color="info" icon="info" data-edit-locked>{{ __( 'Fulfillment has started, so items and the shipping method are locked. Only the addresses can change.' ) }}</x-artisanpack-alert>
             @else
                 <section aria-labelledby="edit-items-heading" class="ec-stack-sm">
                     <h3 id="edit-items-heading" class="ec-subheading">{{ __( 'Items' ) }}</h3>
                     @error( 'draftItems' )
-                        <x-artisanpack-alert color="error" icon="circle-alert" role="alert">{{ $message }}</x-artisanpack-alert>
+                        <x-artisanpack-alert color="error" icon="circle-alert">{{ $message }}</x-artisanpack-alert>
                     @enderror
                     <div class="apui-table ec-table">
                         <div data-scope="table" data-part="scroll" data-density="compact">
@@ -313,11 +313,11 @@
                         <bdi dir="ltr" class="ec-money ec-strong" aria-hidden="true">{{ MoneyFormatter::format( $preview['after'], $preview['currency'] ) }}</bdi>
                     </p>
                     @if ( null !== $preview['paymentDelta'] )
-                        <x-artisanpack-alert color="warning" icon="triangle-alert" role="status" data-payment-action>
+                        <x-artisanpack-alert color="warning" icon="triangle-alert" data-payment-action>
                             {{ __( 'Payment action required: the total rises by :amount, which the customer has not paid.', [ 'amount' => MoneyFormatter::format( $preview['paymentDelta'], $preview['currency'] ) ] ) }}
                         </x-artisanpack-alert>
                     @elseif ( null !== $preview['refundDelta'] )
-                        <x-artisanpack-alert color="info" icon="info" role="status" data-refund-due>
+                        <x-artisanpack-alert color="info" icon="info" data-refund-due>
                             {{ __( 'The total falls by :amount. Refund it from Refunds once the edit is saved.', [ 'amount' => MoneyFormatter::format( $preview['refundDelta'], $preview['currency'] ) ] ) }}
                         </x-artisanpack-alert>
                     @endif

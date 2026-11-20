@@ -17,6 +17,10 @@ Every index screen is built on the `WithResourceTable` concern. Each screen's co
 
 Each definition is keyed by its `key`; a later definition with the same key replaces an earlier one. Malformed definitions are skipped.
 
+`{screen}` is the screen key in camelCase, from the table below (`ap.ecommerceAdminLivewire.table.licenseKeys.columns`). **Since:** 2.0.0
+
+> **Note:** 1.x used kebab-case keys for multi-word screens (`table.license-keys.columns`). Those filter names are deprecated but still applied, after the camelCase name, to the value its subscribers returned, so a 1.x subscriber keeps working. Rename it before 3.0, which drops the kebab-case pass. Single-word screens (`orders`, `products`, …) are unchanged.
+
 ## Screens
 
 | `{screen}` | Screen | Query model |
@@ -26,13 +30,13 @@ Each definition is keyed by its `key`; a later definition with the same key repl
 | `products` | Products | `Product` |
 | `tags` | Tags | `ProductTag` |
 | `inventory` | Inventory | `InventoryItem` |
-| `digital-files` | Digital files | `DigitalFile` |
-| `license-keys` | License keys | `LicenseKey` |
+| `digitalFiles` | Digital files | `DigitalFile` |
+| `licenseKeys` | License keys | `LicenseKey` |
 | `customers` | Customers | `Customer` |
 | `promotions` | Promotions | `Promotion` |
-| `tax-rates` | Tax rates | `TaxRate` |
+| `taxRates` | Tax rates | `TaxRate` |
 | `webhooks` | Webhook subscriptions | `WebhookSubscription` |
-| `webhook-deliveries` | One subscription's deliveries | `WebhookDelivery` |
+| `webhookDeliveries` | One subscription's deliveries | `WebhookDelivery` |
 
 The products screen also runs the engine's `ap.ecommerce.product.listQuery` filter on its query, so a filter there narrows the admin list and the engine's own lists alike.
 

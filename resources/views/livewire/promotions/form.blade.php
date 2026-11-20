@@ -22,8 +22,10 @@
     View only: every control is disabled, Save is hidden, and an info alert
     says so.
 
-    Unsaved changes: typing marks the form dirty; leaving the page (or a
-    wire:navigate link) asks first until the form is saved.
+    Unsaved changes: typing in Details or Rules marks the form dirty (the
+    Coupons, Usage and Activity tabs are separate components and don't);
+    leaving the page (or a wire:navigate link) asks first until the form is
+    saved.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -39,7 +41,18 @@
     $sourceError    = $errors->first( 'sourceType' );
     $sourceDescribe = 'promotion-source-hint' . ( '' !== $sourceError ? ' promotion-source-error' : '' );
 @endphp
-<div class="ec-stack" data-promotion-form x-data="{ {!! UnsavedChanges::members() !!} }" {!! UnsavedChanges::attributes() !!}>
+{{-- Only the Details and Rules fields (data-unsaved-scope) mark the form dirty: the Coupons, Usage and Activity tabs are their own components that save (or search) on their own. --}}
+<div
+    class="ec-stack"
+    data-promotion-form
+    x-data="{ {!! UnsavedChanges::members() !!} }"
+    data-unsaved-changes
+    x-on:input="if ( $event.target.closest( '[data-unsaved-scope]' ) ) dirty = true"
+    x-on:change="if ( $event.target.closest( '[data-unsaved-scope]' ) ) dirty = true"
+    x-on:beforeunload.window="warnBeforeUnload( $event )"
+    x-on:livewire:navigate.document="confirmNavigate( $event )"
+    x-on:{{ UnsavedChanges::SAVED_EVENT }}.window="dirty = false"
+>
     <x-artisanpack-page-header
         :title="$isCreate ? __( 'New promotion' ) : __( 'Edit :name', [ 'name' => $promotion->name ] )"
         :level="1"
@@ -64,7 +77,7 @@
     @endif
 
     @if ( $readOnly )
-        <x-artisanpack-alert color="info" icon="lock" :title="__( 'You can view this promotion but not change it.' )" role="status" data-read-only />
+        <x-artisanpack-alert color="info" icon="lock" :title="__( 'You can view this promotion but not change it.' )" data-read-only />
     @endif
 
     @include( 'ecommerce-admin::partials.error-summary' )
@@ -78,8 +91,8 @@
             :classes="[ 'list' => 'ec-promotion-form-tablist' ]"
         >
             {{-- Details --}}
-            <x-artisanpack-tab name="details" :label="$tabLabels['details']" :count="$tabError( 'details' )">
-                <fieldset class="ec-promotion-form-panel" @disabled( $readOnly ) data-promotion-details>
+            <x-artisanpack-tab value="details" :label="$tabLabels['details']" :count="$tabError( 'details' )">
+                <fieldset class="ec-promotion-form-panel" @disabled( $readOnly ) data-unsaved-scope data-promotion-details>
                     <section class="ec-promotion-form-section" aria-labelledby="promotion-basics-title">
                         <div class="ec-promotion-form-section__head">
                             <x-artisanpack-heading :level="2" :size="6" id="promotion-basics-title">{{ __( 'Basics' ) }}</x-artisanpack-heading>
@@ -254,26 +267,26 @@
             </x-artisanpack-tab>
 
             {{-- Rules --}}
-            <x-artisanpack-tab name="rules" :label="$tabLabels['rules']" :count="$tabError( 'rules' )">
-                <fieldset class="ec-promotion-form-panel" @disabled( $readOnly ) data-promotion-rules>
+            <x-artisanpack-tab value="rules" :label="$tabLabels['rules']" :count="$tabError( 'rules' )">
+                <fieldset class="ec-promotion-form-panel" @disabled( $readOnly ) data-unsaved-scope data-promotion-rules>
                     <x-artisanpack-ec-rule-builder :builder="$ruleBuilder" prefix="promotion-rule" />
                 </fieldset>
             </x-artisanpack-tab>
 
             @if ( in_array( 'coupons', $tabs, true ) )
-                <x-artisanpack-tab name="coupons" :label="$tabLabels['coupons']">
+                <x-artisanpack-tab value="coupons" :label="$tabLabels['coupons']">
                     @livewire( 'artisanpack-ecommerce-admin-promotion-coupons', [ 'promotion' => $promotion ], key( 'promotion-coupons-' . $promotion->id ) )
                 </x-artisanpack-tab>
             @endif
 
             @if ( in_array( 'usage', $tabs, true ) )
-                <x-artisanpack-tab name="usage" :label="$tabLabels['usage']">
+                <x-artisanpack-tab value="usage" :label="$tabLabels['usage']">
                     @livewire( 'artisanpack-ecommerce-admin-promotion-usage', [ 'promotion' => $promotion ], key( 'promotion-usage-' . $promotion->id ) )
                 </x-artisanpack-tab>
             @endif
 
             @if ( in_array( 'activity', $tabs, true ) )
-                <x-artisanpack-tab name="activity" :label="$tabLabels['activity']">
+                <x-artisanpack-tab value="activity" :label="$tabLabels['activity']">
                     @livewire( 'artisanpack-ecommerce-admin-timeline', [ 'subject' => $promotion ], key( 'promotion-timeline-' . $promotion->id ) )
                 </x-artisanpack-tab>
             @endif

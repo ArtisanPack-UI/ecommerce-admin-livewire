@@ -20,7 +20,7 @@ beforeEach( function (): void {
     Storage::fake( 'local' );
     config()->set( 'artisanpack.ecommerce.base_currency', 'USD' );
     config()->set( 'artisanpack.ecommerce.features.scout', false );
-    grantAbilities( [ 'product.viewAny', 'product.create', 'product.update' ] );
+    grantAbilities( [ 'product.viewAny', 'product.create', 'product.update', 'inventory.adjust' ] );
     $this->actingAs( makeUser() );
 } );
 
@@ -667,8 +667,110 @@ it( 'shows queued progress as a labelled progressbar with a live sentence', func
         ->toContain( 'aria-labelledby=' )
         ->toContain( 'data-color="primary"' )
         ->not->toContain( 'ec-w-' )
-        ->and( importTag( $component, 'data-import-sentence' ) )->toContain( 'role="status"' )
+        ->and( importTag( $component, 'data-import-sentence' ) )->not->toContain( 'role="status"' )
+        ->and( importTag( $component, 'data-import-announcement' ) )->toContain( 'role="status"' )
         ->and( substr_count( $component->html(), 'aria-current="step"' ) )->toBe( 1 );
+} );
+
+it( 'announces progress only at quarter marks, not on every poll', function (): void {
+    Queue::fake();
+
+    $component = Livewire::test( Import::class )
+        ->set( 'csv', importUpload( "name\n" . implode( "\n", array_map( static fn ( int $n ): string => "Mug {$n}", range( 1, 100 ) ) ) . "\n" ) )
+        ->call( 'uploadCsv' )
+        ->call( 'check' );
+
+    $component->call( 'apply', $component->viewData( 'applyToken' ) );
+
+    $state           = importState( $component );
+    $state['status'] = 'running';
+
+    $announcements = [];
+
+    foreach ( [ 10, 20, 30, 60 ] as $processed ) {
+        $state['processed'] = $processed;
+        ProductImports::save( $state );
+
+        $announcements[] = $component->call( '$refresh' )->viewData( 'announcement' );
+    }
+
+    expect( $announcements )->toBe( [
+        'Importing: 0 percent done.',
+        'Importing: 0 percent done.',
+        'Importing: 25 percent done.',
+        'Importing: 50 percent done.',
+    ] );
+} );
+
+it( 'lets a running import whose worker died be resumed or discarded', function (): void {
+    Queue::fake();
+
+    $component = Livewire::test( Import::class )
+        ->set( 'csv', importUpload( "name\nMug\nCup\n" ) )
+        ->call( 'uploadCsv' )
+        ->call( 'check' );
+
+    $component->call( 'apply', $component->viewData( 'applyToken' ) );
+
+    $state              = importState( $component );
+    $state['status']    = 'running';
+    $state['processed'] = 1;
+    ProductImports::save( $state );
+
+    $this->travel( RunProductImport::TIMEOUT + ProductImports::ABANDONED_GRACE_SECONDS + 5 )->seconds();
+
+    // A fresh visit reopens the import as failed, with resume and discard.
+    $fresh = Livewire::test( Import::class )
+        ->assertSeeHtml( 'data-import-resume' )
+        ->assertSeeHtml( 'data-import-discard' );
+
+    expect( importState( $fresh )['status'] )->toBe( 'failed' );
+
+    $fresh->call( 'resume' );
+
+    expect( importState( $fresh )['status'] )->toBe( 'queued' );
+    Queue::assertPushed( RunProductImport::class, 2 );
+} );
+
+it( 'does not treat a running import that is still saving progress as abandoned', function (): void {
+    Queue::fake();
+
+    $component = Livewire::test( Import::class )
+        ->set( 'csv', importUpload( "name\nMug\nCup\n" ) )
+        ->call( 'uploadCsv' )
+        ->call( 'check' );
+
+    $component->call( 'apply', $component->viewData( 'applyToken' ) );
+
+    $state           = importState( $component );
+    $state['status'] = 'running';
+    ProductImports::save( $state );
+
+    $this->travel( RunProductImport::TIMEOUT )->seconds();
+
+    $component->call( 'discard' );
+
+    expect( ProductImports::find( (string) $state['id'] )['status'] )->toBe( 'running' );
+} );
+
+it( 'restores the checked step with an error when the queue refuses the job', function (): void {
+    $component = Livewire::test( Import::class )
+        ->set( 'csv', importUpload( "name\nMug\n" ) )
+        ->call( 'uploadCsv' )
+        ->call( 'check' );
+
+    $token = $component->viewData( 'applyToken' );
+
+    $this->mock( Illuminate\Contracts\Bus\Dispatcher::class, static function ( Mockery\MockInterface $mock ): void {
+        $mock->shouldReceive( 'dispatch' )->andThrow( new RuntimeException( 'Queue down' ) );
+    } );
+
+    $component->call( 'apply', $token )
+        ->assertSeeHtml( 'data-import-report' )
+        ->assertSee( 'The import could not be queued. Try again in a moment.' );
+
+    expect( importState( $component )['status'] )->toBe( 'checked' )
+        ->and( importState( $component )['report'] )->not->toBeNull();
 } );
 
 it( 'offers the error report as the primary action when an import finishes with failures', function (): void {
@@ -720,4 +822,38 @@ it( 'puts resume first on a stopped import, with the report and a ghost discard'
         ->and( importTag( $component, 'data-import-download-errors' ) )->toContain( 'data-variant="outline"' )
         ->and( importTag( $component, 'data-import-discard' ) )->toContain( 'data-variant="ghost"' )->toContain( 'data-color="error"' )
         ->and( importTag( $component, 'data-import-progressbar' ) )->toContain( 'data-color="error"' );
+} );
+
+it( 'warns before importing that stock columns will be skipped without inventory.adjust', function (): void {
+    Gate::define( 'ecommerce.inventory.adjust', static fn (): bool => false );
+
+    Livewire::test( Import::class )
+        ->set( 'csv', importUpload( "name,sku,quantity_on_hand\nMug,MUG-1,5\n" ) )
+        ->call( 'uploadCsv' )
+        ->call( 'check' )
+        ->assertSeeHtml( 'data-import-stock-warning' )
+        ->assertSee( 'Stock columns will be skipped: you can\'t adjust stock.' );
+} );
+
+it( 'renders each alert with a single role', function (): void {
+    $component = Livewire::test( Import::class )
+        ->set( 'csv', importUpload( "colour\nRed\n" ) )
+        ->call( 'uploadCsv' );
+
+    expect( importTag( $component, 'data-import-needs-key' ) )->not->toMatch( '/role="[^"]*".*role="/' );
+} );
+
+it( 'reads a Windows-1252 file\'s accented headers and cells as UTF-8, keeping the import', function (): void {
+    $component = Livewire::test( Import::class )
+        ->set( 'csv', importUpload( mb_convert_encoding( "name,sku,Catégorie\nCafé crème,CAFE-1,Thé\n", 'Windows-1252', 'UTF-8' ) ) )
+        ->call( 'uploadCsv' )
+        ->assertHasNoErrors();
+
+    expect( importState( $component ) )
+        ->headers->toBe( [ 'name', 'sku', 'Catégorie' ] )
+        ->sample->toBe( [ 'Café crème', 'CAFE-1', 'Thé' ] );
+
+    $component->call( 'check' );
+
+    expect( importState( $component )['status'] )->toBe( 'checked' );
 } );

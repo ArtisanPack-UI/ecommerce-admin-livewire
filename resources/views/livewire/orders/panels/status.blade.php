@@ -33,7 +33,7 @@
         </div>
 
         @if ( null !== $substatusWarning || [] !== $boardWarnings )
-            <x-artisanpack-alert color="warning" icon="triangle-alert" role="status" data-current-warnings>
+            <x-artisanpack-alert color="warning" icon="triangle-alert" data-current-warnings>
                 <ul class="ec-alert-list">
                     @if ( null !== $substatusWarning )
                         <li>{{ $substatusWarning }}</li>
@@ -59,7 +59,7 @@
                     />
 
                     @if ( [] !== $targetWarnings )
-                        <x-artisanpack-alert color="warning" icon="triangle-alert" role="status" data-target-warnings>
+                        <x-artisanpack-alert color="warning" icon="triangle-alert" data-target-warnings>
                             <ul class="ec-alert-list">
                                 @foreach ( $targetWarnings as $warning )
                                     <li wire:key="status-target-warning-{{ $loop->index }}">{{ $warning }}</li>
@@ -84,7 +84,7 @@
                     :label="__( 'Sub-status' )"
                     :options="ControlOptions::from( $substatusOptions )"
                     :placeholder="__( 'Choose a sub-status' )"
-                    :hint="$hasOtherSubstatus ? __( 'Greyed-out sub-statuses belong to another order status and become available once the order moves there.' ) : null"
+                    :hint="$hasOtherSubstatus ? __( 'Sub-statuses followed by another order status in brackets can’t be chosen until the order moves to that status.' ) : null"
                     wire:model="substatusId"
                 />
                 <div>

@@ -34,7 +34,9 @@ The admin fires no actions (`doAction`).
 | `ap.ecommerceAdminLivewire.notifications.locales` | `array $locales` | Locale codes | Offering locales to add to a notification template | Below |
 | `ap.ecommerceAdminLivewire.kanban.boardUrl` | `?string $url`, `KanbanBoard $board`, `array $query` | URL or `null` | Rendering an "Open board" link | Below |
 
-`{screen}` is one of `orders`, `reviews`, `products`, `tags`, `inventory`, `digital-files`, `license-keys`, `customers`, `promotions`, `tax-rates`, `webhooks`, `webhook-deliveries`. `{report}` is a report key from the engine's `ReportRegistry`, such as `sales`.
+`{screen}` is one of `orders`, `reviews`, `products`, `tags`, `inventory`, `digitalFiles`, `licenseKeys`, `customers`, `promotions`, `taxRates`, `webhooks`, `webhookDeliveries`. `{report}` is a report key from the engine's `ReportRegistry` in camelCase, such as `sales`, `topProducts`, `revenueByCategory` or `lowStock`. **Since:** 2.0.0
+
+> **Note:** 1.x named multi-word screens and reports in kebab case (`table.license-keys.columns`, `reports.top-products.table`). Those names still run, after the camelCase ones and with the value the camelCase subscribers returned, but they are deprecated and will be removed in 3.0. Rename your subscribers.
 
 ## Filters from other packages
 
@@ -76,7 +78,7 @@ addFilter( 'ap.ecommerceAdminLivewire.timeline.entry', function ( array $present
 } );
 ```
 
-- `icon` is a design-system (Lucide) icon name.
+- `icon` is a name in the icon registry (`IconRegistry::names()`: the design-system Lucide set plus the icons the admin registers, `gift` among them) or a Heroicon `o-*` / `s-*` name. Any other name renders nothing; register its SVG with `IconRegistry::register()` first. See [Icon names](../extending/navigation.md#icon-names).
 - `tone` is optional and colours the entry's marker: `success`, `warning`, `error`, or `info`. Any other value leaves the marker neutral. Leaving `tone` out keeps the event's own tone, so a filter that only changes a core event's description doesn't change its colour; a satellite's event has no tone of its own, so its marker stays neutral. The core events take a tone only when they need attention (failed, blocked, or mismatched is `error`; challenged or action required is `warning`) or complete a money movement (captured or refunded is `success`). **Since:** 2.0.0
 
 The timeline covers orders, products, customers, and promotions.
@@ -98,7 +100,7 @@ Unknown values otherwise show a headline-cased label in the neutral colour. Colo
 ### Add columns to a report
 
 ```php
-addFilter( 'ap.ecommerceAdminLivewire.reports.top-products.table', function ( array $table, array $result ): array {
+addFilter( 'ap.ecommerceAdminLivewire.reports.topProducts.table', function ( array $table, array $result ): array {
     $table['columns'][] = [ 'key' => 'margin', 'label' => __( 'Margin' ), 'type' => 'percent' ];
 
     foreach ( $table['rows'] as $index => $row ) {
@@ -113,7 +115,7 @@ Column types are `text`, `int`, `money`, `percent`, and `rate`. The same table d
 
 ### Show a jurisdiction tax breakdown
 
-An order's tax lines come from `meta.tax_lines` when the tax provider recorded them, otherwise one line labelled with the engine's `TaxLabel`:
+An order's tax lines come from `meta.tax_breakdown`, the per-rate rows the engine records when the order is placed or edited (the legacy `meta.tax_lines` is still read), otherwise one line labelled with the engine's `TaxLabel`:
 
 ```php
 addFilter( 'ap.ecommerceAdminLivewire.order.taxBreakdown', function ( array $lines, $order ): array {

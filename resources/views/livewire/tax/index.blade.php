@@ -29,7 +29,6 @@
                 color="info"
                 icon="info"
                 :title="__( 'Taxes are calculated by :provider.', [ 'provider' => $provider['label'] ] ) . ' ' . __( 'Checkout uses the active rates below.' )"
-                role="status"
             />
         @else
             <x-artisanpack-alert
@@ -37,7 +36,6 @@
                 icon="triangle-alert"
                 :title="__( 'These rates are not used.' )"
                 :description="__( 'Taxes are calculated by :provider, so checkout ignores the rates on this page. Keep them as a fallback, or switch the provider in Settings.', [ 'provider' => $provider['label'] ] )"
-                role="status"
                 data-rates-unused
             />
         @endif
@@ -208,7 +206,7 @@
         >
             <div data-delete-class="{{ $deletingClass->key }}">
                 @if ( null !== $deletingBlocker )
-                    <x-artisanpack-alert color="warning" icon="triangle-alert" :title="__( 'This class cannot be deleted yet.' )" :description="$deletingBlocker" role="status" data-class-blocked />
+                    <x-artisanpack-alert color="warning" icon="triangle-alert" :title="__( 'This class cannot be deleted yet.' )" :description="$deletingBlocker" data-class-blocked />
                 @else
                     <p class="ec-body">{{ __( 'Nothing uses this class. Deleting it cannot be undone.' ) }}</p>
                 @endif
@@ -266,7 +264,6 @@
                             :icon="$importCount > 0 ? 'circle-check' : 'triangle-alert'"
                             :title="__( ':create to add, :update to update.', [ 'create' => $importReport['create'], 'update' => $importReport['update'] ] )"
                             :description="$importReport['invalid'] > 0 ? trans_choice( ':count row has errors and will be skipped.|:count rows have errors and will be skipped.', $importReport['invalid'], [ 'count' => $importReport['invalid'] ] ) : null"
-                            role="status"
                             data-import-counts
                         />
 

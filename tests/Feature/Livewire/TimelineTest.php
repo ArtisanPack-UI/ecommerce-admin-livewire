@@ -129,6 +129,36 @@ it( 'falls back to the raw type and a collapsible payload for unknown events', f
         ->assertSee( '"points": 120' );
 } );
 
+it( 'hides personal and secret values in an unknown event\'s payload', function (): void {
+    timelineEntry( $this->order, 'gateway.webhook_received', [
+        'event'            => 'charge.updated',
+        'description'      => 'Shipping upgraded',
+        'customer_email'   => 'ada@example.test',
+        'ipAddress'        => '203.0.113.9',
+        'client_ip'        => '198.51.100.7',
+        'api_token'        => 'tok_live_123',
+        'card'             => [ 'brand' => 'visa', 'last4' => '4242' ],
+        'cardFingerprint'  => 'fp_abc',
+        'nested'           => [ 'billing_address' => [ 'line1' => '1 Analytical Way' ], 'phone' => '+44 20 7946 0000', 'amount' => 500 ],
+        'shipping_method'  => 'express',
+    ] );
+
+    Livewire::test( Timeline::class, [ 'subject' => $this->order ] )
+        ->assertSee( '"event": "charge.updated"' )
+        ->assertSee( '"description": "Shipping upgraded"' )
+        ->assertSee( '"shipping_method": "express"' )
+        ->assertSee( '"amount": 500' )
+        ->assertSee( '"customer_email": "(hidden)"' )
+        ->assertDontSee( 'ada@example.test' )
+        ->assertDontSee( '203.0.113.9' )
+        ->assertDontSee( '198.51.100.7' )
+        ->assertDontSee( 'tok_live_123' )
+        ->assertDontSee( '4242' )
+        ->assertDontSee( 'fp_abc' )
+        ->assertDontSee( '1 Analytical Way' )
+        ->assertDontSee( '7946' );
+} );
+
 it( 'describes refund and payment problems in words', function ( string $type, array $payload, string $sentence ): void {
     timelineEntry( $this->order, $type, $payload );
 

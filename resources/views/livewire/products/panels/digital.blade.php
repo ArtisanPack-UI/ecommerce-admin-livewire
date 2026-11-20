@@ -75,7 +75,7 @@
                                         >{{ null === $mediaId ? __( 'Choose file' ) : __( 'Replace file' ) }}</x-artisanpack-button>
                                     @endif
                                     @unless ( $readOnly )
-                                        <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="trash" wire:click="removeFile( {{ $i }} )" wire:loading.attr="disabled" wire:confirm="{{ __( 'Remove this file when you save? A file customers already bought can\'t be removed; archive it instead.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
+                                        <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="trash" wire:click="removeFile( {{ $i }} )" wire:loading.attr="disabled" wire:confirm="{{ __( 'Remove this file when you save? A file customers already bought can\'t be removed; archive it instead.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
                                     @endunless
                                 </div>
                             @else
@@ -83,7 +83,7 @@
                                     <x-artisanpack-select placeholder="" id="digital-{{ $i }}-disk" class="ec-file-disk" :label="__( 'Disk' )" :options="ControlOptions::from( $diskOptions )" wire:model="state.files.{{ $i }}.disk" :disabled="$readOnly" />
                                     <x-artisanpack-input id="digital-{{ $i }}-path" class="ec-file-path ec-mono-input" dir="ltr" :label="__( 'Path of :file on the disk', [ 'file' => $fileLabel ] )" :placeholder="__( 'downloads/guide.pdf' )" wire:model.live.blur="state.files.{{ $i }}.path" :disabled="$readOnly" />
                                     @unless ( $readOnly )
-                                        <x-artisanpack-button variant="ghost" color="neutral" size="sm" leading-icon="trash" class="ec-file-remove" wire:click="removeFile( {{ $i }} )" wire:loading.attr="disabled" wire:confirm="{{ __( 'Remove this file when you save? A file customers already bought can\'t be removed; archive it instead.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
+                                        <x-artisanpack-button variant="ghost" color="neutral" size="sm" icon-only leading-icon="trash" class="ec-file-remove" wire:click="removeFile( {{ $i }} )" wire:loading.attr="disabled" wire:confirm="{{ __( 'Remove this file when you save? A file customers already bought can\'t be removed; archive it instead.' ) }}" :aria-label="__( 'Remove :file', [ 'file' => $fileLabel ] )" />
                                     @endunless
                                 </div>
                             @endif

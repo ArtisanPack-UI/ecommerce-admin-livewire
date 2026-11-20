@@ -146,7 +146,7 @@
 
             <x-slot:footer>
                 <x-artisanpack-button variant="ghost" color="neutral" wire:click="closeReject">{{ __( 'Cancel' ) }}</x-artisanpack-button>
-                <x-artisanpack-button type="submit" form="review-reject-form" color="error" wire:loading.attr="disabled" data-reject-submit>{{ __( 'Reject review' ) }}</x-artisanpack-button>
+                <x-artisanpack-button type="submit" form="review-reject-form" color="error" wire:loading.attr="disabled" wire:target="reject" data-reject-submit>{{ __( 'Reject review' ) }}</x-artisanpack-button>
             </x-slot:footer>
         </x-artisanpack-dialog>
     @endif

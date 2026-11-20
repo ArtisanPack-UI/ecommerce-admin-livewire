@@ -20,7 +20,8 @@ it( 'names the missing type and what keeps working in a warning alert', function
         ->toContain( 'class="apui-alert' )
         ->toContain( 'data-color="warning"' )
         ->toContain( 'data-product-type-warning' )
-        ->not->toContain( 'alert-warning' );
+        ->not->toContain( 'alert-warning' )
+        ->and( substr_count( $html, 'role=' ) )->toBe( 1 );
 } );
 
 it( 'renders nothing for a product whose type is installed', function (): void {

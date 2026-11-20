@@ -164,7 +164,6 @@
             id="report-invalid"
             color="warning"
             icon="triangle-alert"
-            role="alert"
             :title="$messages[0] ?? __( 'This report could not be run.' )"
             :description="count( $messages ) > 1 ? implode( ' ', array_slice( $messages, 1 ) ) : null"
             data-report-invalid
@@ -177,7 +176,6 @@
                 <x-artisanpack-alert
                     color="info"
                     icon="info"
-                    role="status"
                     :title="trans_choice(
                         ':count order was placed under a different base currency. It is converted to :currency at today\'s exchange rate, so its amount can change.|:count orders were placed under a different base currency. They are converted to :currency at today\'s exchange rate, so their amounts can change.',
                         (int) $result['notices']['converted_orders'],
@@ -191,7 +189,6 @@
                 <x-artisanpack-alert
                     color="warning"
                     icon="triangle-alert"
-                    role="status"
                     :title="trans_choice(
                         ':count order is left out because there is no exchange rate from its base currency to :currency.|:count orders are left out because there is no exchange rate from their base currency to :currency.',
                         (int) $result['notices']['unconverted_orders'],
@@ -249,6 +246,11 @@
                                                 <span class="ec-report-trend" data-tone="{{ $kpi['tone'] }}" aria-hidden="true"><x-artisanpack-icon :name="$icon" size="sm" /></span>
                                             @endif
                                             <bdi>{{ $words }}</bdi>
+                                            @if ( 'good' === $kpi['tone'] )
+                                                <span class="apui-sr-only" data-kpi-tone="good">{{ __( '(improvement)' ) }}</span>
+                                            @elseif ( 'bad' === $kpi['tone'] )
+                                                <span class="apui-sr-only" data-kpi-tone="bad">{{ __( '(decline)' ) }}</span>
+                                            @endif
                                         </span>
                                     </span>
                                 @endif
@@ -322,7 +324,7 @@
                                     @foreach ( $bars as $index => $bar )
                                         <li class="ec-report-bar" wire:key="report-bar-{{ $index }}">
                                             <span class="ec-report-bar__name">{{ $bar['name'] }}</span>
-                                            <span class="ec-report-bar__track" dir="ltr" aria-hidden="true"><span class="ec-report-bar__fill" style="inline-size: {{ $bar['percent'] }}%"></span></span>
+                                            <svg class="ec-report-bar__track" dir="ltr" aria-hidden="true" focusable="false" data-bar-percent="{{ $bar['percent'] }}"><rect class="ec-report-bar__fill" x="0" y="0" width="{{ $bar['percent'] }}%" height="100%" rx="4" /></svg>
                                             <bdi dir="ltr" class="ec-report-bar__value">{{ $bar['value'] }}</bdi>
                                         </li>
                                     @endforeach

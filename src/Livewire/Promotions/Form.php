@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Promotions;
 
+use ArtisanPack\LivewireUiComponents\Support\Toasts;
 use ArtisanPackUI\Ecommerce\Models\Promotion;
 use ArtisanPackUI\Ecommerce\Models\PromotionAction;
 use ArtisanPackUI\Ecommerce\Models\PromotionCondition;
@@ -25,6 +26,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithRuleBuilder;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\UnsavedChanges;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -228,7 +230,11 @@ class Form extends Component
     /**
      * Loads the promotion (or defaults) and authorizes.
      *
+     * A missing promotion is a 404 only for users who may list promotions;
+     * anyone else gets a 403, so ids can't be probed.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Checks `viewAny` before answering 404.
      *
      * @param  int|Promotion|string|null  $promotion  Promotion or id; null to create.
      *
@@ -243,7 +249,13 @@ class Form extends Component
             return;
         }
 
-        $model = $promotion instanceof Promotion ? $promotion : Promotion::query()->findOrFail( (int) $promotion );
+        $model = $promotion instanceof Promotion ? $promotion : Promotion::query()->find( (int) $promotion );
+
+        if ( null === $model ) {
+            $this->authorizeEcommerce( 'viewAny', Promotion::class );
+
+            throw ( new ModelNotFoundException() )->setModel( Promotion::class, [ (int) $promotion ] );
+        }
 
         $this->authorizeEcommerce( 'view', $model );
 
@@ -309,8 +321,8 @@ class Form extends Component
 
         $this->authorizeWrite( $promotion );
 
-        $this->name        = sanitizeText( $this->name );
-        $this->description = sanitizeText( $this->description );
+        $this->name        = trim( $this->name );
+        $this->description = trim( $this->description );
         $this->key         = Str::lower( trim( $this->key ) );
 
         try {
@@ -353,12 +365,16 @@ class Form extends Component
         $this->dispatch( UnsavedChanges::SAVED_EVENT );
 
         if ( $creating ) {
-            $this->toastSuccess( __( 'Promotion created.' ) );
-
             $editRoute = AdminNav::ROUTE_PREFIX . 'promotions.edit';
 
             if ( Route::has( $editRoute ) ) {
+                // A browser event would be lost with the page it was sent
+                // to, so the toast is flashed for the edit page's toaster.
+                Toasts::flash( title: __( 'Promotion created.' ), color: 'success' );
+
                 $this->redirectRoute( $editRoute, [ 'promotion' => $saved->id ] );
+            } else {
+                $this->toastSuccess( __( 'Promotion created.' ) );
             }
 
             $this->promotionId     = (int) $saved->id;
@@ -407,7 +423,7 @@ class Form extends Component
     /**
      * The tab labels, by key.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
      * @return array<string, string>
      */
@@ -426,7 +442,7 @@ class Form extends Component
      * The icon for a source type, matching the promotions list's source
      * badges: a bolt for automatic, a tag for coupon codes, none otherwise.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
      * @param  string  $source  Source type key.
      *
@@ -472,7 +488,7 @@ class Form extends Component
      * The tabs with validation errors: the rule rows' errors belong to
      * Rules, every other field's to Details.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
      * @return array<int, string>
      */

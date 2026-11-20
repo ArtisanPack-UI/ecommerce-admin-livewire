@@ -90,13 +90,33 @@ class Edit extends Component
     public const MAX_SUBJECT = 2000;
 
     /**
-     * Longest body source, in characters.
+     * Longest body source, in characters. Matches the engine's API limit, so
+     * any template the API accepts can be edited here; the preview's cost is
+     * bounded by its rate limit and output cap instead.
      *
      * @since 1.0.0
      *
      * @var int
      */
     public const MAX_BODY = 100000;
+
+    /**
+     * Previews allowed per user per minute.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const PREVIEWS_PER_MINUTE = 60;
+
+    /**
+     * Longest rendered subject plus body the preview shows, in bytes.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const MAX_PREVIEW_OUTPUT = 1048576;
 
     /**
      * Largest preview data, in bytes of JSON.
@@ -791,6 +811,19 @@ class Edit extends Component
             return;
         }
 
+        $key = 'ecommerce-admin:notification-preview:' . auth()->id();
+
+        if ( RateLimiter::tooManyAttempts( $key, self::PREVIEWS_PER_MINUTE ) ) {
+            $this->previewErrors[] = [
+                'field'   => 'body',
+                'message' => __( 'The preview is paused after too many updates. It refreshes again in :seconds seconds.', [ 'seconds' => RateLimiter::availableIn( $key ) ] ),
+            ];
+
+            return;
+        }
+
+        RateLimiter::hit( $key, 60 );
+
         try {
             $rendered = app( NotificationTemplateService::class )->preview(
                 $this->template(),
@@ -800,6 +833,17 @@ class Edit extends Component
             );
         } catch ( NotificationTemplateException $exception ) {
             $this->reportErrors( $exception );
+
+            return;
+        }
+
+        if ( strlen( (string) $rendered['subject'] ) + strlen( (string) $rendered['body'] ) > self::MAX_PREVIEW_OUTPUT ) {
+            $message = __( 'The rendered template is over :max KB, too long to preview or send. Shorten its loops and lists.', [ 'max' => intdiv( self::MAX_PREVIEW_OUTPUT, 1024 ) ] );
+
+            $this->previewSubject  = null;
+            $this->previewBody     = '';
+            $this->previewErrors[] = [ 'field' => 'body', 'message' => $message ];
+            $this->addError( 'body', $message );
 
             return;
         }

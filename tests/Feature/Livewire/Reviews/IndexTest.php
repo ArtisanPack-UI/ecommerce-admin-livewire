@@ -173,6 +173,61 @@ it( 'deletes a review after confirmation', function (): void {
     expect( ProductReview::query()->find( $review->id ) )->toBeNull();
 } );
 
+it( 'keeps the multi-selection when a single-row delete is cancelled or done', function (): void {
+    $first  = ProductReview::factory()->create();
+    $second = ProductReview::factory()->create();
+    $doomed = ProductReview::factory()->create();
+
+    $component = Livewire::test( Index::class )
+        ->set( 'selected', [ $first->id, $second->id ] )
+        ->call( 'confirmDelete', $doomed->id )
+        ->assertSet( 'selected', [ $doomed->id ] )
+        ->call( 'cancelBulkAction' )
+        ->assertSet( 'confirmingBulkAction', null )
+        ->assertSet( 'selected', [ $first->id, $second->id ] )
+        ->assertSet( 'selectionBeforeDelete', null );
+
+    $component->call( 'confirmDelete', $doomed->id );
+    $component->call( 'confirmBulkAction', $component->viewData( 'tableConfirmToken' ) )
+        ->assertSet( 'selected', [ $first->id, $second->id ] );
+
+    expect( ProductReview::query()->find( $doomed->id ) )->toBeNull()
+        ->and( ProductReview::query()->count() )->toBe( 2 );
+} );
+
+it( 'keeps rejection reasons with angle brackets intact', function (): void {
+    $review   = ProductReview::factory()->create();
+    $reasons  = [];
+    $callback = static function ( ProductReview $rejected, string $reason ) use ( &$reasons ): void {
+        $reasons[] = $reason;
+    };
+
+    addAction( 'ap.ecommerce.review.rejected', $callback );
+
+    Livewire::test( Index::class )
+        ->call( 'startReject', $review->id )
+        ->set( 'rejectReason', '  Rating <3 but text praises it; "O<Brien" spam  ' )
+        ->call( 'reject' )
+        ->assertHasNoErrors();
+
+    removeAction( 'ap.ecommerce.review.rejected', $callback );
+
+    expect( $review->refresh()->status )->toBe( 'rejected' )
+        ->and( $reasons )->toBe( [ 'Rating <3 but text praises it; "O<Brien" spam' ] );
+} );
+
+it( 'scopes the moderation loading states to their own actions', function (): void {
+    grantAbilities( [ 'review.viewAny', 'review.moderate', 'review.delete' ] );
+    Gate::define( 'ecommerce.review.view', static fn (): bool => false );
+    ProductReview::factory()->create( [ 'author_name' => 'Ada' ] );
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )->toMatch( '/data-moderate="approve"/' )
+        ->and( preg_match_all( '/wire:click="moderate\([^"]*"[^>]*wire:target="moderate"/', $html ) )->toBeGreaterThan( 0 )
+        ->and( $html )->toMatch( '/data-moderate="delete"[^>]*data-icon-only|icon-only[^>]*data-moderate="delete"/s' );
+} );
+
 it( 'refuses moderation without review.moderate', function (): void {
     Gate::define( 'ecommerce.review.moderate', static fn (): bool => false );
     $review = ProductReview::factory()->create( [ 'author_name' => 'Ada' ] );

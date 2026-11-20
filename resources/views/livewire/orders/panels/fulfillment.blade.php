@@ -146,7 +146,7 @@
                                                     :label="__( 'Label provider' )"
                                                     :options="ControlOptions::from( collect( $labelProviders )->map( fn ( $label, $key ) => [ 'id' => $key, 'name' => $label ] )->values()->all() )"
                                                     :placeholder="__( 'Choose a provider' )"
-                                                    wire:model="labelProvider"
+                                                    wire:model="labelProviderFor.{{ (int) $shipment->id }}"
                                                 />
                                             @endif
                                             <x-artisanpack-button
@@ -180,10 +180,10 @@
             data-shipment-form
         >
             @error( 'shipment' )
-                <x-artisanpack-alert color="error" icon="circle-alert" role="alert" data-shipment-error>{{ $message }}</x-artisanpack-alert>
+                <x-artisanpack-alert color="error" icon="circle-alert" data-shipment-error>{{ $message }}</x-artisanpack-alert>
             @enderror
             @error( 'quantities' )
-                <x-artisanpack-alert color="error" icon="circle-alert" role="alert">{{ $message }}</x-artisanpack-alert>
+                <x-artisanpack-alert color="error" icon="circle-alert">{{ $message }}</x-artisanpack-alert>
             @enderror
 
             <div class="apui-table ec-table">

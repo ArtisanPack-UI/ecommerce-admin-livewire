@@ -1467,8 +1467,12 @@
         flex: none;
         inline-size: 20px;
         block-size: 20px;
-        border-radius: var(--apui-radius-sm, 4px);
-        box-shadow: inset 0 0 0 1px var(--apui-border-default);
+    }
+
+    /* The swatch is an SVG fill (a nonce-only style CSP drops inline styles); its outline is the rect's stroke. */
+    .ec-swatch rect {
+        stroke: var(--apui-border-default);
+        stroke-width: 1;
     }
 
     .ec-generate {
@@ -1960,7 +1964,6 @@
         min-inline-size: 0;
         block-size: 6px;
         border-radius: var(--apui-radius-full, 9999px);
-        background: var(--ec-column-color);
     }
 
     .ec-settings-list {
@@ -2033,20 +2036,15 @@
         gap: 2px;
     }
 
+    /*
+     * The sub-status colour is the SVG's `color` attribute (fills and
+     * strokes use currentColor), so a nonce-only style CSP keeps it.
+     */
     .ec-column-chip {
-        display: inline-grid;
+        display: block;
         flex: none;
-        place-items: center;
         inline-size: 28px;
         block-size: 28px;
-        border-radius: var(--apui-radius-full, 9999px);
-        background: color-mix(in oklab, var(--ec-column-color) 16%, transparent);
-        color: var(--ec-column-color);
-    }
-
-    .ec-column-chip > svg {
-        inline-size: 16px;
-        block-size: 16px;
     }
 
     .ec-column-count {
@@ -2507,6 +2505,16 @@
         padding-inline: calc(16px + var(--ec-category-depth, 0) * 28px) 12px;
         border-block-end: var(--apui-border-width) solid var(--apui-border-muted);
     }
+
+    /* Depth comes from a bounded data attribute, not an inline style, so a nonce-only style CSP keeps the indent. */
+    .ec-category-row[data-indent="1"] { --ec-category-depth: 1; }
+    .ec-category-row[data-indent="2"] { --ec-category-depth: 2; }
+    .ec-category-row[data-indent="3"] { --ec-category-depth: 3; }
+    .ec-category-row[data-indent="4"] { --ec-category-depth: 4; }
+    .ec-category-row[data-indent="5"] { --ec-category-depth: 5; }
+    .ec-category-row[data-indent="6"] { --ec-category-depth: 6; }
+    .ec-category-row[data-indent="7"] { --ec-category-depth: 7; }
+    .ec-category-row[data-indent="8"] { --ec-category-depth: 8; }
 
     .ec-category-row:last-child {
         border-block-end: 0;
@@ -3891,17 +3899,17 @@
         white-space: nowrap;
     }
 
+    /* An SVG bar, so its width is an attribute a nonce-only style CSP keeps. */
     .ec-report-bar__track {
         display: block;
+        inline-size: 100%;
         min-inline-size: 0;
+        block-size: 14px;
+        overflow: visible;
     }
 
     .ec-report-bar__fill {
-        display: block;
-        block-size: 14px;
-        min-inline-size: 2px;
-        border-radius: 0 4px 4px 0;
-        background: var(--apui-chart-1);
+        fill: var(--apui-chart-1);
     }
 
     .ec-report-bar__value {
@@ -3924,7 +3932,7 @@
     @media (forced-colors: active) {
         .ec-report-bar__fill {
             forced-color-adjust: none;
-            background: CanvasText;
+            fill: CanvasText;
         }
     }
 

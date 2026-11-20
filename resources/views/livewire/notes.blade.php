@@ -96,6 +96,7 @@
                                 color="neutral"
                                 size="xs"
                                 leading-icon="trash"
+                                icon-only
                                 class="ec-note-delete"
                                 wire:click="confirmDelete( {{ $note['id'] }} )"
                                 wire:loading.attr="disabled"
@@ -132,7 +133,7 @@
                 <x-artisanpack-button variant="outline" color="neutral" wire:click="cancelDelete" data-autofocus>{{ __( 'Keep note' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
-                    wire:click="deleteNote( {{ (int) $deletingNote['id'] }} )"
+                    wire:click="deleteNote"
                     wire:loading.attr="disabled"
                     wire:target="deleteNote"
                 >{{ __( 'Delete' ) }}</x-artisanpack-button>

@@ -24,7 +24,7 @@ beforeEach( function (): void {
     config()->set( 'artisanpack.ecommerce.currency.rates', [ 'USD' => [ 'EUR' => 92_500_000 ] ] );
     config()->set( 'artisanpack.ecommerce.currency.enabled', [ 'EUR' ] );
     config()->set( 'artisanpack.ecommerce.features.scout', false );
-    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update' ] );
+    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update', 'inventory.adjust' ] );
     ProductMedia::fake( false );
     $this->actingAs( makeUser() );
 } );
@@ -541,4 +541,78 @@ it( 'disables every control and hides the actions on a read-only variable panel'
         ->not->toContain( 'Add a variant by hand' );
 
     expect( Illuminate\Support\Str::betweenFirst( $html, 'id="attribute-0-label"', '>' ) )->toContain( 'disabled' );
+} );
+
+it( 'does not change variant stock without inventory.adjust', function (): void {
+    $product = app( ProductService::class )->create( [ 'type' => 'variable', 'name' => 'Tee' ] );
+    $variant = app( ProductService::class )->createVariant( $product, [ 'sku' => 'TEE-1', 'inventory' => [ 'quantity_on_hand' => 4 ] ] );
+
+    Gate::define( 'ecommerce.inventory.adjust', static fn (): bool => false );
+
+    $state                            = VariablePanel::initialState( $product );
+    $state['variants'][0]['stock']    = 40;
+    $state['variants'][0]['name']     = 'Renamed';
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( app( ProductService::class )->inventoryItemFor( $variant )->quantity_on_hand )->toBe( 4 )
+        ->and( $variant->refresh()->name )->toBe( 'Renamed' );
+
+    $panel = Livewire::test( VariablePanel::class, [ 'productId' => $product->id ] )->set( 'state', $state );
+
+    expect( $panel->html() )->toMatch( '/<input[^>]*id="variant-0-stock"[^>]*readonly/' )
+        ->not->toContain( 'data-variant-stock-reason' );
+} );
+
+it( 'draws a colour swatch as an SVG fill, not an inline style', function (): void {
+    $attributes                           = teeAttributes( [ 'S' ], [ 'Red' ] );
+    $attributes[1]['values'][0]['swatch'] = '#ff0000';
+
+    $html = Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => $attributes, 'variants' => [], 'stock_reason' => '' ] )
+        ->html();
+
+    expect( $html )->toContain( 'fill="#ff0000"' )
+        ->toMatch( '/<svg class="ec-swatch"/' )
+        ->not->toContain( 'style="background-color' );
+} );
+
+it( 'names an option whose value was removed, and gives icon-only row buttons', function (): void {
+    $attributes = teeAttributes( [ 'S' ], [ 'Red' ] );
+    $variant    = [ 'uid' => 'v1', 'id' => null, 'name' => 'Ghost', 'sku' => '', 'options' => [ $attributes[0]['uid'] => 'gone' ], 'prices' => [], 'stock' => 0, 'stock_loaded' => null, 'image_media_id' => null, 'image_url' => '' ];
+
+    $html = Livewire::test( VariablePanel::class )
+        ->set( 'state', [ 'attributes' => $attributes, 'variants' => [ $variant ], 'stock_reason' => '' ] )
+        ->html();
+
+    expect( $html )->toContain( 'Removed value' )
+        ->toMatch( '/<button(?=[^>]*data-icon-only)(?=[^>]*aria-label="Delete Ghost")[^>]*>/' );
+} );
+
+it( 'refuses a variant image the user may not view, keeping a saved one', function (): void {
+    ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::fakeViewableMedia( [] );
+
+    try {
+        $product = app( ProductService::class )->create( [ 'type' => 'variable', 'name' => 'Tee' ] );
+        app( ProductService::class )->createVariant( $product, [ 'sku' => 'TEE-1', 'image_media_id' => 5 ] );
+
+        $state = VariablePanel::initialState( $product );
+
+        Livewire::test( Form::class, [ 'product' => $product->id ] )
+            ->set( 'panelState', $state )
+            ->call( 'save' )
+            ->assertHasNoErrors();
+
+        $state['variants'][0]['image_media_id'] = 6;
+
+        Livewire::test( Form::class, [ 'product' => $product->id ] )
+            ->set( 'panelState', $state )
+            ->call( 'save' )
+            ->assertHasErrors( 'panelState.variants.0.image_media_id' );
+    } finally {
+        ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::fakeViewableMedia( null );
+    }
 } );

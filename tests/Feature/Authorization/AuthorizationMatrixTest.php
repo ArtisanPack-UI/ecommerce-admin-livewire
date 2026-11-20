@@ -93,7 +93,7 @@ const MATRIX = [
         'mount'   => [ 'params' => [ 'order' => '@order' ], 'ability' => 'order.view' ],
         'actions' => [
             'startRefund' => [ 'args' => [], 'ability' => 'order.refund' ],
-            'refund'      => [ 'args' => [ 'token' ], 'ability' => 'order.refund' ],
+            'refund'      => [ 'args' => [ 'token', 0 ], 'ability' => 'order.refund' ],
         ],
     ],
     'artisanpack-ecommerce-admin-order-fulfillment' => [
@@ -510,14 +510,14 @@ const MATRIX = [
     'artisanpack-ecommerce-admin-promotion-coupons' => [
         'mount'   => [ 'params' => [ 'promotion' => '@promotion-model' ], 'ability' => 'promotion.view' ],
         'actions' => [
-            'addCode'                      => [ 'args' => [], 'ability' => 'coupon.create' ],
+            'addCode'                      => [ 'args' => [], 'ability' => 'coupon.create', 'also' => [ 'promotion.update' ] ],
             'startRename'                  => [ 'args' => [ 1 ], 'ability' => 'coupon.update' ],
             'saveRename'                   => [ 'args' => [], 'ability' => 'coupon.update' ],
             'cancelRename'                 => [ 'args' => [], 'ability' => 'promotion.view' ],
             'confirmDelete'                => [ 'args' => [ 1 ], 'ability' => 'coupon.delete' ],
             'cancelDelete'                 => [ 'args' => [], 'ability' => 'promotion.view' ],
             'deleteCode'                   => [ 'args' => [ 'token' ], 'ability' => 'coupon.delete' ],
-            'generateCodes'                => [ 'args' => [], 'ability' => 'coupon.create' ],
+            'generateCodes'                => [ 'args' => [], 'ability' => 'coupon.create', 'also' => [ 'promotion.update' ] ],
             'exportCodes'                  => [ 'args' => [], 'ability' => 'promotion.update' ],
             'queryStringHandlesPagination' => [ 'args' => [], 'ability' => 'promotion.view' ],
             'getPage'                      => [ 'args' => [], 'ability' => 'promotion.view' ],
@@ -652,6 +652,7 @@ const MATRIX = [
             'cancelRotate'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
             'rotateSecret'                 => [ 'args' => [ 'token' ], 'ability' => 'webhookSubscription.update' ],
             'reEnable'                     => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
+            'sendMissedDeliveries'         => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
             'dismissSecret'                => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
         ],
     ],
@@ -681,6 +682,7 @@ const MATRIX = [
             'cancelRotate'                 => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
             'rotateSecret'                 => [ 'args' => [ 'token' ], 'ability' => 'webhookSubscription.update' ],
             'reEnable'                     => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
+            'sendMissedDeliveries'         => [ 'args' => [ 1 ], 'ability' => 'webhookSubscription.update' ],
             'dismissSecret'                => [ 'args' => [], 'ability' => 'webhookSubscription.viewAny' ],
         ],
     ],
@@ -1064,7 +1066,7 @@ it( 'allows the action with only its ability', function ( ?string $name, ?string
 
     $mount      = MATRIX[ $name ]['mount'];
     $definition = MATRIX[ $name ]['actions'][ $action ];
-    matrixGrant( [ $mount['ability'], $definition['ability'] ] );
+    matrixGrant( [ $mount['ability'], $definition['ability'], ...( $definition['also'] ?? [] ) ] );
 
     Livewire::actingAs( makeUser() )
         ->test( $name, matrixParams( $mount['params'] ) )

@@ -84,6 +84,16 @@ class Show extends Component
     public const DEFAULT_PRESET = 'last-30-days';
 
     /**
+     * The longest range, in days, that a preset resets a monthly interval
+     * to daily for.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const SHORT_RANGE_DAYS = 31;
+
+    /**
      * The report key.
      *
      * @since 1.0.0
@@ -223,7 +233,9 @@ class Show extends Component
     }
 
     /**
-     * Fills the dates from the chosen preset.
+     * Fills the dates from the chosen preset. A preset of a month or less
+     * switches a monthly interval back to daily, so a short range doesn't
+     * collapse into one or two buckets after a year preset forced `month`.
      *
      * @since 1.0.0
      *
@@ -235,8 +247,14 @@ class Show extends Component
             $this->preset = self::DEFAULT_PRESET;
         }
 
-        if ( 'custom' !== $this->preset ) {
-            $this->applyPreset();
+        if ( 'custom' === $this->preset ) {
+            return;
+        }
+
+        $this->applyPreset();
+
+        if ( 'month' === $this->interval && CarbonImmutable::parse( $this->from )->diffInDays( CarbonImmutable::parse( $this->to ) ) < self::SHORT_RANGE_DAYS ) {
+            $this->interval = 'day';
         }
     }
 

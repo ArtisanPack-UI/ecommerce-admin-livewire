@@ -77,6 +77,35 @@ it( 'releases the token when the write fails, so a retry can succeed', function 
     expect( OrderNote::query()->count() )->toBe( 1 );
 } );
 
+it( 'keeps the token spent when the write throws something outside releaseOn', function (): void {
+    $component = Livewire::test( TokenScreen::class, [ 'orderId' => $this->order->id ] );
+    $token     = refundToken( $component );
+
+    $component->set( 'failNext', true )->set( 'releaseOnlyOn', InvalidArgumentException::class );
+
+    expect( fn () => $component->call( 'refund', $token ) )->toThrow( RuntimeException::class );
+    expect( IdempotencyRecord::query()->count() )->toBe( 1 );
+
+    $component->set( 'failNext', false )->call( 'refund', $token );
+
+    expect( OrderNote::query()->count() )->toBe( 0 )
+        ->and( sentToasts( $component ) )->toContain( 'That action was already submitted.' );
+} );
+
+it( 'releases the token for an exception listed in releaseOn', function (): void {
+    $component = Livewire::test( TokenScreen::class, [ 'orderId' => $this->order->id ] );
+    $token     = refundToken( $component );
+
+    $component->set( 'failNext', true )->set( 'releaseOnlyOn', RuntimeException::class );
+
+    expect( fn () => $component->call( 'refund', $token ) )->toThrow( RuntimeException::class );
+    expect( IdempotencyRecord::query()->count() )->toBe( 0 );
+
+    $component->set( 'failNext', false )->call( 'refund', $token );
+
+    expect( OrderNote::query()->count() )->toBe( 1 );
+} );
+
 it( 'refuses a token minted for another order', function (): void {
     $other     = Order::factory()->create();
     $component = Livewire::test( TokenScreen::class, [ 'orderId' => $this->order->id ] );

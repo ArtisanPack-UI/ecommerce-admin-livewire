@@ -14,8 +14,10 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
 use ArtisanPackUI\EcommerceAdminLivewire\Jobs\RunProductImport;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -70,6 +72,16 @@ final class ProductImports
      * @var int
      */
     public const KEEP_DAYS = 7;
+
+    /**
+     * Seconds past the job's timeout before a silent queued or running
+     * import counts as abandoned.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const ABANDONED_GRACE_SECONDS = 120;
 
     /**
      * The cache lock that keeps one worker per import.
@@ -210,18 +222,9 @@ final class ProductImports
             }
         }
 
-        return $latest;
+        return null === $latest ? null : self::failIfAbandoned( $latest );
     }
 
-    /**
-     * Writes an import's state.
-     *
-     * @since 1.0.0
-     *
-     * @param  array<string, mixed>  $state  State.
-     *
-     * @return array<string, mixed>
-     */
     /**
      * Deletes every import that is not queued or running and was last
      * touched more than {@see self::KEEP_DAYS} days ago: completed, failed,
@@ -249,7 +252,8 @@ final class ProductImports
     }
 
     /**
-     * Whether an import is inactive and older than {@see self::KEEP_DAYS} days.
+     * Whether an import is inactive (or abandoned) and older than
+     * {@see self::KEEP_DAYS} days.
      *
      * @since 1.0.0
      *
@@ -259,15 +263,79 @@ final class ProductImports
      */
     public static function isStale( array $state ): bool
     {
-        return ! in_array( $state['status'] ?? null, self::ACTIVE, true )
+        return ( ! in_array( $state['status'] ?? null, self::ACTIVE, true ) || self::isAbandoned( $state ) )
             && (string) ( $state['updated_at'] ?? '' ) < Carbon::now()->subDays( self::KEEP_DAYS )->toIso8601String();
     }
 
+    /**
+     * Whether a queued or running import has stopped without saying so: a
+     * worker that was killed (out of memory, a timeout) never releases its
+     * lock or marks the import failed. The job saves its state every few
+     * seconds, so `updated_at` is a heartbeat; one older than the job's
+     * timeout plus {@see self::ABANDONED_GRACE_SECONDS} means no worker is
+     * applying it any more.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>  $state  Import state.
+     *
+     * @return bool
+     */
+    public static function isAbandoned( array $state ): bool
+    {
+        return in_array( $state['status'] ?? null, self::ACTIVE, true )
+            && (string) ( $state['updated_at'] ?? '' ) < Carbon::now()->subSeconds( RunProductImport::TIMEOUT + self::ABANDONED_GRACE_SECONDS )->toIso8601String();
+    }
+
+    /**
+     * Marks an abandoned import failed, so it can be resumed or discarded.
+     * Imports that are not abandoned are returned unchanged.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>  $state  Import state.
+     *
+     * @return array<string, mixed>
+     */
+    public static function failIfAbandoned( array $state ): array
+    {
+        if ( ! self::isAbandoned( $state ) ) {
+            return $state;
+        }
+
+        $lock = Cache::lock( self::lockKey( (string) $state['id'] ), 10 );
+
+        if ( ! $lock->get() ) {
+            return $state;
+        }
+
+        try {
+            $state['status']  = 'failed';
+            $state['message'] = __( 'The import stopped part-way. Resume it to carry on from the next row.' );
+
+            return self::save( $state );
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Writes an import's state.
+     *
+     * Invalid UTF-8 (a stray Windows-1252 byte) is substituted rather than
+     * failing the encode, which would blank the state file.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<string, mixed>  $state  State.
+     *
+     * @return array<string, mixed>
+     */
     public static function save( array $state ): array
     {
         $state['updated_at'] = Carbon::now()->toIso8601String();
 
-        self::disk()->put( self::path( (string) $state['id'], 'state.json' ), (string) json_encode( $state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+        self::disk()->put( self::path( (string) $state['id'], 'state.json' ), json_encode( $state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR ) );
 
         return $state;
     }
@@ -368,6 +436,7 @@ final class ProductImports
     {
         // The dry-run report is not needed once rows are being written, and
         // the state is saved every few rows.
+        $previous         = $state;
         $state['status']  = 'queued';
         $state['message'] = null;
         $state['report']  = null;
@@ -380,7 +449,17 @@ final class ProductImports
             $job->onQueue( $queue );
         }
 
-        dispatch( $job );
+        try {
+            app( Dispatcher::class )->dispatch( $job );
+        } catch ( Throwable $exception ) {
+            // A queue connection that throws would otherwise leave the
+            // import `queued` with no job behind it.
+            report( $exception );
+
+            $previous['message'] = __( 'The import could not be queued. Try again in a moment.' );
+
+            return self::save( $previous );
+        }
 
         return self::find( (string) $state['id'] ) ?? $state;
     }

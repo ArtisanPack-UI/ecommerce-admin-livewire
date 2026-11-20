@@ -381,7 +381,7 @@ class Automations extends Component
         $key = (string) $this->form['trigger_key'];
 
         if ( ! app( ConfigFormRegistry::class )->has( 'kanban-trigger', $key ) ) {
-            $decoded = json_decode( (string) $this->form['trigger_config'], true );
+            $decoded = is_string( $this->form['trigger_config'] ) ? json_decode( $this->form['trigger_config'], true ) : null;
 
             if ( ! is_array( $decoded ) || array_is_list( $decoded ) && [] !== $decoded ) {
                 $this->addError( 'form.trigger_config', __( 'The settings must be a JSON object.' ) );

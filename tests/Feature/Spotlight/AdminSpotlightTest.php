@@ -407,6 +407,26 @@ it( 'drops result links that are not relative or on the app\'s host', function (
     expect( array_column( AdminSpotlight::search( 'x', $this->user ), 'name' ) )->toBe( [ 'Relative', 'App URL' ] );
 } );
 
+it( 'cuts a provider that ignores the limit at RESULTS_PER_LIMIT times it', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+    config()->set( 'artisanpack.ecommerce-admin-livewire.spotlight.limit', 2 );
+
+    addFilter( AdminSpotlight::PROVIDERS_FILTER, static fn ( array $providers ): array => [ 'greedy' => new class implements SpotlightProvider {
+        public function ability(): ?string
+        {
+            return null;
+        }
+
+        public function search( string $search, Authenticatable $user, int $limit ): array
+        {
+            return array_map( static fn ( int $index ): array => [ 'name' => 'Result ' . $index, 'link' => '/ecommerce-admin/orders' ], range( 1, 500 ) );
+        }
+    } ] );
+
+    expect( AdminSpotlight::search( 'x', $this->user ) )->toHaveCount( 2 * AdminSpotlight::RESULTS_PER_LIMIT )
+        ->and( AdminSpotlight::RESULTS_PER_LIMIT )->toBe( 3 );
+} );
+
 it( 'names result icons from the design-system registry, never markup', function (): void {
     expect( AdminSpotlight::icon( 'o-user' ) )->toBe( 'user' )
         ->and( AdminSpotlight::icon( 'message-square' ) )->toBe( 'message-square' )
@@ -506,10 +526,19 @@ it( 'renders the field-like trigger, the actions, the empty state and the key le
         ->toContain( 'data-part="item-group-label"' )
         ->toContain( 'New product' )
         ->toContain( 'Try an order number, a SKU, or a customer’s email.' )
-        ->toContain( '<span class="apui-sr-only">Up and Down arrows </span>to move' )
-        ->toContain( '<span class="apui-sr-only">Escape </span>to close' )
-        ->toContain( 'to open' )
-        ->toContain( 'to close' );
+        ->toContain( '<span class="apui-sr-only">Up and Down arrows</span> to move' )
+        ->toContain( '<span class="apui-sr-only">Enter</span> to open' )
+        ->toContain( '<span class="apui-sr-only">Escape</span> to close' );
+} );
+
+it( 'lets each locale order the keys and the verb in the key legend', function (): void {
+    grantAbilities( [ 'order.viewAny', 'order.view' ] );
+    app()->setLocale( 'zh_CN' );
+
+    $html = $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk()->getContent();
+
+    expect( $html )
+        ->toContain( '<span class="ec-admin-spotlight-legend">按 <span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>Esc</kbd></span><span class="apui-sr-only">Esc</span> 关闭</span>' );
 } );
 
 it( 'sends searched results only icons the browser registry ships', function (): void {

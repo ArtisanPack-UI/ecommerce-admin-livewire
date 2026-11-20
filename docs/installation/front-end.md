@@ -25,7 +25,7 @@ The admin no longer uses daisyUI. If the admin was the only thing using it, remo
 
 ```bash
 npm install -D tailwindcss @tailwindcss/vite
-npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop
+npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop@^2
 ```
 
 | Package | Used for |
@@ -109,7 +109,7 @@ Return an empty array to load nothing, for example when your own layout already 
 
 ## Content Security Policy
 
-If your application sends a Content Security Policy with a nonce, the admin's inline scripts and its inline `<style>` carry the same nonce: they read it from `Vite::cspNonce()`. The admin uses no inline `style=` attributes, so a nonce-only `style-src` works too. Generate the nonce in a middleware that runs on admin pages (add it to `admin.middleware`):
+If your application sends a Content Security Policy with a nonce, the admin's inline scripts and its inline `<style>` carry the same nonce: they read it from `Vite::cspNonce()`. Generate the nonce in a middleware that runs on admin pages (add it to `admin.middleware`):
 
 ```php
 use Illuminate\Support\Facades\Vite;
@@ -118,8 +118,12 @@ Vite::useCspNonce();
 
 $nonce = Vite::cspNonce();
 
-$response->headers->set( 'Content-Security-Policy', "script-src 'nonce-{$nonce}' 'strict-dynamic' 'unsafe-eval'; style-src 'self' 'nonce-{$nonce}'" );
+$response->headers->set( 'Content-Security-Policy', "script-src 'nonce-{$nonce}' 'strict-dynamic' 'unsafe-eval'; style-src 'self' 'nonce-{$nonce}'; style-src-attr 'unsafe-inline'" );
 ```
+
+A nonce covers `<style>` tags, but not inline `style="…"` attributes: no nonce can. `livewire-ui-components` 3.0 renders some of those itself. Its dialog, drawer, popover, dropdown menu, tooltip, combobox, spotlight, user menu, and toaster wrap their content in an element with `style="display: contents"`, and the range, collapse, and color picker set position and size through `style`. A nonce-only `style-src` blocks all of them, so wrappers start taking up layout space and sliders and swatches render wrong. The `style-src-attr 'unsafe-inline'` directive above allows inline style attributes only, while `<style>` tags still need the nonce. Browsers that don't support `style-src-attr` fall back to `style-src` and block the attributes, so if you need to support them, add `'unsafe-inline'` to `style-src` instead and drop the nonce from it (a nonce makes browsers ignore `'unsafe-inline'`).
+
+Inline style attributes can't run script, so allowing them is a much smaller risk than allowing inline scripts.
 
 A nonce covers script and style tags, but not the expressions in `wire:` and `x-` attributes. Livewire and Alpine evaluate those with `new Function()`, which a policy blocks unless `script-src` allows `'unsafe-eval'`. Without it, buttons, drawers, and forms stop responding. Livewire 4 has a `csp_safe` option that avoids `'unsafe-eval'`, but it only supports simple expressions, and the admin isn't tested with it, so keep `'unsafe-eval'` for admin pages.
 

@@ -55,7 +55,7 @@
                         <div data-scope="card" data-part="header">
                             <div>
                                 <h2 id="settings-satellites-heading" data-scope="card" data-part="title">{{ $tab['label'] }}</h2>
-                                <p data-scope="card" data-part="description">{!! __( 'Packages that extend the store. Uninstall a satellite with :command.', [ 'command' => '<bdi dir="ltr" class="ec-mono">php artisan ecommerce:satellite:uninstall</bdi>' ] ) !!}</p>
+                                <p data-scope="card" data-part="description">{!! strtr( e( __( 'Packages that extend the store. Uninstall a satellite with :command.' ) ), [ ':command' => '<bdi dir="ltr" class="ec-mono">php artisan ecommerce:satellite:uninstall</bdi>' ] ) !!}</p>
                             </div>
                         </div>
 
@@ -353,7 +353,7 @@
                         data-base-currency-dialog
                     >
                         <div class="ec-stack-sm" data-base-currency-warning>
-                            <p class="ec-body">{!! __( 'The base currency is changing from :from to :to.', [ 'from' => '<strong>' . e( $baseCurrency ) . '</strong>', 'to' => '<strong>' . e( $newBaseCurrency ) . '</strong>' ] ) !!}</p>
+                            <p class="ec-body">{!! strtr( e( __( 'The base currency is changing from :from to :to.' ) ), [ ':from' => '<strong>' . e( $baseCurrency ) . '</strong>', ':to' => '<strong>' . e( $newBaseCurrency ) . '</strong>' ] ) !!}</p>
                             <ul class="ec-bullets">
                                 <li>{{ __( 'Existing orders keep the base currency and exchange rate they were placed with.' ) }}</li>
                                 <li>{{ __( 'New orders use the new base currency.' ) }}</li>

@@ -83,10 +83,10 @@
                 <p class="ec-muted ec-measure">{{ __( 'Choose the column each header in ":file" fills. Ignored headers are skipped.', [ 'file' => $state['file_name'] ] ) }}</p>
 
                 @error( 'mapping' )
-                    <x-artisanpack-alert color="error" icon="circle-alert" role="alert">{{ $message }}</x-artisanpack-alert>
+                    <x-artisanpack-alert color="error" icon="circle-alert">{{ $message }}</x-artisanpack-alert>
                 @else
                     @unless ( $hasKeyColumn )
-                        <x-artisanpack-alert color="warning" icon="triangle-alert" role="status" id="import-needs-key" data-import-needs-key>{{ __( 'Map at least one of SKU, slug, name, or variant SKU so rows can be matched.' ) }}</x-artisanpack-alert>
+                        <x-artisanpack-alert color="warning" icon="triangle-alert" id="import-needs-key" data-import-needs-key>{{ __( 'Map at least one of SKU, slug, name, or variant SKU so rows can be matched.' ) }}</x-artisanpack-alert>
                     @endunless
                 @enderror
 
@@ -144,6 +144,14 @@
                 $importing = $creates + $updates;
             @endphp
             <div class="ec-stack-lg" data-import-report>
+                @if ( filled( $state['message'] ?? null ) )
+                    <x-artisanpack-alert color="error" icon="circle-alert" data-import-message>{{ $state['message'] }}</x-artisanpack-alert>
+                @endif
+
+                @if ( $stockWarning )
+                    <x-artisanpack-alert color="warning" icon="triangle-alert" data-import-stock-warning>{{ __( 'Stock columns will be skipped: you can\'t adjust stock.' ) }}</x-artisanpack-alert>
+                @endif
+
                 <div class="ec-import-counts" role="status" data-import-counts>
                     <x-artisanpack-stat size="sm" color="success" icon="plus" :value="(string) $creates" :label="trans_choice( 'new product or variant|new products or variants', $creates )" data-import-count="create" />
                     <x-artisanpack-stat size="sm" color="info" icon="refresh-cw" :value="(string) $updates" :label="trans_choice( 'update|updates', $updates )" data-import-count="update" />
@@ -239,7 +247,8 @@
                         :color="$barColor"
                         data-import-progressbar
                     />
-                    <p class="ec-muted" role="status" data-import-sentence>
+                    {{-- Not a live region: it changes on every poll. The sr-only status below speaks only on a status change or a quarter mark. --}}
+                    <p class="ec-muted" data-import-sentence>
                         {{ __( ':processed of :total rows done: :created created, :updated updated, :failed failed.', [
                             'processed' => $state['processed'],
                             'total'     => $state['total'],
@@ -248,6 +257,7 @@
                             'failed'    => $failed,
                         ] ) }}
                     </p>
+                    <p class="apui-sr-only" role="status" data-import-announcement>{{ $announcement }}</p>
                 </div>
 
                 @if ( 'queued' === $step )
@@ -255,13 +265,19 @@
                 @endif
 
                 @if ( 'completed' === $step && $failed > 0 )
-                    <x-artisanpack-alert color="warning" icon="triangle-alert" :title="__( 'Import finished' )" role="status" data-import-finished-with-failures>
+                    <x-artisanpack-alert color="warning" icon="triangle-alert" :title="__( 'Import finished' )" data-import-finished-with-failures>
                         {{ trans_choice( ':count row failed. Download the report to fix and re-upload it.|:count rows failed. Download the report to fix and re-upload them.', $failed, [ 'count' => $failed ] ) }}
                     </x-artisanpack-alert>
                 @endif
 
+                @if ( $stockSkipped > 0 )
+                    <x-artisanpack-alert color="warning" icon="triangle-alert" data-import-stock-skipped>
+                        {{ trans_choice( 'Stock columns were skipped on :count row: you can\'t adjust stock.|Stock columns were skipped on :count rows: you can\'t adjust stock.', $stockSkipped, [ 'count' => $stockSkipped ] ) }}
+                    </x-artisanpack-alert>
+                @endif
+
                 @if ( filled( $state['message'] ) )
-                    <x-artisanpack-alert :color="'failed' === $step ? 'error' : 'info'" :icon="'failed' === $step ? 'circle-alert' : 'info'" role="status" data-import-message>{{ $state['message'] }}</x-artisanpack-alert>
+                    <x-artisanpack-alert :color="'failed' === $step ? 'error' : 'info'" :icon="'failed' === $step ? 'circle-alert' : 'info'" data-import-message>{{ $state['message'] }}</x-artisanpack-alert>
                 @endif
 
                 @if ( in_array( $step, [ 'completed', 'failed' ], true ) )

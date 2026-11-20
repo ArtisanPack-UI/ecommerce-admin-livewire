@@ -53,8 +53,48 @@ it( 'shows a dash for the average when there are no orders', function (): void {
     $customer = Customer::factory()->create();
 
     Livewire::test( Show::class, [ 'customer' => $customer->id ] )
-        ->assertSeeHtml( 'data-stat="average-order-value">—' )
+        ->assertSeeHtml( 'data-stat="average-order-value"><span aria-hidden="true">&mdash;</span><span class="apui-sr-only">None</span>' )
         ->assertSee( 'None yet' );
+} );
+
+it( 'names a missing "customer since" date for screen readers', function (): void {
+    $customer = Customer::factory()->create();
+    Customer::query()->whereKey( $customer->id )->update( [ 'created_at' => null ] );
+
+    Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->assertSeeHtml( '<dd><span aria-hidden="true">&mdash;</span><span class="apui-sr-only">None</span></dd>' );
+} );
+
+it( 'answers 403, not 404, for a missing customer when the user cannot list customers', function (): void {
+    $url = route( 'artisanpack.ecommerce.admin.customers.show', [ 'customer' => 999 ] );
+
+    $this->get( $url )->assertNotFound();
+
+    Gate::define( 'ecommerce.customer.viewAny', static fn (): bool => false );
+
+    $this->get( $url )->assertForbidden();
+    Livewire::test( Show::class, [ 'customer' => 999 ] )->assertForbidden();
+} );
+
+it( 'names the customer in the page title', function (): void {
+    $customer = Customer::factory()->create( [ 'first_name' => 'Ada', 'last_name' => 'Lovelace' ] );
+
+    $this->get( route( 'artisanpack.ecommerce.admin.customers.show', [ 'customer' => $customer->id ] ) )
+        ->assertOk()
+        ->assertSee( '<title>Ada Lovelace &middot;', false );
+} );
+
+it( 'keeps names with angle brackets intact', function (): void {
+    $customer = Customer::factory()->create( [ 'first_name' => 'Ada', 'last_name' => 'Lovelace' ] );
+
+    Livewire::test( Show::class, [ 'customer' => $customer->id ] )
+        ->call( 'startEdit' )
+        ->set( 'lastName', '  O<Brien  ' )
+        ->call( 'saveDetails' )
+        ->assertHasNoErrors()
+        ->assertSeeHtml( 'Ada O&lt;Brien' );
+
+    expect( $customer->fresh()->last_name )->toBe( 'O<Brien' );
 } );
 
 it( 'is denied without customer.view', function (): void {
@@ -70,6 +110,17 @@ it( 'renders the built-in tabs and opens the orders tab first', function (): voi
         ->assertSet( 'tab', 'orders' )
         ->assertSeeInOrder( [ 'Orders', 'Addresses', 'Notification preferences', 'Notes', 'Activity' ] )
         ->assertSeeHtml( 'data-customer-tab="orders"' );
+} );
+
+it( 'gives each tab a value rather than the deprecated name', function (): void {
+    $source = (string) file_get_contents( dirname( __DIR__, 4 ) . '/resources/views/livewire/customers/show.blade.php' );
+
+    expect( $source )->toContain( '<x-artisanpack-tab :value=' )
+        ->not->toMatch( '/<x-artisanpack-tab\s[^>]*:?name=/' );
+
+    Livewire::test( Show::class, [ 'customer' => Customer::factory()->create()->id ] )
+        ->set( 'tab', 'addresses' )
+        ->assertSeeHtml( 'data-customer-tab="addresses"' );
 } );
 
 it( 'hides the orders tab without order.viewAny', function (): void {
@@ -242,7 +293,16 @@ it( 'deletes the customer, anonymizes their orders, and returns to the list', fu
     $component->set( 'deleteConfirmation', ' ADA@example.test ' )
         ->call( 'deleteCustomer', customerDeleteToken( $component ) )
         ->assertHasNoErrors()
-        ->assertRedirect( route( 'artisanpack.ecommerce.admin.customers.index' ) );
+        ->assertRedirect( route( 'artisanpack.ecommerce.admin.customers.index' ) )
+        ->assertNotDispatched( 'toast' );
+
+    // The toast survives the redirect: it is flashed, and the list's toaster shows it.
+    expect( session( ArtisanPack\LivewireUiComponents\Support\Toasts::SESSION_KEY ) )->toBe( [ [ 'title' => 'Customer deleted. Their orders were kept and anonymized.', 'color' => 'success' ] ] );
+
+    $this->get( route( 'artisanpack.ecommerce.admin.customers.index' ) )
+        ->assertOk()
+        ->assertSee( 'data-apui-flashed-toasts', false )
+        ->assertSee( 'Customer deleted. Their orders were kept and anonymized.' );
 
     $order->refresh();
 

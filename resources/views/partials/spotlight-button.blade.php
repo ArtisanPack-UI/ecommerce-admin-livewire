@@ -54,9 +54,22 @@
         </x-slot:empty>
 
         <x-slot:footer>
-            <span class="ec-admin-spotlight-legend"><span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd></span><span class="apui-sr-only">{{ __( 'Up and Down arrows' ) }} </span>{{ __( 'to move' ) }}</span>
-            <span class="ec-admin-spotlight-legend"><span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>↵</kbd></span><span class="apui-sr-only">{{ __( 'Enter' ) }} </span>{{ __( 'to open' ) }}</span>
-            <span class="ec-admin-spotlight-legend"><span data-scope="spotlight" data-part="shortcut" aria-hidden="true"><kbd>Esc</kbd></span><span class="apui-sr-only">{{ __( 'Escape' ) }} </span>{{ __( 'to close' ) }}</span>
+            @php
+                /*
+                 * One translation per legend item, so each locale orders the
+                 * keys and the verb itself. The keys are glyphs for sighted
+                 * users (hidden from screen readers) plus their spoken names;
+                 * `%keys%` marks where they go in the escaped sentence.
+                 */
+                $legendItem = static function ( string $sentence, string $glyphs, string $spoken ): string {
+                    $keys = '<span data-scope="spotlight" data-part="shortcut" aria-hidden="true">' . $glyphs . '</span><span class="apui-sr-only">' . e( $spoken ) . '</span>';
+
+                    return str_replace( '%keys%', $keys, e( $sentence ) );
+                };
+            @endphp
+            <span class="ec-admin-spotlight-legend">{!! $legendItem( __( ':keys to move', [ 'keys' => '%keys%' ] ), '<kbd>↑</kbd><kbd>↓</kbd>', __( 'Up and Down arrows' ) ) !!}</span>
+            <span class="ec-admin-spotlight-legend">{!! $legendItem( __( ':keys to open', [ 'keys' => '%keys%' ] ), '<kbd>↵</kbd>', __( 'Enter' ) ) !!}</span>
+            <span class="ec-admin-spotlight-legend">{!! $legendItem( __( ':keys to close', [ 'keys' => '%keys%' ] ), '<kbd>Esc</kbd>', __( 'Escape' ) ) !!}</span>
         </x-slot:footer>
     </x-artisanpack-spotlight>
 @endif

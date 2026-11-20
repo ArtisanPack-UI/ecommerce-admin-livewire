@@ -150,7 +150,7 @@ trait WithConfigForms
         $schema = $forms->schema( $registry, $entry );
 
         if ( null === $schema ) {
-            return (array) json_decode( (string) $value, true );
+            return is_string( $value ) ? (array) json_decode( $value, true ) : [];
         }
 
         $config = ConfigFormRegistry::cast( $schema, (array) $value );

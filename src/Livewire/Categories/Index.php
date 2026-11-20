@@ -21,6 +21,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\AuthorizesEcommerce;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\SendsToasts;
 use ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -246,7 +247,7 @@ class Index extends Component
                 'form.parent_id'      => [ 'nullable', 'integer', Rule::exists( ProductCategory::class, 'id' ) ],
                 'form.description'    => [ 'nullable', 'string', 'max:5000' ],
                 'form.icon'           => [ 'nullable', 'string', 'max:80' ],
-                'form.image_media_id' => [ 'nullable', 'integer', 'min:1' ],
+                'form.image_media_id' => [ 'nullable', 'integer', 'min:1', DigitalDisks::viewableMedia( [ $category?->image_media_id ] ) ],
             ],
             [],
             [
@@ -518,7 +519,7 @@ class Index extends Component
             'targetOptions'    => null === $deleting ? [] : self::options( $byParent, self::subtreeIds( (int) $deleting->id ) ),
             'deleteToken'      => null === $deleting ? null : $this->actionToken( 'delete', $deleting ),
             'mediaLibrary'     => ProductMedia::libraryInstalled(),
-            'imagePreview'     => ProductMedia::mediaUrl( self::idOrNull( $this->form['image_media_id'] ) ),
+            'imagePreview'     => $this->imagePreview(),
         ] );
     }
 
@@ -584,6 +585,32 @@ class Index extends Component
     protected function canAbility( string $ability ): bool
     {
         return Authorization::allows( auth()->user(), $ability );
+    }
+
+    /**
+     * The drawer image's thumbnail, when the category already uses it or
+     * the user may view it: the id is client-writable, so any other item
+     * would leak the media library's files.
+     *
+     * @since 2.0.0
+     *
+     * @return string|null
+     */
+    protected function imagePreview(): ?string
+    {
+        $mediaId = self::idOrNull( $this->form['image_media_id'] );
+
+        if ( null === $mediaId || ! function_exists( 'apGetMediaUrl' ) ) {
+            return null;
+        }
+
+        $saved = null === $this->categoryId ? null : ProductCategory::query()->whereKey( $this->categoryId )->value( 'image_media_id' );
+
+        if ( (int) $saved !== $mediaId && ! DigitalDisks::canViewMedia( $mediaId ) ) {
+            return null;
+        }
+
+        return ProductMedia::mediaUrl( $mediaId );
     }
 
     /**

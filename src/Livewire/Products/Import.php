@@ -47,7 +47,8 @@ use Throwable;
  * - The uploaded file is deleted when the import completes or is discarded.
  *
  * The screen needs `product.create` or `product.update`; each row then
- * needs `product.create` or `product.update` for what it does.
+ * needs `product.create` or `product.update` for what it does, and stock
+ * columns are skipped without `inventory.adjust`.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -178,7 +179,7 @@ class Import extends Component
      * Not named `upload`: `$wire.upload()` is Livewire's own file-upload
      * call, so `wire:submit="upload"` started an upload with no file.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
      * @return void
      */
@@ -274,6 +275,7 @@ class Import extends Component
         }
 
         $state['mapping'] = $mapping;
+        $state['message'] = null;
         $state['report']  = ProductImports::withSource( $state, static function ( string $path ) use ( $mapping ): array {
             $context = [];
             $rows    = [];
@@ -447,13 +449,18 @@ class Import extends Component
             'reportPreview' => array_slice( array_values( array_filter( $rows, static fn ( array $row ): bool => 'error' !== $row['action'] ) ), 0, self::REPORT_PREVIEW ),
             'applyToken'    => null !== $state && 'checked' === $state['status'] ? $this->actionToken( 'apply', $state['id'] ) : null,
             'progress'      => $progress,
+            'announcement'  => self::announcement( $state, $progress ),
+            'stockSkipped'  => (int) ( $state['warnings']['stock'] ?? 0 ),
+            'stockWarning'  => null !== $state && 'checked' === $state['status'] && $this->mapsStock( (array) $state['mapping'] ) && ! Authorization::allows( auth()->user(), 'inventory.adjust' ),
             'maxRows'       => self::maxRows(),
             'maxUploadMb'   => (int) ( self::MAX_UPLOAD_KB / 1024 ),
         ] );
     }
 
     /**
-     * The import in progress, when it belongs to this user.
+     * The import in progress, when it belongs to this user. One whose worker
+     * died (see {@see ProductImports::isAbandoned()}) comes back failed, so it
+     * can be resumed or discarded.
      *
      * @since 1.0.0
      *
@@ -461,7 +468,46 @@ class Import extends Component
      */
     protected function state(): ?array
     {
-        return null === $this->importId ? null : ProductImports::findFor( $this->importId, auth()->id() );
+        $state = null === $this->importId ? null : ProductImports::findFor( $this->importId, auth()->id() );
+
+        return null === $state ? null : ProductImports::failIfAbandoned( $state );
+    }
+
+    /**
+     * Whether a mapping fills any stock column.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, string>  $mapping  Header => column.
+     *
+     * @return bool
+     */
+    protected function mapsStock( array $mapping ): bool
+    {
+        return [] !== array_intersect( array_values( $mapping ), ProductCsv::STOCK_COLUMNS );
+    }
+
+    /**
+     * What the progress live region says. It changes only when the status
+     * changes or the import passes a quarter mark, so a screen reader is
+     * not interrupted on every five-second poll.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>|null  $state     State.
+     * @param  int                        $progress  Percent done.
+     *
+     * @return string
+     */
+    protected static function announcement( ?array $state, int $progress ): string
+    {
+        return match ( $state['status'] ?? null ) {
+            'queued'    => __( 'Waiting for the queue to start the import.' ),
+            'running'   => __( 'Importing: :percent percent done.', [ 'percent' => intdiv( $progress, 25 ) * 25 ] ),
+            'completed' => __( 'The import is complete.' ),
+            'failed'    => __( 'The import stopped.' ),
+            default     => '',
+        };
     }
 
     /**

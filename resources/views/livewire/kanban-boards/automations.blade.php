@@ -191,13 +191,23 @@
     </x-artisanpack-drawer>
 
     @if ( null !== $deleting )
-        <x-artisanpack-dialog wire:model="confirmingDelete" :title="__( 'Delete this automation?' )">
+        <x-artisanpack-dialog
+            wire:model="confirmingDelete"
+            role="alertdialog"
+            size="sm"
+            color="error"
+            icon="trash"
+            :title="__( 'Delete this automation?' )"
+            :close-label="__( 'Close' )"
+            :classes="[ 'footer' => 'ec-dialog-footer-divided' ]"
+            data-delete-confirm
+        >
             <p class="ec-body" data-delete-automation="{{ $deleting['id'] }}">
                 {{ __( ':from to :to: :trigger. Deleting it cannot be undone.', [ 'from' => $deleting['from'], 'to' => $deleting['to'], 'trigger' => $deleting['trigger'] ] ) }}
             </p>
 
             <x-slot:footer>
-                <x-artisanpack-button variant="ghost" color="neutral" wire:click="cancelDelete">{{ __( 'Keep automation' ) }}</x-artisanpack-button>
+                <x-artisanpack-button variant="ghost" color="neutral" wire:click="cancelDelete" data-autofocus>{{ __( 'Keep automation' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
                     color="error"
                     wire:click="delete( {{ \Illuminate\Support\Js::from( $deleteToken ) }} )"

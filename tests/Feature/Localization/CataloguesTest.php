@@ -37,10 +37,18 @@ function adminPlaceholders( string $value ): array
  */
 function adminExpectedPipes( string $locale, string $key ): int
 {
-    $pipes = substr_count( $key, '|' );
+    $pipes    = substr_count( $key, '|' );
+    $interval = 1 === preg_match( '/^\s*[{\[]/', $key );
 
-    if ( 'ar' === $locale && 1 === $pipes && 1 !== preg_match( '/^\s*[{\[]/', $key ) ) {
+    if ( 'ar' === $locale && 1 === $pipes && ! $interval ) {
         return 5;
+    }
+
+    // Laravel always picks the first segment for Japanese and Chinese, so a
+    // second one would never be shown: these locales use a single segment
+    // that carries `:count`.
+    if ( in_array( $locale, [ 'ja', 'zh_CN' ], true ) && ! $interval ) {
+        return 0;
     }
 
     return $pipes;
@@ -54,6 +62,47 @@ it( 'has a catalogue entry in every locale for every key in src/ and resources/'
         '--path'      => [ $root . '/src', $root . '/resources' ],
         '--lang'      => $root . '/lang',
     ] )->expectsOutputToContain( 'Translation lint passed.' )->assertExitCode( 0 );
+} );
+
+/**
+ * Keys the admin translates for strings the engine or livewire-ui-components
+ * render on its screens (config-form labels, sub-status delete errors, the
+ * rating's accessible name), so they never appear in this package's source.
+ */
+const ADMIN_UPSTREAM_KEYS = [
+    ':count board card|:count board cards',
+    ':count kanban column|:count kanban columns',
+    ':value out of :max',
+    'Days',
+    'Field',
+    'Job',
+    'Match',
+];
+
+it( 'ships no keys that src/, resources/, config/, or routes/ no longer use', function (): void {
+    $root   = dirname( __DIR__, 3 );
+    $source = '';
+
+    foreach ( [ 'src', 'resources', 'config', 'routes' ] as $directory ) {
+        if ( ! is_dir( "{$root}/{$directory}" ) ) {
+            continue;
+        }
+
+        foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( "{$root}/{$directory}", FilesystemIterator::SKIP_DOTS ) ) as $file ) {
+            if ( str_ends_with( $file->getFilename(), '.php' ) ) {
+                $source .= file_get_contents( $file->getPathname() );
+            }
+        }
+    }
+
+    $orphaned = array_values( array_filter(
+        array_keys( adminCatalogue( 'en' ) ),
+        static fn ( string $key ): bool => ! in_array( $key, ADMIN_UPSTREAM_KEYS, true )
+            && ! str_contains( $source, "'" . addcslashes( $key, "'\\" ) . "'" )
+            && ! str_contains( $source, '"' . addcslashes( $key, '"\$' ) . '"' ),
+    ) );
+
+    expect( $orphaned )->toBe( [] );
 } );
 
 it( 'ships identical key sets in every locale', function (): void {

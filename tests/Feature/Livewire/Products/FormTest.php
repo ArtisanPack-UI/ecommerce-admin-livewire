@@ -21,7 +21,7 @@ beforeEach( function (): void {
     config()->set( 'artisanpack.ecommerce.currency.rates', [ 'USD' => [ 'EUR' => 92_500_000 ] ] );
     config()->set( 'artisanpack.ecommerce.currency.enabled', [ 'EUR' ] );
     config()->set( 'artisanpack.ecommerce.features.scout', false );
-    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update', 'product.delete' ] );
+    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update', 'product.delete', 'inventory.adjust' ] );
     ProductMedia::fake( false );
     $this->actingAs( makeUser() );
 } );
@@ -517,3 +517,122 @@ it( 'sends a product service error to the field and tab it belongs to', function
     'gallery image'     => [ 'images.1.alt_text', 'gallery.1.alt_text', 'media' ],
     'unknown field'     => [ 'something_new', 'name', 'general' ],
 ] );
+
+it( 'does not change stock without inventory.adjust, and shows the stock fields read-only', function (): void {
+    $product = existingProduct();
+
+    Gate::define( 'ecommerce.inventory.adjust', static fn (): bool => false );
+
+    $component = Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->assertSeeHtml( 'data-stock-read-only' )
+        ->set( 'quantity', 99 )
+        ->set( 'allowBackorder', true )
+        ->set( 'lowStockThreshold', 3 )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( app( ProductService::class )->inventoryItemFor( $product ) )
+        ->quantity_on_hand->toBe( 10 )
+        ->allow_backorder->toBeFalse()
+        ->low_stock_threshold->toBeNull();
+
+    expect( formMarkup( $component ) )->toMatch( '/<input[^>]*id="product-quantity"[^>]*readonly/' );
+} );
+
+it( 'gives a new product no opening stock without inventory.adjust', function (): void {
+    Gate::define( 'ecommerce.inventory.adjust', static fn (): bool => false );
+
+    Livewire::test( Form::class )
+        ->set( 'name', 'Mug' )
+        ->set( 'quantity', 25 )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( InventoryItem::query()->sum( 'quantity_on_hand' ) )->toBe( 0 );
+} );
+
+it( 'does not ask for a stock reason while inventory tracking is off', function (): void {
+    $product = existingProduct();
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'quantity', 3 )
+        ->set( 'trackInventory', false )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( app( ProductService::class )->inventoryItemFor( $product ) )
+        ->quantity_on_hand->toBe( 10 )
+        ->track_inventory->toBeFalse();
+} );
+
+it( 'clears a scheduled price row\'s amounts when its currency changes', function (): void {
+    $component = Livewire::test( Form::class )->call( 'addScheduledPrice' );
+    $index     = array_key_last( $component->get( 'prices' ) );
+
+    $component->set( "prices.{$index}.price_amount", 1250 )
+        ->set( "prices.{$index}.compare_at_amount", 1500 )
+        ->set( "prices.{$index}.cost_amount", 400 )
+        ->set( "prices.{$index}.currency", 'EUR' )
+        ->assertSet( "prices.{$index}.price_amount", null )
+        ->assertSet( "prices.{$index}.compare_at_amount", null )
+        ->assertSet( "prices.{$index}.cost_amount", null )
+        ->assertSeeHtml( 'wire:key="price-' );
+
+    expect( formMarkup( $component ) )->toContain( '-amount-EUR"' );
+} );
+
+it( 'creates new tags only for a user who may create them, as on the Tags screen', function (): void {
+    $product = existingProduct();
+    app( ArtisanPackUI\Ecommerce\Services\ProductTagService::class )->findOrCreate( 'Summer' );
+
+    Gate::define( 'ecommerce.product.create', static fn (): bool => false );
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'tagNames', [ 'summer' ] )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'tagNames', [ 'Summer', 'Winter' ] )
+        ->call( 'save' )
+        ->assertHasErrors( 'tagNames' );
+
+    expect( ProductTag::query()->where( 'slug', 'winter' )->exists() )->toBeFalse()
+        ->and( $product->refresh()->tags->pluck( 'slug' )->all() )->toBe( [ 'summer' ] );
+} );
+
+it( 'refuses media items the user may not view, but keeps ones already on the product', function (): void {
+    ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::fakeViewableMedia( [] );
+
+    try {
+        $product = existingProduct( [ 'featured_image_media_id' => 5 ] );
+
+        Livewire::test( Form::class, [ 'product' => $product->id ] )
+            ->call( 'save' )
+            ->assertHasNoErrors();
+
+        Livewire::test( Form::class, [ 'product' => $product->id ] )
+            ->set( 'featuredMediaId', 6 )
+            ->set( 'gallery', [ [ 'uid' => 'x', 'id' => null, 'media_id' => 7, 'image_url' => '', 'alt_text' => 'Side' ] ] )
+            ->call( 'save' )
+            ->assertHasErrors( [ 'featuredMediaId', 'gallery.0.media_id' ] );
+
+        expect( $product->refresh()->featured_image_media_id )->toBe( 5 );
+    } finally {
+        ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::fakeViewableMedia( null );
+    }
+} );
+
+it( 'uses h2 section headings under the h1 and square icon-only row buttons', function (): void {
+    $product = existingProduct();
+    $markup  = formMarkup(
+        Livewire::test( Form::class, [ 'product' => $product->id ] )
+            ->set( 'gallery', [ [ 'uid' => 'x', 'id' => null, 'media_id' => null, 'image_url' => 'https://example.com/a.jpg', 'alt_text' => 'Side' ] ] ),
+    );
+
+    expect( $markup )->not->toMatch( '/<h3[^>]*class="ec-subheading"/' )
+        ->toContain( '<h2 id="product-scheduled-heading"' )
+        ->toContain( '<h2 id="product-gallery-heading"' )
+        ->toMatch( '/<button(?=[^>]*data-icon-only)(?=[^>]*aria-label="Remove image 1")[^>]*>/' )
+        ->toMatch( '/<button(?=[^>]*data-icon-only)(?=[^>]*aria-label="Move image 1 up")[^>]*>/' );
+} );

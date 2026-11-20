@@ -352,7 +352,7 @@ it( 'draws the design-system rows: product and variant, LTR SKU and counts, and 
         ->assertSeeHtml( '<bdi dir="ltr" class="ec-mono">TOT-CNV-NAT</bdi>' )
         ->assertSeeHtml( 'data-low-stock' )
         ->assertSeeHtml( 'data-icon-only' )
-        ->assertSeeHtml( 'aria-label="Allow backorders of Canvas tote — Natural"' )
+        ->assertSeeHtml( '<span class="apui-sr-only">, backorders of Canvas tote — Natural</span>' )
         ->assertSeeHtml( 'aria-label="Adjust stock of Canvas tote — Natural"' )
         ->assertSeeHtml( 'aria-label="Edit the low-stock threshold of Canvas tote — Natural"' )
         ->assertSeeHtml( 'data-focus-key="inventory-threshold-' . $item->id . '"' )
@@ -370,7 +370,8 @@ it( 'shows a disabled backorder switch and no pencil or Adjust on read-only stoc
 
     expect( $html )
         ->toContain( 'data-read-only' )
-        ->toMatch( '/<input[^>]*aria-label="Allow backorders of Coffee club"[^>]*disabled/s' )
+        ->toMatch( '/<input[^>]*id="inventory-backorder-' . $item->id . '"[^>]*disabled/s' )
+        ->toContain( ', backorders of Coffee club</span>' )
         ->not->toContain( 'editThreshold( ' . $item->id . ' )' )
         ->not->toContain( 'toggleBackorder( ' . $item->id . ' )' )
         ->not->toContain( 'data-focus-key="inventory-adjust-' . $item->id . '"' );
@@ -381,7 +382,7 @@ it( 'disables the backorder switch for users who may not adjust stock', function
     $item = inventoryRow( Product::factory()->create( [ 'name' => 'Mug' ] ), 3 );
 
     expect( Livewire::test( Index::class )->html() )
-        ->toMatch( '/<input[^>]*aria-label="Allow backorders of Mug"[^>]*disabled/s' )
+        ->toMatch( '/<input[^>]*id="inventory-backorder-' . $item->id . '"[^>]*disabled/s' )
         ->not->toContain( 'toggleBackorder( ' . $item->id . ' )' )
         ->not->toContain( 'data-bulk-adjust-open' );
 } );
@@ -454,4 +455,99 @@ it( 'summarizes the checked CSV in an alert and shows each row error in place of
         ->toMatch( '/data-tone="negative"\s*>−1<\/bdi>/u' )
         ->toMatch( '/data-bulk-error.*?<span class="ec-text-error">No product or variant has this SKU\.<\/span>/s' )
         ->not->toContain( '>Problem<' );
+} );
+
+it( 'passes the stock row to the inventory.adjust policy, single and in bulk', function (): void {
+    $mug    = Product::factory()->create( [ 'name' => 'Mug', 'sku' => 'MUG-1' ] );
+    $cup    = Product::factory()->create( [ 'name' => 'Cup', 'sku' => 'CUP-1' ] );
+    $mugRow = inventoryRow( $mug, 10 );
+    $cupRow = inventoryRow( $cup, 10 );
+
+    // Only the mug's stock row may be adjusted.
+    Gate::define( 'ecommerce.inventory.adjust', static fn ( $user, $item = null ): bool => null === $item || ( $item instanceof InventoryItem && $item->is( $mugRow ) ) );
+
+    Livewire::test( Index::class )->call( 'startAdjust', $cupRow->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'toggleBackorder', $cupRow->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'editThreshold', $cupRow->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'startAdjust', $mugRow->id )->assertOk()->assertSet( 'adjustingId', $mugRow->id );
+
+    $component = Livewire::test( Index::class )
+        ->call( 'openBulkAdjust' )
+        ->set( 'stockCsv', stockCsvUpload( "sku,quantity\nMUG-1,25\nCUP-1,30\n" ) )
+        ->set( 'bulkReason', 'Stock take' )
+        ->call( 'dryRunBulkAdjust' )
+        ->assertSee( 'You may not adjust this item\'s stock.' );
+
+    $component->call( 'applyBulkAdjust', $component->viewData( 'bulkToken' ) );
+
+    expect( $mugRow->refresh()->quantity_on_hand )->toBe( 25 )
+        ->and( $cupRow->refresh()->quantity_on_hand )->toBe( 10 );
+} );
+
+it( 'refuses bulk rows for product types without stock, and changes over the single-adjust cap', function (): void {
+    Product::factory()->create( [ 'name' => 'E-book', 'sku' => 'BOOK-1', 'type' => 'digital' ] );
+    $mug = Product::factory()->create( [ 'name' => 'Mug', 'sku' => 'MUG-1' ] );
+    inventoryRow( $mug, 10 );
+
+    $component = Livewire::test( Index::class )
+        ->call( 'openBulkAdjust' )
+        ->set( 'stockCsv', stockCsvUpload( "sku,quantity\nBOOK-1,5\nMUG-1,2000000\n" ) )
+        ->set( 'bulkReason', 'Stock take' )
+        ->call( 'dryRunBulkAdjust' )
+        ->assertSee( 'This product type has no stock of its own.' )
+        ->assertSee( 'The quantity must be from -1000000 to 1000000.' );
+
+    $component->call( 'applyBulkAdjust', $component->viewData( 'bulkToken' ) );
+
+    expect( InventoryItem::query()->count() )->toBe( 1 );
+} );
+
+it( 'checks a bulk upload in a handful of queries, not several per row', function (): void {
+    $rows = [];
+
+    foreach ( range( 1, 40 ) as $n ) {
+        inventoryRow( Product::factory()->create( [ 'sku' => "SKU-{$n}" ] ), 1 );
+        $rows[] = "SKU-{$n},5";
+    }
+
+    $component = Livewire::test( Index::class )
+        ->call( 'openBulkAdjust' )
+        ->set( 'stockCsv', stockCsvUpload( "sku,quantity\n" . implode( "\n", $rows ) . "\n" ) )
+        ->set( 'bulkReason', 'Stock take' );
+
+    Illuminate\Support\Facades\DB::enableQueryLog();
+    Illuminate\Support\Facades\DB::flushQueryLog();
+
+    $component->call( 'dryRunBulkAdjust' )->assertHasNoErrors();
+
+    expect( count( Illuminate\Support\Facades\DB::getQueryLog() ) )->toBeLessThan( 25 );
+} );
+
+it( 'redraws the backorder switch when a change fails', function (): void {
+    $item = inventoryRow( Product::factory()->create( [ 'name' => 'Mug' ] ), 3 );
+
+    $component = Livewire::test( Index::class );
+
+    expect( $component->html() )->toContain( 'wire:key="inventory-backorder-' . $item->id . '-0-0"' );
+
+    // The product's type goes missing between render and click.
+    $item->stockable->forceFill( [ 'type' => 'subscription' ] )->saveQuietly();
+
+    $component->call( 'toggleBackorder', $item->id )
+        ->assertSet( 'backorderRevision', 1 );
+
+    expect( $item->refresh()->allow_backorder )->toBeFalse();
+} );
+
+it( 'reads a missing SKU in the bulk report as "None"', function (): void {
+    $component = Livewire::test( Index::class )
+        ->call( 'openBulkAdjust' )
+        ->set( 'stockCsv', stockCsvUpload( "sku,quantity\n,5\n" ) )
+        ->set( 'bulkReason', 'Stock take' )
+        ->call( 'dryRunBulkAdjust' );
+
+    preg_match( '/<[a-z]+\b[^>]*\bdata-bulk-summary[^>]*>/', $component->html(), $summary );
+
+    expect( $component->html() )->toContain( '<span class="ec-muted-text" aria-hidden="true">&mdash;</span><span class="apui-sr-only">None</span>' )
+        ->and( substr_count( $summary[0] ?? '', 'role=' ) )->toBe( 1 );
 } );

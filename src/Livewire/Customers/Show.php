@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Livewire\Customers;
 
+use ArtisanPack\LivewireUiComponents\Support\Toasts;
 use ArtisanPackUI\Ecommerce\Models\Customer;
 use ArtisanPackUI\Ecommerce\Models\Order;
 use ArtisanPackUI\Ecommerce\Services\CustomerService;
@@ -23,6 +24,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Registries\CustomerTabRegistry;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
 use Livewire\Attributes\Locked;
@@ -165,7 +167,11 @@ class Show extends Component
     /**
      * Loads and authorizes the customer.
      *
+     * A missing customer is a 404 only for users who may list customers;
+     * anyone else gets a 403, so ids can't be probed.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Checks `viewAny` before answering 404.
      *
      * @param  int|string  $customer  The customer id.
      *
@@ -174,6 +180,14 @@ class Show extends Component
     public function mount( int|string $customer ): void
     {
         $this->customerId = (int) $customer;
+
+        try {
+            $this->customer();
+        } catch ( ModelNotFoundException $exception ) {
+            $this->authorizeEcommerce( 'viewAny', Customer::class );
+
+            throw $exception;
+        }
 
         $this->authorizeEcommerce( 'view', $this->customer() );
     }
@@ -249,9 +263,9 @@ class Show extends Component
 
         $this->authorizeEcommerce( 'update', $customer );
 
-        $this->firstName = sanitizeText( $this->firstName );
-        $this->lastName  = sanitizeText( $this->lastName );
-        $this->phone     = sanitizeText( $this->phone );
+        $this->firstName = trim( $this->firstName );
+        $this->lastName  = trim( $this->lastName );
+        $this->phone     = trim( $this->phone );
 
         $this->validate(
             [
@@ -368,13 +382,20 @@ class Show extends Component
             return;
         }
 
-        $this->toastSuccess( __( 'Customer deleted. Their orders were kept and anonymized.' ) );
-
+        $message    = __( 'Customer deleted. Their orders were kept and anonymized.' );
         $indexRoute = AdminNav::ROUTE_PREFIX . 'customers.index';
 
-        if ( Route::has( $indexRoute ) ) {
-            $this->redirectRoute( $indexRoute );
+        if ( ! Route::has( $indexRoute ) ) {
+            $this->toastSuccess( $message );
+
+            return;
         }
+
+        // A browser event would be lost with the page it was sent to, so the
+        // toast is flashed for the toaster on the page the redirect opens.
+        Toasts::flash( title: $message, color: 'success' );
+
+        $this->redirectRoute( $indexRoute );
     }
 
     /**

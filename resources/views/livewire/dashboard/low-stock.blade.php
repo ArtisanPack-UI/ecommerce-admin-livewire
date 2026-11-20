@@ -17,9 +17,11 @@
 @php
     use ArtisanPackUI\EcommerceAdminLivewire\Support\AdminNav;
     use ArtisanPackUI\EcommerceAdminLivewire\Support\StockLevels;
+    use Illuminate\Support\HtmlString;
 
     $inventoryRoute = AdminNav::ROUTE_PREFIX . 'inventory.index';
     $canLink        = \Illuminate\Support\Facades\Route::has( $inventoryRoute );
+    $none           = new HtmlString( '<span aria-hidden="true">&mdash;</span><span class="apui-sr-only">' . e( __( 'None' ) ) . '</span>' );
 @endphp
 <div class="apui-card" data-surface="default">
     <div data-scope="card" data-part="header">
@@ -59,7 +61,7 @@
                             <tr data-scope="table" data-part="row" wire:key="dashboard-low-stock-{{ $item->id }}">
                                 <td data-scope="table" data-part="cell">
                                     @if ( $canLink && '' !== $sku )
-                                        <x-artisanpack-link :href="route( $inventoryRoute, [ 'q' => $sku ] )" :navigate="false" tone="neutral" standalone>{{ StockLevels::label( $item ) }}</x-artisanpack-link>
+                                        <x-artisanpack-link :href="route( $inventoryRoute, [ 'q' => $sku ] )" :navigate="false" tone="muted" standalone>{{ StockLevels::label( $item ) }}</x-artisanpack-link>
                                     @else
                                         {{ StockLevels::label( $item ) }}
                                     @endif
@@ -67,7 +69,7 @@
                                         <x-artisanpack-badge size="sm" color="error" class="ec-low-stock-badge" data-out-of-stock>{{ __( 'Out of stock' ) }}</x-artisanpack-badge>
                                     @endif
                                 </td>
-                                <td data-scope="table" data-part="cell"><bdi dir="ltr">{{ '' !== $sku ? $sku : '—' }}</bdi></td>
+                                <td data-scope="table" data-part="cell">{{ '' !== $sku ? new HtmlString( '<bdi dir="ltr">' . e( $sku ) . '</bdi>' ) : $none }}</td>
                                 <td data-scope="table" data-part="cell" data-numeric>{{ $available }}</td>
                                 <td data-scope="table" data-part="cell" data-numeric>{{ $threshold }}</td>
                                 <td data-scope="table" data-part="cell" aria-hidden="true">

@@ -19,7 +19,7 @@ An entry has the shape of the engine's `AdminMenuRegistry` entries:
 | `parameters` | No | Route parameters |
 | `section` | No | Section key. Unknown sections fall back to the top section. |
 | `position` | No | Order within the section (default `100`) |
-| `icon` | No | A design-system (Lucide) icon name, or one of the Heroicon names the admin maps to a design-system counterpart, such as `o-truck` (default `o-squares-2x2`). Other names, `o-gift` included, pass through unchanged, so give a Lucide name for anything outside the map. |
+| `icon` | No | An icon name (default `o-squares-2x2`); see [Icon names](#icon-names). |
 | `permission` | No | `{resource}.{action}` ability (`ecommerce.` prefix allowed). Hidden without it. `null` shows it to anyone who can enter the admin, but never grants access on its own. |
 | `badge` | No | Badge key; see below |
 
@@ -46,7 +46,24 @@ addFilter( 'ap.ecommerceAdminLivewire.nav.items', function ( array $items ): arr
 } );
 ```
 
-When the engine's `AdminMenuRegistry` is bound, its entries are merged in before the filter runs. Until then, the filter is the way to add entries.
+The engine's `AdminMenuRegistry` entries are merged in before the filter runs, so a satellite can register its entry there instead.
+
+## Icon names
+
+An `icon` renders when it is one of these:
+
+- A name in the icon registry, `IconRegistry::names()` (`ArtisanPack\LivewireUiComponents\Support\IconRegistry`). That is the design-system (Lucide) set `livewire-ui-components` ships, plus the icons the admin registers (`gift`, `tag`, `truck`, `users`, `zap` and the rest of `EcommerceAdminLivewireServiceProvider::ICONS`), plus any you register with `IconRegistry::register()` or the `registered_icons` config key.
+- Any Heroicon outline (`o-*`) or solid (`s-*`) name, such as `o-truck`. Heroicons in the admin's icon map (`AdminSpotlight::HEROICON_ICONS`) are swapped for their design-system counterpart; the rest render through Blade Icons.
+
+Any other name, such as a bare `gift-card` that nothing registers, renders nothing. To use one, register its SVG first:
+
+```php
+use ArtisanPack\LivewireUiComponents\Support\IconRegistry;
+
+IconRegistry::register( [
+    'gift-card' => '<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/>',
+] );
+```
 
 ## Add a section
 

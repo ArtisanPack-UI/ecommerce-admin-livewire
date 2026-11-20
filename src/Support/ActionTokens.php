@@ -31,9 +31,14 @@ use Illuminate\Support\Str;
  * Minting is stateless: the token is a nonce and an issue time, signed with
  * the app key over the user, the scope (component, action, subject), and the
  * nonce. Consuming writes a row to the engine's `idempotency_records` table
- * with `insertOrIgnore`; run it inside the write's transaction so a failed
- * write releases the token for a retry, and a concurrent duplicate waits on
- * the unique index and then finds the token spent.
+ * with `insertOrIgnore`, before the write runs and outside any transaction:
+ * the row commits at once (autocommit), and the table's unique index makes
+ * the insert atomic, so of two concurrent submissions of one token exactly
+ * one inserts the row and the other gets `false` and does nothing. A write
+ * that fails afterwards does not roll the row back; the caller frees the
+ * token with {@see self::release()} so the user can retry
+ * ({@see \ArtisanPackUI\EcommerceAdminLivewire\Livewire\Concerns\WithActionToken}
+ * does both).
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -112,7 +117,9 @@ final class ActionTokens
     /**
      * Marks a token used.
      *
-     * Call it inside the transaction that performs the write.
+     * Call it before the write, outside any transaction, so the row commits
+     * at once and a concurrent duplicate sees it. When the write then fails,
+     * call {@see self::release()}.
      *
      * @since 1.0.0
      *
@@ -145,6 +152,11 @@ final class ActionTokens
     /**
      * Frees a consumed token, so the action can be retried after its write
      * failed.
+     *
+     * Only release when the failure left nothing behind. A write whose side
+     * effect may have happened before it threw (a carrier timeout after the
+     * label was bought, say) should keep the token spent, so a retry cannot
+     * repeat it.
      *
      * @since 1.0.0
      *

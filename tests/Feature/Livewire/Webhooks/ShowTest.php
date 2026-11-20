@@ -162,3 +162,68 @@ it( 'hides replay, rotate, and re-enable without webhookSubscription.update', fu
         ->call( 'replay', 'token' )
         ->assertForbidden();
 } );
+
+it( 'shows deliveries parked on an inactive subscription as pending, not failed (M-2)', function (): void {
+    $subscription = WebhookSubscription::factory()->inactive()->create();
+    $parked       = webhookDelivery( $subscription, [ 'event' => 'order.parked', 'attempts' => 0, 'next_retry_at' => null ] );
+    $failed       = webhookDelivery( $subscription, [ 'event' => 'order.given-up', 'attempts' => 10, 'next_retry_at' => null, 'response_status' => 500 ] );
+
+    expect( ArtisanPackUI\EcommerceAdminLivewire\Support\Webhooks::status( $parked ) )->toBe( 'pending' )
+        ->and( ArtisanPackUI\EcommerceAdminLivewire\Support\Webhooks::status( $failed ) )->toBe( 'failed' );
+
+    Livewire::test( Show::class, [ 'subscription' => $subscription->id ] )
+        ->set( 'filters.status', 'pending' )
+        ->assertSeeHtml( 'data-delivery-status="pending"' )
+        ->assertDontSeeHtml( 'data-delivery-status="failed"' )
+        ->set( 'filters.status', 'failed' )
+        ->assertSeeHtml( 'data-delivery-status="failed"' )
+        ->assertDontSeeHtml( 'data-delivery-status="pending"' );
+} );
+
+it( 'sends missed deliveries for an active subscription (M-2)', function (): void {
+    $subscription = WebhookSubscription::factory()->create();
+    $parked       = webhookDelivery( $subscription, [ 'attempts' => 0, 'next_retry_at' => null ] );
+    $exhausted    = webhookDelivery( $subscription, [ 'attempts' => 10, 'next_retry_at' => null, 'response_status' => 500 ] );
+
+    $component = Livewire::test( Show::class, [ 'subscription' => $subscription->id ] )
+        ->assertSeeHtml( 'data-send-missed-deliveries="1"' )
+        ->call( 'sendMissedDeliveries', $subscription->id )
+        ->assertDontSeeHtml( 'data-send-missed-deliveries' );
+
+    expect( $parked->refresh()->next_retry_at )->not->toBeNull()
+        ->and( $exhausted->refresh()->next_retry_at )->toBeNull()
+        ->and( sentToasts( $component ) )->toContain( '1 missed delivery queued.' );
+} );
+
+it( 'does not offer or send missed deliveries while the subscription is disabled (M-2)', function (): void {
+    $subscription = WebhookSubscription::factory()->inactive()->create();
+    $parked       = webhookDelivery( $subscription, [ 'attempts' => 0, 'next_retry_at' => null ] );
+
+    $component = Livewire::test( Show::class, [ 'subscription' => $subscription->id ] )
+        ->assertDontSeeHtml( 'data-send-missed-deliveries' )
+        ->call( 'sendMissedDeliveries', $subscription->id );
+
+    expect( $parked->refresh()->next_retry_at )->toBeNull()
+        ->and( sentToasts( $component ) )->toContain( 'This subscription is disabled.' );
+} );
+
+it( 'mentions missed deliveries when re-enabling (M-2)', function (): void {
+    $subscription = WebhookSubscription::factory()->inactive()->create();
+    webhookDelivery( $subscription, [ 'attempts' => 0, 'next_retry_at' => null ] );
+    webhookDelivery( $subscription, [ 'attempts' => 0, 'next_retry_at' => null ] );
+
+    Livewire::test( Show::class, [ 'subscription' => $subscription->id ] )
+        ->call( 'reEnable', $subscription->id )
+        ->assertSeeHtml( 'data-send-missed-deliveries="2"' );
+} );
+
+it( 'refuses to send missed deliveries without webhookSubscription.update (M-2)', function (): void {
+    Gate::define( 'ecommerce.webhookSubscription.update', static fn (): bool => false );
+    $subscription = WebhookSubscription::factory()->create();
+    webhookDelivery( $subscription, [ 'attempts' => 0, 'next_retry_at' => null ] );
+
+    Livewire::test( Show::class, [ 'subscription' => $subscription->id ] )
+        ->assertDontSeeHtml( 'data-send-missed-deliveries' )
+        ->call( 'sendMissedDeliveries', $subscription->id )
+        ->assertForbidden();
+} );

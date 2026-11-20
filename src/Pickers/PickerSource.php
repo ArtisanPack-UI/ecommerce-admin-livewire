@@ -27,6 +27,16 @@ namespace ArtisanPackUI\EcommerceAdminLivewire\Pickers;
 interface PickerSource
 {
     /**
+     * The most ids `find()` is asked to label at once. The selection comes
+     * from the client, so it is capped before it reaches a `whereIn`.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const MAX_IDS = 200;
+
+    /**
      * The `{resource}.{action}` ability needed to search this source.
      *
      * @since 1.0.0
@@ -49,6 +59,9 @@ interface PickerSource
 
     /**
      * Options for the given ids, so selected values keep their labels.
+     *
+     * Callers pass at most {@see self::MAX_IDS} ids; implementations should
+     * cap the list as well.
      *
      * @since 1.0.0
      *

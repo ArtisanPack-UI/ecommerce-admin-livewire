@@ -380,3 +380,61 @@ it( 'skips the change when a filtered total is not numeric', function (): void {
     expect( collect( $kpis )->firstWhere( 'key', 'net' )['change'] )->toBeNull()
         ->and( collect( $kpis )->firstWhere( 'key', 'orders' )['change'] )->toBe( 100.0 );
 } );
+
+it( 'resets a monthly interval to daily when a short preset follows a year preset (L-C3)', function (): void {
+    Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'preset', 'this-year' )
+        ->assertSet( 'interval', 'month' )
+        ->set( 'preset', 'last-7-days' )
+        ->assertSet( 'interval', 'day' )
+        ->set( 'preset', 'this-year' )
+        ->set( 'preset', 'last-month' )
+        ->assertSet( 'interval', 'day' )
+        ->set( 'preset', 'this-year' )
+        ->set( 'preset', 'last-quarter' )
+        ->assertSet( 'interval', 'month' )
+        ->set( 'interval', 'week' )
+        ->set( 'preset', 'last-7-days' )
+        ->assertSet( 'interval', 'week' );
+} );
+
+it( 'names a good or bad change in words, not only colour (L-A2)', function (): void {
+    reportsOrder( '2026-03-10', 12_000 );
+    reportsOrder( '2026-02-10', 10_000 );
+
+    Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'compare', true )
+        ->assertSeeHtml( '<span class="apui-sr-only" data-kpi-tone="good">(improvement)</span>' );
+
+    reportsOrder( '2026-02-11', 10_000 );
+    reportsOrder( '2026-03-11', 1_000 );
+
+    Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'compare', true )
+        ->assertSeeHtml( 'data-kpi-tone="bad">(decline)</span>' );
+} );
+
+it( 'draws ranked bars as SVG, without inline styles (REL-4)', function (): void {
+    $mug   = Product::factory()->create( [ 'name' => 'Mug', 'sku' => 'MUG' ] );
+    $tee   = Product::factory()->create( [ 'name' => 'Tee', 'sku' => 'TEE' ] );
+    $order = reportsOrder( '2026-03-10', 20_000 );
+
+    OrderItem::factory()->create( [ 'order_id' => $order->id, 'product_id' => $mug->id, 'quantity' => 1, 'unit_price_amount' => 10_000 ] );
+    OrderItem::factory()->create( [ 'order_id' => $order->id, 'product_id' => $tee->id, 'quantity' => 1, 'unit_price_amount' => 5_000 ] );
+
+    Livewire::test( Show::class, [ 'report' => 'top-products' ] )
+        ->assertSeeHtml( '<rect class="ec-report-bar__fill" x="0" y="0" width="100%"' )
+        ->assertSeeHtml( 'width="50%"' )
+        ->assertDontSeeHtml( 'style="inline-size' );
+} );
+
+it( 'lets the design-system alert set the role on report notices (L-F1)', function (): void {
+    $html = Livewire::test( Show::class, [ 'report' => 'sales' ] )
+        ->set( 'preset', 'custom' )
+        ->set( 'from', '2026-03-10' )
+        ->set( 'to', '2026-03-01' )
+        ->html();
+
+    expect( preg_match( '/<div[^>]*data-report-invalid[^>]*>/', $html, $match ) )->toBe( 1 )
+        ->and( substr_count( $match[0], 'role=' ) )->toBe( 1 );
+} );

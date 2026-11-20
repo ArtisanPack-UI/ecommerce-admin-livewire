@@ -8,7 +8,7 @@
 --}}
 @extends( $ecommerceAdminLayout )
 
-@section( 'title', null === $promotion ? __( 'New promotion' ) : __( 'Edit promotion' ) )
+@section( 'title', null === $promotion ? __( 'New promotion' ) : ( $screenTitle ?? __( 'Edit promotion' ) ) )
 
 @section( 'content' )
     @include( 'ecommerce-admin::partials.page-assets' )

@@ -172,6 +172,18 @@ class EditPanel extends Component
     public ?array $preview = null;
 
     /**
+     * A hash of the edit the latest preview was worked out for. Saving
+     * requires the draft to still hash the same, so a change that lands in
+     * the same request as the click is never saved unseen.
+     *
+     * @since 2.0.0
+     *
+     * @var string|null
+     */
+    #[Locked]
+    public ?string $previewHash = null;
+
+    /**
      * Why the order is being edited.
      *
      * @since 1.0.0
@@ -251,6 +263,7 @@ class EditPanel extends Component
         $this->billing        = $this->addressDraft( $order->billing_address );
         $this->shippingMethod = (string) ( $order->shipping_method_key ?? '' );
         $this->preview        = null;
+        $this->previewHash    = null;
         $this->reason         = '';
         $this->openAddresses  = [];
         $this->reset( 'addProductId', 'addVariantId', 'addQuantity' );
@@ -276,7 +289,8 @@ class EditPanel extends Component
         }
 
         if ( in_array( Str::before( $property, '.' ), [ 'draftItems', 'shipping', 'billing', 'shippingMethod' ], true ) ) {
-            $this->preview = null;
+            $this->preview     = null;
+            $this->previewHash = null;
         }
     }
 
@@ -331,8 +345,9 @@ class EditPanel extends Component
             return;
         }
 
-        $this->newItems[] = [ RowKeys::KEY => RowKeys::make(), 'product_id' => (int) $product->id, 'variant_id' => $line['variant_id'], 'quantity' => (int) $this->addQuantity ];
-        $this->preview    = null;
+        $this->newItems[]  = [ RowKeys::KEY => RowKeys::make(), 'product_id' => (int) $product->id, 'variant_id' => $line['variant_id'], 'quantity' => (int) $this->addQuantity ];
+        $this->preview     = null;
+        $this->previewHash = null;
         $this->reset( 'addProductId', 'addVariantId', 'addQuantity' );
     }
 
@@ -353,8 +368,9 @@ class EditPanel extends Component
 
         unset( $this->newItems[ $index ] );
 
-        $this->newItems = array_values( $this->newItems );
-        $this->preview  = null;
+        $this->newItems    = array_values( $this->newItems );
+        $this->preview     = null;
+        $this->previewHash = null;
     }
 
     /**
@@ -396,7 +412,8 @@ class EditPanel extends Component
 
         $currency = (string) $order->currency;
 
-        $this->preview = [
+        $this->previewHash = self::editHash( $edit );
+        $this->preview     = [
             'lines'        => self::describeDiff( $result['diff'], $this->itemNames( $order ), $currency ),
             'before'       => (int) ( $result['diff']['totals']['before']['total_amount'] ?? 0 ),
             'after'        => (int) ( $result['diff']['totals']['after']['total_amount'] ?? 0 ),
@@ -409,7 +426,12 @@ class EditPanel extends Component
     /**
      * Applies the draft through {@see OrderEditService::apply()}.
      *
+     * Only the edit that was last previewed is saved: when the draft no
+     * longer matches the preview, the preview is dropped and the user is
+     * asked to preview again.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Requires a matching preview.
      *
      * @param  string  $token  The action token minted with the editor.
      *
@@ -439,6 +461,14 @@ class EditPanel extends Component
             return;
         }
 
+        if ( null === $this->previewHash || ! hash_equals( $this->previewHash, self::editHash( $edit ) ) ) {
+            $this->preview     = null;
+            $this->previewHash = null;
+            $this->addError( 'edit', __( 'The changes were edited after the preview. Preview them again.' ) );
+
+            return;
+        }
+
         try {
             $result = $this->withActionToken(
                 $token,
@@ -456,7 +486,7 @@ class EditPanel extends Component
             return;
         }
 
-        $this->reset( 'editing', 'draftItems', 'newItems', 'shipping', 'billing', 'shippingMethod', 'preview', 'reason', 'openAddresses' );
+        $this->reset( 'editing', 'draftItems', 'newItems', 'shipping', 'billing', 'shippingMethod', 'preview', 'previewHash', 'reason', 'openAddresses' );
         $this->orderChanged();
 
         if ( null !== $result->paymentActionRequired ) {
@@ -792,6 +822,15 @@ class EditPanel extends Component
      */
     protected function validatedEdit( Order $order ): ?array
     {
+        // `editing` can't be locked (the dialog closes it), so a tampered
+        // request could reach here without a draft; empty address drafts
+        // would then clear the order's addresses.
+        if ( ! self::isFullAddressDraft( $this->shipping ) || ! self::isFullAddressDraft( $this->billing ) ) {
+            $this->addError( 'edit', __( 'Open the editor before saving changes.' ) );
+
+            return null;
+        }
+
         $rules = [
             'draftItems'                => [ 'array' ],
             'draftItems.*.quantity'     => [ 'required', 'integer', 'min:1', 'max:9999' ],
@@ -900,6 +939,45 @@ class EditPanel extends Component
         }
 
         return $edit;
+    }
+
+    /**
+     * A stable hash of an edit, to tie a save to the preview it was shown.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>  $edit  The edit.
+     *
+     * @return string
+     */
+    protected static function editHash( array $edit ): string
+    {
+        return hash( 'sha256', (string) json_encode( $edit ) );
+    }
+
+    /**
+     * Whether an address draft holds every form field, as
+     * {@see self::addressDraft()} builds it.
+     *
+     * @since 2.0.0
+     *
+     * @param  mixed  $draft  The draft.
+     *
+     * @return bool
+     */
+    protected static function isFullAddressDraft( mixed $draft ): bool
+    {
+        if ( ! is_array( $draft ) ) {
+            return false;
+        }
+
+        $keys     = array_keys( $draft );
+        $expected = self::ADDRESS_FIELDS;
+
+        sort( $keys );
+        sort( $expected );
+
+        return $keys === $expected;
     }
 
     /**

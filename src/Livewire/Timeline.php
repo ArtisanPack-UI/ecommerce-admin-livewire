@@ -115,6 +115,27 @@ class Timeline extends Component
     public const PAGE_SIZE = 20;
 
     /**
+     * Payload keys whose values are hidden in an unknown entry's details
+     * when the key contains one of these (case-insensitive).
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const REDACTED_KEY_PARTS = [ 'email', 'phone', 'token', 'secret', 'address', 'fingerprint', 'password' ];
+
+    /**
+     * Payload keys whose values are hidden when one of the key's words
+     * (split on `_`, `-`, `.`, spaces and camelCase) is one of these. Kept
+     * to whole words because they are short (`ip` is inside "description").
+     *
+     * @since 2.0.0
+     *
+     * @var array<int, string>
+     */
+    public const REDACTED_KEY_WORDS = [ 'ip', 'card' ];
+
+    /**
      * The subject's class.
      *
      * @since 1.0.0
@@ -270,6 +291,35 @@ class Timeline extends Component
     }
 
     /**
+     * A payload with personal and secret values hidden (emails, phone
+     * numbers, IP addresses, tokens, secrets, addresses, card details and
+     * fingerprints), at any depth, for showing an unknown entry's details
+     * to anyone who can view the subject.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<array-key, mixed>  $payload  The payload.
+     *
+     * @return array<array-key, mixed>
+     */
+    public static function redactedPayload( array $payload ): array
+    {
+        $redacted = [];
+
+        foreach ( $payload as $key => $value ) {
+            if ( is_string( $key ) && self::isRedactedKey( $key ) ) {
+                $redacted[ $key ] = __( '(hidden)' );
+
+                continue;
+            }
+
+            $redacted[ $key ] = is_array( $value ) ? self::redactedPayload( $value ) : $value;
+        }
+
+        return $redacted;
+    }
+
+    /**
      * The subject, loaded once per request.
      *
      * @since 1.0.0
@@ -312,6 +362,31 @@ class Timeline extends Component
             'system' => $query->where( 'event_type', 'not like', 'note.%' ),
             default  => $query,
         };
+    }
+
+    /**
+     * Whether a payload key names a value {@see self::redactedPayload()}
+     * hides.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $key  The key.
+     *
+     * @return bool
+     */
+    protected static function isRedactedKey( string $key ): bool
+    {
+        $lower = strtolower( $key );
+
+        foreach ( self::REDACTED_KEY_PARTS as $part ) {
+            if ( str_contains( $lower, $part ) ) {
+                return true;
+            }
+        }
+
+        $words = preg_split( '/[^a-z0-9]+/', strtolower( (string) preg_replace( '/(?<=[a-z0-9])(?=[A-Z])/', ' ', $key ) ) ) ?: [];
+
+        return [] !== array_intersect( $words, self::REDACTED_KEY_WORDS );
     }
 
     /**
@@ -359,7 +434,7 @@ class Timeline extends Component
         $rendered = null;
 
         if ( ! $known ) {
-            $json     = json_encode( $payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+            $json     = json_encode( self::redactedPayload( $payload ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
             $rendered = false === $json ? '' : $json;
         }
 

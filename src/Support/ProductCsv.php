@@ -18,6 +18,7 @@ use ArtisanPackUI\Ecommerce\Models\InventoryItem;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductCategory;
 use ArtisanPackUI\Ecommerce\Models\ProductPrice;
+use ArtisanPackUI\Ecommerce\Models\ProductTag;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
 use ArtisanPackUI\Ecommerce\Models\TaxClass;
 use ArtisanPackUI\Ecommerce\Registries\ProductTypeRegistry;
@@ -333,19 +334,6 @@ final class ProductCsv
     }
 
     /**
-     * Writes one mapped row through `ProductService`. The caller wraps it in
-     * a transaction.
-     *
-     * @since 1.0.0
-     *
-     * @param  array<string, string>  $row   Values keyed by column.
-     * @param  Authenticatable|null   $user  The user the import runs as; each row checks their ability.
-     *
-     * @throws InvalidArgumentException|ProductWriteException When the row is refused.
-     *
-     * @return string The action taken: `create`, `update`, `create-variant`, or `update-variant`.
-     */
-    /**
      * Loads what a dry run of `$rows` looks up (the products, variants, tax
      * classes, and categories the rows name) in a few queries per 500 rows,
      * into `$context['lookup']` for {@see self::check()}. Without it each
@@ -419,10 +407,41 @@ final class ProductCsv
             }
         }
 
+        $lookup['caseInsensitive'] = in_array( ( new Product() )->getConnection()->getDriverName(), [ 'mysql', 'mariadb', 'sqlsrv' ], true );
+        $lookup['lower']           = [];
+
+        foreach ( [ 'skus', 'slugs', 'variants', 'taxClasses', 'categories' ] as $map ) {
+            $lookup['lower'][ $map ] = [];
+
+            foreach ( $lookup[ $map ] as $value => $entry ) {
+                $lookup['lower'][ $map ][ mb_strtolower( (string) $value ) ] ??= $entry;
+            }
+        }
+
         $context['lookup'] = $lookup;
     }
 
-    public static function apply( array $row, ?Authenticatable $user ): string
+    /**
+     * Writes one mapped row through `ProductService`. The caller wraps it in
+     * a transaction.
+     *
+     * Stock columns need `inventory.adjust` as well as the product ability:
+     * without it they are skipped and a warning is added to `$warnings`.
+     * Product types that keep no stock of their own (digital, grouped) get
+     * no stock row, as on the product form. New tags need `product.create`,
+     * the ability the Tags screen creates tags with.
+     *
+     * @since 1.0.0
+     *
+     * @param  array<string, string>  $row       Values keyed by column.
+     * @param  Authenticatable|null   $user      The user the import runs as; each row checks their ability.
+     * @param  array<string, string>  $warnings  Filled with what was skipped, keyed by kind (`stock`). Since 2.0.0.
+     *
+     * @throws InvalidArgumentException|ProductWriteException When the row is refused.
+     *
+     * @return string The action taken: `create`, `update`, `create-variant`, or `update-variant`.
+     */
+    public static function apply( array $row, ?Authenticatable $user, array &$warnings = [] ): string
     {
         $context = [];
         $action  = self::resolve( $row, $context );
@@ -433,6 +452,26 @@ final class ProductCsv
 
         if ( ! Authorization::allows( $user, $ability, $action['product'] ) ) {
             throw new InvalidArgumentException( 'create' === $action['action'] ? __( 'You may not create products.' ) : __( 'You may not edit this product.' ) );
+        }
+
+        if ( self::hasStockValues( $row ) ) {
+            $stockable = match ( $action['action'] ) {
+                'update'         => $action['product'],
+                'update-variant' => $action['variant'],
+                default          => null,
+            };
+
+            if ( ! StockLevels::canAdjust( $user, $stockable ) ) {
+                $row               = self::withoutStock( $row );
+                $warnings['stock'] = __( 'Stock columns were skipped: you can\'t adjust stock.' );
+            } elseif ( ! self::isVariantRow( $row ) && ! StockLevels::typeTracksStock( '' !== self::value( $row, 'type' ) ? self::value( $row, 'type' ) : (string) ( $action['product']?->type ?? 'simple' ) ) ) {
+                // Types without stock of their own get no stock row.
+                $row = self::withoutStock( $row );
+            }
+        }
+
+        if ( array_key_exists( 'tags', $row ) ) {
+            self::assertMayCreateTags( self::listValue( $row, 'tags' ), $user );
         }
 
         $service = app( ProductService::class );
@@ -482,6 +521,70 @@ final class ProductCsv
     }
 
     /**
+     * Whether a row fills any stock column.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, string>  $row  Values keyed by column.
+     *
+     * @return bool
+     */
+    private static function hasStockValues( array $row ): bool
+    {
+        foreach ( self::STOCK_COLUMNS as $column ) {
+            if ( '' !== self::value( $row, $column ) ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * A row without its stock columns.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, string>  $row  Values keyed by column.
+     *
+     * @return array<string, string>
+     */
+    private static function withoutStock( array $row ): array
+    {
+        return array_diff_key( $row, array_flip( self::STOCK_COLUMNS ) );
+    }
+
+    /**
+     * Refuses tag names that don't exist yet unless the user may create
+     * tags (`product.create`, as on the Tags screen).
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, string>    $names  Tag names.
+     * @param  Authenticatable|null  $user   The importing user.
+     *
+     * @throws InvalidArgumentException When a new tag is not allowed.
+     *
+     * @return void
+     */
+    private static function assertMayCreateTags( array $names, ?Authenticatable $user ): void
+    {
+        if ( [] === $names || Authorization::allows( $user, 'product.create' ) ) {
+            return;
+        }
+
+        // Tags are found by slug, as `ProductTagService::findOrCreate()` does.
+        $slugs    = array_values( array_filter( array_map( static fn ( string $name ): string => Str::slug( $name ), $names ) ) );
+        $existing = [] === $slugs ? [] : ProductTag::query()->whereIn( 'slug', $slugs )->pluck( 'slug' )->map( 'strval' )->all();
+
+        foreach ( $names as $name ) {
+            if ( ! in_array( Str::slug( $name ), $existing, true ) ) {
+                throw new InvalidArgumentException( __( 'Tag ":tag" does not exist, and you may not create tags.', [ 'tag' => $name ] ) );
+            }
+        }
+    }
+
+    /**
      * Finds what a row writes to.
      *
      * @since 1.0.0
@@ -507,7 +610,7 @@ final class ProductCsv
 
             $variant = null === $lookup
                 ? ProductVariant::query()->with( 'product' )->where( 'sku', $variantSku )->first()
-                : self::fromLookup( $lookup['variants'], $variantSku );
+                : self::fromLookup( $lookup, 'variants', $variantSku );
 
             if ( null !== $variant ) {
                 self::assertEditable( $variant->product );
@@ -515,7 +618,7 @@ final class ProductCsv
                 return [ 'action' => 'update-variant', 'product' => $variant->product, 'variant' => $variant ];
             }
 
-            if ( null === $lookup ? Product::query()->where( 'sku', $variantSku )->exists() : null !== self::fromLookup( $lookup['skus'], $variantSku ) ) {
+            if ( null === $lookup ? Product::query()->where( 'sku', $variantSku )->exists() : null !== self::fromLookup( $lookup, 'skus', $variantSku ) ) {
                 throw new InvalidArgumentException( __( 'Another product or variant already uses this SKU.' ) );
             }
 
@@ -620,14 +723,14 @@ final class ProductCsv
 
         $taxClass = self::value( $row, 'tax_class_key' );
 
-        if ( '' !== $taxClass && ! ( null === $lookup ? TaxClass::query()->where( 'key', $taxClass )->exists() : null !== self::fromLookup( $lookup['taxClasses'], $taxClass ) ) ) {
+        if ( '' !== $taxClass && ! ( null === $lookup ? TaxClass::query()->where( 'key', $taxClass )->exists() : null !== self::fromLookup( $lookup, 'taxClasses', $taxClass ) ) ) {
             throw new InvalidArgumentException( __( 'Tax class ":class" does not exist.', [ 'class' => $taxClass ] ) );
         }
 
         $categories = self::listValue( $row, 'categories' );
         $missing    = null === $lookup
             ? array_diff( $categories, ProductCategory::query()->whereIn( 'slug', $categories )->pluck( 'slug' )->all() )
-            : array_filter( $categories, static fn ( string $slug ): bool => null === self::fromLookup( $lookup['categories'], $slug ) );
+            : array_filter( $categories, static fn ( string $slug ): bool => null === self::fromLookup( $lookup, 'categories', $slug ) );
 
         if ( [] !== $missing ) {
             throw new InvalidArgumentException( __( 'No category has the slug ":slug".', [ 'slug' => reset( $missing ) ] ) );
@@ -659,9 +762,9 @@ final class ProductCsv
         $id   = $product?->id;
 
         if ( null !== $lookup ) {
-            $other     = '' === $sku ? null : self::fromLookup( $lookup['skus'], $sku );
-            $skuTaken  = '' !== $sku && ( ( $other instanceof Product && $other->id !== $id ) || null !== self::fromLookup( $lookup['variants'], $sku ) );
-            $owner     = '' === $slug ? null : self::fromLookup( $lookup['slugs'], $slug );
+            $other     = '' === $sku ? null : self::fromLookup( $lookup, 'skus', $sku );
+            $skuTaken  = '' !== $sku && ( ( $other instanceof Product && $other->id !== $id ) || null !== self::fromLookup( $lookup, 'variants', $sku ) );
+            $owner     = '' === $slug ? null : self::fromLookup( $lookup, 'slugs', $slug );
             $slugTaken = $owner instanceof Product && $owner->id !== $id;
         } else {
             $skuTaken  = '' !== $sku && (
@@ -695,9 +798,9 @@ final class ProductCsv
         $slug = self::value( $row, 'slug' );
 
         if ( null !== $lookup ) {
-            $bySku = '' === $sku ? null : self::fromLookup( $lookup['skus'], $sku );
+            $bySku = '' === $sku ? null : self::fromLookup( $lookup, 'skus', $sku );
 
-            return ( $bySku instanceof Product ? $bySku : null ) ?? ( '' === $slug ? null : self::fromLookup( $lookup['slugs'], Str::slug( $slug ) ) );
+            return ( $bySku instanceof Product ? $bySku : null ) ?? ( '' === $slug ? null : self::fromLookup( $lookup, 'slugs', Str::slug( $slug ) ) );
         }
 
         return ( '' === $sku ? null : Product::query()->where( 'sku', $sku )->first() )
@@ -905,7 +1008,8 @@ final class ProductCsv
     }
 
     /**
-     * An amount column in minor units, or null when blank.
+     * An amount column in minor units, or null when blank. The amount must
+     * be digits with an optional dot and at most the currency's decimals.
      *
      * @since 1.0.0
      *
@@ -925,17 +1029,18 @@ final class ProductCsv
             return null;
         }
 
-        try {
-            $minor = MinorUnits::toMinor( $value, $currency );
-        } catch ( InvalidArgumentException ) {
-            $minor = null;
-        }
+        // Strictly a plain dot decimal, as the export writes it: a guess at
+        // thousands separators would read USD "12.500" as 12,500.
+        $scale    = MinorUnits::subunit( $currency );
+        $fraction = 0 === $scale ? '(\.0+)?' : '(\.\d{1,' . $scale . '})?';
 
-        if ( null === $minor || $minor < 0 ) {
+        if ( 1 !== preg_match( '/^(\d{1,15})' . $fraction . '$/D', $value, $parts ) ) {
             throw new InvalidArgumentException( __( 'Column ":column" must be an amount such as 12.50.', [ 'column' => $column ] ) );
         }
 
-        return $minor;
+        $decimals = 0 === $scale ? '' : substr( (string) ( $parts[2] ?? '' ), 1 );
+
+        return (int) ( $parts[1] . str_pad( $decimals, $scale, '0' ) );
     }
 
     /**
@@ -1144,31 +1249,28 @@ final class ProductCsv
 
     /**
      * A preloaded entry under `$key`, matched the way the database compares
-     * (case-insensitively on MySQL and SQL Server, exactly elsewhere).
+     * (case-insensitively on MySQL and SQL Server, exactly elsewhere). The
+     * case-insensitive match reads a lower-cased copy of the map built by
+     * {@see self::preload()}, so it costs no scan.
      *
      * @since 1.0.0
      *
-     * @param  array<string, mixed>  $map  Entries by value.
-     * @param  string                $key  The value looked for.
+     * @param  array<string, mixed>  $lookup  The preloaded lookup.
+     * @param  string                $map     Which map: `skus`, `slugs`, `variants`, `taxClasses`, or `categories`.
+     * @param  string                $key     The value looked for.
      *
      * @return mixed The entry, or null.
      */
-    private static function fromLookup( array $map, string $key ): mixed
+    private static function fromLookup( array $lookup, string $map, string $key ): mixed
     {
-        if ( array_key_exists( $key, $map ) ) {
-            return $map[ $key ];
+        if ( array_key_exists( $key, (array) ( $lookup[ $map ] ?? [] ) ) ) {
+            return $lookup[ $map ][ $key ];
         }
 
-        if ( ! in_array( ( new Product() )->getConnection()->getDriverName(), [ 'mysql', 'mariadb', 'sqlsrv' ], true ) ) {
+        if ( true !== ( $lookup['caseInsensitive'] ?? false ) ) {
             return null;
         }
 
-        foreach ( $map as $value => $entry ) {
-            if ( 0 === strcasecmp( (string) $value, $key ) ) {
-                return $entry;
-            }
-        }
-
-        return null;
+        return $lookup['lower'][ $map ][ mb_strtolower( $key ) ] ?? null;
     }
 }

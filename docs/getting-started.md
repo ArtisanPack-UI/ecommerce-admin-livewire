@@ -26,7 +26,7 @@ The service provider is auto-discovered. The install command:
 The admin renders on the ArtisanPack UI design system. The package ships no CSS or JavaScript build: your application's Vite build loads the design system. Remove daisyUI if the admin was its only user, then install the packages the install command prints:
 
 ```bash
-npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop
+npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop@^2
 ```
 
 Add the printed lines to your main stylesheet (for example `resources/css/app.css`). The `@layer` line comes first:

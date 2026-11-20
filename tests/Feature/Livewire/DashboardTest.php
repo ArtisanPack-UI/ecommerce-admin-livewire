@@ -262,10 +262,33 @@ it( 'runs the 30-day sales report once per render, and caches it between renders
     $queries = count( Illuminate\Support\Facades\DB::getQueryLog() );
     Illuminate\Support\Facades\DB::disableQueryLog();
 
-    $component->call( 'orderBroadcast' )->call( 'orderBroadcast' );
+    $component->call( '$refresh' )->call( '$refresh' );
 
     expect( $runs )->toBe( 1 )
         ->and( $queries )->toBeLessThan( 40 );
+} );
+
+it( 'drops the cached sales report on an order broadcast, so the update it announces is real', function (): void {
+    grantAbilities( [ 'report.view', 'order.viewAny' ] );
+    Order::factory()->create( [ 'placed_at' => now() ] );
+
+    $runs = 0;
+    $real = app( ArtisanPackUI\Ecommerce\Reports\SalesReport::class );
+    $spy  = Mockery::mock( $real );
+    $spy->shouldReceive( 'run' )->andReturnUsing( static function ( ...$args ) use ( $real, &$runs ): array {
+        ++$runs;
+
+        return $real->run( ...$args );
+    } );
+    app()->instance( ArtisanPackUI\Ecommerce\Reports\SalesReport::class, $spy );
+
+    $component = Livewire::test( Dashboard::class );
+
+    expect( $runs )->toBe( 1 );
+
+    $component->call( 'orderBroadcast' )->assertSet( 'liveAnnouncement', 'Orders changed. The dashboard has been updated.' );
+
+    expect( $runs )->toBe( 2 );
 } );
 
 it( 'skips re-rendering on an order broadcast when nothing on screen shows orders', function (): void {

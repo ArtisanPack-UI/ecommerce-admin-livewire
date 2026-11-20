@@ -39,8 +39,10 @@ use Throwable;
  * match on SKU and slug, so that is an update unless the row has neither).
  * A cache lock keeps one worker per import, so the queue's `retry_after`
  * should exceed {@see self::$timeout}. Each row checks
- * the importing user's `product.create` or `product.update` ability, so an
- * import cannot do more than its owner could by hand.
+ * the importing user's `product.create` or `product.update` ability (and
+ * `inventory.adjust` for stock columns), so an import cannot do more than
+ * its owner could by hand. Rows are applied as that user, so the activity
+ * log records them as the actor.
  *
  * @package    ArtisanPack_UI
  * @subpackage EcommerceAdminLivewire
@@ -81,13 +83,23 @@ class RunProductImport implements ShouldQueue
     public const MAX_ERRORS = 500;
 
     /**
+     * Seconds the job may run; {@see ProductImports::isAbandoned()} counts
+     * from it.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const TIMEOUT = 3600;
+
+    /**
      * Seconds the job may run.
      *
      * @since 1.0.0
      *
      * @var int
      */
-    public int $timeout = 3600;
+    public int $timeout = self::TIMEOUT;
 
     /**
      * Attempts (a failed import is resumed by hand).
@@ -133,7 +145,10 @@ class RunProductImport implements ShouldQueue
 
     /**
      * Marks the import failed so it can be resumed, unless another worker
-     * still holds it (a queue that re-released a long-running job).
+     * still holds it (a queue that re-released a long-running job). A held
+     * lock on an import that has stopped saving its progress (see
+     * {@see ProductImports::isAbandoned()}) belongs to a dead worker, so the
+     * import is marked failed anyway.
      *
      * @since 1.0.0
      *
@@ -146,6 +161,12 @@ class RunProductImport implements ShouldQueue
         $lock = Cache::lock( ProductImports::lockKey( $this->importId ), 10 );
 
         if ( ! $lock->get() ) {
+            $state = ProductImports::find( $this->importId );
+
+            if ( null !== $state && ProductImports::isAbandoned( $state ) ) {
+                $this->finish( $state, 'failed', __( 'The import stopped part-way. Resume it to carry on from the next row.' ) );
+            }
+
             return;
         }
 
@@ -192,6 +213,35 @@ class RunProductImport implements ShouldQueue
         $state['status'] = 'running';
         $state           = ProductImports::save( $state );
 
+        // The engine's activity log reads the causer from `auth()`, which a
+        // queue worker has none of: act as the import's owner while applying.
+        $guard    = Auth::guard();
+        $previous = $guard->hasUser() ? $guard->user() : null;
+        $guard->setUser( $user );
+
+        try {
+            $this->applyRows( $state, $user );
+        } finally {
+            if ( null !== $previous ) {
+                $guard->setUser( $previous );
+            } else {
+                Auth::forgetGuards();
+            }
+        }
+    }
+
+    /**
+     * Applies the rows from the resume point on, then finishes the import.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>  $state  State (status `running`).
+     * @param  Authenticatable       $user   Importing user.
+     *
+     * @return void
+     */
+    protected function applyRows( array $state, Authenticatable $user ): void
+    {
         // The state is saved every few rows, not after each one (a full
         // JSON rewrite, a PUT on S3). A crash replays at most those rows on
         // resume, which is safe: rows match products by SKU or slug, so a
@@ -232,10 +282,22 @@ class RunProductImport implements ShouldQueue
     {
         $mapped = ProductImports::mapRow( $row, (array) $state['mapping'] );
 
+        $warnings = [];
+
         try {
-            $action = DB::transaction( static fn (): string => ProductCsv::apply( $mapped, $user ) );
+            $action = DB::transaction( static function () use ( $mapped, $user, &$warnings ): string {
+                $warnings = [];
+
+                return ProductCsv::apply( $mapped, $user, $warnings );
+            } );
 
             ++$state['counts'][ str_starts_with( $action, 'create' ) ? 'created' : 'updated' ];
+
+            // Rows applied with part of them skipped (stock without
+            // `inventory.adjust`), counted per kind.
+            foreach ( array_keys( $warnings ) as $kind ) {
+                $state['warnings'][ $kind ] = (int) ( $state['warnings'][ $kind ] ?? 0 ) + 1;
+            }
         } catch ( InvalidArgumentException|ProductWriteException $exception ) {
             $state = self::recordError( $state, $row, $mapped, $exception->getMessage() );
         } catch ( Throwable $exception ) {

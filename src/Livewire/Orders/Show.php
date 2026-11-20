@@ -38,6 +38,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
@@ -123,7 +124,12 @@ class Show extends Component
     /**
      * Loads and authorizes the order.
      *
+     * A missing order is a 404 only for users who may list orders; anyone
+     * else gets the same 403 as for an order they can't view, so ids can't
+     * be probed.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Checks `viewAny` before answering 404.
      *
      * @param  int|string  $order  The order id.
      *
@@ -132,6 +138,14 @@ class Show extends Component
     public function mount( int|string $order ): void
     {
         $this->orderId = (int) $order;
+
+        try {
+            $this->order();
+        } catch ( ModelNotFoundException $exception ) {
+            $this->authorizeEcommerce( 'viewAny', Order::class );
+
+            throw $exception;
+        }
 
         $this->authorizeEcommerce( 'view', $this->order() );
 
@@ -378,7 +392,7 @@ class Show extends Component
         $options = [];
 
         foreach ( (array) data_get( $item->product_snapshot, 'options', [] ) as $label => $value ) {
-            if ( is_array( $value ) && isset( $value['label'], $value['value'] ) ) {
+            if ( is_array( $value ) && isset( $value['label'], $value['value'] ) && is_scalar( $value['label'] ) ) {
                 $options[] = $value['label'] . ': ' . ( is_scalar( $value['value'] ) ? $value['value'] : '' );
             } elseif ( is_scalar( $value ) && 'variant_id' !== $label ) {
                 $options[] = is_string( $label ) ? $label . ': ' . $value : (string) $value;
@@ -442,8 +456,9 @@ class Show extends Component
      * equivalent when the order was placed in another currency.
      *
      * Discounts are listed per promotion when the order records usages. The
-     * tax breakdown comes from the order's `meta.tax_lines`
-     * (`[ { label, amount } ]`) when present, filtered through
+     * tax breakdown comes from the order's `meta.tax_breakdown` (the rows the
+     * engine records at placement and on edits, `[ { label, amount, … } ]`),
+     * or the legacy `meta.tax_lines` when present, filtered through
      * `ap.ecommerceAdminLivewire.order.taxBreakdown`, else one "Tax" line.
      *
      * @since 1.0.0
@@ -509,7 +524,7 @@ class Show extends Component
     {
         $lines = [];
 
-        foreach ( (array) data_get( $order->meta, 'tax_lines', [] ) as $line ) {
+        foreach ( (array) data_get( $order->meta, 'tax_breakdown', data_get( $order->meta, 'tax_lines', [] ) ) as $line ) {
             if ( is_array( $line ) && isset( $line['label'], $line['amount'] ) && is_numeric( $line['amount'] ) ) {
                 $lines[] = [ 'label' => (string) $line['label'], 'amount' => (int) $line['amount'] ];
             }

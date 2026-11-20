@@ -27,8 +27,7 @@ action checks the engine's abilities, and other packages extend it through regis
 - Tailwind CSS 4 and the ArtisanPack UI design system (`@artisanpack-ui/css` and `@artisanpack-ui/behavior`) in your
   application's Vite build
 
-Optional: `artisanpack-ui/cms-framework`, `artisanpack-ui/media-library`, `artisanpack-ui/icons`,
-`artisanpack-ui/accessibility`, `artisanpack-ui/ecommerce-kanban-livewire`, `phpoffice/phpspreadsheet` (XLSX export),
+Optional: `artisanpack-ui/cms-framework`, `artisanpack-ui/media-library`, `artisanpack-ui/ecommerce-kanban-livewire`, `phpoffice/phpspreadsheet` (XLSX export),
 `barryvdh/laravel-dompdf` (PDF export). See [Requirements](docs/installation/requirements.md).
 
 ## Installation
@@ -70,7 +69,7 @@ The admin renders on the ArtisanPack UI design system. The package ships no CSS 
 1. Remove daisyUI if nothing else uses it, and install the design system:
 
    ```bash
-   npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop
+   npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop@^2
    ```
 
 2. Add the lines the install command prints to your main stylesheet. The `@layer` line comes first:

@@ -19,5 +19,4 @@
     icon="triangle-alert"
     :title="__( 'This product is read-only' )"
     :description="__( 'Its type, “:type”, is provided by a plugin that is no longer installed, so it can’t be edited or bought until you reinstall it. Existing orders and stock aren’t affected.', [ 'type' => $type ] )"
-    role="status"
 />

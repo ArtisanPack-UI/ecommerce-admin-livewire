@@ -125,6 +125,7 @@
                                     color="neutral"
                                     size="xs"
                                     leading-icon="trash"
+                                    icon-only
                                     class="ec-push-end"
                                     wire:click="confirmDelete( {{ $addressId }} )"
                                     wire:loading.attr="disabled"

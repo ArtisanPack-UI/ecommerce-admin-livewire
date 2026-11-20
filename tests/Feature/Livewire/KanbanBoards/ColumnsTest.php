@@ -150,8 +150,11 @@ it( 'warns about low contrast colours', function (): void {
 
     Livewire::test( Columns::class, [ 'board' => $this->board ] )
         ->call( 'create' )
+        ->set( 'form.color_override', '#FDE68A' )
+        ->assertSeeHtml( 'data-contrast-warning' )
+        ->assertSee( 'The icon and dot in this colour have a contrast of 1.21:1 on the light background' )
         ->set( 'form.color_override', '#3B82F6' )
-        ->assertSeeHtml( 'data-contrast-warning' );
+        ->assertDontSeeHtml( 'data-contrast-warning' );
 } );
 
 it( 'reorders columns', function (): void {
@@ -182,7 +185,9 @@ it( 'deletes an empty column and its automations after confirmation', function (
 
     $component = Livewire::test( Columns::class, [ 'board' => $this->board ] )
         ->call( 'confirmDelete', $to->id )
-        ->assertSeeHtml( 'data-delete-automations' );
+        ->assertSeeHtml( 'data-delete-automations' )
+        ->assertSeeHtml( 'role="alertdialog"' )
+        ->assertSeeHtml( 'data-autofocus' );
 
     $component->call( 'delete', $component->viewData( 'deleteToken' ) )
         ->assertDispatched( 'kanban-columns-changed' );
@@ -213,7 +218,9 @@ it( 'renders the design-system card with the colour strip, positions and chips',
     Livewire::test( Columns::class, [ 'board' => $this->board ] )
         ->assertSeeHtml( 'class="apui-card" aria-labelledby="board-columns-heading"' )
         ->assertSeeHtml( 'data-column-strip' )
-        ->assertSeeHtml( '--ec-column-color: #3B82F6' )
+        ->assertSeeHtml( 'fill="#3B82F6"' )
+        ->assertSeeHtml( 'color="#3B82F6"' )
+        ->assertDontSeeHtml( '--ec-column-color' )
         ->assertSeeHtml( 'class="ec-column-chip"' )
         ->assertSeeInOrder( [ 'ec-settings-row__index', '1', 'ec-settings-row__index', '2' ] )
         ->assertSee( 'Curing' )
@@ -284,4 +291,16 @@ it( 'puts the drawer actions in its footer, tied to the form', function (): void
         ->call( 'create' )
         ->assertSeeHtml( 'id="board-column-form"' )
         ->assertSeeHtml( 'form="board-column-form"' );
+} );
+
+it( 'keeps angle brackets in a column label override intact (REL-10)', function (): void {
+    Livewire::test( Columns::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->set( 'form.substatus_id', substatusId( 'in-progress' ) )
+        ->set( 'form.label_override', '  Parcels <3 kg ' )
+        ->call( 'save' )
+        ->assertHasNoErrors()
+        ->assertSee( 'Parcels <3 kg' );
+
+    expect( KanbanColumn::query()->where( 'board_id', $this->board->id )->sole()->label_override )->toBe( 'Parcels <3 kg' );
 } );

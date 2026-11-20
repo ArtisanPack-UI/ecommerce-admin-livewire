@@ -208,7 +208,9 @@
             </div>
         @endif
 
-        <div aria-live="polite">
+        @include( 'ecommerce-admin::partials.live-region', [ 'message' => $tableSelectable && $tableSelectionCount > 0 ? ( $tableAllMatching ? trans_choice( 'All :count matching row selected.|All :count matching rows selected.', $tableSelectionCount, [ 'count' => $tableSelectionCount ] ) : trans_choice( ':count row selected.|:count rows selected.', $tableSelectionCount, [ 'count' => $tableSelectionCount ] ) ) : '' ] )
+
+        <div>
             @if ( $tableSelectable && $tableSelectionCount > 0 )
                 <x-artisanpack-ec-bulk-action-bar
                     :count="$tableSelectionCount"

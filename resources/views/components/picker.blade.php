@@ -14,7 +14,6 @@
         color="info"
         :title="$label"
         :description="$unavailableMessage()"
-        role="status"
         data-picker-unavailable="{{ $type() }}"
     />
 @elseif ( $live )

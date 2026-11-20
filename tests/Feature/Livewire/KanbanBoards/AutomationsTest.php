@@ -230,7 +230,9 @@ it( 'deletes an automation after confirmation', function (): void {
 
     $component = Livewire::test( Automations::class, [ 'board' => $this->board ] )
         ->call( 'confirmDelete', $automation->id )
-        ->assertSet( 'confirmingDelete', true );
+        ->assertSet( 'confirmingDelete', true )
+        ->assertSeeHtml( 'role="alertdialog"' )
+        ->assertSeeHtml( 'data-autofocus' );
 
     $component->call( 'delete', $component->viewData( 'deleteToken' ) )->assertSet( 'confirmingDelete', false );
 
@@ -489,4 +491,44 @@ it( 'opens the drawer from a link on the board edit page', function (): void {
 
     expect( $this->get( $edit . '?automation=new' )->assertOk()->getContent() )
         ->toMatch( sprintf( $openDrawer, 'New automation' ) );
+} );
+
+it( 'renders the webhook signing secret as a password field (L-S12)', function (): void {
+    $html = Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->set( 'form.trigger_key', 'webhook' )
+        ->assertSeeHtml( 'data-config-secret' )
+        ->html();
+
+    expect( preg_match( '/<input[^>]*wire:model="form\.trigger_config\.secret"[^>]*>/', $html, $match ) )->toBe( 1 )
+        ->and( $match[0] )->toContain( 'type="password"' )
+        ->and( $match[0] )->toContain( 'autocomplete="new-password"' );
+} );
+
+it( 'refuses tampered trigger settings instead of failing (L-C1)', function (): void {
+    app( ArtisanPackUI\Ecommerce\Registries\KanbanAutomationRegistry::class )->register( 'json-trigger', new class implements ArtisanPackUI\Ecommerce\Contracts\KanbanAutomationTrigger {
+        public function key(): string
+        {
+            return 'json-trigger';
+        }
+
+        public function label(): string
+        {
+            return 'JSON trigger';
+        }
+
+        public function fire( ArtisanPackUI\Ecommerce\Models\Order $order, KanbanAutomation $automation, array $config ): void
+        {
+        }
+    } );
+
+    Livewire::test( Automations::class, [ 'board' => $this->board ] )
+        ->call( 'create' )
+        ->set( 'form.to_column_id', $this->shipped->id )
+        ->set( 'form.trigger_key', 'json-trigger' )
+        ->set( 'form.trigger_config', [ 'nested' => [ 'x' ] ] )
+        ->call( 'save' )
+        ->assertHasErrors( 'form.trigger_config' );
+
+    expect( KanbanAutomation::query()->count() )->toBe( 0 );
 } );

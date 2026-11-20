@@ -13,9 +13,11 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\Support;
 
+use ArtisanPackUI\Ecommerce\Models\DigitalFile;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductImage;
 use ArtisanPackUI\MediaLibrary\Livewire\Components\MediaModal;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Throwable;
 
 /**
@@ -168,6 +170,113 @@ final class ProductMedia
         $url = self::imageUrl( $first, $size );
 
         return null === $url ? null : [ 'url' => $url, 'alt' => (string) ( $first->alt_text ?? $product->name ) ];
+    }
+
+    /**
+     * {@see self::featured()} for a page of products at once, keyed by
+     * product id. The gallery images of products without a featured image
+     * load in one query, and media-library items in one query where the
+     * library's model can build its own URLs, instead of a lookup per row.
+     *
+     * @since 2.0.0
+     *
+     * @param  iterable<int, Product>  $products  Products.
+     * @param  string                  $size      Image size.
+     *
+     * @return array<int, array{url: string, alt: string}|null>
+     */
+    public static function featuredMany( iterable $products, string $size = 'thumbnail' ): array
+    {
+        $products = collect( $products )->filter( static fn ( mixed $product ): bool => $product instanceof Product )->values();
+
+        if ( $products->isEmpty() ) {
+            return [];
+        }
+
+        // Only products without a featured image fall back to their gallery.
+        $needImages = $products->filter( static fn ( Product $product ): bool => null === $product->featured_image_media_id && null === self::safeUrl( $product->meta['featured_image_url'] ?? null ) );
+
+        if ( $needImages->isNotEmpty() ) {
+            ( new EloquentCollection( $needImages->all() ) )->loadMissing( 'images' );
+        }
+
+        $mediaIds = [];
+
+        foreach ( $products as $product ) {
+            $mediaIds[] = $product->featured_image_media_id;
+            $mediaIds[] = $product->relationLoaded( 'images' ) ? $product->images->first()?->media_id : null;
+        }
+
+        $urls  = self::mediaUrls( array_values( array_unique( array_map( 'intval', array_filter( $mediaIds ) ) ) ), $size );
+        $thumb = [];
+
+        foreach ( $products as $product ) {
+            $url = ( null === $product->featured_image_media_id ? null : ( $urls[ (int) $product->featured_image_media_id ] ?? null ) )
+                ?? self::safeUrl( $product->meta['featured_image_url'] ?? null );
+
+            if ( null !== $url ) {
+                $thumb[ (int) $product->id ] = [ 'url' => $url, 'alt' => (string) $product->name ];
+
+                continue;
+            }
+
+            $first = $product->images->first();
+            $url   = null === $first ? null : ( ( null === $first->media_id ? null : ( $urls[ (int) $first->media_id ] ?? null ) ) ?? self::safeUrl( $first->image_url ) );
+
+            $thumb[ (int) $product->id ] = null === $url ? null : [ 'url' => $url, 'alt' => (string) ( $first->alt_text ?? $product->name ) ];
+        }
+
+        return $thumb;
+    }
+
+    /**
+     * Media-library URLs for several items, keyed by id. With the library's
+     * model (and its `imageUrl()`), the items load in one query; otherwise
+     * each goes through {@see self::mediaUrl()}.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, int>  $ids   Media ids.
+     * @param  string           $size  Image size.
+     *
+     * @return array<int, string>
+     */
+    public static function mediaUrls( array $ids, string $size = 'thumbnail' ): array
+    {
+        if ( [] === $ids || ! function_exists( 'apGetMediaUrl' ) ) {
+            return [];
+        }
+
+        $model = DigitalFile::MEDIA_MODEL;
+        $urls  = [];
+
+        if ( class_exists( $model ) && method_exists( $model, 'imageUrl' ) ) {
+            foreach ( $model::query()->whereKey( $ids )->get() as $media ) {
+                try {
+                    $url = method_exists( $media, 'isImage' ) && ! $media->isImage() && method_exists( $media, 'url' )
+                        ? $media->url()
+                        : $media->imageUrl( $size );
+                } catch ( Throwable ) {
+                    $url = null;
+                }
+
+                if ( is_string( $url ) && '' !== $url ) {
+                    $urls[ (int) $media->getKey() ] = $url;
+                }
+            }
+
+            return $urls;
+        }
+
+        foreach ( $ids as $id ) {
+            $url = self::mediaUrl( $id, $size );
+
+            if ( null !== $url ) {
+                $urls[ $id ] = $url;
+            }
+        }
+
+        return $urls;
     }
 
     /**

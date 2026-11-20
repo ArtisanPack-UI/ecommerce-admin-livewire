@@ -31,7 +31,7 @@ A provider may also define `label(): string`, the heading of its group in the pa
 **Since:** 2.0.0 (`label()`)
 
 - `$search` is trimmed and never empty.
-- Return at most `$limit` results (the `spotlight.limit` config, 5 by default) and run at most one query.
+- Return at most `$limit` results (the `spotlight.limit` config, 5 by default) and run at most one query. The admin keeps only the first `$limit × 3` results a provider returns (`AdminSpotlight::RESULTS_PER_LIMIT`), which leaves room for contextual actions after a match. **Since:** 2.0.0
 - `icon` is a design-system icon name (`shopping-bag`), or a Heroicon name (`o-cube`) that the admin maps to its design-system counterpart. The palette draws icons in the browser, so only icons that `livewire-ui-components` ships to the browser show. Any other name, and any markup, gets no icon.
 - Results without `name` or `link` are dropped.
 - Check record-level access yourself: the palette only checks `ability()`.
