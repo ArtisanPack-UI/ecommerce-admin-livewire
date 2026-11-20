@@ -79,6 +79,19 @@ Every screen is rebuilt on the ArtisanPack UI design system through `livewire-ui
 - Kanban webhook secrets render as password fields, and translated lines on the settings screen are escaped.
 - Tampered JSON config no longer causes server errors.
 
+## [1.0.1] - 2026-11-19
+
+A security patch for the toast notices.
+
+### Security
+
+- **Toasts escape their text.** The livewire-ui-components 2.x toast renders its title and description as HTML, so stored names (products, customers, promotions, categories) and engine messages in a toast could run as markup in another admin's browser. Toast titles and descriptions, including the rate-limit notice's message, are now HTML-escaped, so they always show as plain text ([#68](https://github.com/ArtisanPack-UI/ecommerce-admin-livewire/issues/68)). A bulk action that returned HTML in its success message now shows that markup as text.
+
+### Changed
+
+- **Release assets:** the signed contract-verification report is attached as `ecommerce-verify-report.json`. v1.0.0's appears as `default.ecommerce-verify-report.json`, because GitHub renames asset names that start with a dot.
+- **CI:** satellite verification uses the engine's `verify-satellite.yml@v1.0.1`, and the release step's action is pinned to a commit SHA.
+
 ## [1.0.0] - 2026-10-06
 
 The first stable release of the Livewire store admin for the ArtisanPack UI
