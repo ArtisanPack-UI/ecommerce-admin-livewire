@@ -56,10 +56,13 @@ describe( 'details', function (): void {
     } );
 
     it( 'answers 403, not 404, for a missing promotion when the user cannot list promotions', function (): void {
-        Livewire::test( Form::class, [ 'promotion' => 999 ] )->assertNotFound();
+        $url = route( 'artisanpack.ecommerce.admin.promotions.edit', [ 'promotion' => 999 ] );
+
+        $this->get( $url )->assertNotFound();
 
         Gate::define( 'ecommerce.promotion.viewAny', static fn (): bool => false );
 
+        $this->get( $url )->assertForbidden();
         Livewire::test( Form::class, [ 'promotion' => 999 ] )->assertForbidden();
     } );
 

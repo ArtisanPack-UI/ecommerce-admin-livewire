@@ -66,10 +66,13 @@ it( 'names a missing "customer since" date for screen readers', function (): voi
 } );
 
 it( 'answers 403, not 404, for a missing customer when the user cannot list customers', function (): void {
-    Livewire::test( Show::class, [ 'customer' => 999 ] )->assertNotFound();
+    $url = route( 'artisanpack.ecommerce.admin.customers.show', [ 'customer' => 999 ] );
+
+    $this->get( $url )->assertNotFound();
 
     Gate::define( 'ecommerce.customer.viewAny', static fn (): bool => false );
 
+    $this->get( $url )->assertForbidden();
     Livewire::test( Show::class, [ 'customer' => 999 ] )->assertForbidden();
 } );
 
