@@ -20,6 +20,7 @@ use ArtisanPackUI\Ecommerce\Support\TaxRateMath;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Number;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -94,6 +95,11 @@ final class ReportPresenter
     /**
      * The table: columns, rows, and a totals row (or null).
      *
+     * Filtered through `ap.ecommerceAdminLivewire.reports.{report}.table`
+     * with the report key in camelCase (`reports.topProducts.table`). The
+     * kebab-case name 1.x used (`reports.top-products.table`) still runs
+     * afterwards for multi-word reports, but is deprecated since 2.0.0.
+     *
      * @since 1.0.0
      *
      * @param  string                $report  Report key.
@@ -112,6 +118,12 @@ final class ReportPresenter
             'low-stock'           => self::lowStockTable( $result ),
             default               => self::genericTable( $result ),
         };
+
+        $table = (array) applyFilters( 'ap.ecommerceAdminLivewire.reports.' . Str::camel( $report ) . '.table', $table, $result );
+
+        if ( Str::camel( $report ) === $report ) {
+            return $table;
+        }
 
         return (array) applyFilters( 'ap.ecommerceAdminLivewire.reports.' . $report . '.table', $table, $result );
     }

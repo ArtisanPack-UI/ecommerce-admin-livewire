@@ -48,7 +48,9 @@ public array $productIds = [];
 | `live` | Bind with `wire:model.live` |
 | `id` | A distinct id when the same model appears twice on a page |
 
-Typing calls `searchPicker( $term, $type, $model )` on your component. It authorizes the source's ability before searching. A user who may not search the source gets no options.
+Typing calls `searchPicker( $term, $type, $model )` on your component. It authorizes the source's ability before searching, and answers a user who may not search the source with a 403. `optionsForPicker()` returns no options for that user instead of failing, so a form can still render the picker.
+
+The selected ids come from the client, so only the first `PickerSource::MAX_IDS` (200) are looked up for their labels. **Since:** 2.0.0
 
 ## The source interface
 
@@ -63,7 +65,10 @@ interface PickerSource
     /** @return array<int, array{id: int|string, name: string, description: string|null}> */
     public function search( string $term, int $limit ): array;
 
-    /** Options for the selected ids, so selected values keep their labels. */
+    /** The most ids find() is asked to label at once (since 2.0.0). */
+    public const MAX_IDS = 200;
+
+    /** Options for the selected ids, so selected values keep their labels. Cap the list at MAX_IDS. */
     public function find( array $ids ): array;
 }
 ```

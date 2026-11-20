@@ -3,11 +3,33 @@
 declare( strict_types=1 );
 
 use ArtisanPackUI\EcommerceAdminLivewire\Console\Commands\InstallCommand;
+use ArtisanPackUI\EcommerceAdminLivewire\EcommerceAdminLivewireServiceProvider;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 
+/*
+ * The install command publishes the config. Publishing into the shared
+ * testbench skeleton races other parallel processes, which load every file
+ * in its config directory, so each test publishes into its own temporary
+ * config path instead. The publish paths are resolved when the provider
+ * boots, so they are registered again after the path changes.
+ */
+beforeEach( function (): void {
+    $this->configPath = sys_get_temp_dir() . '/ecommerce-admin-install-' . bin2hex( random_bytes( 8 ) );
+    File::ensureDirectoryExists( $this->configPath );
+    $this->app->useConfigPath( $this->configPath );
+
+    $provider = $this->app->getProvider( EcommerceAdminLivewireServiceProvider::class );
+    ( new ReflectionMethod( $provider, 'registerPublishing' ) )->invoke( $provider );
+} );
+
 afterEach( function (): void {
-    File::delete( config_path( 'artisanpack/ecommerce-admin-livewire.php' ) );
+    File::deleteDirectory( $this->configPath );
+} );
+
+it( 'publishes into the test\'s own config path, never the shared skeleton', function (): void {
+    expect( Illuminate\Support\ServiceProvider::pathsToPublish( EcommerceAdminLivewireServiceProvider::class, 'ecommerce-admin-config' ) )
+        ->each->toStartWith( $this->configPath );
 } );
 
 it( 'publishes the config', function (): void {
@@ -23,7 +45,7 @@ it( 'prints the design-system import, the Tailwind source lines and the npm depe
         $command->expectsOutputToContain( $source );
     }
 
-    $command->expectsOutputToContain( 'npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop' )
+    $command->expectsOutputToContain( 'npm install @artisanpack-ui/css@^1 @artisanpack-ui/behavior@^1 @artisanpack-ui/livewire-drag-and-drop@^2' )
         ->assertSuccessful();
 } );
 

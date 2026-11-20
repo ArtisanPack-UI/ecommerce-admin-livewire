@@ -31,6 +31,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\Authorization;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\Csv;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\MinorUnits;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductCsv;
+use ArtisanPackUI\EcommerceAdminLivewire\Support\ProductMedia;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -120,6 +121,7 @@ class Index extends Component
             'bulkCategoryOptions' => $data['tableSelectionCount'] > 0 ? self::categoryOptions() : [],
             'bulkTagOptions'      => $data['tableSelectionCount'] > 0 ? self::tagOptions() : [],
             'bulkInlineActions'   => self::INLINE_BULK_ACTIONS,
+            'thumbnails'          => ProductMedia::featuredMany( $data['tableRows']->items() ),
         ] );
     }
 
@@ -255,15 +257,6 @@ class Index extends Component
     }
 
     /**
-     * Deletes the selected products.
-     *
-     * @since 1.0.0
-     *
-     * @param  Builder<Product>  $selection  Selected products.
-     *
-     * @return string|null
-     */
-    /**
      * Marks the selected products featured, or takes them out of featured.
      *
      * @since 1.0.0
@@ -293,6 +286,15 @@ class Index extends Component
         );
     }
 
+    /**
+     * Deletes the selected products.
+     *
+     * @since 1.0.0
+     *
+     * @param  Builder<Product>  $selection  Selected products.
+     *
+     * @return string|null
+     */
     protected function deleteSelection( Builder $selection ): ?string
     {
         $service = app( ProductService::class );

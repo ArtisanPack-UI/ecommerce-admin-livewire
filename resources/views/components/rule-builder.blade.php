@@ -104,7 +104,7 @@
                                             leading-icon="sliders-horizontal"
                                             wire:click="toggleRule( {{ $listKey }}, {{ $rowId }} )"
                                             aria-expanded="{{ $row['open'] ? 'true' : 'false' }}"
-                                            aria-controls="{{ $prefix }}-settings-{{ $row['id'] }}">{{ $row['open'] ? __( 'Close settings' ) : __( 'Settings' ) }}</x-artisanpack-button>
+                                            :aria-controls="$row['open'] ? $prefix . '-settings-' . $row['id'] : null">{{ $row['open'] ? __( 'Close settings' ) : __( 'Settings' ) }}</x-artisanpack-button>
                                     @endif
                                     <x-artisanpack-button
                                         variant="ghost"

@@ -68,6 +68,14 @@ it( 'becomes an info alert when no source is registered', function (): void {
         ->not->toContain( 'apui-combobox' );
 } );
 
+it( 'leaves the unavailable alert\'s role to the design system, so it renders once', function (): void {
+    app()->instance( PickerSourceRegistry::class, new PickerSourceRegistry() );
+
+    $html = Illuminate\Support\Facades\Blade::render( '<x-artisanpack-ec-variant-picker model="variantIds" label="Variants" />' );
+
+    expect( substr_count( $html, 'role=' ) )->toBe( 1 );
+} );
+
 it( 'takes a placeholder override', function (): void {
     grantAbilities( [ 'product.viewAny' ] );
 
@@ -102,6 +110,33 @@ it( 'keeps selected options alongside the results', function (): void {
         ->call( 'searchPicker', 'shirt', 'product', 'productIds' );
 
     expect( collect( $component->get( 'pickerOptions' )['product:productIds'] )->pluck( 'name' )->all() )->toBe( [ 'Blue Mug', 'Red Shirt' ] );
+} );
+
+it( 'labels at most PickerSource::MAX_IDS selected ids, however many the client sends', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+    $mug = Product::factory()->create( [ 'name' => 'Blue Mug' ] );
+    $ids = [ $mug->getKey(), ...range( 1000000, 1001000 ) ];
+
+    Illuminate\Support\Facades\DB::enableQueryLog();
+
+    $component = Livewire::actingAs( makeUser() )->test( HelperForm::class )
+        ->set( 'productIds', $ids )
+        ->call( 'searchPicker', 'zzz-no-match', 'product', 'productIds' );
+
+    $findQuery = collect( Illuminate\Support\Facades\DB::getQueryLog() )->first( static fn ( array $query ): bool => str_contains( $query['query'], ' in (' ) && str_contains( $query['query'], ( new Product() )->getTable() ) );
+
+    expect( collect( $component->get( 'pickerOptions' )['product:productIds'] )->pluck( 'name' )->all() )->toBe( [ 'Blue Mug' ] )
+        ->and( $findQuery )->not->toBeNull()
+        ->and( count( $findQuery['bindings'] ) )->toBeLessThanOrEqual( ArtisanPackUI\EcommerceAdminLivewire\Pickers\PickerSource::MAX_IDS + 1 );
+} );
+
+it( 'caps the ids an Eloquent picker source looks up', function (): void {
+    grantAbilities( [ 'product.viewAny' ] );
+    $products = Product::factory()->count( 3 )->create();
+    $ids      = [ ...range( 1000000, 1000000 + ArtisanPackUI\EcommerceAdminLivewire\Pickers\PickerSource::MAX_IDS - 1 ), ...$products->modelKeys() ];
+
+    expect( app( PickerSourceRegistry::class )->get( 'product' )->find( $ids ) )->toBe( [] )
+        ->and( app( PickerSourceRegistry::class )->get( 'product' )->find( $products->modelKeys() ) )->toHaveCount( 3 );
 } );
 
 it( 'treats LIKE wildcards literally', function (): void {

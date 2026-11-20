@@ -146,7 +146,16 @@ class Index extends Component
     {
         $this->authorizeTable();
 
-        $this->viewingId    = LicenseKey::query()->whereKey( $id )->exists() ? $id : null;
+        $key  = LicenseKey::query()->find( $id );
+        $user = auth()->user();
+
+        // The screen-wide check above has no record; the policy also gets
+        // the key itself.
+        if ( null !== $key && ! Authorization::allows( $user, 'licenseKey.view', $key ) && ! Authorization::allows( $user, 'licenseKey.revoke', $key ) ) {
+            $this->denyEcommerce();
+        }
+
+        $this->viewingId    = null === $key ? null : (int) $key->id;
         $this->viewing      = null !== $this->viewingId;
         $this->drawerStatus = '';
         $this->closeDeactivate();
@@ -333,7 +342,7 @@ class Index extends Component
             'canViewKeys'         => $this->canViewKeys(),
             'deactivatingMachine' => $deactivating,
             'deactivateToken'     => null === $deactivating ? null : $this->actionToken( 'deactivate', $deactivating ),
-            'machineFor'          => fn ( LicenseActivation $activation ): string => $this->machineLabel( $activation ),
+            'machineFor'          => fn ( LicenseActivation $activation ): string => $this->machineLabel( $activation, $viewing ),
             'canRevoke'           => Authorization::allows( auth()->user(), 'licenseKey.revoke' ),
             'searchHint'          => $this->canViewKeys() ? __( 'Search by order, customer, or a full license key.' ) : __( 'Search by order or customer.' ),
             'viewingKey'          => $viewing,
@@ -474,14 +483,15 @@ class Index extends Component
      * @since 1.0.0
      *
      * @param  LicenseActivation  $activation  The activation.
+     * @param  LicenseKey|null    $key         The key it belongs to. Since 2.0.0.
      *
      * @return string
      */
-    protected function machineLabel( LicenseActivation $activation ): string
+    protected function machineLabel( LicenseActivation $activation, ?LicenseKey $key = null ): string
     {
         $fingerprint = (string) $activation->machine_fingerprint;
 
-        if ( $this->canViewKeys() ) {
+        if ( $this->canViewKeys( $key ) ) {
             return $fingerprint;
         }
 
@@ -504,19 +514,23 @@ class Index extends Component
      */
     protected function displayKey( LicenseKey $key ): string
     {
-        return $this->canViewKeys() ? (string) $key->key : self::mask( (string) $key->key );
+        return $this->canViewKeys( $key ) ? (string) $key->key : self::mask( (string) $key->key );
     }
 
     /**
-     * Whether the user may see keys in full.
+     * Whether the user may see keys in full: a given key (the policy gets
+     * the record, so it can mask some keys and not others), or keys in
+     * general when none is given.
      *
      * @since 1.0.0
      *
+     * @param  LicenseKey|null  $key  The key, or null for keys in general. Since 2.0.0.
+     *
      * @return bool
      */
-    protected function canViewKeys(): bool
+    protected function canViewKeys( ?LicenseKey $key = null ): bool
     {
-        return Authorization::allows( auth()->user(), 'licenseKey.view' );
+        return Authorization::allows( auth()->user(), 'licenseKey.view', $key );
     }
 
     /**

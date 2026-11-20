@@ -72,9 +72,9 @@
                             />
                             @unless ( $readOnly )
                                 <div class="ec-row-actions">
-                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-up" wire:click="moveChild( {{ $i }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="children" data-reorder-key="child-{{ $child['uid'] ?? $i }}" data-reorder-item="{{ $rowName }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $rowName ] )" />
-                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-down" wire:click="moveChild( {{ $i }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="children" data-reorder-key="child-{{ $child['uid'] ?? $i }}" data-reorder-item="{{ $rowName }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $rowName ] )" />
-                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="trash" wire:click="removeChild( {{ $i }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :item', [ 'item' => $rowName ] )" />
+                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-up" wire:click="moveChild( {{ $i }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="children" data-reorder-key="child-{{ $child['uid'] ?? $i }}" data-reorder-item="{{ $rowName }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $rowName ] )" />
+                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-down" wire:click="moveChild( {{ $i }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="children" data-reorder-key="child-{{ $child['uid'] ?? $i }}" data-reorder-item="{{ $rowName }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $rowName ] )" />
+                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="trash" wire:click="removeChild( {{ $i }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :item', [ 'item' => $rowName ] )" />
                                 </div>
                             @endunless
                         </div>

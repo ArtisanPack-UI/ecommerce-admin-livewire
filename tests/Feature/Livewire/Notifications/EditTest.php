@@ -347,3 +347,40 @@ it( 'changes the preview announcement on every update so it is read again', func
     expect( $component->get( 'previewRevision' ) )->toBe( $first + 1 )
         ->and( substr_count( $component->html(), "\u{200B}" ) )->toBe( ( $first + 1 ) % 2 );
 } );
+
+it( 'pauses the preview after too many renders a minute (M-3)', function (): void {
+    $template  = NotificationTemplate::factory()->create();
+    $component = Livewire::test( Edit::class, [ 'template' => $template->id ] );
+    $before    = $component->get( 'previewBody' );
+
+    $key = 'ecommerce-admin:notification-preview:' . $this->user->id;
+
+    for ( $i = 0; $i < Edit::PREVIEWS_PER_MINUTE; $i++ ) {
+        Illuminate\Support\Facades\RateLimiter::hit( $key, 60 );
+    }
+
+    $component->set( 'body', '<p>Changed</p>' );
+
+    expect( $component->get( 'previewBody' ) )->toBe( $before )
+        ->and( $component->get( 'previewErrors' )[0]['message'] ?? '' )->toContain( 'The preview is paused after too many updates.' );
+
+    Illuminate\Support\Facades\RateLimiter::clear( $key );
+} );
+
+it( 'refuses to preview a template whose output is too large (M-3)', function (): void {
+    $template  = NotificationTemplate::factory()->create();
+    $component = Livewire::test( Edit::class, [ 'template' => $template->id ] );
+
+    $this->partialMock( NotificationTemplateService::class )
+        ->shouldReceive( 'preview' )
+        ->andReturn( [ 'subject' => 'Order', 'body' => str_repeat( 'x', Edit::MAX_PREVIEW_OUTPUT + 1 ) ] );
+
+    $component->set( 'body', '<p>{{ Order.number }}</p>' )->assertHasErrors( [ 'body' ] );
+
+    expect( $component->get( 'previewBody' ) )->toBe( '' )
+        ->and( $component->get( 'previewErrors' )[0]['message'] ?? '' )->toContain( 'too long to preview or send' );
+} );
+
+it( 'caps the body source at the engine API limit of 100000 characters', function (): void {
+    expect( Edit::MAX_BODY )->toBe( 100000 );
+} );

@@ -1181,7 +1181,6 @@ class Index extends Component
 
         $classKeys = TaxClass::query()->pluck( 'key' )->map( static fn ( mixed $key ): string => (string) $key )->all();
         $existing  = TaxRateCsv::existing( array_map( static fn ( array $row ): string => strtoupper( trim( (string) ( $row['country_code'] ?? '' ) ) ), $csv['rows'] ) );
-        $canUpdate = Authorization::allows( auth()->user(), 'taxRate.update' );
         $plan      = [];
         $seen      = [];
 
@@ -1199,7 +1198,7 @@ class Index extends Component
 
                 $seen[ $key ] ??= (int) $row['__line'];
 
-                if ( null !== $rate && ! $canUpdate ) {
+                if ( null !== $rate && ! $this->canEcommerce( 'update', $rate ) ) {
                     $errors[] = __( 'This rate already exists and you are not allowed to change existing rates.' );
                 }
             }

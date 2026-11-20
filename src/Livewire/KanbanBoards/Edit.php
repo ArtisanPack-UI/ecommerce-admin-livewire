@@ -156,8 +156,8 @@ class Edit extends Component
 
         $this->authorizeEcommerce( 'update', $board );
 
-        $this->form['name']        = sanitizeText( (string) $this->form['name'] );
-        $this->form['description'] = sanitizeText( (string) $this->form['description'] );
+        $this->form['name']        = KanbanBoards::plainText( (string) $this->form['name'] );
+        $this->form['description'] = KanbanBoards::plainText( (string) $this->form['description'] );
 
         $this->validate(
             [

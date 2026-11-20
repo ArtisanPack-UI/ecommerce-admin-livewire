@@ -37,7 +37,7 @@
         'emptyDescription' => __( 'Products and variants that track inventory appear here.' ),
         'searchHint'       => __( 'Search by product or SKU' ),
         'rowLabel'         => static fn ( \ArtisanPackUI\Ecommerce\Models\InventoryItem $item ): string => StockLevels::label( $item ),
-        'cellContext'      => [ 'canAdjust' => $canAdjust, 'editingThresholdId' => $editingThresholdId ],
+        'cellContext'      => [ 'canAdjust' => $canAdjust, 'editingThresholdId' => $editingThresholdId, 'backorderRevision' => $backorderRevision ],
     ] )
 
     @if ( null !== $adjustingItem )
@@ -149,7 +149,7 @@
             </div>
 
             @if ( null !== $bulkReport )
-                <x-artisanpack-alert color="info" icon="info" role="status" data-bulk-summary>
+                <x-artisanpack-alert color="info" icon="info" data-bulk-summary>
                     {{ trans_choice( ':count row will change stock.|:count rows will change stock.', $bulkValidRows, [ 'count' => $bulkValidRows ] ) }}
                     @if ( $bulkSkipped > 0 )
                         {{ trans_choice( ':count row has an error and will be skipped.|:count rows have errors and will be skipped.', $bulkSkipped, [ 'count' => $bulkSkipped ] ) }}
@@ -176,7 +176,7 @@
                                         <td data-scope="table" data-part="cell" data-numeric>{{ $row['line'] }}</td>
                                         <td data-scope="table" data-part="cell">
                                             @if ( '' === $row['sku'] )
-                                                <span class="ec-muted-text">&mdash;</span>
+                                                <span class="ec-muted-text" aria-hidden="true">&mdash;</span><span class="apui-sr-only">{{ __( 'None' ) }}</span>
                                             @else
                                                 <bdi dir="ltr" class="ec-mono">{{ $row['sku'] }}</bdi>
                                             @endif

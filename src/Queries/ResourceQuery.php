@@ -346,7 +346,7 @@ abstract class ResourceQuery
      * the bound is rounded inward: a minimum up, a maximum down. Anything
      * else is ignored rather than thrown.
      *
-     * @since 1.0.0
+     * @since 2.0.0
      *
      * @param  mixed  $major    The bound in major units.
      * @param  int    $subunit  Decimal places of the currency.

@@ -20,18 +20,18 @@
 @endphp
 @if ( $canModerate )
     @if ( 'approved' !== $review->status )
-        <x-artisanpack-button variant="soft" color="success" :size="$size" leading-icon="check" wire:click="moderate( {{ $review->id }}, 'approve' )" wire:loading.attr="disabled" :aria-label="__( 'Approve the review by :author', [ 'author' => $author ] )" data-moderate="approve">{{ __( 'Approve' ) }}</x-artisanpack-button>
+        <x-artisanpack-button variant="soft" color="success" :size="$size" leading-icon="check" wire:click="moderate( {{ $review->id }}, 'approve' )" wire:loading.attr="disabled" wire:target="moderate" :aria-label="__( 'Approve the review by :author', [ 'author' => $author ] )" data-moderate="approve">{{ __( 'Approve' ) }}</x-artisanpack-button>
     @endif
     @if ( 'rejected' !== $review->status )
         <x-artisanpack-button variant="outline" color="neutral" :size="$size" leading-icon="circle-x" wire:click="startReject( {{ $review->id }} )" :aria-label="__( 'Reject the review by :author', [ 'author' => $author ] )" data-moderate="reject">{{ __( 'Reject' ) }}</x-artisanpack-button>
     @endif
     @if ( 'spam' !== $review->status )
-        <x-artisanpack-button variant="ghost" color="neutral" :size="$size" wire:click="moderate( {{ $review->id }}, 'spam' )" wire:loading.attr="disabled" :aria-label="__( 'Mark the review by :author as spam', [ 'author' => $author ] )" data-moderate="spam">{{ __( 'Spam' ) }}</x-artisanpack-button>
+        <x-artisanpack-button variant="ghost" color="neutral" :size="$size" wire:click="moderate( {{ $review->id }}, 'spam' )" wire:loading.attr="disabled" wire:target="moderate" :aria-label="__( 'Mark the review by :author as spam', [ 'author' => $author ] )" data-moderate="spam">{{ __( 'Spam' ) }}</x-artisanpack-button>
     @endif
     @if ( 'pending' !== $review->status )
-        <x-artisanpack-button variant="ghost" color="neutral" :size="$size" leading-icon="undo-2" wire:click="moderate( {{ $review->id }}, 'requeue' )" wire:loading.attr="disabled" :aria-label="__( 'Move the review by :author back to pending', [ 'author' => $author ] )" data-moderate="requeue">{{ __( 'Back to pending' ) }}</x-artisanpack-button>
+        <x-artisanpack-button variant="ghost" color="neutral" :size="$size" leading-icon="undo-2" wire:click="moderate( {{ $review->id }}, 'requeue' )" wire:loading.attr="disabled" wire:target="moderate" :aria-label="__( 'Move the review by :author back to pending', [ 'author' => $author ] )" data-moderate="requeue">{{ __( 'Back to pending' ) }}</x-artisanpack-button>
     @endif
 @endif
 @if ( $canDelete )
-    <x-artisanpack-button variant="ghost" color="error" :size="$size" leading-icon="trash" wire:click="confirmDelete( {{ $review->id }} )" :aria-label="__( 'Delete the review by :author', [ 'author' => $author ] )" data-moderate="delete" />
+    <x-artisanpack-button variant="ghost" color="error" :size="$size" leading-icon="trash" icon-only wire:click="confirmDelete( {{ $review->id }} )" :aria-label="__( 'Delete the review by :author', [ 'author' => $author ] )" data-moderate="delete" />
 @endif

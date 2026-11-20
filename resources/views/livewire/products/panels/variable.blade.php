@@ -51,9 +51,9 @@
                                 </div>
                                 @unless ( $readOnly )
                                     <div class="ec-attr-row-end ec-row-actions">
-                                        <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-up" wire:click="moveAttribute( {{ $a }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="attributes" data-reorder-key="attribute-{{ $attribute['uid'] }}" data-reorder-item="{{ $attributeName }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $attributeName ] )" />
-                                        <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-down" wire:click="moveAttribute( {{ $a }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="attributes" data-reorder-key="attribute-{{ $attribute['uid'] }}" data-reorder-item="{{ $attributeName }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $attributeName ] )" />
-                                        <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="trash" wire:click="removeAttribute( {{ $a }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :item', [ 'item' => $attributeName ] )" />
+                                        <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-up" wire:click="moveAttribute( {{ $a }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="attributes" data-reorder-key="attribute-{{ $attribute['uid'] }}" data-reorder-item="{{ $attributeName }}" :disabled="$loop->first" :aria-label="__( 'Move :name up', [ 'name' => $attributeName ] )" />
+                                        <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-down" wire:click="moveAttribute( {{ $a }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="attributes" data-reorder-key="attribute-{{ $attribute['uid'] }}" data-reorder-item="{{ $attributeName }}" :disabled="$loop->last" :aria-label="__( 'Move :name down', [ 'name' => $attributeName ] )" />
+                                        <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="trash" wire:click="removeAttribute( {{ $a }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :item', [ 'item' => $attributeName ] )" />
                                     </div>
                                 @endunless
                             </div>
@@ -70,13 +70,14 @@
                                         <x-artisanpack-input id="value-{{ $a }}-{{ $v }}-label" size="sm" class="ec-value-label" :aria-label="__( 'Value :number of :attribute', [ 'number' => $v + 1, 'attribute' => $attributeName ] )" :placeholder="__( 'Value' )" wire:model.live.blur="state.attributes.{{ $a }}.values.{{ $v }}.label" :disabled="$readOnly" />
                                         <x-artisanpack-input id="value-{{ $a }}-{{ $v }}-swatch" size="sm" class="ec-value-swatch ec-mono-input" dir="ltr" :aria-label="__( 'Swatch for :value', [ 'value' => $valueName ] )" :placeholder="__( 'Swatch' )" wire:model.live.blur="state.attributes.{{ $a }}.values.{{ $v }}.swatch" :disabled="$readOnly" />
                                         @if ( 1 === preg_match( '/^#[0-9a-fA-F]{3,8}$/', $swatch ) )
-                                            <span class="ec-swatch" style="background-color: {{ $swatch }}" aria-hidden="true"></span>
+                                            {{-- An SVG fill, not an inline style, so a nonce-only style CSP keeps the colour. --}}
+                                            <svg class="ec-swatch" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false" data-swatch><rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="{{ $swatch }}" /></svg>
                                         @endif
                                         @unless ( $readOnly )
                                             <div class="ec-row-actions">
-                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-up" wire:click="moveValue( {{ $a }}, {{ $v }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="values-{{ $attribute['uid'] }}" data-reorder-key="value-{{ $value['uid'] }}" data-reorder-item="{{ $valueName }}" :disabled="$loop->first" :aria-label="__( 'Move :value up', [ 'value' => $valueName ] )" />
-                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-down" wire:click="moveValue( {{ $a }}, {{ $v }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="values-{{ $attribute['uid'] }}" data-reorder-key="value-{{ $value['uid'] }}" data-reorder-item="{{ $valueName }}" :disabled="$loop->last" :aria-label="__( 'Move :value down', [ 'value' => $valueName ] )" />
-                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="trash" wire:click="removeValue( {{ $a }}, {{ $v }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :value', [ 'value' => $valueName ] )" />
+                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-up" wire:click="moveValue( {{ $a }}, {{ $v }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="values-{{ $attribute['uid'] }}" data-reorder-key="value-{{ $value['uid'] }}" data-reorder-item="{{ $valueName }}" :disabled="$loop->first" :aria-label="__( 'Move :value up', [ 'value' => $valueName ] )" />
+                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-down" wire:click="moveValue( {{ $a }}, {{ $v }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="values-{{ $attribute['uid'] }}" data-reorder-key="value-{{ $value['uid'] }}" data-reorder-item="{{ $valueName }}" :disabled="$loop->last" :aria-label="__( 'Move :value down', [ 'value' => $valueName ] )" />
+                                                <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="trash" wire:click="removeValue( {{ $a }}, {{ $v }} )" wire:loading.attr="disabled" :aria-label="__( 'Remove :value', [ 'value' => $valueName ] )" />
                                             </div>
                                         @endunless
                                     </div>
@@ -162,7 +163,7 @@
                                 @foreach ( $variants as $i => $variant )
                                     @php
                                         $variantLabel = filled( $variant['name'] ?? null ) ? (string) $variant['name'] : __( 'Variant :number', [ 'number' => $i + 1 ] );
-                                        $preview      = ProductMedia::mediaUrl( isset( $variant['image_media_id'] ) ? (int) $variant['image_media_id'] : null ) ?? ProductMedia::safeUrl( $variant['image_url'] ?? null );
+                                        $preview      = ( $previewableMedia[ $i ] ?? false ? ProductMedia::mediaUrl( (int) $variant['image_media_id'] ) : null ) ?? ProductMedia::safeUrl( $variant['image_url'] ?? null );
                                     @endphp
                                     <tr data-scope="table" data-part="row" class="ec-row-top" wire:key="variant-{{ $variant['id'] ?? 'new-' . $i . '-' . md5( json_encode( $variant['options'] ?? [] ) ) }}" data-variant-row="{{ $i }}">
                                         <td data-scope="table" data-part="cell">
@@ -170,7 +171,7 @@
                                                 @if ( [] !== (array) ( $variant['options'] ?? [] ) )
                                                     <div class="ec-badge-row">
                                                         @foreach ( (array) $variant['options'] as $attributeUid => $valueUid )
-                                                            <x-artisanpack-badge size="sm" variant="outline" color="neutral">{{ $optionLabels[ $attributeUid ][ $valueUid ] ?? '?' }}</x-artisanpack-badge>
+                                                            <x-artisanpack-badge size="sm" variant="outline" color="neutral">{{ $optionLabels[ $attributeUid ][ $valueUid ] ?? __( 'Removed value' ) }}</x-artisanpack-badge>
                                                         @endforeach
                                                     </div>
                                                 @endif
@@ -209,7 +210,7 @@
                                         @endforeach
                                         <td data-scope="table" data-part="cell">
                                             <div class="ec-col-stock">
-                                                <x-artisanpack-input id="variant-{{ $i }}-stock" type="number" step="1" size="sm" dir="ltr" :aria-label="__( 'Stock for :variant', [ 'variant' => $variantLabel ] )" wire:model.live.debounce.400ms="state.variants.{{ $i }}.stock" :disabled="$readOnly" />
+                                                <x-artisanpack-input id="variant-{{ $i }}-stock" type="number" step="1" size="sm" dir="ltr" :aria-label="__( 'Stock for :variant', [ 'variant' => $variantLabel ] )" wire:model.live.debounce.400ms="state.variants.{{ $i }}.stock" :disabled="$readOnly" :readonly="! $canAdjustStock" />
                                             </div>
                                         </td>
                                         <td data-scope="table" data-part="cell">
@@ -219,7 +220,7 @@
                                                 @endif
                                                 @if ( $mediaLibrary )
                                                     @unless ( $readOnly )
-                                                        <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="pencil" x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ Js::from( VariablePanel::MEDIA_CONTEXT . $i ) }} } )" :aria-label="__( 'Choose image for :variant', [ 'variant' => $variantLabel ] )" />
+                                                        <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="pencil" x-on:click="Livewire.dispatch( 'open-media-modal', { context: {{ Js::from( VariablePanel::MEDIA_CONTEXT . $i ) }} } )" :aria-label="__( 'Choose image for :variant', [ 'variant' => $variantLabel ] )" />
                                                     @endunless
                                                 @else
                                                     <x-artisanpack-input id="variant-{{ $i }}-image" type="url" size="sm" dir="ltr" class="ec-col-image-url" :aria-label="__( 'Image URL for :variant', [ 'variant' => $variantLabel ] )" wire:model.live.blur="state.variants.{{ $i }}.image_url" :disabled="$readOnly" />
@@ -229,9 +230,9 @@
                                         <td data-scope="table" data-part="cell">
                                             @unless ( $readOnly )
                                                 <div class="ec-row-actions">
-                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-up" wire:click="moveVariant( {{ $i }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="variants" data-reorder-index="{{ $i }}" data-reorder-item="{{ $variantLabel }}" :disabled="$loop->first" :aria-label="__( 'Move :variant up', [ 'variant' => $variantLabel ] )" />
-                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="arrow-down" wire:click="moveVariant( {{ $i }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="variants" data-reorder-index="{{ $i }}" data-reorder-item="{{ $variantLabel }}" :disabled="$loop->last" :aria-label="__( 'Move :variant down', [ 'variant' => $variantLabel ] )" />
-                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" leading-icon="trash" wire:click="removeVariant( {{ $i }} )" wire:loading.attr="disabled" :aria-label="__( 'Delete :variant', [ 'variant' => $variantLabel ] )" />
+                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-up" wire:click="moveVariant( {{ $i }}, -1 )" wire:loading.attr="disabled" data-reorder="up" data-reorder-list="variants" data-reorder-index="{{ $i }}" data-reorder-item="{{ $variantLabel }}" :disabled="$loop->first" :aria-label="__( 'Move :variant up', [ 'variant' => $variantLabel ] )" />
+                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="arrow-down" wire:click="moveVariant( {{ $i }}, 1 )" wire:loading.attr="disabled" data-reorder="down" data-reorder-list="variants" data-reorder-index="{{ $i }}" data-reorder-item="{{ $variantLabel }}" :disabled="$loop->last" :aria-label="__( 'Move :variant down', [ 'variant' => $variantLabel ] )" />
+                                                    <x-artisanpack-button variant="ghost" color="neutral" size="xs" icon-only leading-icon="trash" wire:click="removeVariant( {{ $i }} )" wire:loading.attr="disabled" :aria-label="__( 'Delete :variant', [ 'variant' => $variantLabel ] )" />
                                                 </div>
                                             @endunless
                                         </td>

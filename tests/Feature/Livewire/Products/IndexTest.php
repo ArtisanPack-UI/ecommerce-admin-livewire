@@ -574,3 +574,28 @@ it( 'still sorts by columns that left the grid, from the URL', function ( string
     'position'         => [ 'position', 'desc', [ 'Apron', 'Mug' ] ],
     'updated, default' => [ '', '', [ 'Mug', 'Apron' ] ],
 ] );
+
+it( 'resolves the page\'s thumbnails at once instead of a gallery lookup per row', function (): void {
+    $products = Product::factory()->count( 10 )->create();
+
+    foreach ( $products as $index => $product ) {
+        ArtisanPackUI\Ecommerce\Models\ProductImage::query()->create( [ 'product_id' => $product->id, 'image_url' => "https://example.com/{$index}.jpg", 'alt_text' => "Photo {$index}", 'position' => 0 ] );
+    }
+
+    $component = Livewire::test( Index::class );
+
+    $thumbnails = $component->viewData( 'thumbnails' );
+
+    expect( $thumbnails )->toHaveCount( 10 )
+        ->and( $thumbnails[ $products[3]->id ] )->toBe( [ 'url' => 'https://example.com/3.jpg', 'alt' => 'Photo 3' ] )
+        ->and( $component->html() )->toContain( 'src="https://example.com/3.jpg"' );
+
+    Illuminate\Support\Facades\DB::enableQueryLog();
+    Illuminate\Support\Facades\DB::flushQueryLog();
+
+    $component->call( '$refresh' );
+
+    $imageQueries = array_filter( Illuminate\Support\Facades\DB::getQueryLog(), static fn ( array $query ): bool => str_contains( $query['query'], 'product_images' ) );
+
+    expect( $imageQueries )->toHaveCount( 1 );
+} );

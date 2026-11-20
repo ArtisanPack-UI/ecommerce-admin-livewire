@@ -28,7 +28,7 @@
 @endphp
 <div class="ec-stack" data-promotion-coupons>
     @unless ( $isCoupon )
-        <x-artisanpack-alert color="warning" icon="triangle-alert" role="status" :title="__( 'Codes only work on coupon promotions.' )" :description="__( 'Change the source to Coupon code and save to use these codes.' )" data-wrong-source />
+        <x-artisanpack-alert color="warning" icon="triangle-alert" :title="__( 'Codes only work on coupon promotions.' )" :description="__( 'Change the source to Coupon code and save to use these codes.' )" data-wrong-source />
     @endunless
 
     @if ( $canCreate )
@@ -192,6 +192,7 @@
                                                     color="neutral"
                                                     size="xs"
                                                     leading-icon="pencil"
+                                                    icon-only
                                                     wire:click="startRename( {{ $couponId }} )"
                                                     wire:loading.attr="disabled"
                                                     wire:target="startRename"
@@ -205,6 +206,7 @@
                                                     color="neutral"
                                                     size="xs"
                                                     leading-icon="trash"
+                                                    icon-only
                                                     wire:click="confirmDelete( {{ $couponId }} )"
                                                     wire:loading.attr="disabled"
                                                     wire:target="confirmDelete"

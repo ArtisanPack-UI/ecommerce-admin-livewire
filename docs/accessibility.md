@@ -23,23 +23,17 @@ The admin targets **WCAG 2.2 AA**. Every flow is meant to work by keyboard and w
 - **Format errors.** Money and percent fields announce a format error and point to it with `aria-describedby` while the value is invalid. The currency code and "%" are read after the label ("Price, USD").
 - **New tabs.** Links that open a new tab (tracking links, review photos) say so to screen readers.
 - **Right to left.** Right-to-left locales get `dir="rtl"` in the standalone layout. Keys, SKUs, URLs, amounts, and code stay left to right inside it.
-- **Colour contrast warnings.** With `artisanpack-ui/accessibility` installed, the sub-status and kanban column editors warn when a chosen colour fails WCAG AA contrast.
-- **Automated checks.** The browser test suite runs axe on every admin screen against a seeded demo store. Any violation fails the build, except the known library issues listed below.
+- **Colour contrast warnings.** The sub-status and kanban column editors warn when a chosen colour's icon and dot would fall below the 3:1 non-text contrast WCAG 1.4.11 asks for, against the light or the dark surface.
+- **Automated checks.** The browser test suite runs axe on every admin screen against a seeded demo store. Any violation fails the build.
 
 ## Known limitations
 
-These come from `artisanpack-ui/livewire-ui-components` markup the admin cannot change. They are tracked in [livewire-ui-components#117](https://github.com/ArtisanPack-UI/livewire-ui-components/issues/117).
+The browser suite runs axe on every screen with no exclusions: `LIBRARY_ISSUES` in `tests/Browser/Support/Accessibility.php` is empty. If a `livewire-ui-components` bug ever needs one again, the entry must match only that component's markup (never a generic element such as `fieldset`) and be listed here with the component it comes from.
 
-- **Tabs.** The tab content wrapper can carry `role="tablist"` with no tabs inside, and inactive tab labels can fall below 4.5:1 contrast.
-- **Modals and drawers.** Dialog semantics (labelling, focus containment) are incomplete in places.
-- **Field errors.** Some error messages are not programmatically associated with their field.
-- **Select and textarea names.** `x-artisanpack-select` and `x-artisanpack-textarea` label with a `<legend>`, so the control itself has no accessible name.
-- **Menu roles.** The navigation menu gives links `role="menuitem"` without a `role="menu"` parent and puts non-`<li>` children in its list.
-- **Low-contrast secondary text.** Header subtitles and stat titles use a 50% text colour (about 3.3:1).
-- **Pagination.** A disabled "Previous" control carries `aria-label` on a `<span>`.
-- **Code editor.** The notification template editor's input can be left unlabelled.
+What the automated check does not cover:
 
-Each is excluded from the automated check by rule and selector in `tests/Browser/Support/Accessibility.php` (`LIBRARY_ISSUES`), so nothing else can regress unnoticed. An exclusion is removed when the library fixes it.
+- **Initial state only.** axe checks each screen as it first renders. Content that appears after an action (open drawers and dialogs, tabs other than the first, config-form repeater rows, the bulk-action bar) isn't checked by axe. The keyboard browser tests cover focus and announcements in some of it, not its full markup.
+- **Not a screen-reader test.** axe catches missing names, roles, and contrast. It doesn't prove the reading order, the wording of announcements, or that a flow makes sense by ear. Those are checked by hand.
 
 ## Reporting an issue
 

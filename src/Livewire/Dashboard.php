@@ -142,7 +142,11 @@ class Dashboard extends Component
     /**
      * Refreshes after an order broadcast.
      *
+     * The cached sales report is dropped first, so the numbers the
+     * announcement says were updated really are.
+     *
      * @since 1.0.0
+     * @since 2.0.0 Drops the cached sales report.
      *
      * @return void
      */
@@ -154,6 +158,9 @@ class Dashboard extends Component
 
             return;
         }
+
+        Cache::forget( self::salesReportCacheKey() );
+        $this->salesReportResult = null;
 
         $this->liveAnnouncement = __( 'Orders changed. The dashboard has been updated.' );
     }
@@ -427,8 +434,9 @@ class Dashboard extends Component
 
     /**
      * The last 30 days of sales, run once per request and cached for a
-     * minute per store time zone and currency, so broadcasts and the KPI row
-     * and sparkline don't each re-run it.
+     * minute per store time zone and currency, so re-renders and the KPI
+     * row and sparkline don't each re-run it. An order broadcast drops the
+     * cache ({@see self::orderBroadcast()}).
      *
      * @since 1.0.0
      *
@@ -440,9 +448,19 @@ class Dashboard extends Component
             return $this->salesReportResult;
         }
 
-        $key = 'ecommerce-admin.dashboard.sales.' . ReportRange::timezone() . '.' . StoreCurrencies::base();
+        return $this->salesReportResult = (array) Cache::remember( self::salesReportCacheKey(), 60, static fn (): array => app( SalesReport::class )->run( ReportRange::lastDays( 30 ) ) );
+    }
 
-        return $this->salesReportResult = (array) Cache::remember( $key, 60, static fn (): array => app( SalesReport::class )->run( ReportRange::lastDays( 30 ) ) );
+    /**
+     * The cache key of the 30-day sales report.
+     *
+     * @since 2.0.0
+     *
+     * @return string
+     */
+    protected static function salesReportCacheKey(): string
+    {
+        return 'ecommerce-admin.dashboard.sales.' . ReportRange::timezone() . '.' . StoreCurrencies::base();
     }
 
     /**

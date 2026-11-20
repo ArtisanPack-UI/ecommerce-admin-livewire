@@ -408,3 +408,43 @@ it( 'falls back to a focusable heading when the user who emptied the tree cannot
         ->toContain( 'focusPage()' )
         ->toContain( "target.setAttribute( 'tabindex', '-1' )" );
 } );
+
+it( 'indents rows with a bounded data attribute and counts products in the badge slot, with no inline style', function (): void {
+    $parent = ProductCategory::factory()->create( [ 'name' => 'Prints', 'position' => 0 ] );
+    $child  = $parent;
+
+    foreach ( range( 1, 9 ) as $depth ) {
+        $child = ProductCategory::factory()->create( [ 'name' => "Level {$depth}", 'parent_id' => $child->id ] );
+    }
+
+    $html = Livewire::test( Index::class )->html();
+
+    expect( $html )->not->toContain( '--ec-category-depth' )
+        ->toContain( 'data-indent="0"' )
+        ->toContain( 'data-indent="8"' )
+        ->not->toContain( 'data-indent="9"' )
+        ->toMatch( '/data-product-count="0"[^>]*>(?:(?!<\/span>).)*?0 products/s' );
+} );
+
+it( 'refuses a category image the user may not view, keeping the saved one', function (): void {
+    ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::fakeViewableMedia( [] );
+
+    try {
+        $category = ProductCategory::factory()->create( [ 'name' => 'Prints', 'image_media_id' => 5 ] );
+
+        Livewire::test( Index::class )
+            ->call( 'edit', $category->id )
+            ->call( 'save' )
+            ->assertHasNoErrors();
+
+        Livewire::test( Index::class )
+            ->call( 'edit', $category->id )
+            ->set( 'form.image_media_id', 6 )
+            ->call( 'save' )
+            ->assertHasErrors( 'form.image_media_id' );
+
+        expect( $category->refresh()->image_media_id )->toBe( 5 );
+    } finally {
+        ArtisanPackUI\EcommerceAdminLivewire\Support\DigitalDisks::fakeViewableMedia( null );
+    }
+} );

@@ -53,7 +53,10 @@ class Index extends Component
     use AuthorizesEcommerce;
     use SendsToasts;
     use WithActionToken;
-    use WithResourceTable;
+    use WithResourceTable {
+        cancelBulkAction as protected cancelTableBulkAction;
+        confirmBulkAction as protected confirmTableBulkAction;
+    }
 
     /**
      * Moderation actions and the engine action each one runs.
@@ -114,6 +117,19 @@ class Index extends Component
      * @var string
      */
     public string $rejectReason = '';
+
+    /**
+     * The selection a single-row delete set aside: the review being deleted
+     * (`id`), the rows that were selected (`selected`), and whether every
+     * matching row was (`all`). Put back when the delete is cancelled or
+     * done, so deleting one review keeps a multi-selection.
+     *
+     * @since 2.0.0
+     *
+     * @var array{id: int, selected: array<int, int|string>, all: bool}|null
+     */
+    #[Locked]
+    public ?array $selectionBeforeDelete = null;
 
     /**
      * Authorizes the screen and opens on pending reviews.
@@ -225,7 +241,7 @@ class Index extends Component
         $this->authorizeEcommerce( 'moderate', $review );
         $this->validateReason();
 
-        app( ReviewService::class )->reject( $review, sanitizeText( $this->rejectReason ), $this->actorId() );
+        app( ReviewService::class )->reject( $review, trim( $this->rejectReason ), $this->actorId() );
 
         $this->closeReject();
         $this->toastSuccess( self::message( 'reject', 1 ) );
@@ -260,11 +276,57 @@ class Index extends Component
         $this->authorizeEcommerceAbility( 'review.delete' );
 
         // The confirmation sits above the table; the modal drawer would hide it.
-        $this->viewing           = false;
-        $this->selected          = [ $id ];
-        $this->selectAllMatching = false;
+        $this->selectionBeforeDelete = [ 'id' => $id, 'selected' => array_values( $this->selected ), 'all' => $this->selectAllMatching ];
+        $this->viewing               = false;
+        $this->selected              = [ $id ];
+        $this->selectAllMatching     = false;
 
         $this->runBulkAction( 'delete' );
+    }
+
+    /**
+     * Dismisses the confirmation, and puts back the selection a single-row
+     * delete set aside.
+     *
+     * @since 2.0.0
+     *
+     * @return void
+     */
+    public function cancelBulkAction(): void
+    {
+        $restore = $this->pendingSingleDelete();
+
+        $this->cancelTableBulkAction();
+
+        if ( $restore ) {
+            $this->restoreSelectionBeforeDelete( false );
+        }
+
+        $this->selectionBeforeDelete = null;
+    }
+
+    /**
+     * Runs the confirmed bulk action. After a single-row delete, the
+     * selection set aside comes back without the deleted review.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $token  The action token minted with the confirmation.
+     *
+     * @return mixed
+     */
+    public function confirmBulkAction( string $token ): mixed
+    {
+        $restore = $this->pendingSingleDelete();
+        $result  = $this->confirmTableBulkAction( $token );
+
+        if ( $restore ) {
+            $this->restoreSelectionBeforeDelete( true );
+        }
+
+        $this->selectionBeforeDelete = null;
+
+        return $result;
     }
 
     /**
@@ -355,6 +417,44 @@ class Index extends Component
     }
 
     /**
+     * Whether the open confirmation is the single-row delete that set the
+     * selection aside (and the selection hasn't changed since).
+     *
+     * @since 2.0.0
+     *
+     * @return bool
+     */
+    protected function pendingSingleDelete(): bool
+    {
+        return null !== $this->selectionBeforeDelete
+            && 'delete' === $this->confirmingBulkAction
+            && ! $this->selectAllMatching
+            && array_map( 'intval', array_values( $this->selected ) ) === [ (int) $this->selectionBeforeDelete['id'] ];
+    }
+
+    /**
+     * Puts back the selection a single-row delete set aside.
+     *
+     * @since 2.0.0
+     *
+     * @param  bool  $withoutDeleted  Whether to leave out the deleted review.
+     *
+     * @return void
+     */
+    protected function restoreSelectionBeforeDelete( bool $withoutDeleted ): void
+    {
+        $stash    = (array) $this->selectionBeforeDelete;
+        $selected = array_values( (array) ( $stash['selected'] ?? [] ) );
+
+        if ( $withoutDeleted ) {
+            $selected = array_values( array_filter( $selected, static fn ( mixed $key ): bool => (int) $key !== (int) ( $stash['id'] ?? 0 ) ) );
+        }
+
+        $this->selected          = $selected;
+        $this->selectAllMatching = (bool) ( $stash['all'] ?? false );
+    }
+
+    /**
      * Runs a moderation action on the selection.
      *
      * @since 1.0.0
@@ -371,7 +471,7 @@ class Index extends Component
         }
 
         $service = app( ReviewService::class );
-        $reason  = 'reject' === $action ? sanitizeText( $this->rejectReason ) : null;
+        $reason  = 'reject' === $action ? trim( $this->rejectReason ) : null;
         $engine  = 'reject' === $action ? 'reject' : self::MODERATIONS[ $action ];
         $ids     = ( clone $selection )->reorder()->pluck( $selection->qualifyColumn( 'id' ) )->all();
         $changed = 0;

@@ -421,7 +421,7 @@ class Columns extends Component
 
         $data = [
             'substatus_id'   => (int) $this->form['substatus_id'],
-            'label_override' => '' === trim( (string) $this->form['label_override'] ) ? null : sanitizeText( trim( (string) $this->form['label_override'] ) ),
+            'label_override' => '' === KanbanBoards::plainText( (string) $this->form['label_override'] ) ? null : KanbanBoards::plainText( (string) $this->form['label_override'] ),
             'color_override' => '' === $this->form['color_override'] ? null : (string) $this->form['color_override'],
             'icon_override'  => '' === $this->form['icon_override'] ? null : (string) $this->form['icon_override'],
             'wip_limit'      => null === $this->form['wip_limit'] ? null : (int) $this->form['wip_limit'],

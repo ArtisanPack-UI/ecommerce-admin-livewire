@@ -46,7 +46,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    name: Test (PHP ${{ matrix.php }}, Laravel ${{ matrix.laravel }}, Livewire ${{ matrix.livewire }})
+    name: Test (PHP ${{ matrix.php }}, Laravel ${{ matrix.laravel }}, Livewire ${{ matrix.livewire }}, ${{ matrix.dependencies }})
 
     strategy:
       fail-fast: false
@@ -54,7 +54,18 @@ jobs:
         php: ['8.3', '8.4']
         laravel: ['12', '13']
         livewire: ['3', '4']
+        dependencies: ['highest']
         include:
+          # The lowest versions composer.json allows (engine 1.0.0 among
+          # them), so an API the floor lacks, or a raised floor, is caught.
+          # Listed in full: an added combination gets none of the entries
+          # below.
+          - php: '8.3'
+            laravel: '12'
+            livewire: '3'
+            dependencies: 'lowest'
+            testbench: '^10.2'
+            livewire-constraint: '^3.6'
           - laravel: '12'
             testbench: '^10.2'
           - laravel: '13'
@@ -84,18 +95,24 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel }}-lw${{ matrix.livewire }}-composer-${{ hashFiles('**/composer.json') }}
-          restore-keys: ${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel }}-lw${{ matrix.livewire }}-composer-
+          key: ${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel }}-lw${{ matrix.livewire }}-${{ matrix.dependencies }}-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel }}-lw${{ matrix.livewire }}-${{ matrix.dependencies }}-composer-
 
       - name: Install dependencies
         env:
           LARAVEL: ${{ matrix.laravel }}
           TESTBENCH: ${{ matrix.testbench }}
           LIVEWIRE: ${{ matrix.livewire-constraint }}
+          DEPENDENCIES: ${{ matrix.dependencies }}
         run: |
           composer require "illuminate/support:^${LARAVEL}.0" "livewire/livewire:${LIVEWIRE}" --no-interaction --no-update
           composer require "orchestra/testbench:${TESTBENCH}" --dev --no-interaction --no-update
-          composer update --no-interaction --prefer-dist --with-all-dependencies
+
+          if [ "$DEPENDENCIES" = "lowest" ]; then
+            composer update --no-interaction --prefer-dist --with-all-dependencies --prefer-lowest --prefer-stable
+          else
+            composer update --no-interaction --prefer-dist --with-all-dependencies
+          fi
 
       - name: Run tests
         env:

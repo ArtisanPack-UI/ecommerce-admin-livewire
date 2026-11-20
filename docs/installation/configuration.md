@@ -18,13 +18,13 @@ Every key has a default, so you only need the keys you change.
 | Key | Default | What it controls |
 | --- | --- | --- |
 | `admin.route_prefix` | `'ecommerce-admin'` | URL prefix for every admin screen. Leading and trailing slashes are trimmed. |
-| `admin.middleware` | `[ 'web', 'auth' ]` | Middleware on every admin route. Add your 2FA and `verified` middleware here. The package appends its own access check and rate limiter after these. Every entry except a middleware group (such as `web`) is also registered as Livewire persistent middleware, so it runs again on each Livewire update from an admin page, not only on the first page load. |
+| `admin.middleware` | `[ 'web', 'auth' ]` | Middleware on every admin route. Add your 2FA and `verified` middleware here. The package appends its own access check and rate limiter after these. Each entry is also registered as Livewire persistent middleware, so it runs again on each Livewire update from an admin page, not only on the first page load. Middleware groups (such as an `admin` group holding 2FA or `verified`) are expanded, nested groups and aliases included. Middleware the `web` group already runs is left out, since Livewire's update route has that group, and so are `throttle:*` entries: persistent middleware applies to every Livewire component in the app, and the admin has its own limiter (below). |
 | `admin.routes_enabled` | `true` | Set to `false` to register the routes yourself. Route names must stay under `artisanpack.ecommerce.admin.` for the navigation to find them. With routes disabled the admin is not added to the `cms-framework` menu. |
 | `admin.auto_register_cms_nav` | `true` | Add the admin's navigation to the `cms-framework` admin menu when that package is installed. Has no effect without it. |
 
 The command palette searches through its own admin route (`artisanpack.ecommerce.admin.spotlight`), so its searches run this middleware too. The component library's shared spotlight route runs only `web`, so the admin adds no results there.
 
-Livewire updates from admin pages count toward the engine's `ecommerce.admin.mutate` rate limiter. Updates that only read don't: polls and `$refresh`, picker searches, sorting, and paging, as long as they send no property changes. Over the limit, the user sees a toast with the wait time.
+Livewire updates from admin pages count toward the engine's `ecommerce.admin.mutate` rate limiter. One update can carry several components and many actions, so it costs one attempt per action it calls plus one per component that sends property changes; an update heavier than the whole budget is refused. Updates that only read cost nothing: polls and `$refresh`, lazy loading, picker searches, sorting, paging, and the admin's own refresh events (real-time broadcasts and navigation badge refreshes), as long as they send no property changes. Over the limit, the user sees a toast with the wait time.
 
 Route names are always prefixed `artisanpack.ecommerce.admin.` (for example `artisanpack.ecommerce.admin.orders.index`). See [Screens](../usage/screens.md).
 

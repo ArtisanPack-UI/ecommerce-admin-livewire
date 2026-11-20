@@ -39,5 +39,6 @@
         'bulkControls'      => 'ecommerce-admin::livewire.products.bulk-controls',
         'bulkInlineActions' => $bulkInlineActions,
         'rowLabel'          => static fn ( \ArtisanPackUI\Ecommerce\Models\Product $product ): string => (string) $product->name,
+        'cellContext'       => [ 'thumbnails' => $thumbnails ],
     ] )
 </div>

@@ -52,3 +52,15 @@ it( 'has no accessibility violations', function ( string $route, Closure $parame
     'inventory report'     => [ 'reports.show', fn (): array => [ 'report' => 'inventory' ] ],
     'settings'             => [ 'settings.show', fn (): array => [ 'group' => 'general' ] ],
 ] );
+
+it( 'fails on an unlabelled control, even inside a fieldset', function ( string $markup ): void {
+    $page = visit( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertNoJavaScriptErrors();
+
+    $page->script( 'document.querySelector( "main" ).insertAdjacentHTML( "beforeend", ' . json_encode( $markup ) . ' )' );
+
+    expect( fn (): object => Accessibility::assertAccessible( $page ) )
+        ->toThrow( PHPUnit\Framework\AssertionFailedError::class, '(label)' );
+} )->with( [
+    'bare'     => '<input type="text" data-axe-probe>',
+    'fieldset' => '<fieldset><legend>Range</legend><input type="text" data-axe-probe></fieldset>',
+] );

@@ -1,7 +1,9 @@
 {{--
     One config form field bound to $path (#87): each schema type maps to one
     design-system control. $root and $relative locate a repeater for
-    addConfigRow() / removeConfigRow().
+    addConfigRow() / removeConfigRow(). A text field named `secret` (or
+    flagged `sensitive`) is a password input, so a signing secret isn't
+    shown on screen or offered to autofill.
 
     @package    ArtisanPack_UI
     @subpackage EcommerceAdminLivewire
@@ -177,6 +179,10 @@
             @break
 
         @default
-            <x-artisanpack-input :id="$id" :label="$field['label']" :hint="$field['hint']" wire:model="{{ $path }}" />
+            @if ( 'secret' === $field['name'] || true === ( $field['sensitive'] ?? false ) )
+                <x-artisanpack-input :id="$id" :label="$field['label']" :hint="$field['hint']" type="password" autocomplete="new-password" spellcheck="false" wire:model="{{ $path }}" data-config-secret />
+            @else
+                <x-artisanpack-input :id="$id" :label="$field['label']" :hint="$field['hint']" wire:model="{{ $path }}" />
+            @endif
     @endswitch
 </div>

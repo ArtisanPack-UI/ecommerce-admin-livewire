@@ -24,8 +24,10 @@
 @php
     use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
     use ArtisanPackUI\Ecommerce\Support\MoneyFormatter;
+    use Illuminate\Support\HtmlString;
 
     $hasAccount = null !== $customer->user_id;
+    $none = new HtmlString( '<span aria-hidden="true">&mdash;</span><span class="apui-sr-only">' . e( __( 'None' ) ) . '</span>' );
 @endphp
 <div class="ec-stack" data-customer-detail>
     <x-artisanpack-page-header :title="$name ?? $customer->email" :level="1">
@@ -55,7 +57,7 @@
             <x-artisanpack-stat size="sm" :label="__( 'Orders' )" icon="shopping-bag"><bdi dir="ltr" data-stat="order-count">{{ $stats['orderCount'] }}</bdi></x-artisanpack-stat>
         </li>
         <li class="ec-kpi">
-            <x-artisanpack-stat size="sm" :label="__( 'Average order value' )" icon="chart-column"><bdi dir="ltr" data-stat="average-order-value">{{ null === $stats['averageOrderValue'] ? '—' : MoneyFormatter::format( $stats['averageOrderValue'], $stats['currency'] ) }}</bdi></x-artisanpack-stat>
+            <x-artisanpack-stat size="sm" :label="__( 'Average order value' )" icon="chart-column"><bdi dir="ltr" data-stat="average-order-value">{{ null === $stats['averageOrderValue'] ? $none : MoneyFormatter::format( $stats['averageOrderValue'], $stats['currency'] ) }}</bdi></x-artisanpack-stat>
         </li>
         <li class="ec-kpi">
             <x-artisanpack-stat size="sm" :label="__( 'First order' )" icon="calendar"><span data-stat="first-order">{{ null === $stats['firstOrderAt'] ? __( 'None yet' ) : LocalizedDate::format( $stats['firstOrderAt'] ) }}</span></x-artisanpack-stat>
@@ -137,7 +139,7 @@
                             @endif
                         </dd>
                         <dt>{{ __( 'Customer since' ) }}</dt>
-                        <dd>{{ null === $customer->created_at ? '—' : LocalizedDate::format( $customer->created_at ) }}</dd>
+                        <dd>{{ null === $customer->created_at ? $none : LocalizedDate::format( $customer->created_at ) }}</dd>
                         <dt>{{ __( 'Marketing consent' ) }}</dt>
                         <dd data-customer-consent>
                             @if ( $customer->accepts_marketing && null !== $customer->accepts_marketing_at )
@@ -163,7 +165,7 @@
                         :classes="[ 'list' => 'ec-customer-tablist' ]"
                     >
                         @foreach ( $tabs as $customerTab )
-                            <x-artisanpack-tab :name="$customerTab['key']" :label="$customerTab['label']" wire:key="customer-tab-{{ $customerTab['key'] }}">
+                            <x-artisanpack-tab :value="$customerTab['key']" :label="$customerTab['label']" wire:key="customer-tab-{{ $customerTab['key'] }}">
                                 <div class="ec-customer-tab" data-customer-tab="{{ $customerTab['key'] }}">
                                     @if ( $tab === $customerTab['key'] )
                                         @livewire( $customerTab['component'], [ $customerTab['parameter'] => $customer ], key( 'customer-tab-component-' . $customerTab['key'] ) )

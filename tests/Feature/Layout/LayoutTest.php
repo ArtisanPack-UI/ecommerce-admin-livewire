@@ -171,6 +171,14 @@ it( 'makes "Skip to content" the first tab stop, landing on the main landmark', 
         ->and( $body )->toContain( '<main data-scope="app-shell" data-part="main" id="ecommerce-admin-shell-main"' );
 } );
 
+it( 'hides the reorder announcer with the design system\'s class, not Tailwind\'s', function (): void {
+    CmsFramework::fake( false );
+
+    $html = $this->get( route( 'artisanpack.ecommerce.admin.dashboard' ) )->assertOk()->getContent();
+
+    expect( $html )->toMatch( '/id="ecommerce-admin-announcer"\s+class="apui-sr-only"/' );
+} );
+
 it( 'turns the sidebar into a drawer behind the menu button on phones', function (): void {
     CmsFramework::fake( false );
 

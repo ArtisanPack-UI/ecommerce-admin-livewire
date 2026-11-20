@@ -31,8 +31,8 @@ use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
- * One webhook subscription (spec §7.8): its details, "rotate secret" and
- * "re-enable", and its deliveries log — event, status, attempts, next retry
+ * One webhook subscription (spec §7.8): its details, "rotate secret",
+ * "re-enable" and "send missed deliveries", and its deliveries log — event, status, attempts, next retry
  * and created, newest first, filterable by event and status. Delivered at
  * stays in the CSV and the drawer, not the grid.
  *
@@ -190,6 +190,7 @@ class Show extends Component
             'subscription'     => $subscription,
             'disabledByEngine' => Webhooks::disabledByEngine( $subscription ),
             'canUpdate'        => Authorization::allows( auth()->user(), 'webhookSubscription.update', $subscription ),
+            'parkedCount'      => $subscription->is_active ? Webhooks::parkedCount( $subscription ) : 0,
             'delivery'         => $delivery,
             'replayToken'      => null === $delivery ? null : $this->actionToken( 'replay', $delivery ),
             'rotating'         => $rotating,

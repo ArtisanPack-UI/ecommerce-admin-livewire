@@ -179,9 +179,9 @@ class Index extends Component
      */
     public function edit( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'orderSubstatus.update' );
-
         $substatus = OrderSubstatus::query()->find( $id );
+
+        $this->authorizeSubstatus( 'update', $substatus );
 
         if ( null === $substatus ) {
             return;
@@ -227,7 +227,7 @@ class Index extends Component
                 return;
             }
         } else {
-            $this->authorizeEcommerceAbility( 'orderSubstatus.update', $substatus );
+            $this->authorizeEcommerce( 'update', $substatus );
         }
 
         $this->form['color'] = strtoupper( trim( (string) $this->form['color'] ) );
@@ -311,9 +311,9 @@ class Index extends Component
      */
     public function move( int $id, int $offset ): void
     {
-        $this->authorizeEcommerceAbility( 'orderSubstatus.update' );
-
         $substatus = OrderSubstatus::query()->find( $id );
+
+        $this->authorizeSubstatus( 'update', $substatus );
 
         if ( null === $substatus || ! in_array( $offset, [ -1, 1 ], true ) ) {
             return;
@@ -350,9 +350,11 @@ class Index extends Component
      */
     public function confirmDelete( int $id ): void
     {
-        $this->authorizeEcommerceAbility( 'orderSubstatus.delete' );
+        $substatus = OrderSubstatus::query()->find( $id );
 
-        $this->deletingId       = OrderSubstatus::query()->whereKey( $id )->exists() ? $id : null;
+        $this->authorizeSubstatus( 'delete', $substatus );
+
+        $this->deletingId       = null === $substatus ? null : $id;
         $this->confirmingDelete = null !== $this->deletingId;
     }
 
@@ -380,9 +382,9 @@ class Index extends Component
      */
     public function delete( string $token ): void
     {
-        $this->authorizeEcommerceAbility( 'orderSubstatus.delete' );
-
         $substatus = null === $this->deletingId || ! $this->confirmingDelete ? null : OrderSubstatus::query()->find( $this->deletingId );
+
+        $this->authorizeSubstatus( 'delete', $substatus );
 
         if ( null === $substatus ) {
             $this->cancelDelete();
@@ -455,5 +457,25 @@ class Index extends Component
             'deleteBlocked'       => null !== $usage && ( array_sum( $usage ) > 0 || $isLast ),
             'deleteToken'         => null === $deleting ? null : $this->actionToken( 'delete', $deleting ),
         ] );
+    }
+
+    /**
+     * Authorizes an action on a sub-status through its policy, so a
+     * per-record decision applies. When the sub-status no longer exists the
+     * bare `orderSubstatus.{action}` ability is checked instead, so the
+     * caller can bail out quietly.
+     *
+     * @since 2.0.0
+     *
+     * @param  string               $action     `update` or `delete`.
+     * @param  OrderSubstatus|null  $substatus  The sub-status, or null when it is gone.
+     *
+     * @return void
+     */
+    private function authorizeSubstatus( string $action, ?OrderSubstatus $substatus ): void
+    {
+        null === $substatus
+            ? $this->authorizeEcommerceAbility( 'orderSubstatus.' . $action )
+            : $this->authorizeEcommerce( $action, $substatus );
     }
 }

@@ -7,7 +7,8 @@
     it before the title). A disabled subscription gets a warning alert that
     says how many deliveries failed in a row when failures switched it off,
     or plainly that it is disabled when staff did, and Re-enable becomes the
-    primary action.
+    primary action. An active subscription with deliveries the engine parked
+    while it was off offers "Send missed deliveries".
 
     A card lists the events and the subscription's health; the failures in a
     row turn red when they aren't zero. The deliveries log follows. Each
@@ -44,6 +45,9 @@
                 @unless ( $isActive )
                     <x-artisanpack-button size="sm" leading-icon="refresh-cw" wire:click="reEnable( {{ $subscription->id }} )" wire:loading.attr="disabled" wire:target="reEnable" data-re-enable>{{ __( 'Re-enable' ) }}</x-artisanpack-button>
                 @endunless
+                @if ( $isActive && $parkedCount > 0 )
+                    <x-artisanpack-button size="sm" variant="outline" color="neutral" leading-icon="redo-2" wire:click="sendMissedDeliveries( {{ $subscription->id }} )" wire:loading.attr="disabled" wire:target="sendMissedDeliveries" data-send-missed-deliveries="{{ $parkedCount }}">{{ __( 'Send missed deliveries' ) }}</x-artisanpack-button>
+                @endif
                 @if ( null !== $editUrl )
                     <x-artisanpack-button variant="outline" color="neutral" size="sm" leading-icon="pencil" :href="$editUrl" data-edit-subscription>{{ __( 'Edit' ) }}</x-artisanpack-button>
                 @endif
@@ -64,7 +68,6 @@
                 ? trans_choice( 'Disabled after :count failed delivery in a row|Disabled after :count failed deliveries in a row', $failures, [ 'count' => $failures ] )
                 : __( 'This subscription is disabled' )"
             :description="__( 'No events are sent while it is disabled. Re-enable it to resume deliveries and replays.' )"
-            role="status"
             data-subscription-disabled="{{ $disabledByEngine ? 'failures' : 'staff' }}"
         />
     @endunless

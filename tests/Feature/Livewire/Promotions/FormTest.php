@@ -55,6 +55,29 @@ describe( 'details', function (): void {
         Livewire::test( Form::class, [ 'promotion' => Promotion::factory()->create()->id ] )->assertForbidden();
     } );
 
+    it( 'answers 403, not 404, for a missing promotion when the user cannot list promotions', function (): void {
+        Livewire::test( Form::class, [ 'promotion' => 999 ] )->assertNotFound();
+
+        Gate::define( 'ecommerce.promotion.viewAny', static fn (): bool => false );
+
+        Livewire::test( Form::class, [ 'promotion' => 999 ] )->assertForbidden();
+    } );
+
+    it( 'keeps a name and description with angle brackets intact', function (): void {
+        $promotion = Promotion::factory()->create( [ 'name' => 'Spring', 'key' => 'spring' ] );
+
+        Livewire::test( Form::class, [ 'promotion' => $promotion->id ] )
+            ->set( 'name', '  Spend <$50, get 10% off  ' )
+            ->set( 'description', 'For carts <3 kg' )
+            ->call( 'save' )
+            ->assertHasNoErrors()
+            ->assertSeeHtml( 'Spend &lt;$50, get 10% off' );
+
+        expect( $promotion->fresh() )
+            ->name->toBe( 'Spend <$50, get 10% off' )
+            ->description->toBe( 'For carts <3 kg' );
+    } );
+
     it( 'fills the key from the name until the key is typed', function (): void {
         Livewire::test( Form::class )
             ->set( 'name', 'Black Friday 2026' )
@@ -85,7 +108,17 @@ describe( 'details', function (): void {
 
         $promotion = Promotion::query()->where( 'key', 'black-friday' )->sole();
 
-        $component->assertRedirect( route( 'artisanpack.ecommerce.admin.promotions.edit', [ 'promotion' => $promotion->id ] ) );
+        $component->assertRedirect( route( 'artisanpack.ecommerce.admin.promotions.edit', [ 'promotion' => $promotion->id ] ) )
+            ->assertNotDispatched( 'toast' );
+
+        // The toast survives the redirect: it is flashed, and the edit page's toaster shows it.
+        expect( session( ArtisanPack\LivewireUiComponents\Support\Toasts::SESSION_KEY ) )->toBe( [ [ 'title' => 'Promotion created.', 'color' => 'success' ] ] );
+
+        $this->get( route( 'artisanpack.ecommerce.admin.promotions.edit', [ 'promotion' => $promotion->id ] ) )
+            ->assertOk()
+            ->assertSee( 'data-apui-flashed-toasts', false )
+            ->assertSee( 'Promotion created.' )
+            ->assertSee( '<title>Edit Black Friday &middot;', false );
 
         expect( $promotion )
             ->name->toBe( 'Black Friday' )
@@ -469,6 +502,39 @@ describe( 'design (#131)', function (): void {
         Livewire::test( Form::class )
             ->assertSeeHtml( 'data-save' )
             ->assertDontSeeHtml( 'x-on:click="dirty = false"' );
+    } );
+
+    it( 'only lets the details and rules fields mark the form dirty', function (): void {
+        $promotion = Promotion::factory()->coupon()->create();
+        $html      = Livewire::test( Form::class, [ 'promotion' => $promotion->id ] )->html();
+        $root      = Illuminate\Support\Str::betweenFirst( $html, 'data-promotion-form', '>' );
+
+        expect( $root )
+            ->toContain( 'data-unsaved-changes' )
+            ->toContain( "x-on:input=\"if ( \$event.target.closest( '[data-unsaved-scope]' ) ) dirty = true\"" )
+            ->toContain( 'x-on:beforeunload.window="warnBeforeUnload( $event )"' )
+            ->toContain( 'x-on:' . UnsavedChanges::SAVED_EVENT . '.window="dirty = false"' )
+            ->not->toContain( 'x-on:input="dirty = true"' );
+
+        expect( $html )
+            ->toMatch( '/<fieldset[^>]*data-unsaved-scope[^>]*data-promotion-details/' )
+            ->toMatch( '/<fieldset[^>]*data-unsaved-scope[^>]*data-promotion-rules/' );
+    } );
+
+    it( 'gives each tab a value rather than the deprecated name', function (): void {
+        $source = (string) file_get_contents( dirname( __DIR__, 4 ) . '/resources/views/livewire/promotions/form.blade.php' );
+
+        expect( $source )->toContain( '<x-artisanpack-tab value="details"' )
+            ->not->toMatch( '/<x-artisanpack-tab\s[^>]*:?name=/' );
+    } );
+
+    it( 'renders the read-only alert with a single role', function (): void {
+        Gate::define( 'ecommerce.promotion.update', static fn (): bool => false );
+
+        $html  = Livewire::test( Form::class, [ 'promotion' => Promotion::factory()->create()->id ] )->html();
+        $alert = Illuminate\Support\Str::before( Illuminate\Support\Str::afterLast( Illuminate\Support\Str::before( $html, 'data-read-only' ), '<div' ), '>' ) . Illuminate\Support\Str::betweenFirst( $html, 'data-read-only', '>' );
+
+        expect( substr_count( $alert, 'role=' ) )->toBe( 1 );
     } );
 
     it( 'shows no error marker on a clean form', function (): void {

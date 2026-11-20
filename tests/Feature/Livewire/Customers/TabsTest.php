@@ -144,6 +144,32 @@ describe( 'addresses tab', function (): void {
             ->address2->toBeNull();
     } );
 
+    it( 'keeps address text with angle brackets intact and trims it', function (): void {
+        $customer = Customer::factory()->create();
+
+        Livewire::test( AddressesTab::class, [ 'customer' => $customer ] )
+            ->call( 'startAdd' )
+            ->set( 'address.label', '  Flat <3B>  ' )
+            ->set( 'address.address1', 'Unit <12>, 10 Downing St' )
+            ->set( 'address.city', 'London' )
+            ->set( 'address.country_code', 'GB' )
+            ->call( 'saveAddress' )
+            ->assertHasNoErrors()
+            ->assertSeeHtml( 'Unit &lt;12&gt;, 10 Downing St' );
+
+        expect( CustomerAddress::query()->where( 'customer_id', $customer->id )->sole() )
+            ->label->toBe( 'Flat <3B>' )
+            ->address1->toBe( 'Unit <12>, 10 Downing St' );
+    } );
+
+    it( 'renders the delete button as a square icon-only button', function (): void {
+        $customer = Customer::factory()->create();
+        CustomerAddress::factory()->create( [ 'customer_id' => $customer->id, 'label' => 'Home' ] );
+
+        expect( Livewire::test( AddressesTab::class, [ 'customer' => $customer ] )->html() )
+            ->toMatch( '/aria-label="Delete Home"[^>]*data-icon-only/' );
+    } );
+
     it( 'validates the address', function (): void {
         Livewire::test( AddressesTab::class, [ 'customer' => Customer::factory()->create() ] )
             ->call( 'startAdd' )

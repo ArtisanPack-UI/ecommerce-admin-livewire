@@ -141,7 +141,7 @@
             data-refund-form
         >
             @error( 'refund' )
-                <x-artisanpack-alert color="error" icon="circle-alert" role="alert" data-refund-error-alert>{{ $message }}</x-artisanpack-alert>
+                <x-artisanpack-alert color="error" icon="circle-alert" data-refund-error-alert>{{ $message }}</x-artisanpack-alert>
             @enderror
 
             @if ( $supportsPartial )
@@ -160,7 +160,7 @@
 
             @if ( 'items' === $mode )
                 @error( 'lines' )
-                    <x-artisanpack-alert color="error" icon="circle-alert" role="alert">{{ $message }}</x-artisanpack-alert>
+                    <x-artisanpack-alert color="error" icon="circle-alert">{{ $message }}</x-artisanpack-alert>
                 @enderror
                 <div class="apui-table ec-table">
                     <div data-scope="table" data-part="scroll" data-density="compact">
@@ -243,8 +243,7 @@
             <x-slot:footer>
                 <x-artisanpack-button variant="ghost" color="neutral" wire:click="$set( 'refunding', false )">{{ __( 'Cancel' ) }}</x-artisanpack-button>
                 <x-artisanpack-button
-                    :disabled="$refundTotal <= 0"
-                    wire:click="refund( {{ Js::from( $refundToken ) }} )"
+                    wire:click="refund( {{ Js::from( $refundToken ) }}, {{ (int) $refundTotal }} )"
                     wire:loading.attr="disabled"
                     wire:target="refund"
                     data-submit-refund>{{ __( 'Refund :amount', [ 'amount' => MoneyFormatter::format( $refundTotal, $currency ) ] ) }}</x-artisanpack-button>

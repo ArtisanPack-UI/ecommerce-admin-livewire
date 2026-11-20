@@ -383,3 +383,23 @@ it( 'warns an editor without taxRate.create when their rate was deleted', functi
 
     expect( sentToasts( $component ) )->toContain( 'This tax rate was deleted while you were editing it.' );
 } );
+
+it( 'checks each existing rate an import updates against its own record (L-S7)', function (): void {
+    $locked = TaxRate::factory()->create( [ 'country_code' => 'DE', 'region_code' => null, 'postal_pattern' => null, 'priority' => 0, 'rate_ubps' => 160_000_000 ] );
+    $open   = TaxRate::factory()->create( [ 'country_code' => 'FR', 'region_code' => null, 'postal_pattern' => null, 'priority' => 0, 'rate_ubps' => 190_000_000 ] );
+
+    Gate::define( 'ecommerce.taxRate.update', static fn ( $user, $rate = null ): bool => ! ( $rate instanceof TaxRate && $rate->is( $locked ) ) );
+
+    $component = Livewire::test( Index::class )
+        ->call( 'openImport' )
+        ->set( 'ratesCsv', taxCsv( "tax_class_key,country_code,rate_percent,label\nstandard,DE,19,MwSt.\nstandard,FR,20,TVA" ) )
+        ->call( 'checkImport' )
+        ->assertSet( 'importReport.update', 1 )
+        ->assertSet( 'importReport.invalid', 1 )
+        ->assertSee( 'This rate already exists and you are not allowed to change existing rates.' );
+
+    $component->call( 'applyImport', $component->viewData( 'importToken' ) );
+
+    expect( $locked->refresh()->rate_ubps )->toBe( 160_000_000 )
+        ->and( $open->refresh()->rate_ubps )->toBe( 200_000_000 );
+} );

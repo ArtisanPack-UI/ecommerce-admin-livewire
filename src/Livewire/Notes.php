@@ -196,7 +196,7 @@ class Notes extends Component
 
         $this->authorizeEcommerce( 'update', $subject );
 
-        $this->body = sanitizeText( $this->body );
+        $this->body = trim( $this->body );
 
         $this->validate(
             [
@@ -263,18 +263,20 @@ class Notes extends Component
     }
 
     /**
-     * Deletes a note of this subject.
+     * Deletes the note the confirmation was opened for.
+     *
+     * The note comes from the locked {@see self::$deletingNoteId}, never
+     * from the client, so only the confirmed note can be deleted.
      *
      * @since 1.0.0
-     *
-     * @param  int  $noteId  Note id.
+     * @since 2.0.0 Deletes the confirmed note instead of taking an id.
      *
      * @return void
      */
-    public function deleteNote( int $noteId ): void
+    public function deleteNote(): void
     {
         $subject = $this->subject();
-        $note    = $this->notesQuery( $subject )->whereKey( $noteId )->first();
+        $note    = null === $this->deletingNoteId ? null : $this->notesQuery( $subject )->whereKey( $this->deletingNoteId )->first();
 
         if ( null === $note ) {
             $this->cancelDelete();

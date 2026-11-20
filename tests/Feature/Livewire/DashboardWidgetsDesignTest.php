@@ -168,6 +168,20 @@ it( 'links each low-stock item to the inventory screen searched to its SKU', fun
         ->toContain( 'View all low-stock items' );
 } );
 
+it( 'uses the muted link tone and names a missing SKU for screen readers', function (): void {
+    grantAbilities( [ 'inventory.viewAny' ] );
+    designDashboardStock( 'Merino beanie', 'MER-BNE', 1, 10 );
+    designDashboardStock( 'Loose thread', '', 0, 10 );
+
+    $html = Livewire::test( Dashboard::class )->html();
+
+    expect( $html )
+        ->toMatch( '/class="apui-link[^"]*"[^>]*data-tone="muted"/s' )
+        ->not->toContain( 'data-tone="neutral"' )
+        ->toContain( '<span aria-hidden="true">&mdash;</span><span class="apui-sr-only">None</span>' )
+        ->not->toMatch( '/<bdi dir="ltr">\s*—\s*<\/bdi>/' );
+} );
+
 it( 'shows the healthy empty state when no item is low', function (): void {
     grantAbilities( [ 'inventory.viewAny' ] );
     designDashboardStock( 'Wool socks', 'SOK-WL3', 50, 10 );

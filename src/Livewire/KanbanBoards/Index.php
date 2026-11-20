@@ -194,8 +194,8 @@ class Index extends Component
             return;
         }
 
-        $this->form['name']        = sanitizeText( (string) $this->form['name'] );
-        $this->form['description'] = sanitizeText( (string) $this->form['description'] );
+        $this->form['name']        = KanbanBoards::plainText( (string) $this->form['name'] );
+        $this->form['description'] = KanbanBoards::plainText( (string) $this->form['description'] );
         $this->form['key']         = Str::lower( trim( (string) $this->form['key'] ) );
 
         $this->validate(

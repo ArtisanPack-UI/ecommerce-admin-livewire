@@ -46,7 +46,7 @@ Copy `lang/en.json` to `lang/vendor/ecommerce-admin/{locale}.json` in your appli
 Laravel picks a plural segment by the locale's plural rule, so a catalogue needs as many segments as its language has forms:
 
 - **Arabic** has six forms (zero, one, two, 3–10, 11–99, other). Each plain `singular|plural` key has six segments in `ar.json`, and an override in `lang/vendor/ecommerce-admin/ar.json` must have six too. With only two, Arabic shows the plural for one.
-- **Japanese and Chinese** have one form, so each segment carries the full sentence.
+- **Japanese and Chinese** have one form, and Laravel always shows the first segment for them. Their catalogues give each plain `singular|plural` key a single segment that carries `:count`, written for any number (interval keys such as `{0} …|[2,*] …` keep their segments, because the interval picks one before the plural rule runs).
 
 Notification templates are separate: add a locale per template on the Notifications screen. The locales offered come from the `ap.ecommerceAdminLivewire.notifications.locales` filter. See [Hooks Reference](reference/hooks.md).
 
@@ -76,4 +76,4 @@ CI fails when a user-facing string is not wrapped in a translation function, or 
 vendor/bin/testbench ecommerce:lint:translations --no-engine --path=src --path=resources --lang=lang
 ```
 
-It scans `src/` and `resources/` (Blade included) and compares against every catalogue in `lang/`. `--no-engine` leaves the engine's own sources out. When you add a string, add it to all nine catalogues.
+It scans `src/` and `resources/` (Blade included) and compares against every catalogue in `lang/`. `--no-engine` leaves the engine's own sources out. When you add a string, add it to all nine catalogues; when you stop using one, remove it from all nine. The test suite fails on a catalogue key that `src/`, `resources/`, `config/`, and `routes/` no longer use (`tests/Feature/Localization/CataloguesTest.php`).

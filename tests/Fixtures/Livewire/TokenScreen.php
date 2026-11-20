@@ -28,6 +28,8 @@ class TokenScreen extends Component
 
     public ?int $levelInside = null;
 
+    public ?string $releaseOnlyOn = null;
+
     public function mount( int $orderId ): void
     {
         $this->orderId = $orderId;
@@ -49,7 +51,7 @@ class TokenScreen extends Component
                     throw new RuntimeException( 'Gateway down.' );
                 }
             } );
-        }, $order );
+        }, $order, null === $this->releaseOnlyOn ? null : [ $this->releaseOnlyOn ] );
     }
 
     public function render(): string

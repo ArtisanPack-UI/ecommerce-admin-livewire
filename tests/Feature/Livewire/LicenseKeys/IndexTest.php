@@ -380,3 +380,49 @@ it( 'shows a key whose limit is zero as allowing no activations, not as having n
         ->assertSee( 'This key allows no activations.' )
         ->assertDontSeeHtml( 'data-activations-unlimited' );
 } );
+it( 'applies the camelCase table filters first, then the deprecated kebab-case ones', function (): void {
+    licenseKeyOn( 'A100' );
+    $calls = [];
+
+    addFilter( 'ap.ecommerceAdminLivewire.table.licenseKeys.columns', static function ( array $columns ) use ( &$calls ): array {
+        $calls[] = 'camel';
+
+        return [ ...$columns, [ 'key' => 'camelColumn', 'label' => 'Camel column', 'value' => static fn (): string => 'from camel' ] ];
+    } );
+    addFilter( 'ap.ecommerceAdminLivewire.table.license-keys.columns', static function ( array $columns ) use ( &$calls ): array {
+        $calls[] = 'kebab';
+
+        return [ ...$columns, [ 'key' => 'kebabColumn', 'label' => 'Kebab column', 'value' => static fn (): string => 'from kebab' ] ];
+    } );
+
+    try {
+        Livewire::test( Index::class )
+            ->assertSee( 'Camel column' )
+            ->assertSee( 'Kebab column' );
+
+        expect( array_slice( array_unique( $calls ), 0, 2 ) )->toBe( [ 'camel', 'kebab' ] );
+    } finally {
+        removeAllFilters( 'ap.ecommerceAdminLivewire.table.licenseKeys.columns' );
+        removeAllFilters( 'ap.ecommerceAdminLivewire.table.license-keys.columns' );
+    }
+} );
+
+it( 'passes each key to the policy when showing it and its activations', function (): void {
+    $open   = licenseKeyOn( 'A100', [ 'key' => 'OPENX-FGHJK-LMNPQ-RSTUV-WXYZ2' ] );
+    $hidden = licenseKeyOn( 'A200', [ 'key' => 'HIDEX-FGHJK-LMNPQ-RSTUV-QQQQ7' ] );
+
+    // A host policy that shows one key in full, and none of the other.
+    Gate::define( 'ecommerce.licenseKey.view', static fn ( $user, $key = null ): bool => null === $key || $key->is( $open ) );
+    Gate::define( 'ecommerce.licenseKey.revoke', static fn ( $user, $key = null ): bool => null === $key || $key->is( $open ) );
+
+    Livewire::test( Index::class )
+        ->assertSee( 'OPENX-FGHJK-LMNPQ-RSTUV-WXYZ2' )
+        ->assertDontSee( 'HIDEX' )
+        ->assertSee( '••••••••QQQ7' )
+        ->call( 'showActivations', $open->id )
+        ->assertSet( 'viewingId', $open->id );
+
+    Livewire::test( Index::class )
+        ->call( 'showActivations', $hidden->id )
+        ->assertForbidden();
+} );

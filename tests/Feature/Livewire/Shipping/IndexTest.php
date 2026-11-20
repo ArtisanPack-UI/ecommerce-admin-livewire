@@ -339,3 +339,63 @@ it( 'refuses an overflowing zone priority and malformed region codes', function 
     'priority overflow'   => [ 'priority', '99999999999999999999', 'zoneForm.priority' ],
     'region with symbols' => [ 'region_codes', 'CA, <b>', 'zoneForm.region_codes' ],
 ] );
+
+it( 'authorizes zone and method actions against the zone record (L-S6)', function (): void {
+    $open   = ShippingZone::factory()->create( [ 'name' => 'Open' ] );
+    $locked = ShippingZone::factory()->create( [ 'name' => 'Locked' ] );
+    $method = ShippingMethod::factory()->create( [ 'zone_id' => $locked->id, 'label' => 'Locked method' ] );
+
+    Gate::define( 'ecommerce.shippingZone.update', static fn ( $user, $zone = null ): bool => ! ( $zone instanceof ShippingZone && $zone->is( $locked ) ) );
+    Gate::define( 'ecommerce.shippingZone.delete', static fn ( $user, $zone = null ): bool => ! ( $zone instanceof ShippingZone && $zone->is( $locked ) ) );
+
+    Livewire::test( Index::class )->call( 'editZone', $open->id )->assertSet( 'editingZone', true );
+    Livewire::test( Index::class )->call( 'editZone', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'createMethod', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'editMethod', $method->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'moveMethod', $method->id, 1 )->assertForbidden();
+    Livewire::test( Index::class )->call( 'confirmDeleteMethod', $method->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'confirmDeleteZone', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'confirmDeleteZone', $open->id )->assertSet( 'confirmingDelete', true );
+} );
+
+it( 'refuses tampered method settings instead of failing (L-C1)', function (): void {
+    $zone = ShippingZone::factory()->create();
+    app( ArtisanPackUI\Ecommerce\Registries\ShippingMethodTypeRegistry::class )->register( 'courier-json', new class implements ArtisanPackUI\Ecommerce\Contracts\ShippingMethodType {
+        public function key(): string
+        {
+            return 'courier-json';
+        }
+
+        public function label(): string
+        {
+            return 'Courier';
+        }
+
+        public function calculate( ArtisanPackUI\Ecommerce\Models\Cart $cart, ArtisanPackUI\Ecommerce\ValueObjects\Address $destination, array $config ): ?Money\Money
+        {
+            return null;
+        }
+    } );
+
+    Livewire::test( Index::class )
+        ->call( 'createMethod', $zone->id )
+        ->set( 'methodForm.key', 'courier-json' )
+        ->set( 'methodForm.label', 'Courier' )
+        ->set( 'methodForm.config', [ 'account' => [ 'nested' ] ] )
+        ->call( 'saveMethod' )
+        ->assertHasErrors( 'methodForm.config' );
+
+    expect( ShippingMethod::query()->count() )->toBe( 0 );
+} );
+
+it( 'accepts ISO 3166-2 region codes with the country prefix (L-C2)', function (): void {
+    Livewire::test( Index::class )
+        ->call( 'createZone' )
+        ->set( 'zoneForm.name', 'US West' )
+        ->set( 'zoneForm.country_codes', [ 'US' ] )
+        ->set( 'zoneForm.region_codes', 'us-ca, OR' )
+        ->call( 'saveZone' )
+        ->assertHasNoErrors();
+
+    expect( ShippingZone::query()->sole()->region_codes )->toBe( [ 'US-CA', 'OR' ] );
+} );

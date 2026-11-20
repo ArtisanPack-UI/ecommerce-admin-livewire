@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\EcommerceAdminLivewire\View\Components;
 
+use ArtisanPackUI\Ecommerce\Support\LocalizedDate;
 use Closure;
 use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -149,9 +150,11 @@ class ResourceTable extends Component
     }
 
     /**
-     * The text of a cell that has no view.
+     * The text of a cell that has no view. Dates show in the store time zone
+     * and the app locale.
      *
      * @since 1.0.0
+     * @since 2.0.0 Dates are localized through the engine's `LocalizedDate`.
      *
      * @param  Model                 $row     The row.
      * @param  array<string, mixed>  $column  The column.
@@ -169,7 +172,7 @@ class ResourceTable extends Component
         }
 
         if ( $value instanceof DateTimeInterface ) {
-            return $value->format( 'Y-m-d H:i' );
+            return LocalizedDate::format( $value, __( 'M j, Y g:i A' ) );
         }
 
         return is_scalar( $value ) || $value instanceof Stringable ? (string) $value : '';

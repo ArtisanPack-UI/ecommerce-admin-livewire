@@ -21,13 +21,15 @@ Composer installs these ArtisanPack UI packages with it:
 | `artisanpack-ui/hooks` | `^1.2` | The filters used for [extension](../extending.md) |
 | `artisanpack-ui/security` | `^1.0.3` or `^2.0` | Output escaping and sanitization |
 
+`livewire-ui-components` 3.0 also brings in `artisanpack-ui/icons` (the icon pickers for categories and order sub-statuses) and `artisanpack-ui/accessibility` (the contrast warnings on sub-status and kanban column colours), so both are always available.
+
 ## Front-end requirements
 
 The package ships no build. Your application needs:
 
 - **Tailwind CSS 4** (daisyUI is no longer used; see [Front-End Setup](front-end.md))
 - **Vite** with `laravel-vite-plugin`
-- `@artisanpack-ui/css` and `@artisanpack-ui/behavior` (the design system, both `^1`) and `@artisanpack-ui/livewire-drag-and-drop` from npm
+- `@artisanpack-ui/css` and `@artisanpack-ui/behavior` (the design system, both `^1`) and `@artisanpack-ui/livewire-drag-and-drop` (`^2`) from npm
 
 ## Optional packages
 
@@ -37,8 +39,6 @@ The admin detects these at runtime and uses them when present:
 | --- | --- |
 | `artisanpack-ui/cms-framework` | Renders inside the CMS admin layout, joins the CMS menu, and registers engine abilities as RBAC permissions with a `shop-manager` role |
 | `artisanpack-ui/media-library` | Pick product, variant, and category images through the media modal. Without it, image fields take a URL |
-| `artisanpack-ui/icons` | Icon pickers for categories and order sub-statuses |
-| `artisanpack-ui/accessibility` | Contrast warnings on sub-status and kanban column colours |
 | `artisanpack-ui/ecommerce-kanban-livewire` | "Open board" links from order detail and kanban settings |
 | `phpoffice/phpspreadsheet` | XLSX table export |
 | `barryvdh/laravel-dompdf` | PDF table export |

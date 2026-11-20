@@ -18,7 +18,6 @@
                 color="warning"
                 :title="__( 'No form for these settings' )"
                 :description="$jsonNotice"
-                role="status"
             />
             <x-artisanpack-code-editor
                 :id="$fieldId( $model )"

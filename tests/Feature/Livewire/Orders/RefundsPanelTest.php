@@ -87,6 +87,18 @@ function refundsPanelToken( $component ): string
     return $matches[1] ?? '';
 }
 
+/**
+ * The token and the total the submit button sends.
+ *
+ * @return array{0: string, 1: int}
+ */
+function refundsPanelArgs( $component ): array
+{
+    preg_match( '/refund\(\s*(?:&quot;|&#039;|\'|")[^&\'"]+(?:&quot;|&#039;|\'|"),\s*(\d+)\s*\)/', $component->html(), $matches );
+
+    return [ refundsPanelToken( $component ), (int) ( $matches[1] ?? 0 ) ];
+}
+
 it( 'renders the refund history with issuer and gateway reference', function (): void {
     Refund::factory()->create( [
         'order_id'          => $this->order->id,
@@ -123,7 +135,7 @@ it( 'hides and refuses refunds without order.refund', function (): void {
         ->assertForbidden();
 
     Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
-        ->call( 'refund', 'token' )
+        ->call( 'refund', 'token', 0 )
         ->assertForbidden();
 } );
 
@@ -137,7 +149,7 @@ it( 'refunds one of three items and restocks it', function (): void {
         ->set( "lines.{$this->item->id}.restock", true )
         ->set( 'reason', 'Wrong size' );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )
         ->assertHasNoErrors()
         ->assertSet( 'refunding', false )
         ->assertDispatched( OrderPanelRegistry::ORDER_UPDATED_EVENT );
@@ -159,7 +171,7 @@ it( 'refunds shipping only as a free amount', function (): void {
         ->set( 'amount', 500 )
         ->set( 'reason', 'Late delivery' );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasNoErrors();
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )->assertHasNoErrors();
 
     $refund = Refund::query()->with( 'items' )->sole();
 
@@ -173,7 +185,7 @@ it( 'refunds the full order', function (): void {
         ->set( 'mode', 'amount' )
         ->set( 'amount', 3_500 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasNoErrors();
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )->assertHasNoErrors();
 
     $refund = Refund::query()->with( 'items' )->sole();
 
@@ -190,7 +202,7 @@ it( 'validates the refund', function ( string $mode, array $set, string $error )
         $component->set( str_replace( '{item}', (string) $this->item->id, $key ), $value );
     }
 
-    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasErrors( [ str_replace( '{item}', (string) $this->item->id, $error ) ] );
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )->assertHasErrors( [ str_replace( '{item}', (string) $this->item->id, $error ) ] );
 
     expect( Refund::query()->count() )->toBe( 0 );
 } )->with( [
@@ -214,7 +226,7 @@ it( 'only offers the full balance when the gateway cannot refund part of an orde
         ->assertSet( 'amount', 3_500 )
         ->set( 'amount', 1_000 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )
         ->assertHasErrors( [ 'refund' ] )
         ->assertSee( 'Fake Pay can only refund the full remaining balance of $35.00.' );
 
@@ -230,7 +242,7 @@ it( 'shows the gateway\'s refusal and keeps the failed refund on record', functi
         ->set( 'mode', 'amount' )
         ->set( 'amount', 500 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )
         ->assertHasErrors( [ 'refund' ] )
         ->assertSee( 'The card has expired.' );
 
@@ -249,10 +261,33 @@ it( 'refunds only once per token', function (): void {
     $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )->call( 'startRefund' );
     $token     = refundsPanelToken( $component );
 
-    $component->set( 'mode', 'amount' )->set( 'amount', 500 )->call( 'refund', $token );
-    $component->set( 'refunding', true )->set( 'mode', 'amount' )->set( 'amount', 500 )->call( 'refund', $token );
+    $component->set( 'mode', 'amount' )->set( 'amount', 500 )->call( 'refund', $token, 500 );
+    $component->set( 'refunding', true )->set( 'mode', 'amount' )->set( 'amount', 500 )->call( 'refund', $token, 500 );
 
     expect( Refund::query()->count() )->toBe( 1 );
+} );
+
+it( 'refuses a refund whose total changed after it was shown, and keeps the token', function (): void {
+    $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )
+        ->call( 'startRefund' )
+        ->set( 'mode', 'amount' )
+        ->set( 'amount', 1_000 );
+
+    [ $token, $shown ] = refundsPanelArgs( $component );
+
+    expect( $shown )->toBe( 1_000 );
+
+    // The field changes in the same request as the click.
+    $component->set( 'amount', 5_000 )->set( 'amount', 3_000 )->call( 'refund', $token, $shown )
+        ->assertHasErrors( [ 'refund' ] )
+        ->assertSee( 'The amount changed. Check it and confirm again.' )
+        ->assertSee( 'Refund $30.00' );
+
+    expect( Refund::query()->count() )->toBe( 0 );
+
+    $component->call( 'refund', $token, 3_000 )->assertHasNoErrors();
+
+    expect( Refund::query()->sole()->amount )->toBe( 3_000 );
 } );
 
 it( 'explains an order whose gateway is missing', function (): void {
@@ -271,7 +306,7 @@ it( 'ignores lines for another order\'s items', function (): void {
         ->set( "lines.{$foreign->id}", [ 'quantity' => 1, 'amount' => 900, 'restock' => false ] )
         ->set( "lines.{$this->item->id}.quantity", 1 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasNoErrors();
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )->assertHasNoErrors();
 
     expect( Refund::query()->with( 'items' )->sole()->items->pluck( 'order_item_id' )->all() )->toBe( [ $this->item->id ] );
 } );
@@ -308,7 +343,7 @@ it( 'fully refunds a two-line order through a gateway that cannot refund part of
         ->call( 'startRefund' )
         ->assertSet( 'amount', 3_500 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasNoErrors();
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )->assertHasNoErrors();
 
     expect( $this->order->fresh()->payment_status )->toBe( 'refunded' )
         ->and( Refund::query()->sole()->items )->toHaveCount( 2 );
@@ -322,7 +357,7 @@ it( 'refuses an amount the order\'s lines can\'t hold, before the engine sees it
         ->set( 'mode', 'amount' )
         ->set( 'amount', 3_600 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )
         ->assertHasErrors( [ 'amount' ] )
         ->assertSee( 'Only $35.00 can be refunded against the order&#039;s lines.', false );
 
@@ -338,7 +373,7 @@ it( 'keeps a mismatched refund pending and refuses another until it is reconcile
         ->set( 'mode', 'amount' )
         ->set( 'amount', 1_000 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasErrors( [ 'refund' ] );
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )->assertHasErrors( [ 'refund' ] );
 
     $pending = Refund::query()->sole();
 
@@ -352,7 +387,7 @@ it( 'keeps a mismatched refund pending and refuses another until it is reconcile
         ->set( 'mode', 'amount' )
         ->set( 'amount', 3_000 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasErrors( [ 'amount' ] );
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )->assertHasErrors( [ 'amount' ] );
 
     expect( Refund::query()->count() )->toBe( 1 );
 } );
@@ -365,7 +400,7 @@ it( 'lets the units of a declined refund be refunded again', function (): void {
         ->call( 'startRefund' )
         ->set( "lines.{$this->item->id}.quantity", 3 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasErrors( [ 'refund' ] );
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )->assertHasErrors( [ 'refund' ] );
 
     $this->order->update( [ 'payment_gateway_key' => 'fake' ] );
 
@@ -374,7 +409,7 @@ it( 'lets the units of a declined refund be refunded again', function (): void {
         ->set( "lines.{$this->item->id}.quantity", 3 )
         ->assertSet( "lines.{$this->item->id}.amount", 3_000 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasNoErrors();
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )->assertHasNoErrors();
 
     expect( Refund::query()->where( 'status', Refund::STATUS_SUCCEEDED )->sole()->amount )->toBe( 3_000 );
 } );
@@ -385,7 +420,7 @@ it( 'pre-fills no more than is left on a line after an earlier amount refund', f
         ->set( 'mode', 'amount' )
         ->set( 'amount', 500 );
 
-    $component->call( 'refund', refundsPanelToken( $component ) )->assertHasNoErrors();
+    $component->call( 'refund', ...refundsPanelArgs( $component ) )->assertHasNoErrors();
 
     Livewire::test( RefundsPanel::class, [ 'order' => $this->order->fresh() ] )
         ->call( 'startRefund' )
@@ -421,11 +456,13 @@ it( 'shows the gateway error under a failed refund', function (): void {
         ->assertSee( 'Gateway: charge_already_refunded' );
 } );
 
-it( 'names the running total in the primary button and disables it at zero', function (): void {
+it( 'names the running total in the primary button and keeps it enabled at zero', function (): void {
     $component = Livewire::test( RefundsPanel::class, [ 'order' => $this->order ] )->call( 'startRefund' );
 
+    // A server-rendered disabled state would swallow the click that lands
+    // with the blur of the first field; the confirmed total guards instead.
     expect( Illuminate\Support\Str::betweenFirst( $component->html(), 'data-submit-refund', '</button>' ) )->toContain( 'Refund $0.00' );
-    expect( $component->html() )->toMatch( '/<button[^>]*\sdisabled[^>]*data-submit-refund/s' );
+    expect( $component->html() )->not->toMatch( '/<button[^>]*\sdisabled[^>]*data-submit-refund/s' );
 
     $component->set( "lines.{$this->item->id}.quantity", 1 );
 

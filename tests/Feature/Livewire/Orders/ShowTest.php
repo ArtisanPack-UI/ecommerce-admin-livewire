@@ -87,6 +87,45 @@ it( 'is not found for a missing order', function (): void {
     $this->get( route( 'artisanpack.ecommerce.admin.orders.show', [ 'order' => 999 ] ) )->assertNotFound();
 } );
 
+it( 'answers 403, not 404, for a missing order when the user cannot list orders', function (): void {
+    Gate::define( 'ecommerce.order.viewAny', static fn (): bool => false );
+
+    Livewire::test( Show::class, [ 'order' => 999 ] )->assertForbidden();
+} );
+
+it( 'names the order number in the page title', function (): void {
+    $order = Order::factory()->create( [ 'order_number' => 'T1TLE99' ] );
+
+    $this->get( route( 'artisanpack.ecommerce.admin.orders.show', [ 'order' => $order->id ] ) )
+        ->assertOk()
+        ->assertSee( '<title>Order #T1TLE99 &middot;', false );
+} );
+
+it( 'shows a registered customer\'s email, not "Guest", when the user cannot open their record', function (): void {
+    Gate::define( 'ecommerce.customer.view', static fn (): bool => false );
+
+    $customer = Customer::factory()->create( [ 'first_name' => null, 'last_name' => null ] );
+    $order    = Order::factory()->create( [ 'customer_id' => $customer->id, 'email' => 'nameless@example.test' ] );
+
+    $html = Livewire::test( Show::class, [ 'order' => $order->id ] )->html();
+
+    expect( $html )->toContain( 'nameless@example.test' );
+    expect( preg_match( '/<span class="ec-strong">\s*Guest\s*<\/span>/', $html ) )->toBe( 0 );
+} );
+
+it( 'skips a snapshot option whose label is not scalar', function (): void {
+    $order = Order::factory()->create();
+    OrderItem::factory()->create( [
+        'order_id'         => $order->id,
+        'product_snapshot' => [ 'name' => 'Odd Mug', 'sku' => 'ODD', 'type' => 'simple', 'options' => [ [ 'label' => [ 'nested' ], 'value' => 'x' ], [ 'label' => 'Size', 'value' => 'L' ] ] ],
+    ] );
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertOk()
+        ->assertSee( 'Size: L' )
+        ->assertDontSee( 'Array: x' );
+} );
+
 it( 'lists totals with promotion names, refunds, and net', function (): void {
     $order = Order::factory()->create( [
         'subtotal_amount'       => 10000,
@@ -104,11 +143,30 @@ it( 'lists totals with promotion names, refunds, and net', function (): void {
         ->assertDontSee( 'store currency' );
 } );
 
-it( 'shows the tax breakdown the order recorded', function (): void {
+it( 'shows the tax breakdown the engine recorded', function (): void {
+    $order = Order::factory()->create( [ 'tax_amount' => 1300, 'meta' => [ 'tax_breakdown' => [
+        [ 'label' => 'State tax', 'rate_ubps' => 60_000_000, 'amount' => 1000, 'is_compound' => false, 'country_code' => 'US', 'region_code' => 'CA' ],
+        [ 'label' => 'City tax', 'rate_ubps' => 18_000_000, 'amount' => 300, 'is_compound' => false, 'country_code' => 'US', 'region_code' => 'CA' ],
+        [ 'label' => 'Malformed', 'amount' => 'lots' ],
+    ] ] ] );
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertSeeInOrder( [ 'State tax', '$10.00', 'City tax', '$3.00', 'Total' ] )
+        ->assertDontSee( 'Malformed' );
+} );
+
+it( 'still reads a breakdown recorded under the legacy tax_lines key', function (): void {
     $order = Order::factory()->create( [ 'tax_amount' => 1300, 'meta' => [ 'tax_lines' => [ [ 'label' => 'State tax', 'amount' => 1000 ], [ 'label' => 'City tax', 'amount' => 300 ] ] ] ] );
 
     Livewire::test( Show::class, [ 'order' => $order->id ] )
         ->assertSeeInOrder( [ 'State tax', '$10.00', 'City tax', '$3.00' ] );
+} );
+
+it( 'falls back to one tax line when no breakdown was recorded', function (): void {
+    $order = Order::factory()->create( [ 'tax_amount' => 744, 'meta' => [ 'tax_breakdown' => [] ] ] );
+
+    Livewire::test( Show::class, [ 'order' => $order->id ] )
+        ->assertSeeInOrder( [ 'Tax', '$7.44', 'Total' ] );
 } );
 
 it( 'lets a satellite describe the tax breakdown', function (): void {

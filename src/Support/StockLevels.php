@@ -17,8 +17,10 @@ use ArtisanPackUI\Ecommerce\Exceptions\ProductWriteException;
 use ArtisanPackUI\Ecommerce\Models\InventoryItem;
 use ArtisanPackUI\Ecommerce\Models\Product;
 use ArtisanPackUI\Ecommerce\Models\ProductVariant;
+use ArtisanPackUI\Ecommerce\Registries\ProductTypeRegistry;
 use ArtisanPackUI\Ecommerce\Services\InventoryService;
 use ArtisanPackUI\Ecommerce\Services\ProductService;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -137,6 +139,136 @@ final class StockLevels
 
         return Product::query()->where( 'sku', $sku )->first()
             ?? ProductVariant::query()->with( 'product' )->where( 'sku', $sku )->first();
+    }
+
+    /**
+     * Whether the user may adjust a product's or variant's stock
+     * (`inventory.adjust`). The policy gets the stock row when there is
+     * one, as the inventory screen passes it; a new product or variant has
+     * none yet, so the check runs without a subject.
+     *
+     * @since 2.0.0
+     *
+     * @param  Authenticatable|null         $user       User.
+     * @param  Product|ProductVariant|null  $stockable  Product or variant, or null when new.
+     *
+     * @return bool
+     */
+    public static function canAdjust( ?Authenticatable $user, Product|ProductVariant|null $stockable ): bool
+    {
+        $item = null === $stockable || null === $stockable->getKey() ? null : self::existingItem( $stockable );
+
+        return Authorization::allows( $user, 'inventory.adjust', $item );
+    }
+
+    /**
+     * Whether a product type keeps stock of its own (digital and grouped
+     * products don't).
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $type  Product type key.
+     *
+     * @return bool
+     */
+    public static function typeTracksStock( string $type ): bool
+    {
+        return app( ProductTypeRegistry::class )->get( $type )->isInventoryTracked();
+    }
+
+    /**
+     * Loads the products, variants and default-warehouse stock rows a list
+     * of SKUs names, in a few queries per 500 SKUs, for
+     * {@see self::preloadedStockable()} and {@see self::preloadedItem()}.
+     * Without it a bulk upload costs several queries per row.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int, string>  $skus  SKUs.
+     *
+     * @return array{products: array<string, Product>, variants: array<string, ProductVariant>, items: array<string, InventoryItem>, caseInsensitive: bool}
+     */
+    public static function preload( array $skus ): array
+    {
+        $lookup = [
+            'products'        => [],
+            'variants'        => [],
+            'items'           => [],
+            'caseInsensitive' => in_array( ( new Product() )->getConnection()->getDriverName(), [ 'mysql', 'mariadb', 'sqlsrv' ], true ),
+        ];
+        $skus   = array_values( array_unique( array_filter( array_map( 'trim', $skus ), static fn ( string $sku ): bool => '' !== $sku ) ) );
+
+        foreach ( array_chunk( $skus, 500 ) as $chunk ) {
+            foreach ( Product::query()->whereIn( 'sku', $chunk )->get() as $product ) {
+                $lookup['products'][ self::lookupKey( (string) $product->sku, $lookup['caseInsensitive'] ) ] ??= $product;
+            }
+
+            foreach ( ProductVariant::query()->with( 'product' )->whereIn( 'sku', $chunk )->get() as $variant ) {
+                $lookup['variants'][ self::lookupKey( (string) $variant->sku, $lookup['caseInsensitive'] ) ] ??= $variant;
+            }
+        }
+
+        $owners = [];
+
+        foreach ( [ ...array_values( $lookup['products'] ), ...array_values( $lookup['variants'] ) ] as $stockable ) {
+            $owners[ $stockable->getMorphClass() ][] = $stockable->getKey();
+        }
+
+        foreach ( $owners as $type => $ids ) {
+            foreach ( array_chunk( $ids, 500 ) as $chunk ) {
+                $items = InventoryItem::query()
+                    ->where( 'warehouse_id', InventoryItem::DEFAULT_WAREHOUSE )
+                    ->where( 'stockable_type', $type )
+                    ->whereIn( 'stockable_id', $chunk )
+                    ->get();
+
+                foreach ( $items as $item ) {
+                    $lookup['items'][ $item->stockable_type . ':' . $item->stockable_id ] = $item;
+                }
+            }
+        }
+
+        return $lookup;
+    }
+
+    /**
+     * The product (first) or variant a SKU names, from {@see self::preload()};
+     * the same answer as {@see self::findStockable()}.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>  $lookup  Preloaded lookup.
+     * @param  string                $sku     SKU.
+     *
+     * @return Product|ProductVariant|null
+     */
+    public static function preloadedStockable( array $lookup, string $sku ): Product|ProductVariant|null
+    {
+        $sku = trim( $sku );
+
+        if ( '' === $sku ) {
+            return null;
+        }
+
+        $key = self::lookupKey( $sku, (bool) $lookup['caseInsensitive'] );
+
+        return $lookup['products'][ $key ] ?? $lookup['variants'][ $key ] ?? null;
+    }
+
+    /**
+     * A product's or variant's default-warehouse stock row, from
+     * {@see self::preload()}, or null when it has none yet.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<string, mixed>     $lookup     Preloaded lookup.
+     * @param  Product|ProductVariant   $stockable  Product or variant.
+     *
+     * @return InventoryItem|null
+     */
+    public static function preloadedItem( array $lookup, Product|ProductVariant $stockable ): ?InventoryItem
+    {
+        return $lookup['items'][ $stockable->getMorphClass() . ':' . $stockable->getKey() ] ?? null;
     }
 
     /**
@@ -278,5 +410,21 @@ final class StockLevels
         } elseif ( $stockable instanceof Product ) {
             $service->update( $stockable, [ 'inventory' => $settings ] );
         }
+    }
+
+    /**
+     * A SKU as a lookup key: lower-cased where the database compares
+     * case-insensitively (MySQL, SQL Server), as it is otherwise.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $sku              SKU.
+     * @param  bool    $caseInsensitive  Whether the database ignores case.
+     *
+     * @return string
+     */
+    private static function lookupKey( string $sku, bool $caseInsensitive ): string
+    {
+        return $caseInsensitive ? mb_strtolower( $sku ) : $sku;
     }
 }

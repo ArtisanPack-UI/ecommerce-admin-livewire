@@ -67,7 +67,7 @@ class InstallCommand extends Command
      *
      * @var array<int, string>
      */
-    public const NPM_PACKAGES = [ '@artisanpack-ui/css@^1', '@artisanpack-ui/behavior@^1', '@artisanpack-ui/livewire-drag-and-drop' ];
+    public const NPM_PACKAGES = [ '@artisanpack-ui/css@^1', '@artisanpack-ui/behavior@^1', '@artisanpack-ui/livewire-drag-and-drop@^2' ];
 
     /**
      * The lines that load the design system's behavior engine and

@@ -176,6 +176,22 @@ it( 'shows why an unshippable order cannot ship', function ( string $status, str
     'failed'    => [ 'failed', 'payment failed' ],
 ] );
 
+it( 'does not offer a shipment on an unpaid order unless the store allows it', function (): void {
+    $this->order->forceFill( [ 'system_status' => 'pending', 'payment_status' => 'pending' ] )->save();
+
+    Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )
+        ->assertSee( 'This order hasn’t been paid yet, so it can’t ship.' )
+        ->assertDontSee( 'Create shipment' )
+        ->call( 'createShipment', 'token' )
+        ->assertHasErrors( [ 'shipment' ] );
+
+    config()->set( 'artisanpack.ecommerce.fulfillment.allow_unpaid_shipments', true );
+
+    Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )
+        ->assertDontSee( 'This order hasn’t been paid yet' )
+        ->assertSee( 'Create shipment' );
+} );
+
 it( 'pastes a tracking number and updates the status', function (): void {
     $shipment = Shipment::factory()->create( [ 'order_id' => $this->order->id, 'status' => 'pending' ] );
 
@@ -230,6 +246,53 @@ it( 'buys a label only when a label provider is registered', function (): void {
     Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )
         ->assertSee( 'Label printed' )
         ->assertDontSee( 'Buy label' );
+} );
+
+it( 'keeps each shipment\'s label provider choice separate', function (): void {
+    fulfillmentLabelProvider();
+
+    app( ShippingLabelProviderRegistry::class )->register( 'other-labels', new class implements ShippingLabelProvider {
+        public function key(): string
+        {
+            return 'other-labels';
+        }
+
+        public function buyLabel( Shipment $shipment ): ShippingLabel
+        {
+            return new ShippingLabel( 5151, 'other-labels', 'OTHER-' . $shipment->id, 'https://track.example.test/o/' . $shipment->id, 'ups', 'ground' );
+        }
+
+        public function voidLabel( ShippingLabel $label ): void
+        {
+        }
+
+        public function trackLabel( ShippingLabel $label ): TrackingStatus
+        {
+            return new TrackingStatus( 'in_transit' );
+        }
+    } );
+
+    $first  = Shipment::factory()->create( [ 'order_id' => $this->order->id ] );
+    $second = Shipment::factory()->create( [ 'order_id' => $this->order->id ] );
+
+    $tokenFor = static function ( $component, Shipment $shipment ): string {
+        preg_match( '/buyLabel\(\s*' . $shipment->id . ',\s*(?:&quot;|&#039;|\'|")([^&\'"]+)/', $component->html(), $matches );
+
+        return $matches[1] ?? '';
+    };
+
+    $component = Livewire::test( FulfillmentPanel::class, [ 'order' => $this->order ] )
+        ->assertSeeHtml( 'wire:model="labelProviderFor.' . $first->id . '"' )
+        ->assertSeeHtml( 'wire:model="labelProviderFor.' . $second->id . '"' )
+        ->set( 'labelProviderFor.' . $first->id, 'other-labels' );
+
+    $component->call( 'buyLabel', $second->id, $tokenFor( $component, $second ) )->assertHasNoErrors();
+
+    expect( $second->fresh()->tracking_number )->toBe( 'TRACK-' . $second->id );
+
+    $component->call( 'buyLabel', $first->id, $tokenFor( $component, $first ) )->assertHasNoErrors();
+
+    expect( $first->fresh()->tracking_number )->toBe( 'OTHER-' . $first->id );
 } );
 
 it( 'clears a tracking link', function (): void {

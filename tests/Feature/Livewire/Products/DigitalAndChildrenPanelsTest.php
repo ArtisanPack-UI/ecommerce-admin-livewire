@@ -24,7 +24,7 @@ beforeEach( function (): void {
     config()->set( 'artisanpack.ecommerce.base_currency', 'USD' );
     config()->set( 'artisanpack.ecommerce.features.scout', false );
     config()->set( 'artisanpack.ecommerce.digital.allowed_disks', [ 'local' ] );
-    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update' ] );
+    grantAbilities( [ 'product.viewAny', 'product.view', 'product.create', 'product.update', 'digitalFile.create', 'digitalFile.update', 'digitalFile.delete' ] );
     ProductMedia::fake( false );
     $this->actingAs( makeUser() );
 } );
@@ -32,6 +32,7 @@ beforeEach( function (): void {
 afterEach( function (): void {
     ProductMedia::fake( null );
     DigitalDisks::fakeMediaDisks( null );
+    DigitalDisks::fakeViewableMedia( null );
 } );
 
 /**
@@ -451,4 +452,114 @@ it( 'shows the children error as an alert and hides the actions when read-only',
         ->assertSee( 'A bundle needs at least two products.' )
         ->assertDontSee( 'Add product' )
         ->assertDontSeeHtml( 'aria-label="Remove Mug"' );
+} );
+
+/**
+ * Digital panel state with the given file rows.
+ *
+ * @return array<string, mixed>
+ */
+function digitalState( array $files ): array
+{
+    return [ 'files' => $files, 'download_limit' => '', 'download_expiry_days' => '', 'licensing_enabled' => false, 'activations_limit' => '', 'license_expires_in_days' => '' ];
+}
+
+it( 'refuses a media item the user may not view, but keeps one already saved on the file', function (): void {
+    DigitalDisks::fakeMediaDisks( [ 7 => 'local', 8 => 'local' ] );
+    DigitalDisks::fakeViewableMedia( [] );
+
+    Livewire::test( Form::class )
+        ->set( 'name', 'Field Guide' )
+        ->set( 'type', 'digital' )
+        ->set( 'panelState', digitalState( [ digitalRow( [ 'source' => 'media', 'media_id' => 7, 'disk' => null, 'path' => '' ] ) ] ) )
+        ->call( 'save' )
+        ->assertHasErrors( 'panelState.files.0.media_id' );
+
+    expect( DigitalFile::query()->count() )->toBe( 0 );
+
+    // Media attached earlier (by someone who could see it) stays valid.
+    $product = Product::factory()->digital()->create();
+    $file    = DigitalFile::factory()->create( [ 'product_id' => $product->id, 'label' => 'Guide', 'media_id' => 8, 'disk' => null, 'path' => null ] );
+    $state   = DigitalPanel::initialState( $product );
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    // ...but its id can't vouch for another file's row.
+    $state['files'][] = digitalRow( [ 'label' => 'Copy', 'source' => 'media', 'media_id' => 8, 'disk' => null, 'path' => '' ] );
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasErrors( 'panelState.files.1.media_id' );
+
+    expect( DigitalFile::query()->where( 'product_id', $product->id )->count() )->toBe( 1 )
+        ->and( $file->refresh()->media_id )->toBe( 8 );
+} );
+
+it( 'needs digitalFile abilities to add, change, or remove files in the panel', function (): void {
+    Gate::define( 'ecommerce.digitalFile.create', static fn (): bool => false );
+
+    Livewire::test( Form::class )
+        ->set( 'name', 'Field Guide' )
+        ->set( 'type', 'digital' )
+        ->set( 'panelState', digitalState( [ digitalRow() ] ) )
+        ->call( 'save' )
+        ->assertHasErrors( 'panelState.files' );
+
+    expect( Product::query()->count() )->toBe( 0 )
+        ->and( DigitalFile::query()->count() )->toBe( 0 );
+
+    $product = Product::factory()->digital()->create();
+    $file    = DigitalFile::factory()->create( [ 'product_id' => $product->id, 'label' => 'Guide', 'disk' => 'local', 'path' => 'a.pdf' ] );
+
+    Gate::define( 'ecommerce.digitalFile.update', static fn (): bool => false );
+    Gate::define( 'ecommerce.digitalFile.delete', static fn (): bool => false );
+
+    // Untouched files save without digitalFile.update.
+    $state                   = DigitalPanel::initialState( $product );
+    $state['download_limit'] = '4';
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    $state['files'][0]['label'] = 'Renamed';
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasErrors( 'panelState.files' );
+
+    expect( $file->refresh()->label )->toBe( 'Guide' );
+
+    $state['files'] = [];
+
+    Livewire::test( Form::class, [ 'product' => $product->id ] )
+        ->set( 'panelState', $state )
+        ->call( 'save' )
+        ->assertHasErrors( 'panelState.files' );
+
+    expect( DigitalFile::query()->whereKey( $file->id )->exists() )->toBeTrue();
+} );
+
+it( 'builds every child row\'s picker from one product page and one lookup of the selected products', function (): void {
+    $items    = Product::factory()->count( 12 )->create();
+    $children = $items->map( static fn ( Product $item ): array => [ 'product_id' => $item->id, 'variant_id' => '', 'quantity' => 1 ] )->all();
+
+    $component = Livewire::test( ChildrenPanel::class )->set( 'state', [ 'children' => $children ] );
+
+    Illuminate\Support\Facades\DB::enableQueryLog();
+    Illuminate\Support\Facades\DB::flushQueryLog();
+
+    $component->call( '$refresh' );
+
+    $options = $component->viewData( 'childPickerOptions' );
+
+    expect( count( Illuminate\Support\Facades\DB::getQueryLog() ) )->toBeLessThan( 8 )
+        ->and( $options )->toHaveCount( 12 )
+        ->and( collect( $options[11] )->pluck( 'id' )->map( 'intval' )->first() )->toBe( (int) $items[11]->id );
 } );

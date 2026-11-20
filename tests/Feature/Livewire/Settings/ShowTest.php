@@ -292,3 +292,26 @@ it( 're-checks settings.view on every update', function (): void {
 
     $component->set( 'confirmingBaseCurrency', false )->assertForbidden();
 } );
+
+it( 'escapes translated lines that wrap markup around their placeholders (L-S13)', function (): void {
+    $directory = sys_get_temp_dir() . '/ec-admin-lang-' . uniqid();
+    mkdir( $directory );
+    file_put_contents( $directory . '/xx.json', (string) json_encode( [
+        'Packages that extend the store. Uninstall a satellite with :command.' => '<i>Extensions</i> :command',
+        'The base currency is changing from :from to :to.'                     => '<i>Changing</i> :from → :to',
+    ] ) );
+    app( 'translator' )->addJsonPath( $directory );
+    app()->setLocale( 'xx' );
+    config()->set( 'artisanpack.ecommerce.base_currency', 'USD' );
+    settingsRepository()->refresh();
+
+    Livewire::test( Show::class, [ 'group' => 'satellites' ] )
+        ->assertSeeHtml( '&lt;i&gt;Extensions&lt;/i&gt; <bdi dir="ltr" class="ec-mono">php artisan ecommerce:satellite:uninstall</bdi>' )
+        ->assertDontSeeHtml( '<i>Extensions</i>' );
+
+    Livewire::test( Show::class, [ 'group' => 'general' ] )
+        ->set( 'form.base_currency', 'eur' )
+        ->call( 'save' )
+        ->assertSeeHtml( '&lt;i&gt;Changing&lt;/i&gt; <strong>USD</strong> → <strong>EUR</strong>' )
+        ->assertDontSeeHtml( '<i>Changing</i>' );
+} );

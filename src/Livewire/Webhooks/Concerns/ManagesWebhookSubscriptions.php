@@ -26,6 +26,10 @@ use Livewire\Attributes\Locked;
  *   token, and reveals the new secret once.
  * - "Re-enable" switches a subscription back on; the engine clears its
  *   consecutive-failure count so it gets the full failure budget again.
+ * - "Send missed deliveries" puts the deliveries the engine parked while the
+ *   subscription was off back on the retry schedule
+ *   (`WebhookSubscriptionService::replayParked()`). Re-enabling doesn't do
+ *   this on its own, so old events only go out when staff ask for them.
  *
  * A revealed secret is rendered once, from a property Livewire doesn't
  * serialize, so it never sits in the component snapshot the browser keeps
@@ -172,7 +176,52 @@ trait ManagesWebhookSubscriptions
 
         app( WebhookSubscriptionService::class )->update( $subscription, [ 'is_active' => true ] );
 
-        $this->toastSuccess( __( 'Subscription ":name" re-enabled.', [ 'name' => $subscription->name ] ) );
+        $parked = Webhooks::parkedCount( $subscription );
+
+        $this->toastSuccess(
+            __( 'Subscription ":name" re-enabled.', [ 'name' => $subscription->name ] ),
+            0 === $parked ? null : trans_choice( ':count delivery was missed while it was off. Use "Send missed deliveries" to send it.|:count deliveries were missed while it was off. Use "Send missed deliveries" to send them.', $parked, [ 'count' => $parked ] ),
+        );
+    }
+
+    /**
+     * Puts an active subscription's parked deliveries back on the retry
+     * schedule, so the retry sweep sends what it missed while it was off.
+     *
+     * @since 2.0.0
+     *
+     * @param  int  $id  Subscription id.
+     *
+     * @return void
+     */
+    public function sendMissedDeliveries( int $id ): void
+    {
+        $subscription = WebhookSubscription::query()->find( $id );
+
+        $this->authorizeEcommerceAbility( 'webhookSubscription.update', $subscription );
+
+        if ( null === $subscription ) {
+            return;
+        }
+
+        if ( ! $subscription->is_active ) {
+            $this->toastWarning( __( 'This subscription is disabled.' ), __( 'Re-enable it before sending its missed deliveries.' ) );
+
+            return;
+        }
+
+        $requeued = app( WebhookSubscriptionService::class )->replayParked( $subscription );
+
+        if ( 0 === $requeued ) {
+            $this->toastWarning( __( 'There are no missed deliveries to send.' ) );
+
+            return;
+        }
+
+        $this->toastSuccess(
+            trans_choice( ':count missed delivery queued.|:count missed deliveries queued.', $requeued, [ 'count' => $requeued ] ),
+            __( 'They are sent on the next retry run.' ),
+        );
     }
 
     /**

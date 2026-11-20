@@ -93,6 +93,18 @@ it( 'marks selected rows and makes the header box mixed while part of the page i
         ->toMatch( '/class="apui-checkbox"[^>]*data-state="indeterminate"/' );
 } );
 
+it( 'announces only the selection count, not the whole bulk-action bar', function (): void {
+    $orders = Order::factory()->count( 2 )->create();
+
+    $html = Livewire::test( Index::class )
+        ->set( 'selected', [ (string) $orders->first()->id ] )
+        ->html();
+
+    expect( $html )->toMatch( '/<div class="apui-sr-only" role="status" aria-live="polite" aria-atomic="true" data-live-region>1 row selected\.<\/div>/' )
+        ->and( $html )->toContain( 'data-bulk-action-bar' )
+        ->and( preg_match( '/aria-live="polite">\s*<div[^>]*data-bulk-action-bar/', $html ) )->toBe( 0 );
+} );
+
 it( 'keeps the filter drawer closed until a filter is on, and counts the filters on', function (): void {
     Order::factory()->create( [ 'payment_status' => 'paid' ] );
 
@@ -146,4 +158,18 @@ it( 'keeps the sort button on a sortable column whose label is visually hidden',
 
     expect( $html )->toMatch( '/<button[^>]*data-part="sort"[^>]*>\s*<span class="apui-sr-only">Order<\/span>/s' )
         ->and( $html )->toContain( 'aria-sort=' );
+} );
+
+it( 'localizes a date cell that has no view, in the store time zone', function (): void {
+    config()->set( 'artisanpack.ecommerce.timezone', 'America/Chicago' );
+    $order = Order::factory()->create();
+    $order->setAttribute( 'placed_on', Illuminate\Support\Carbon::parse( '2026-03-05 18:30:00', 'UTC' ) );
+
+    $column = [ 'key' => 'placed_on', 'label' => 'Placed', 'sortable' => false, 'class' => '', 'numeric' => false, 'view' => null, 'value' => null, 'export' => null, 'exportable' => true ];
+
+    expect( ordersTable( [ $order ] )->cellText( $order, $column ) )->toBe( 'Mar 5, 2026 12:30 PM' );
+
+    app()->setLocale( 'de' );
+
+    expect( ordersTable( [ $order ] )->cellText( $order, $column ) )->toBe( '5. Mär 2026, 12:30' );
 } );

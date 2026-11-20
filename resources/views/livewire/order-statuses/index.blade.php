@@ -22,6 +22,7 @@
     use ArtisanPackUI\EcommerceAdminLivewire\Support\ColorContrast;
     use ArtisanPackUI\EcommerceAdminLivewire\Support\ControlOptions;
     use ArtisanPackUI\EcommerceAdminLivewire\Support\IconChoices;
+    use ArtisanPack\LivewireUiComponents\Support\IconRegistry;
     use Illuminate\Support\Js;
 @endphp
 <div class="ec-stack" data-order-statuses>
@@ -55,11 +56,12 @@
                 <ol class="ec-plain-list ec-settings-list" aria-label="{{ __( ':status sub-statuses', [ 'status' => $group['label'] ] ) }}">
                     @foreach ( $group['substatuses'] as $substatus )
                         <li wire:key="substatus-{{ $substatus->id }}" class="ec-settings-row" data-substatus="{{ $substatus->key }}">
-                            <span class="ec-column-chip" style="--ec-column-color: {{ ColorContrast::safeHex( $substatus->color ) }}" aria-hidden="true">
+                            <svg class="ec-column-chip" viewBox="0 0 28 28" color="{{ ColorContrast::safeHex( $substatus->color ) }}" aria-hidden="true" focusable="false">
+                                <circle cx="14" cy="14" r="14" fill="currentColor" fill-opacity="0.16" />
                                 @if ( IconChoices::exists( $substatus->icon ) )
-                                    <x-artisanpack-icon :name="$substatus->icon" />
+                                    <svg x="6" y="6" width="16" height="16">{!! IconRegistry::render( $substatus->icon ) !!}</svg>
                                 @endif
-                            </span>
+                            </svg>
 
                             <div class="ec-settings-row__main">
                                 <span class="ec-settings-row__title">
@@ -190,7 +192,6 @@
                     <x-artisanpack-alert
                         color="warning"
                         icon="triangle-alert"
-                        role="status"
                         :title="__( 'Every order status needs at least one sub-status, so the last one can\'t be deleted.' )"
                         :description="__( 'Add another sub-status to :status first.', [ 'status' => $deletingStatusLabel ] )"
                         data-delete-last
@@ -199,7 +200,6 @@
                     <x-artisanpack-alert
                         color="warning"
                         icon="triangle-alert"
-                        role="status"
                         :title="__( 'It is still in use by :orders, :cards, and :columns.', [
                             'orders'  => trans_choice( ':count order|:count orders', $deletingUsage['orders'], [ 'count' => $deletingUsage['orders'] ] ),
                             'cards'   => trans_choice( ':count card|:count cards', $deletingUsage['assignments'], [ 'count' => $deletingUsage['assignments'] ] ),

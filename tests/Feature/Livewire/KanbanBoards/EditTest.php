@@ -237,3 +237,33 @@ it( 'disables every control when view-only', function (): void {
     expect( $html )->toMatch( '/<fieldset[^>]*class="ec-board-form-panel"[^>]*disabled/' )
         ->and( $html )->toMatch( '/id="board-name"[^>]*disabled/' );
 } );
+
+it( 'keeps angle brackets in the board name and description intact and escapes them (REL-10)', function (): void {
+    $board = KanbanBoard::factory()->create( [ 'name' => 'Production' ] );
+
+    Livewire::test( Edit::class, [ 'board' => $board->id ] )
+        ->set( 'form.name', 'Under <3 kg' )
+        ->set( 'form.description', '<b>Bold</b> & O<Brien' )
+        ->call( 'save' )
+        ->assertHasNoErrors()
+        ->assertSee( 'Under <3 kg' )
+        ->assertDontSeeHtml( '<b>Bold</b>' );
+
+    expect( $board->fresh() )
+        ->name->toBe( 'Under <3 kg' )
+        ->description->toBe( '<b>Bold</b> & O<Brien' );
+} );
+
+it( 'points a rule settings toggle at its panel only while the panel is open (L-A5)', function (): void {
+    $board     = KanbanBoard::factory()->create();
+    $component = Livewire::test( Edit::class, [ 'board' => $board->id ] )
+        ->set( 'ruleToAdd.conditions', 'min-subtotal' )->call( 'addRule', 'conditions' );
+
+    $id = $component->get( 'ruleRows.conditions.0.id' );
+
+    $component->assertSeeHtml( 'aria-controls="' )
+        ->assertSeeHtml( '-settings-' . $id . '"' )
+        ->call( 'toggleRule', 'conditions', $id )
+        ->assertSeeHtml( 'aria-expanded="false"' )
+        ->assertDontSeeHtml( 'aria-controls="' );
+} );

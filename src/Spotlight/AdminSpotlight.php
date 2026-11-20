@@ -34,7 +34,9 @@ use Illuminate\Support\Str;
  * CMS layout).
  *
  * Each provider is skipped unless the user holds its ability, runs one
- * query, and returns at most `spotlight.limit` results. The core providers
+ * query, and is asked for at most `spotlight.limit` results; whatever a
+ * provider returns is cut at {@see self::RESULTS_PER_LIMIT} times that, so
+ * contextual actions still fit. The core providers
  * are orders, products, customers, promotions, coupons, and actions; add
  * or replace providers with the `ap.ecommerceAdminLivewire.spotlight.providers`
  * filter, which receives the providers keyed by name and the user.
@@ -105,6 +107,18 @@ final class AdminSpotlight
      * @var int
      */
     public const MAX_LIMIT = 20;
+
+    /**
+     * How many results a provider may return per `spotlight.limit`. Leaves
+     * room for contextual actions (an exact order number adds "Refund" and
+     * "Add note" after its result) while capping a provider that ignores
+     * the limit it is given.
+     *
+     * @since 2.0.0
+     *
+     * @var int
+     */
+    public const RESULTS_PER_LIMIT = 3;
 
     /**
      * The design-system icon for each Heroicon the providers use. A Heroicon
@@ -409,15 +423,6 @@ final class AdminSpotlight
     }
 
     /**
-     * The providers after the extension filter.
-     *
-     * @since 1.0.0
-     *
-     * @param  Authenticatable|null  $user  The current user.
-     *
-     * @return array<string, SpotlightProvider>
-     */
-    /**
      * Whether a result link may be bound to the palette's `href`: a
      * relative path (not `//host`), or an http(s) URL on the app's host.
      * Anything else (`javascript:`, other hosts) is dropped.
@@ -449,6 +454,15 @@ final class AdminSpotlight
         return in_array( $host, $hosts, true );
     }
 
+    /**
+     * The providers after the extension filter.
+     *
+     * @since 1.0.0
+     *
+     * @param  Authenticatable|null  $user  The current user.
+     *
+     * @return array<string, SpotlightProvider>
+     */
     public static function providers( ?Authenticatable $user = null ): array
     {
         $providers = (array) applyFilters( self::PROVIDERS_FILTER, [
@@ -588,6 +602,10 @@ final class AdminSpotlight
             $results[ $key ] = [];
 
             foreach ( $provider->search( $search, $user, $limit ) as $result ) {
+                if ( count( $results[ $key ] ) >= $limit * self::RESULTS_PER_LIMIT ) {
+                    break;
+                }
+
                 if ( ! is_array( $result ) || ! isset( $result['name'], $result['link'] ) || ! self::safeLink( (string) $result['link'] ) ) {
                     continue;
                 }

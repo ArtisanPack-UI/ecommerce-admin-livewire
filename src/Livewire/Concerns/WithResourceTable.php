@@ -21,6 +21,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\WithPagination;
@@ -39,7 +40,10 @@ use Throwable;
  * A screen supplies its query class, columns, filters, and bulk actions.
  * Satellites extend them through the filters
  * `ap.ecommerceAdminLivewire.table.{screen}.columns`, `.filters`, and
- * `.bulkActions` (spec §8.5).
+ * `.bulkActions` (spec §8.5), with the screen key in camelCase
+ * (`table.licenseKeys.columns`). The kebab-case names 1.x used
+ * (`table.license-keys.columns`) still run afterwards for multi-word
+ * screens, but are deprecated since 2.0.0.
  *
  * Column definition: `key`, `label`, `sortable` (bool), `class`, `numeric`
  * (bool: aligned to the inline end; defaults to true when `class` has
@@ -620,6 +624,33 @@ trait WithResourceTable
     }
 
     /**
+     * Runs one of the table's extension filters: first under the screen key
+     * in camelCase (`ap.ecommerceAdminLivewire.table.licenseKeys.columns`),
+     * then, for a multi-word screen, under the deprecated kebab-case name 1.x
+     * used (`table.license-keys.columns`), so existing subscribers keep
+     * working.
+     *
+     * @since 2.0.0
+     *
+     * @param  string             $part   `columns`, `filters` or `bulkActions`.
+     * @param  array<int, mixed>  $value  The screen's own definitions.
+     *
+     * @return array<int|string, mixed>
+     */
+    protected function applyTableFilter( string $part, array $value ): array
+    {
+        $screen = $this->tableScreen();
+        $camel  = Str::camel( $screen );
+        $value  = (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $camel . '.' . $part, $value, $this );
+
+        if ( $camel === $screen ) {
+            return $value;
+        }
+
+        return (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $screen . '.' . $part, $value, $this );
+    }
+
+    /**
      * The columns after the extension filter, normalized.
      *
      * @since 1.0.0
@@ -631,7 +662,7 @@ trait WithResourceTable
      */
     protected function tableColumnDefinitions(): array
     {
-        $columns = (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $this->tableScreen() . '.columns', $this->tableColumns(), $this );
+        $columns = $this->applyTableFilter( 'columns', $this->tableColumns() );
         $query   = $this->tableQuery();
         $result  = [];
 
@@ -669,7 +700,7 @@ trait WithResourceTable
      */
     protected function tableFilterDefinitions(): array
     {
-        $filters = (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $this->tableScreen() . '.filters', $this->tableFilters(), $this );
+        $filters = $this->applyTableFilter( 'filters', $this->tableFilters() );
         $types   = [ 'select', 'multiselect', 'text', 'boolean', 'date-range', 'number-range' ];
         $result  = [];
 
@@ -706,7 +737,7 @@ trait WithResourceTable
      */
     protected function tableBulkActionDefinitions(): array
     {
-        $actions = (array) applyFilters( 'ap.ecommerceAdminLivewire.table.' . $this->tableScreen() . '.bulkActions', $this->tableBulkActions(), $this );
+        $actions = $this->applyTableFilter( 'bulkActions', $this->tableBulkActions() );
         $result  = [];
 
         foreach ( $actions as $action ) {

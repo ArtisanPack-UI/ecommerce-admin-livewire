@@ -51,7 +51,9 @@ it( 'counts the sub-statuses on each status card and marks terminal ones', funct
         ->assertSeeHtml( 'data-substatus-count="3"' )
         ->assertSee( '3 sub-statuses' )
         ->assertSeeHtml( 'data-terminal' )
-        ->assertSeeHtml( '--ec-column-color: #1E3A8A' )
+        ->assertSeeHtml( 'class="ec-column-chip" viewBox="0 0 28 28" color="#1E3A8A"' )
+        ->assertSeeHtml( '<svg x="6" y="6" width="16" height="16"><svg' )
+        ->assertDontSeeHtml( '--ec-column-color' )
         ->assertSeeHtml( '<bdi dir="ltr" class="ec-mono ec-muted">boxed</bdi>' );
 } );
 
@@ -236,10 +238,23 @@ it( 'warns about a low-contrast colour when the accessibility package is install
 
     Livewire::test( Index::class )
         ->call( 'create', 'processing' )
-        ->set( 'form.color', '#3B82F6' )
+        ->set( 'form.color', '#FDE68A' )
         ->assertSeeHtml( 'data-contrast-warning' )
+        ->assertSee( 'on the light background, below the 3:1 that WCAG asks for' )
         ->set( 'form.color', '#1E3A8A' )
+        ->assertSeeHtml( 'data-contrast-warning' )
+        ->assertSee( 'on the dark background, below the 3:1 that WCAG asks for' )
+        ->set( 'form.color', '#3B82F6' )
         ->assertDontSeeHtml( 'data-contrast-warning' );
+} );
+
+it( 'checks a status colour as a dot or icon, with 3:1 non-text contrast (L-C12)', function (): void {
+    ColorContrast::fake( true );
+
+    expect( ColorContrast::warning( '#808080' ) )->toBeNull()
+        ->and( ColorContrast::warning( '#FDE68A' ) )->toContain( 'icon and dot' )
+        ->and( ColorContrast::badgeTextColor( '#808080' ) )->toBe( '#000000' )
+        ->and( ColorContrast::badgeTextColor( '#1E3A8A' ) )->toBe( '#FFFFFF' );
 } );
 
 it( 'skips the contrast warning without the accessibility package', function (): void {
@@ -364,9 +379,23 @@ it( 'renders a non-hex colour from the API as transparent', function (): void {
     Livewire::test( Index::class )
         ->assertSee( 'Odd' )
         ->assertDontSeeHtml( 'red;x:y' )
-        ->assertSeeHtml( '--ec-column-color: transparent' );
+        ->assertSeeHtml( 'color="transparent"' );
 
     expect( $substatus->exists )->toBeTrue()
         ->and( ColorContrast::safeHex( '#a1B2c3' ) )->toBe( '#a1B2c3' )
         ->and( ColorContrast::safeHex( '#abc' ) )->toBe( 'transparent' );
+} );
+
+it( 'authorizes edit, move and delete against the sub-status record (L-S6)', function (): void {
+    $locked = processingSubstatus();
+    $open   = OrderSubstatus::query()->where( 'key', 'in-progress' )->sole();
+
+    Gate::define( 'ecommerce.orderSubstatus.update', static fn ( $user, $substatus = null ): bool => ! ( $substatus instanceof OrderSubstatus && $substatus->is( $locked ) ) );
+    Gate::define( 'ecommerce.orderSubstatus.delete', static fn ( $user, $substatus = null ): bool => ! ( $substatus instanceof OrderSubstatus && $substatus->is( $locked ) ) );
+
+    Livewire::test( Index::class )->call( 'edit', $open->id )->assertSet( 'editing', true );
+    Livewire::test( Index::class )->call( 'edit', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'move', $locked->id, -1 )->assertForbidden();
+    Livewire::test( Index::class )->call( 'confirmDelete', $locked->id )->assertForbidden();
+    Livewire::test( Index::class )->call( 'confirmDelete', $open->id )->assertSet( 'confirmingDelete', true );
 } );

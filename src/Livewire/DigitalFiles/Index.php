@@ -382,7 +382,7 @@ class Index extends Component
                 ->orderBy( 'position' )
                 ->orderBy( 'id' )
                 ->get( [ 'id', 'name', 'sku' ] )
-                ->map( static fn ( ProductVariant $variant ): array => [ 'id' => (int) $variant->id, 'name' => trim( (string) ( $variant->name ?? '' ) . ( filled( $variant->sku ) ? ' (' . $variant->sku . ')' : '' ) ) ?: '#' . $variant->id ] )
+                ->map( static fn ( ProductVariant $variant ): array => [ 'id' => (int) $variant->id, 'name' => trim( (string) ( $variant->name ?? '' ) . ( filled( $variant->sku ) ? ' (' . $variant->sku . ')' : '' ) ) ?: __( 'Variant #:id', [ 'id' => $variant->id ] ) ] )
                 ->all(),
             'versionBumped'  => null !== $this->fileId && null !== $this->savedVersion && '' !== $version && $version !== $this->savedVersion,
             'diskOptions'    => DigitalDisks::options(),
@@ -441,19 +441,7 @@ class Index extends Component
      */
     public static function viewableMedia( ?DigitalFile $file ): Closure
     {
-        return static function ( string $attribute, mixed $value, Closure $fail ) use ( $file ): void {
-            $model = DigitalFile::MEDIA_MODEL;
-
-            if ( ! is_numeric( $value ) || ! class_exists( $model ) || ( null !== $file && (int) $file->media_id === (int) $value ) ) {
-                return;
-            }
-
-            $media = $model::query()->find( (int) $value );
-
-            if ( null !== $media && ! Gate::allows( 'view', $media ) ) {
-                $fail( __( 'That media item can\'t be found.' ) );
-            }
-        };
+        return DigitalDisks::viewableMedia( null === $file ? [] : [ $file->media_id ] );
     }
 
     /**

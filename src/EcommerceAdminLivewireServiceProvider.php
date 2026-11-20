@@ -62,6 +62,7 @@ use ArtisanPackUI\EcommerceAdminLivewire\Support\CmsMenu;
 use ArtisanPackUI\EcommerceAdminLivewire\Support\ConfigSchemas;
 use ArtisanPackUI\EcommerceAdminLivewire\View\Components;
 use Illuminate\Contracts\View\View as ViewContract;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
@@ -89,7 +90,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
      *
      * @var string
      */
-    public const VERSION = '1.0.0';
+    public const VERSION = '2.0.0';
 
     /**
      * The Composer package name.
@@ -252,6 +253,7 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         'credit-card'        => '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
         'file-down'          => '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/>',
         'filter'             => '<path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/>',
+        'gift'               => '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>',
         'folder'             => '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
         'key'                => '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
         'map-pin'            => '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
@@ -410,8 +412,9 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
 
     /**
      * Makes the configured `admin.middleware` persistent: class names as
-     * given, aliases resolved to their classes. Middleware groups (`web`)
-     * are left out; Livewire's update route has its own.
+     * given, aliases resolved to their classes and middleware groups
+     * expanded. Middleware the `web` group already runs, and the
+     * framework throttles, are left out.
      *
      * @since 1.0.0
      *
@@ -431,7 +434,15 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
     }
 
     /**
-     * The middleware classes behind `admin.middleware`, without groups.
+     * The middleware classes behind `admin.middleware`.
+     *
+     * Groups (such as a host's `admin` group holding 2FA or `verified`)
+     * are expanded recursively, so their checks also run on Livewire
+     * updates. Classes the `web` group already runs are dropped, since
+     * Livewire's update route has that group. `throttle:*` entries are
+     * dropped too: persistent middleware applies to every Livewire
+     * component in the app, and the admin has its own limiter
+     * (`ThrottleAdminMutations`).
      *
      * @since 1.0.0
      *
@@ -442,9 +453,39 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
         $router  = app( 'router' );
         $aliases = $router->getMiddleware();
         $groups  = $router->getMiddlewareGroups();
+        $web     = isset( $groups['web'] ) ? self::expandMiddleware( (array) $groups['web'], $aliases, $groups ) : [];
+        $entries = (array) config( 'artisanpack.ecommerce-admin-livewire.admin.middleware', [] );
         $classes = [];
 
-        foreach ( (array) config( 'artisanpack.ecommerce-admin-livewire.admin.middleware', [] ) as $entry ) {
+        foreach ( self::expandMiddleware( $entries, $aliases, $groups, [ 'web' => true ] ) as $class ) {
+            if ( in_array( $class, $web, true ) || self::isThrottleMiddleware( $class ) ) {
+                continue;
+            }
+
+            $classes[] = $class;
+        }
+
+        return array_values( array_unique( $classes ) );
+    }
+
+    /**
+     * Resolves middleware entries (classes, aliases with parameters and
+     * group names) to existing class names, expanding groups recursively.
+     *
+     * @since 2.0.0
+     *
+     * @param  array<int|string, mixed>   $entries  The middleware entries.
+     * @param  array<string, mixed>       $aliases  The router's middleware aliases.
+     * @param  array<string, mixed>       $groups   The router's middleware groups.
+     * @param  array<string, bool>        $seen     Groups already expanded (guards against cycles).
+     *
+     * @return array<int, class-string> The classes, in order, possibly repeated.
+     */
+    protected static function expandMiddleware( array $entries, array $aliases, array $groups, array $seen = [] ): array
+    {
+        $classes = [];
+
+        foreach ( $entries as $entry ) {
             if ( ! is_string( $entry ) || '' === $entry ) {
                 continue;
             }
@@ -452,6 +493,15 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             $name = explode( ':', $entry, 2 )[0];
 
             if ( isset( $groups[ $name ] ) ) {
+                if ( isset( $seen[ $name ] ) ) {
+                    continue;
+                }
+
+                array_push(
+                    $classes,
+                    ...self::expandMiddleware( (array) $groups[ $name ], $aliases, $groups, $seen + [ $name => true ] ),
+                );
+
                 continue;
             }
 
@@ -462,7 +512,21 @@ class EcommerceAdminLivewireServiceProvider extends ServiceProvider
             }
         }
 
-        return array_values( array_unique( $classes ) );
+        return $classes;
+    }
+
+    /**
+     * Whether a middleware class is one of the framework's request throttles.
+     *
+     * @since 2.0.0
+     *
+     * @param  string  $class  The middleware class.
+     *
+     * @return bool True for `ThrottleRequests` and its subclasses (such as `ThrottleRequestsWithRedis`).
+     */
+    protected static function isThrottleMiddleware( string $class ): bool
+    {
+        return is_a( $class, ThrottleRequests::class, true );
     }
 
     /**

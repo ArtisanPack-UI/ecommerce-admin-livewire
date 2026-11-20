@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 
 beforeEach( function (): void {
-    grantAbilities( [ 'promotion.viewAny', 'promotion.view', 'coupon.create', 'coupon.update', 'coupon.delete' ] );
+    grantAbilities( [ 'promotion.viewAny', 'promotion.view', 'promotion.update', 'coupon.create', 'coupon.update', 'coupon.delete' ] );
     $this->actingAs( makeUser() );
 
     $this->promotion = Promotion::factory()->coupon()->create( [ 'key' => 'welcome', 'times_used' => 3 ] );
@@ -171,12 +171,45 @@ it( 'exports the codes to CSV', function (): void {
         ->and( $content )->toContain( 'Code' );
 } );
 
-it( 'does not let a user who may only view the promotion export its codes', function (): void {
-    Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'SECRET' ] );
+it( 'lets a user who may view the promotion export the codes the table already lists', function (): void {
+    Gate::define( 'ecommerce.promotion.update', static fn (): bool => false );
+
+    Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'LISTED' ] );
+
+    $component = Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )
+        ->assertSee( 'LISTED' )
+        ->assertSeeHtml( 'data-export-codes' )
+        ->call( 'exportCodes' )
+        ->assertOk();
+
+    expect( $component->effects['download']['content'] ?? '' )->not->toBe( '' );
+} );
+
+it( 'needs update on the promotion to add or generate codes', function (): void {
+    Gate::define( 'ecommerce.promotion.update', static fn (): bool => false );
 
     Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )
-        ->call( 'exportCodes' )
+        ->assertDontSeeHtml( 'data-add-code' )
+        ->assertDontSeeHtml( 'data-generate-codes' )
+        ->set( 'newCode', 'MINTED' )
+        ->call( 'addCode' )
         ->assertForbidden();
+
+    Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )
+        ->set( 'generateCount', 1000 )
+        ->call( 'generateCodes' )
+        ->assertForbidden();
+
+    expect( Coupon::query()->count() )->toBe( 0 );
+} );
+
+it( 'renders the row actions as square icon-only buttons', function (): void {
+    Coupon::factory()->create( [ 'promotion_id' => $this->promotion->id, 'code' => 'ICONS' ] );
+
+    $html = Livewire::test( CouponsPanel::class, [ 'promotion' => $this->promotion ] )->html();
+
+    expect( $html )->toMatch( '/aria-label="Rename ICONS"[^>]*data-icon-only/' )
+        ->toMatch( '/aria-label="Delete ICONS"[^>]*data-icon-only/' );
 } );
 
 it( 'refuses to add codes to an automatic promotion', function (): void {

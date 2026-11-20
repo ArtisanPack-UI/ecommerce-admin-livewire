@@ -162,7 +162,8 @@ it( 'lists other statuses\' sub-statuses as disabled and explains refusing them'
 
     Livewire::test( StatusPanel::class, [ 'order' => $order ] )
         ->assertSeeHtml( 'value="' . $other->id . '"  disabled' )
-        ->assertSee( 'Greyed-out sub-statuses belong to another order status' )
+        ->assertSee( 'Sub-statuses followed by another order status in brackets can’t be chosen until the order moves to that status.' )
+        ->assertDontSee( 'Greyed-out' )
         ->set( 'substatusId', $other->id )
         ->call( 'changeSubstatus' )
         ->assertHasErrors( [ 'substatusId' ] )

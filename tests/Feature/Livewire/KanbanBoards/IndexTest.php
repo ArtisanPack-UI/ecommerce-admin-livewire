@@ -328,3 +328,17 @@ it( 'lets the last board be deleted', function (): void {
 
     expect( KanbanBoard::query()->count() )->toBe( 0 );
 } );
+
+it( 'keeps angle brackets in a new board name and description intact (REL-10)', function (): void {
+    Livewire::test( Index::class )
+        ->call( 'create' )
+        ->set( 'form.name', "  Spend <\$50\x07 " )
+        ->set( 'form.key', 'small-orders' )
+        ->set( 'form.description', 'Parcels <3 kg for O<Brien' )
+        ->call( 'save' )
+        ->assertHasNoErrors();
+
+    expect( KanbanBoard::query()->where( 'key', 'small-orders' )->sole() )
+        ->name->toBe( 'Spend <$50' )
+        ->description->toBe( 'Parcels <3 kg for O<Brien' );
+} );
