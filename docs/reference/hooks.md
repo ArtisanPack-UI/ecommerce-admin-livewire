@@ -77,7 +77,7 @@ addFilter( 'ap.ecommerceAdminLivewire.timeline.entry', function ( array $present
 ```
 
 - `icon` is a design-system (Lucide) icon name.
-- `tone` is optional and colours the entry's marker: `success`, `warning`, `error`, or `info`. Any other value, or none, leaves the marker neutral. The core events take a tone only when they need attention (failed, blocked, or mismatched is `error`; challenged or action required is `warning`) or complete a money movement (captured or refunded is `success`). **Since:** 2.0.0
+- `tone` is optional and colours the entry's marker: `success`, `warning`, `error`, or `info`. Any other value leaves the marker neutral. Leaving `tone` out keeps the event's own tone, so a filter that only changes a core event's description doesn't change its colour; a satellite's event has no tone of its own, so its marker stays neutral. The core events take a tone only when they need attention (failed, blocked, or mismatched is `error`; challenged or action required is `warning`) or complete a money movement (captured or refunded is `success`). **Since:** 2.0.0
 
 The timeline covers orders, products, customers, and promotions.
 

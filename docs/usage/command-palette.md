@@ -18,7 +18,7 @@ With an empty query, the palette lists the **Actions** group (below) and filters
 
 ## What it searches
 
-Type at least one character. Results are grouped by source, in the order below, and each source returns up to `spotlight.limit` results (5 by default, at most 20). A search with no results shows an empty state with a hint.
+Type at least one character. Results are grouped by source, in the order below, and each of the sources below returns up to `spotlight.limit` results (5 by default, at most 20). The limit is passed to each provider rather than enforced, so a custom provider should respect it. Your host spotlight's results and the Actions group are not limited by it. A search with no results shows an empty state with a hint.
 
 | Source | Matches | Opens | Needs |
 | --- | --- | --- | --- |

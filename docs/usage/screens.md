@@ -25,7 +25,7 @@ For the ability each screen and action needs, see [Authorization](../authorizati
 | `/tags` | `tags.index` | Tags: create, rename in the row, merge, delete. Product counts link to the products list filtered by that tag. |
 | `/inventory` | `inventory.index` | Stock per product and variant. Adjust with a reason, edit the low-stock threshold, toggle backorders, bulk adjust from CSV. |
 | `/digital-files` | `digital-files.index` | Files attached to digital products. Create, edit (a new version notifies customers), archive, delete. A file customers already bought can't be deleted; archive it instead. |
-| `/license-keys` | `license-keys.index` | Issued keys, masked: search by full key, order, or customer; view activations; deactivate a machine; revoke with an optional reason. |
+| `/license-keys` | `license-keys.index` | Issued keys, in full with `licenseKey.view` and masked otherwise: search by order or customer, or by full key with `licenseKey.view`; view activations; deactivate a machine; revoke with an optional reason. |
 | `/customers` | `customers.index` | Customers with order count, total spent, last order, marketing consent, and account. Export. |
 | `/customers/{customer}` | `customers.show` | Lifetime stats and tabs for orders, addresses, notification preferences, notes, and activity. Edit details. Delete and anonymize. |
 | `/promotions` | `promotions.index` | Promotions with their source, state (scheduled, active, expired, switched off), run window, uses, and priority. Bulk switch on or off, delete. |
@@ -101,7 +101,7 @@ Deleting a digital file that customers already bought is refused, because they k
 
 License keys are stored encrypted, so the search matches a key only in full (case and surrounding spaces don't matter). Order numbers, e-mail addresses, and customer names match in part.
 
-Keys are shown masked as `••••••••XXXX`, with only the last four characters, whatever the key's length or grouping.
+Users with `licenseKey.view` see each key in full, on the screen and in the CSV export. Users with only `licenseKey.revoke` see it masked as `••••••••XXXX`, with only the last four characters (hyphens aside), whatever the key's length or grouping, and can't search by key. A key with four or fewer characters besides hyphens shows in full after the dots.
 
 Activations read "2 of 3" over a short bar that turns to a warning when every slot is used. A key with an activation limit of zero reads "0 of 0", and a key with no limit reads "1, no limit" with no bar.
 

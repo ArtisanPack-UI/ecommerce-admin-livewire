@@ -19,7 +19,7 @@ An entry has the shape of the engine's `AdminMenuRegistry` entries:
 | `parameters` | No | Route parameters |
 | `section` | No | Section key. Unknown sections fall back to the top section. |
 | `position` | No | Order within the section (default `100`) |
-| `icon` | No | A design-system (Lucide) icon name, or a Heroicon name such as `o-gift` that the admin maps to its design-system counterpart (default `o-squares-2x2`). Unmapped names pass through unchanged. |
+| `icon` | No | A design-system (Lucide) icon name, or one of the Heroicon names the admin maps to a design-system counterpart, such as `o-truck` (default `o-squares-2x2`). Other names, `o-gift` included, pass through unchanged, so give a Lucide name for anything outside the map. |
 | `permission` | No | `{resource}.{action}` ability (`ecommerce.` prefix allowed). Hidden without it. `null` shows it to anyone who can enter the admin, but never grants access on its own. |
 | `badge` | No | Badge key; see below |
 
@@ -35,7 +35,7 @@ addFilter( 'ap.ecommerceAdminLivewire.nav.items', function ( array $items ): arr
         'key'        => 'loyalty',
         'section'    => 'customers',
         'label'      => __( 'Loyalty points' ),
-        'icon'       => 'o-gift',
+        'icon'       => 'gift',
         'route'      => 'loyalty.admin.index',
         'position'   => 20,
         'permission' => 'customer.viewAny',

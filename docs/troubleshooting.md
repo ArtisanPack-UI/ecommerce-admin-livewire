@@ -22,7 +22,7 @@ See [Front-End Setup](installation/front-end.md).
 
 **Cause:** daisyUI is still loaded, or the design system's layer order is missing.
 
-**Fix:** Remove the `daisyui` package and its `@plugin "daisyui"` block if nothing else uses them, and make `@layer theme, base, apui, components, utilities;` the first line of your stylesheet, before `@import 'tailwindcss';`. Then rebuild.
+**Fix:** If nothing else uses daisyUI, remove its `@plugin "daisyui"` block and any `@plugin "daisyui/theme"` blocks from your stylesheet, then uninstall the `daisyui` package (the build fails if a block outlives the package), and make `@layer theme, base, apui, components, utilities;` the first line of your stylesheet, before `@import 'tailwindcss';`. Then rebuild.
 
 ## Drawers, dialogs, or the command palette don't open
 
@@ -38,12 +38,13 @@ document.addEventListener( 'alpine:init', () => window.Alpine.plugin( apuiBehavi
 
 ## The description editor doesn't load
 
-**Cause:** The product description uses the component library's rich text editor, which runs on TinyMCE from the library's published assets, and those assets aren't published or loaded.
+**Cause:** The product description uses the component library's rich text editor. It runs on TinyMCE from the library's published assets, through the design system's behavior engine. One of the two is missing.
 
 **Fix:**
 
 1. Run `php artisan vendor:publish --tag=artisanpack-assets`.
 2. Load `/vendor/artisanpack-ui/js/tinymce/tinymce.min.js` on the page.
+3. Register the behavior engine. See [Drawers, dialogs, or the command palette don't open](#drawers-dialogs-or-the-command-palette-dont-open).
 
 Re-publish after upgrading the component library.
 

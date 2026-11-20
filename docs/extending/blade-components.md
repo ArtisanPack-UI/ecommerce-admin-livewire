@@ -68,13 +68,17 @@ For a save that fails for a reason outside the form (a conflict, a lost session)
 | `actionLabel` | No | The label of one action button |
 | `actionMethod` | No | The Livewire method the button calls. Pass it with `actionLabel`. |
 
+Include it only while the failure applies. Here `$conflict` is a property the save handler sets when the save fails and clears when it succeeds:
+
 ```blade
-@include( 'ecommerce-admin::partials.error-summary', [
-    'failure'            => __( 'Someone else changed this order.' ),
-    'failureDescription' => __( 'Reload it to see their changes, then try again.' ),
-    'actionLabel'        => __( 'Reload order' ),
-    'actionMethod'       => 'reload',
-] )
+@if ( $conflict )
+    @include( 'ecommerce-admin::partials.error-summary', [
+        'failure'            => __( 'Someone else changed this order.' ),
+        'failureDescription' => __( 'Reload it to see their changes, then try again.' ),
+        'actionLabel'        => __( 'Reload order' ),
+        'actionMethod'       => 'reload',
+    ] )
+@endif
 ```
 
 > **Warning:** The 1.x `message` parameter is gone. An included view inherits the parent's variables, and `@error` leaves a `$message` behind, so it showed by accident. Pass `failure` instead.

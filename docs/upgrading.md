@@ -62,7 +62,7 @@ If you allowed `cdnjs.cloudflare.com` in your Content Security Policy for the te
 
 ### Re-publish published views
 
-Views published from 1.x use daisyUI classes and 1.x components. Re-publish the ones you changed and apply your edits again:
+Views published from 1.x use daisyUI classes and 1.x components. Commit or back up `resources/views/vendor/ecommerce-admin` first, because `--force` overwrites your edits. Then re-publish and apply your edits again from that copy:
 
 ```bash
 php artisan vendor:publish --tag=ecommerce-admin-views --force
@@ -82,7 +82,7 @@ A custom layout must now use `<x-artisanpack-toaster />` instead of `<x-artisanp
 | `ReportPresenter::chartOptions()` is removed. The report chart is drawn by the admin. | Use `ReportPresenter::plot()` (over-time series), `bars()` (ranked reports), and `tone()` (whether a change is good news). |
 | `Promotions\Index::usesLabel()` is removed. | The Uses column renders "used / limit" itself. |
 | Status badge, timeline, and navigation colours are design-system colours, not daisyUI names. | `ap.ecommerceAdminLivewire.statusBadge` colours are `neutral`, `primary`, `secondary`, `accent`, `info`, `success`, `warning`, or `error`. |
-| Timeline icons are design-system (Lucide) names. | Return names such as `gift` from `ap.ecommerceAdminLivewire.timeline.entry`. Navigation and palette icons still accept Heroicon names (`o-gift`) and map them. |
+| Timeline icons are design-system (Lucide) names. | Return names such as `gift` from `ap.ecommerceAdminLivewire.timeline.entry`. Navigation and palette icons still accept the Heroicon names in the admin's icon map (such as `o-truck`) and map them. Any other Heroicon name passes through unchanged, so switch it to a Lucide name. |
 
 ### Wording and export changes
 

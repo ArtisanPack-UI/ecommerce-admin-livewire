@@ -82,6 +82,8 @@ The admin renders on the ArtisanPack UI design system. The package ships no CSS 
 
    @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/resources/views/**/*.blade.php";
    @source "../../vendor/artisanpack-ui/ecommerce-admin-livewire/src/**/*.php";
+   @source "../../vendor/artisanpack-ui/livewire-ui-components/resources/views/**/*.php";
+   @source "../../vendor/artisanpack-ui/livewire-ui-components/src/**/*.php";
    ```
 
 3. Register the behavior engine and drag-and-drop in `resources/js/app.js`:

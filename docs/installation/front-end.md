@@ -118,8 +118,10 @@ Vite::useCspNonce();
 
 $nonce = Vite::cspNonce();
 
-$response->headers->set( 'Content-Security-Policy', "script-src 'nonce-{$nonce}' 'strict-dynamic'; style-src 'self' 'nonce-{$nonce}'" );
+$response->headers->set( 'Content-Security-Policy', "script-src 'nonce-{$nonce}' 'strict-dynamic' 'unsafe-eval'; style-src 'self' 'nonce-{$nonce}'" );
 ```
+
+A nonce covers script and style tags, but not the expressions in `wire:` and `x-` attributes. Livewire and Alpine evaluate those with `new Function()`, which a policy blocks unless `script-src` allows `'unsafe-eval'`. Without it, buttons, drawers, and forms stop responding. Livewire 4 has a `csp_safe` option that avoids `'unsafe-eval'`, but it only supports simple expressions, and the admin isn't tested with it, so keep `'unsafe-eval'` for admin pages.
 
 Without a nonce, the scripts and styles render without one. The notification template editor uses the component library's code editor, so the admin no longer loads anything from a CDN.
 

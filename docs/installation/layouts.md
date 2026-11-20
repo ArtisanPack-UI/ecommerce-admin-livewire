@@ -48,11 +48,13 @@ Publish the views and change `@extends( $ecommerceAdminLayout )` in the page vie
 
 - `@yield( 'title' )` and `@yield( 'content' )`;
 - `@stack( 'styles' )` and `@stack( 'scripts' )`;
-- `@apuiThemeScript` in the `<head>`, and `@include( 'ecommerce-admin::partials.styles' )` for the admin's inline styles;
+- `@apuiThemeScript` in the `<head>`, then `@include( 'ecommerce-admin::partials.vite-assets' )` (or your own `@vite` entries) and `@include( 'ecommerce-admin::partials.styles' )`, before `@livewireStyles`. Without the Vite entries, the admin renders unstyled and its controls don't respond;
 - `@livewireStyles` and `@livewireScripts`;
 - `@include( 'ecommerce-admin::partials.spotlight-button' )` where the palette's Search button should go;
 - `@include( 'ecommerce-admin::partials.accessibility' )` and `@include( 'ecommerce-admin::partials.rate-limit-notice' )`, plus `<x-artisanpack-toaster />`.
 
 Without the accessibility partial, reorder announcements and focus return stop working. Without the rate-limit notice, a throttled action fails silently.
+
+When `cms-framework` is installed, every admin page pushes these pieces itself, whatever layout it extends: the Vite entries, the inline styles, and the Livewire styles onto `styles`; the toaster, the Livewire scripts, and the accessibility and rate-limit partials onto `scripts`; and the Search button above the page. In that case your layout provides only the yields, the stacks, and `@apuiThemeScript`. Including the pushed pieces as well renders them twice.
 
 > **Note:** Layouts published from 1.x include `partials.spotlight` after the page and `<x-artisanpack-toast />`. Since 2.0, `partials.spotlight` renders nothing (the palette renders with its button) and toasts are a `toast` browser event shown by `<x-artisanpack-toaster>`. Re-publish the layout, or make the changes above.
